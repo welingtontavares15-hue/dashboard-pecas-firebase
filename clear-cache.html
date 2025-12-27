@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - Dashboard Diversey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #004999 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #0066cc;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f0f7ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        
+        .warning-box p {
+            color: #856404;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0052a3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .status-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .icon {
+            font-size: 20px;
+        }
+        
+        .links {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .links a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Utilitário de Limpeza</h1>
+            <p class="subtitle">Dashboard de Solicitações de Peças - Diversey</p>
+        </div>
+        
+        <div class="info-box">
+            <p><strong>Quando usar esta ferramenta?</strong></p>
+            <p>Use esta página se você está tendo problemas para fazer login ou se o sistema não está funcionando corretamente. Esta ferramenta limpa todos os dados salvos localmente no seu navegador.</p>
+        </div>
+        
+        <div class="warning-box">
+            <p><strong>⚠️ Atenção:</strong> Esta ação irá remover todos os dados salvos localmente, incluindo sua sessão atual. Você precisará fazer login novamente.</p>
+        </div>
+        
+        <div id="status-message" class="status-message"></div>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="clearCache()">
+                <span class="icon">🗑️</span>
+                <span>Limpar Cache e Dados Locais</span>
+            </button>
+            
+            <button class="btn-secondary" onclick="clearAuthOnly()">
+                <span class="icon">🔓</span>
+                <span>Limpar Apenas Sessão de Login</span>
+            </button>
+            
+            <button class="btn-success" onclick="goToLogin()">
+                <span class="icon">🏠</span>
+                <span>Voltar para o Login</span>
+            </button>
+        </div>
+        
+        <div class="links">
+            <p><a href="CREDENCIAIS.md" target="_blank">📋 Ver Credenciais de Acesso</a></p>
+        </div>
+    </div>
+    
+    <script>
+        function showMessage(message, type = 'success') {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.className = 'status-message status-' + type;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        function clearCache() {
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                // Try to clear IndexedDB
+                if (window.indexedDB) {
+                    indexedDB.databases().then(databases => {
+                        databases.forEach(db => {
+                            indexedDB.deleteDatabase(db.name);
+                        });
+                    }).catch(() => {
+                        // Fallback for browsers that don't support indexedDB.databases()
+                        const dbNames = ['diversey_cache', 'diversey_db'];
+                        dbNames.forEach(name => {
+                            try {
+                                indexedDB.deleteDatabase(name);
+                            } catch (e) {
+                                console.warn('Could not delete database:', name);
+                            }
+                        });
+                    });
+                }
+                
+                showMessage('✅ Cache e dados locais limpos com sucesso! Você pode fazer login novamente.', 'success');
+                
+                // Optionally redirect after a delay
+                setTimeout(() => {
+                    if (confirm('Deseja ir para a página de login agora?')) {
+                        window.location.href = 'index.html';
+                    }
+                }, 2000);
+            } catch (error) {
+                showMessage('❌ Erro ao limpar cache: ' + error.message, 'info');
+            }
+        }
+        
+        function clearAuthOnly() {
+            try {
+                // Clear only authentication-related data
+                const keysToRemove = [
+                    'diversey_current_user',
+                    'diversey_auth_logs',
+                    'diversey_auth_attempts',
+                    'diversey_gestor_recovery_password'
+                ];
+                
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    sessionStorage.removeItem(key);
+                });
+                
+                showMessage('✅ Sessão de login limpa com sucesso! Você pode tentar fazer login novamente.', 'success');
+            } catch (error) {
+                showMessage('❌ Erro ao limpar sessão: ' + error.message, 'info');
+            }
+        }
+        
+        function goToLogin() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
