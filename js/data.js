@@ -768,11 +768,8 @@ const DataManager = {
 
     // ===== USERS =====
     async getDefaultUsers() {
-        const allowSeedCredentials = (typeof APP_CONFIG === 'undefined') || !APP_CONFIG.isProduction();
-        if (!allowSeedCredentials) {
-            return [];
-        }
-        
+        // In production mode, we still need to seed essential users on first initialization
+        // This ensures admin, gestor, and technician accounts exist for initial access
         const technicians = this.getDefaultTechnicians();
         const gestorPassword = this.getGestorPassword();
         const canonicalGestorUsername = 'gestor';
