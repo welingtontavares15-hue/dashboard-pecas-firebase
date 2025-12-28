@@ -287,8 +287,12 @@ const CloudStorage = {
      * @returns {Array} Merged user list
      */
     mergeUsers(localUsers, cloudUsers) {
-        if (!Array.isArray(localUsers)) localUsers = [];
-        if (!Array.isArray(cloudUsers)) cloudUsers = [];
+        if (!Array.isArray(localUsers)) {
+            localUsers = [];
+        }
+        if (!Array.isArray(cloudUsers)) {
+            cloudUsers = [];
+        }
 
         // Create maps by user ID for efficient lookup
         const userMap = new Map();
@@ -302,7 +306,9 @@ const CloudStorage = {
 
         // Merge local users using last-write-wins based on updatedAt
         localUsers.forEach(user => {
-            if (!user || !user.id) return;
+            if (!user || !user.id) {
+                return;
+            }
 
             const existingUser = userMap.get(user.id);
             if (!existingUser) {
