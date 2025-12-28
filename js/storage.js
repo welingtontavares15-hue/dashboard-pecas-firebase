@@ -192,7 +192,15 @@ const CloudStorage = {
      * Does not persist locally; data is loaded into DataManager session cache.
      */
     async syncFromCloud() {
+        // Early return if cloud is not initialized - this is not an error, just not ready yet
         if (!this.isInitialized || !this.database) {
+            console.debug('CloudStorage not initialized, skipping sync');
+            return;
+        }
+
+        // Validate DataManager is available and has session cache
+        if (typeof DataManager === 'undefined' || !DataManager._sessionCache) {
+            console.warn('DataManager not initialized, skipping sync');
             return;
         }
 
@@ -216,11 +224,9 @@ const CloudStorage = {
                     
                     if (entry && entry.data !== undefined) {
                         // Online-only mode: Update DataManager session cache directly
-                        if (typeof DataManager !== 'undefined' && DataManager._sessionCache) {
-                            DataManager._sessionCache[originalKey] = entry.data;
-                            keysUpdated++;
-                            console.log(`Synced from cloud to session: ${originalKey}`);
-                        }
+                        DataManager._sessionCache[originalKey] = entry.data;
+                        keysUpdated++;
+                        console.log(`Synced from cloud to session: ${originalKey}`);
                     }
                 }
                 
@@ -231,15 +237,23 @@ const CloudStorage = {
                         keysUpdated
                     });
                 }
+            } else {
+                // No cloud data is not an error, just log info
+                console.log('Cloud sync completed: no data in cloud');
+                if (typeof Logger !== 'undefined') {
+                    Logger.logSync('sync_complete', { 
+                        direction: 'cloud_to_session',
+                        keysUpdated: 0
+                    });
+                }
             }
-            
-            console.log('Cloud sync completed');
         } catch (error) {
-            // Log sync failure
+            // Log sync failure only for actual errors (not initialization issues)
             if (typeof Logger !== 'undefined') {
                 Logger.logSync('sync_failed', { 
                     direction: 'cloud_to_session',
-                    error: error?.message || 'unknown'
+                    error: error?.message || 'unknown',
+                    errorCode: error?.code || 'unknown'
                 });
             }
             console.error('Error syncing from cloud:', error);
