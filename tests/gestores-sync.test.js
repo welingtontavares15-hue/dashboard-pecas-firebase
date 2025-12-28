@@ -289,13 +289,14 @@ describe('Cloud merge pushes local gestores to cloud', () => {
         const now = Date.now();
         const localOnlyUser = { id: 'local-1', username: 'novo.gestor', updatedAt: now };
         const cloudUser = { id: 'cloud-1', username: 'gestor.cloud', updatedAt: now - 1000 };
+        const cloudSnapshot = { diversey_users: { data: [cloudUser] } };
 
         // Prepare environment
         DataManager._sessionCache[DataManager.KEYS.USERS] = [localOnlyUser];
         CloudStorage.isInitialized = true;
         CloudStorage.database = {};
         global.FirebaseInit.getRef = (path) => path;
-        const getMock = jest.fn(async () => ({ val: () => ({ diversey_users: { data: [cloudUser] } }) }));
+        const getMock = jest.fn(async () => ({ val: () => cloudSnapshot }));
         window.firebaseModules.get = getMock;
 
         const saveSpy = jest.spyOn(CloudStorage, 'saveData').mockResolvedValue(true);

@@ -19,7 +19,11 @@ const __dirname = path.dirname(__filename);
 
 const args = process.argv.slice(2);
 const APPLY_MODE = args.includes('--apply');
-const DRY_RUN = !APPLY_MODE || args.includes('--dry-run');
+const EXPLICIT_DRY_RUN = args.includes('--dry-run');
+if (APPLY_MODE && EXPLICIT_DRY_RUN) {
+    throw new Error('Escolha apenas um modo: utilize --apply OU --dry-run.');
+}
+const DRY_RUN = EXPLICIT_DRY_RUN || !APPLY_MODE;
 const WINDOW_HOURS = parseInt((args.find((a) => a.startsWith('--window-hours=')) || '').split('=')[1], 10) || 24;
 const NOW = Date.now();
 const WINDOW_MS = WINDOW_HOURS * 60 * 60 * 1000;
@@ -46,11 +50,13 @@ function loadCredential() {
 
 function initFirebase() {
     const databaseURL = process.env.DATABASE_URL ||
-        process.env.URL_DO_BANCO_DE_DADOS_FIREBASE ||
-        'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com';
+        process.env.URL_DO_BANCO_DE_DADOS_FIREBASE;
+    if (!databaseURL) {
+        throw new Error('Informe DATABASE_URL ou URL_DO_BANCO_DE_DADOS_FIREBASE para evitar uso acidental do ambiente errado.');
+    }
     const credential = loadCredential();
     if (!credential) {
-        throw new Error('Credenciais do Firebase não encontradas. Forneça GOOGLE_APPLICATION_CREDENTIALS ou FIREBASE_SERVICE_ACCOUNT_BASE64.');
+        throw new Error('Credenciais do Firebase não encontradas. Configure as credenciais de serviço antes de executar a limpeza.');
     }
 
     const app = initializeApp({
@@ -158,8 +164,8 @@ async function scanAndClean(db) {
             continue;
         }
 
-        const keepSet = new Set(matches.map((m) => m.index));
-        const cleaned = list.filter((_, idx) => !keepSet.has(idx));
+        const deleteSet = new Set(matches.map((m) => m.index));
+        const cleaned = list.filter((_, idx) => !deleteSet.has(idx));
         await ref.child('data').set(cleaned);
         log(`> Removidos ${matches.length} registros de ${target.label}.`);
     }

@@ -246,12 +246,9 @@ const CloudStorage = {
                             keysUpdated++;
                             console.log(`Merged users from cloud to session: ${mergedUsers.length} total users`);
                             if (needsCloudUpdate) {
-                                try {
-                                    await this.saveData(originalKey, mergedUsers);
-                                    console.log('Pushed merged users back to cloud to preserve local additions');
-                                } catch (pushErr) {
-                                    console.warn('Failed to push merged users to cloud', pushErr);
-                                }
+                                this.saveData(originalKey, mergedUsers)
+                                    .then(() => console.log('Pushed merged users back to cloud to preserve local additions'))
+                                    .catch((pushErr) => console.warn('Failed to push merged users to cloud', pushErr));
                             }
                         } else {
                             // For other data types, use direct replacement
@@ -368,7 +365,7 @@ const CloudStorage = {
                 return false;
             }
             const cloudUpdated = cloudMap.get(u.id);
-            return cloudUpdated === undefined || (u.updatedAt || 0) !== cloudUpdated;
+            return cloudUpdated === undefined || (u.updatedAt || 0) !== (cloudUpdated || 0);
         });
     },
 
