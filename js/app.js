@@ -3,6 +3,8 @@
  * Orchestrates the entire application
  */
 
+const CHART_INIT_DELAY_MS = 100;
+
 const App = {
     currentPage: null,
 
@@ -135,6 +137,11 @@ const App = {
         
         // Handle mobile sidebar
         this.handleMobileSidebar();
+
+        // Data update events refresh only the active view without navigation
+        window.addEventListener('data:updated', (event) => {
+            this.refreshActiveView(event?.detail?.keys || []);
+        });
     },
 
     /**
@@ -365,7 +372,7 @@ const App = {
                     
             case 'relatorios':
                 Relatorios.render();
-                setTimeout(() => Relatorios.initCharts(), 100);
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
                 break;
                     
             case 'configuracoes':
@@ -1027,12 +1034,86 @@ const App = {
     },
 
     /**
+     * Refresh only the active view when data changes without altering navigation
+     */
+    refreshActiveView(updatedKeys = []) {
+        const keys = Array.isArray(updatedKeys) ? updatedKeys : [];
+        const shouldUpdate = (...expectedKeys) => {
+            if (!expectedKeys.length || !keys.length) {
+                return true;
+            }
+            return expectedKeys.some(key => keys.includes(key));
+        };
+
+        switch (this.currentPage) {
+        case 'dashboard':
+            if (typeof Dashboard !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Dashboard.render();
+            }
+            break;
+        case 'solicitacoes':
+        case 'minhas-solicitacoes':
+            if (typeof Solicitacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Solicitacoes.render();
+            }
+            break;
+        case 'aprovacoes':
+            if (typeof Aprovacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Aprovacoes.render();
+            }
+            break;
+        case 'pecas':
+        case 'catalogo':
+            if (typeof Pecas !== 'undefined' && shouldUpdate(DataManager?.KEYS?.PARTS)) {
+                Pecas.render();
+            }
+            break;
+        case 'relatorios':
+            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Relatorios.render();
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+            }
+            break;
+        case 'tecnicos':
+            if (typeof Tecnicos !== 'undefined' && shouldUpdate(DataManager?.KEYS?.TECHNICIANS)) {
+                Tecnicos.render();
+            }
+            break;
+        case 'fornecedores':
+            if (typeof Fornecedores !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SUPPLIERS)) {
+                Fornecedores.render();
+            }
+            break;
+        case 'configuracoes':
+            if (shouldUpdate(DataManager?.KEYS?.SETTINGS, DataManager?.KEYS?.USERS)) {
+                this.renderConfiguracoes();
+            }
+            break;
+        default:
+            break;
+        }
+
+        if (typeof Auth !== 'undefined' && typeof Auth.renderMenu === 'function' && this.currentPage) {
+            Auth.renderMenu(this.currentPage);
+        }
+    },
+
+    /**
      * Sync data with cloud storage
      */
     async syncData() {
         const syncBtn = document.getElementById('sync-btn');
         if (syncBtn) {
             syncBtn.classList.add('rotating');
+        }
+
+        const emitSyncStatus = (state, error = null) => {
+            window.dispatchEvent(new CustomEvent('sync:status', { detail: { state, error } }));
+        };
+
+        emitSyncStatus('start');
+        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+            Utils.showToast('Sincronizando...', 'info');
         }
         
         try {
@@ -1041,17 +1122,29 @@ const App = {
                 : false;
 
             if (synced) {
-                Utils.showToast('Dados sincronizados com sucesso', 'success');
+                emitSyncStatus('done');
+                window.dispatchEvent(new CustomEvent('data:updated', {
+                    detail: {
+                        keys: Object.values((DataManager && DataManager.KEYS) || {})
+                    }
+                }));
+                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                    Utils.showToast('Sincronizado', 'success');
+                }
+                this.refreshActiveView();
             } else {
-                Utils.showToast('Sincronização em nuvem não disponível', 'warning');
+                emitSyncStatus('error');
+                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                    Utils.showToast('Sincronização em nuvem não disponível', 'warning');
+                }
             }
 
-            // Refresh current page
-            this.renderPage(this.currentPage);
-            Auth.renderMenu(this.currentPage);
         } catch (error) {
             console.error('Sync error:', error);
-            Utils.showToast('Erro ao sincronizar dados', 'error');
+            emitSyncStatus('error', error);
+            if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                Utils.showToast('Erro ao sincronizar dados', 'error');
+            }
         } finally {
             if (syncBtn) {
                 syncBtn.classList.remove('rotating');
