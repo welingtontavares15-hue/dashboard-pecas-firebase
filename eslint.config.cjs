@@ -34,9 +34,18 @@ module.exports = [
                 OneDriveIntegration: 'writable',
                 SheetIntegration: 'writable',
                 Logger: 'writable',
+                FirebaseInit: 'writable',
                 // Runtime configuration
                 APP_CONFIG: 'readonly',
-                __ENVIRONMENT__: 'readonly'
+                __ENVIRONMENT__: 'readonly',
+                // Firebase environment variables (optional overrides)
+                FIREBASE_API_KEY: 'readonly',
+                FIREBASE_AUTH_DOMAIN: 'readonly',
+                FIREBASE_DATABASE_URL: 'readonly',
+                FIREBASE_PROJECT_ID: 'readonly',
+                FIREBASE_STORAGE_BUCKET: 'readonly',
+                FIREBASE_MESSAGING_SENDER_ID: 'readonly',
+                FIREBASE_APP_ID: 'readonly'
             }
         },
         rules: {
