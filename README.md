@@ -113,6 +113,10 @@ npm run lint:check    # Apenas verificar problemas
 # Healthcheck Firebase
 npm run healthcheck       # Informações de configuração
 npm run healthcheck:web   # Teste completo via navegador
+
+# Limpeza de Dados de Teste (Requer firebase-admin)
+npm run cleanup:dry-run   # Listar dados de teste (sem deletar)
+npm run cleanup:apply     # Deletar dados de teste do RTDB
 ```
 
 ## 📖 Passo a Passo de Configuração
@@ -215,6 +219,20 @@ A aplicação usa **Firebase Anonymous Authentication**:
 }
 ```
 
+### Proteção de Credenciais
+
+**NUNCA comite credenciais no repositório:**
+
+O `.gitignore` está configurado para bloquear:
+- `serviceAccountKey.json` - Chaves de service account
+- `*-firebase-adminsdk-*.json` - Chaves Firebase Admin SDK
+- `.env`, `.env.local` - Arquivos de ambiente
+- `.firebase/` - Configurações locais do Firebase
+
+**Credenciais de Cliente vs Servidor:**
+- ✅ **Públicas (Cliente)**: API Key, App ID (já no código frontend)
+- ❌ **Privadas (Servidor)**: Service Account Keys (NUNCA expor)
+
 ### Considerações para Produção
 
 Para ambientes de produção, considere:
@@ -224,6 +242,139 @@ Para ambientes de produção, considere:
 3. **Firebase App Check**: Proteger contra clientes não autorizados
 4. **Monitoramento**: Configurar alertas de uso e quotas
 5. **Backups**: Implementar backups automatizados regulares
+6. **Limpeza Regular**: Executar `npm run cleanup:dry-run` periodicamente
+
+## 🧹 Limpeza de Dados de Teste
+
+### Script de Limpeza Automática
+
+Para ambientes de produção, é importante remover dados de teste que podem ter sido criados durante desenvolvimento e testes.
+
+O script `cleanup-test-data.js` identifica e remove automaticamente:
+- Solicitações marcadas como teste (source="test", isTest=true)
+- Dados criados por healthcheck (createdBy="healthcheck")
+- Registros com "TEST" no id ou número
+- Nó `/data/healthcheck` (artefatos de teste)
+- Arquivos de export de teste
+
+**⚠️ IMPORTANTE**: O script usa `firebase-admin` (SDK do servidor) e requer credenciais de service account.
+
+### Variáveis de Ambiente para Cleanup
+
+```bash
+# Obrigatório: URL do banco de dados
+export DATABASE_URL="https://solicitacoes-de-pecas-default-rtdb.firebaseio.com"
+# OU
+export URL_DO_BANCO_DE_DADOS_FIREBASE="https://..."
+
+# Credenciais (escolha uma opção):
+
+# Opção 1: Caminho para arquivo JSON (recomendado)
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/serviceAccountKey.json"
+
+# Opção 2: Service account como base64 (para CI/CD)
+export FIREBASE_SERVICE_ACCOUNT_BASE64="<base64_encoded_json>"
+```
+
+### Uso do Script
+
+**Passo 1: Modo Dry-Run (Apenas Listar)**
+
+Sempre execute primeiro em modo dry-run para ver o que será deletado:
+
+```bash
+npm run cleanup:dry-run
+```
+
+Ou diretamente:
+
+```bash
+node scripts/cleanup-test-data.js
+```
+
+Isso irá:
+- ✅ Conectar ao Firebase RTDB
+- ✅ Escanear dados de teste
+- ✅ Listar tudo que seria deletado
+- ❌ NÃO deletar nada
+
+**Passo 2: Executar Limpeza (Apply)**
+
+Após revisar a lista, execute a limpeza real:
+
+```bash
+npm run cleanup:apply
+```
+
+Ou diretamente:
+
+```bash
+node scripts/cleanup-test-data.js --apply
+```
+
+### Exemplo de Saída
+
+```
+============================================================
+Firebase RTDB Test Data Cleanup
+============================================================
+
+⚠ RUNNING IN DRY-RUN MODE
+ℹ No data will be deleted. Use --apply to actually delete data.
+
+ℹ Using service account from: /path/to/serviceAccountKey.json
+ℹ Database URL: https://solicitacoes-de-pecas-default-rtdb.firebaseio.com
+
+✓ Firebase Admin initialized successfully
+ℹ Scanning for test data...
+
+Checking /data/diversey_solicitacoes...
+⚠ Found 3 test solicitation(s)
+  - Index 0: TEST-001
+  - Index 5: SOL-TEST-123
+  - Index 12: HEALTHCHECK-999
+
+Checking /data/healthcheck...
+⚠ Found healthcheck data node
+  - Keys: timestamp, status, message
+
+Checking /data/diversey_export_files...
+✓ No test export files found
+
+============================================================
+SCAN SUMMARY
+============================================================
+
+ℹ Test solicitations: 3
+ℹ Healthcheck data: 1
+ℹ Test export files: 0
+ℹ Total items to clean: 4
+
+⚠ To actually delete this data, run:
+  node scripts/cleanup-test-data.js --apply
+```
+
+### Segurança
+
+**NUNCA comite as credenciais:**
+
+```bash
+# .gitignore já inclui:
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+.env
+.env.local
+```
+
+**Para CI/CD:**
+- Use variável de ambiente `FIREBASE_SERVICE_ACCOUNT_BASE64`
+- Armazene como secret no GitHub Actions/GitLab CI
+- O script decodifica automaticamente
+
+**Para desenvolvimento local:**
+- Use `GOOGLE_APPLICATION_CREDENTIALS` apontando para arquivo JSON
+- Mantenha o arquivo fora do repositório
+- Configure em `.env.local` (não versionado)
 
 ## 🐛 Troubleshooting
 
