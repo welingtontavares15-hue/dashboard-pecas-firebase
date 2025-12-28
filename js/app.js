@@ -3,6 +3,8 @@
  * Orchestrates the entire application
  */
 
+const CHART_INIT_DELAY_MS = 100;
+
 const App = {
     currentPage: null,
 
@@ -370,7 +372,7 @@ const App = {
                     
             case 'relatorios':
                 Relatorios.render();
-                setTimeout(() => Relatorios.initCharts(), 100);
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
                 break;
                     
             case 'configuracoes':
@@ -1034,48 +1036,58 @@ const App = {
     /**
      * Refresh only the active view when data changes without altering navigation
      */
-    refreshActiveView() {
+    refreshActiveView(updatedKeys = []) {
+        const keys = Array.isArray(updatedKeys) ? updatedKeys : [];
+        const shouldUpdate = (...expectedKeys) => {
+            if (!expectedKeys.length || !keys.length) {
+                return true;
+            }
+            return expectedKeys.some(key => keys.includes(key));
+        };
+
         switch (this.currentPage) {
         case 'dashboard':
-            if (typeof Dashboard !== 'undefined') {
+            if (typeof Dashboard !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
                 Dashboard.render();
             }
             break;
         case 'solicitacoes':
         case 'minhas-solicitacoes':
-            if (typeof Solicitacoes !== 'undefined') {
+            if (typeof Solicitacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
                 Solicitacoes.render();
             }
             break;
         case 'aprovacoes':
-            if (typeof Aprovacoes !== 'undefined') {
+            if (typeof Aprovacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
                 Aprovacoes.render();
             }
             break;
         case 'pecas':
         case 'catalogo':
-            if (typeof Pecas !== 'undefined') {
+            if (typeof Pecas !== 'undefined' && shouldUpdate(DataManager?.KEYS?.PARTS)) {
                 Pecas.render();
             }
             break;
         case 'relatorios':
-            if (typeof Relatorios !== 'undefined') {
+            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
                 Relatorios.render();
-                setTimeout(() => Relatorios.initCharts(), 100);
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
             }
             break;
         case 'tecnicos':
-            if (typeof Tecnicos !== 'undefined') {
+            if (typeof Tecnicos !== 'undefined' && shouldUpdate(DataManager?.KEYS?.TECHNICIANS)) {
                 Tecnicos.render();
             }
             break;
         case 'fornecedores':
-            if (typeof Fornecedores !== 'undefined') {
+            if (typeof Fornecedores !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SUPPLIERS)) {
                 Fornecedores.render();
             }
             break;
         case 'configuracoes':
-            this.renderConfiguracoes();
+            if (shouldUpdate(DataManager?.KEYS?.SETTINGS, DataManager?.KEYS?.USERS)) {
+                this.renderConfiguracoes();
+            }
             break;
         default:
             break;
