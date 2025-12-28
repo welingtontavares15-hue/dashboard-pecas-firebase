@@ -47,7 +47,10 @@ Sistema web/PWA offline-first para gerenciamento de solicitações de peças com
    npx http-server -p 8080
    
    # Abrir no navegador
-   open http://localhost:8080
+   # macOS: open http://localhost:8080
+   # Windows: start http://localhost:8080
+   # Linux: xdg-open http://localhost:8080
+   # Ou abra manualmente: http://localhost:8080
    ```
 
 ## 📋 Variáveis de Ambiente
@@ -66,6 +69,8 @@ FIREBASE_STORAGE_BUCKET="solicitacoes-de-pecas.firebasestorage.app"
 FIREBASE_MESSAGING_SENDER_ID="782693023312"
 FIREBASE_APP_ID="1:782693023312:web:f22340c11c8c96cd4e9b55"
 ```
+
+> **Nota de Segurança**: Firebase API keys são seguras para exposição em aplicações client-side. A segurança é garantida através das Firebase Security Rules no servidor. Para produção, certifique-se de que as regras de segurança estão adequadamente configuradas.
 
 ### Estrutura do Banco de Dados
 
@@ -143,13 +148,16 @@ Mostra informações de configuração e troubleshooting.
 
 ### 3. Login na Aplicação
 
-Credenciais padrão para teste (ambiente de desenvolvimento):
+> **⚠️ IMPORTANTE - Segurança de Credenciais**:
+> - Credenciais padrão existem apenas para desenvolvimento e testes locais
+> - **NUNCA** use credenciais padrão em produção
+> - Para obter acesso, contate o administrador do sistema
+> - Consulte o arquivo `CREDENCIAIS.md` (não versionado) para credenciais de ambiente específicas
 
-- **Administrador**: `admin` / `admin`
-- **Gestor**: `gestor` / (senha gerada automaticamente)
-- **Técnico**: Usar credenciais específicas do técnico
-
-> **Produção**: Em produção, as credenciais devem ser gerenciadas pelo administrador. Não use credenciais padrão.
+**Ambiente de Produção**:
+- Credenciais devem ser provisionadas pelo administrador
+- Sistema de gerenciamento de usuários está disponível para gestores
+- Todas as credenciais usam hash SHA-256 para segurança
 
 ### 4. Estrutura da Aplicação
 
