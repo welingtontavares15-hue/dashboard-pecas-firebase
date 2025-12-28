@@ -11,8 +11,10 @@
     "lint:check": "eslint js/*.js",
     "healthcheck": "node healthcheck.js",
     "healthcheck:web": "npx http-server -p 8080 -o /firebase-healthcheck.html",
-    "cleanup:dry-run": "node scripts/cleanup-test-data.js",
-    "cleanup:apply": "node scripts/cleanup-test-data.js --apply"
+    "cleanup:dry-run": "node scripts/cleanup-test-data.mjs --dry-run",
+    "cleanup:apply": "node scripts/cleanup-test-data.mjs --apply",
+    "cleanup:test:dry": "node scripts/cleanup-test-data.mjs --dry-run",
+    "cleanup:test": "node scripts/cleanup-test-data.mjs --apply"
   },
   "keywords": [
     "pwa",

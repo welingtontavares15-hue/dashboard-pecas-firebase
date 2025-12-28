@@ -117,7 +117,11 @@ npm run healthcheck:web   # Teste completo via navegador
 # Limpeza de Dados de Teste (Requer firebase-admin)
 npm run cleanup:dry-run   # Listar dados de teste (sem deletar)
 npm run cleanup:apply     # Deletar dados de teste do RTDB
+npm run cleanup:test:dry  # Nova limpeza (dry-run) com critérios por status/source/descricao
+npm run cleanup:test      # Aplicar remoção segura de dados de teste
 ```
+
+> As rotinas de limpeza requerem credenciais de service account via `GOOGLE_APPLICATION_CREDENTIALS` ou `FIREBASE_SERVICE_ACCOUNT_BASE64` (não comitar esse arquivo/variável).
 
 ## 📖 Passo a Passo de Configuração
 

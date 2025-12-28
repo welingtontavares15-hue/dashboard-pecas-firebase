@@ -126,13 +126,16 @@ const CloudStorage = {
         const opId = (data && data.opId) || this.generateOpId(key);
         
         // Ensure Firebase is authenticated and initialized
-        if (!FirebaseInit.isReady()) {
+        if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.isReady !== 'function' || !FirebaseInit.isReady()) {
             console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
             return false;
         }
 
         // Online-only mode: Require cloud connection (optimized check order)
-        if (!this.isInitialized || !this.database || !FirebaseInit.isRTDBConnected()) {
+        if (!this.isInitialized || !this.database ||
+            typeof FirebaseInit === 'undefined' ||
+            typeof FirebaseInit.isRTDBConnected !== 'function' ||
+            !FirebaseInit.isRTDBConnected()) {
             console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
             return false;
         }
@@ -165,7 +168,7 @@ const CloudStorage = {
      */
     async loadData(key) {
         // Online-only mode: Load from cloud only
-        if (this.isInitialized && this.database && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected()) {
+        if (this.isInitialized && this.database && typeof FirebaseInit !== 'undefined' && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected()) {
             try {
                 const { get } = window.firebaseModules;
                 const sanitizedKey = this.sanitizeKey(key);
@@ -200,7 +203,7 @@ const CloudStorage = {
         }
 
         // Ensure Firebase is authenticated
-        if (!FirebaseInit.isReady()) {
+        if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.isReady !== 'function' || !FirebaseInit.isReady()) {
             console.debug('Firebase not authenticated, skipping sync');
             return;
         }
@@ -238,9 +241,15 @@ const CloudStorage = {
                             const localUsers = DataManager._sessionCache[originalKey] || [];
                             const cloudUsers = entry.data;
                             const mergedUsers = this.mergeUsers(localUsers, cloudUsers);
+                            const needsCloudUpdate = this.usersNeedCloudUpdate(cloudUsers, mergedUsers);
                             DataManager._sessionCache[originalKey] = mergedUsers;
                             keysUpdated++;
                             console.log(`Merged users from cloud to session: ${mergedUsers.length} total users`);
+                            if (needsCloudUpdate) {
+                                this.saveData(originalKey, mergedUsers)
+                                    .then(() => console.log('Pushed merged users back to cloud to preserve local additions'))
+                                    .catch((pushErr) => console.warn('Failed to push merged users to cloud', pushErr));
+                            }
                         } else {
                             // For other data types, use direct replacement
                             DataManager._sessionCache[originalKey] = entry.data;
@@ -332,6 +341,32 @@ const CloudStorage = {
         });
 
         return Array.from(userMap.values());
+    },
+
+    /**
+     * Determine if merged users differ from cloud snapshot and need to be written back.
+     * Uses length and updatedAt comparison to avoid unnecessary writes.
+     */
+    usersNeedCloudUpdate(cloudUsers, mergedUsers) {
+        if (!Array.isArray(cloudUsers) || !Array.isArray(mergedUsers)) {
+            return false;
+        }
+        if (cloudUsers.length !== mergedUsers.length) {
+            return true;
+        }
+        const cloudMap = new Map();
+        cloudUsers.forEach(u => {
+            if (u && u.id) {
+                cloudMap.set(u.id, u.updatedAt || 0);
+            }
+        });
+        return mergedUsers.some(u => {
+            if (!u || !u.id) {
+                return false;
+            }
+            const cloudUpdated = cloudMap.get(u.id);
+            return cloudUpdated === undefined || (u.updatedAt || 0) !== (cloudUpdated || 0);
+        });
     },
 
     /**
@@ -506,7 +541,10 @@ const CloudStorage = {
      */
     isCloudAvailable() {
         // Use centralized connection state from FirebaseInit
-        return this.isInitialized && FirebaseInit.isRTDBConnected();
+        return this.isInitialized &&
+            typeof FirebaseInit !== 'undefined' &&
+            typeof FirebaseInit.isRTDBConnected === 'function' &&
+            FirebaseInit.isRTDBConnected();
     },
 
     /**
