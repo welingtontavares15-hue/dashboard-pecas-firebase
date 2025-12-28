@@ -353,7 +353,7 @@ const DataManager = {
             
             window.addEventListener('online', () => {
                 this._isOnline = true;
-                console.log('[ONLINE-ONLY] Connection restored');
+                console.log('[ONLINE-ONLY] Browser connection restored');
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
                     Utils.showToast('Conexão restabelecida', 'success');
                 }
@@ -361,9 +361,26 @@ const DataManager = {
             
             window.addEventListener('offline', () => {
                 this._isOnline = false;
-                console.log('[ONLINE-ONLY] Connection lost');
+                console.log('[ONLINE-ONLY] Browser connection lost');
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
                     Utils.showToast('Sem conexão: operações de escrita bloqueadas', 'warning');
+                }
+            });
+        }
+
+        // Register callback with FirebaseInit for RTDB connection changes
+        if (typeof FirebaseInit !== 'undefined' && typeof FirebaseInit.onConnectionChange === 'function') {
+            FirebaseInit.onConnectionChange((isConnected, wasConnected) => {
+                if (isConnected && !wasConnected) {
+                    console.log('[ONLINE-ONLY] RTDB connection restored - ready for sync');
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast('Banco de dados conectado', 'success');
+                    }
+                } else if (!isConnected && wasConnected) {
+                    console.log('[ONLINE-ONLY] RTDB connection lost - writes will be blocked');
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast('Banco de dados desconectado', 'warning');
+                    }
                 }
             });
         }
@@ -373,7 +390,9 @@ const DataManager = {
      * Check if system is online (for online-only mode blocking)
      */
     isOnline() {
-        return this._isOnline && this.cloudInitialized;
+        // Use centralized RTDB connection state from FirebaseInit
+        return this._isOnline && this.cloudInitialized && 
+               (typeof FirebaseInit !== 'undefined' && FirebaseInit.isRTDBConnected());
     },
     
     /**

@@ -10,7 +10,10 @@ const FirebaseInit = {
     auth: null,
     isInitialized: false,
     isAuthenticated: false,
+    isConnected: false,
     authPromise: null,
+    connectionListener: null,
+    connectionCallbacks: [],
 
     /**
      * Firebase configuration from environment or hardcoded values
@@ -57,6 +60,9 @@ const FirebaseInit = {
 
             // Authenticate immediately
             await this.authenticate();
+
+            // Initialize RTDB connection monitoring
+            this.initConnectionMonitoring();
 
             return true;
         } catch (error) {
@@ -176,6 +182,64 @@ const FirebaseInit = {
         }
         
         return true;
+    },
+
+    /**
+     * Initialize RTDB connection monitoring
+     * Sets up .info/connected listener to track real-time connection status
+     */
+    initConnectionMonitoring() {
+        if (this.connectionListener || !this.database) {
+            return;
+        }
+
+        try {
+            const { onValue } = window.firebaseModules;
+            const connectedRef = this.getRef('.info/connected');
+            
+            // Set up connection listener
+            this.connectionListener = onValue(connectedRef, (snapshot) => {
+                const wasConnected = this.isConnected;
+                this.isConnected = snapshot.val() === true;
+                
+                if (this.isConnected && !wasConnected) {
+                    console.log('RTDB connection established: cloudConnected = true');
+                } else if (!this.isConnected && wasConnected) {
+                    console.log('RTDB connection lost: cloudConnected = false');
+                }
+
+                // Notify registered callbacks of connection state change
+                this.connectionCallbacks.forEach(callback => {
+                    try {
+                        callback(this.isConnected, wasConnected);
+                    } catch (error) {
+                        console.warn('Connection callback error:', error);
+                    }
+                });
+            });
+
+            console.log('RTDB connection monitoring initialized');
+        } catch (error) {
+            console.warn('Failed to initialize RTDB connection monitoring:', error);
+        }
+    },
+
+    /**
+     * Register a callback to be notified of connection state changes
+     * @param {function} callback - Callback function(isConnected, wasConnected)
+     */
+    onConnectionChange(callback) {
+        if (typeof callback === 'function') {
+            this.connectionCallbacks.push(callback);
+        }
+    },
+
+    /**
+     * Check if RTDB is connected
+     * @returns {boolean}
+     */
+    isRTDBConnected() {
+        return this.isConnected;
     }
 };
 

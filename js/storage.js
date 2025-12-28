@@ -66,59 +66,48 @@ const CloudStorage = {
 
             this.database = FirebaseInit.database;
             
-            // Test connection with timeout
-            try {
-                const { onValue } = window.firebaseModules;
-                const connectedRef = FirebaseInit.getRef('.info/connected');
+            // Register callback for connection state changes
+            FirebaseInit.onConnectionChange((isConnected, wasConnected) => {
+                console.log('Firebase connection status:', isConnected ? 'Connected' : 'Disconnected');
                 
-                // Set up connection listener
-                onValue(connectedRef, (snapshot) => {
-                    const wasConnected = this.isConnected;
-                    this.isConnected = snapshot.val() === true;
-                    
-                    console.log('Firebase connection status:', this.isConnected ? 'Connected' : 'Disconnected');
-                    
-                    // If we just connected, sync from cloud
-                    if (this.isConnected && !wasConnected) {
-                        this.syncFromCloud();
-                        this.flushQueue();
-                    }
-                });
-
-                // Wait for initial connection check with timeout
-                const { get } = window.firebaseModules;
-                const connectionPromise = new Promise((resolve) => {
-                    const timeout = setTimeout(() => {
-                        console.warn('Firebase connection timeout');
-                        resolve(false);
-                    }, 5000);
-
-                    get(connectedRef).then((snapshot) => {
-                        clearTimeout(timeout);
-                        resolve(snapshot.val() === true);
-                    }).catch(() => {
-                        clearTimeout(timeout);
-                        resolve(false);
-                    });
-                });
-
-                this.isConnected = await connectionPromise;
-                this.isInitialized = true;
-                
-                console.log('CloudStorage initialized with Firebase and authenticated');
-                
-                // Initial sync from cloud if connected
-                if (this.isConnected) {
-                    await this.syncFromCloud();
-                    await this.flushQueue();
+                // If we just connected, sync from cloud
+                if (isConnected && !wasConnected) {
+                    this.syncFromCloud();
+                    this.flushQueue();
                 }
-                
-                return true;
-            } catch (connError) {
-                console.warn('Firebase connection test failed:', connError.message);
-                this.isInitialized = false;
-                return false;
+            });
+            
+            // Wait for initial connection check with timeout
+            // Connection monitoring is now handled by FirebaseInit
+            const { get } = window.firebaseModules;
+            const connectedRef = FirebaseInit.getRef('.info/connected');
+            const connectionPromise = new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    console.warn('Firebase connection timeout');
+                    resolve(false);
+                }, 5000);
+
+                get(connectedRef).then((snapshot) => {
+                    clearTimeout(timeout);
+                    resolve(snapshot.val() === true);
+                }).catch(() => {
+                    clearTimeout(timeout);
+                    resolve(false);
+                });
+            });
+
+            this.isConnected = await connectionPromise;
+            this.isInitialized = true;
+            
+            console.log('CloudStorage initialized with Firebase and authenticated');
+            
+            // Initial sync from cloud if connected
+            if (this.isConnected) {
+                await this.syncFromCloud();
+                await this.flushQueue();
             }
+            
+            return true;
         } catch (error) {
             console.error('Error initializing CloudStorage:', error);
             this.isInitialized = false;
@@ -136,15 +125,15 @@ const CloudStorage = {
     async saveData(key, data) {
         const opId = (data && data.opId) || this.generateOpId(key);
         
-        // Online-only mode: Require cloud connection
-        if (!this.isInitialized || !this.isConnected || !this.database) {
-            console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
+        // Ensure Firebase is authenticated and initialized
+        if (!FirebaseInit.isReady()) {
+            console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
             return false;
         }
 
-        // Ensure Firebase is authenticated
-        if (!FirebaseInit.isReady()) {
-            console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
+        // Online-only mode: Require cloud connection
+        if (!this.isInitialized || !this.database || !FirebaseInit.isRTDBConnected()) {
+            console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
             return false;
         }
 
@@ -176,7 +165,7 @@ const CloudStorage = {
      */
     async loadData(key) {
         // Online-only mode: Load from cloud only
-        if (this.isInitialized && this.database && this.isConnected && FirebaseInit.isReady()) {
+        if (this.isInitialized && this.database && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected()) {
             try {
                 const { get } = window.firebaseModules;
                 const sanitizedKey = this.sanitizeKey(key);
@@ -451,7 +440,8 @@ const CloudStorage = {
      * Check if cloud storage is available
      */
     isCloudAvailable() {
-        return this.isInitialized && this.isConnected;
+        // Use centralized connection state from FirebaseInit
+        return this.isInitialized && FirebaseInit.isRTDBConnected();
     },
 
     /**
