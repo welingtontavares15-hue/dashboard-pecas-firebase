@@ -57,10 +57,17 @@ Sistema web/PWA offline-first para gerenciamento de solicitações de peças com
 
 ### Firebase Configuration
 
-As configurações do Firebase estão definidas em `js/firebase-init.js`. Para sobrescrever, você pode definir estas variáveis:
+> **ℹ️ Sobre Segurança de Configuração Firebase**:
+> - As chaves de API do Firebase (API Key, App ID) são projetadas para serem públicas
+> - Elas são visíveis no código client-side por design
+> - A segurança é garantida através das **Firebase Security Rules** no servidor
+> - Não confunda com chaves secretas de servidor (Service Account Keys), que devem ser privadas
+> - Mais informações: [Firebase API Keys FAQ](https://firebase.google.com/support/guides/security-checklist)
+
+As configurações do Firebase estão definidas em `js/firebase-init.js`:
 
 ```javascript
-// Configuração padrão (já configurada no código)
+// Configuração Firebase (valores públicos para client-side)
 FIREBASE_API_KEY="AIzaSyD0Z56ZTk2cBg8xWI12j8s67de9oIMJ2Y0"
 FIREBASE_AUTH_DOMAIN="solicitacoes-de-pecas.firebaseapp.com"
 FIREBASE_DATABASE_URL="https://solicitacoes-de-pecas-default-rtdb.firebaseio.com"
@@ -70,7 +77,12 @@ FIREBASE_MESSAGING_SENDER_ID="782693023312"
 FIREBASE_APP_ID="1:782693023312:web:f22340c11c8c96cd4e9b55"
 ```
 
-> **Nota de Segurança**: Firebase API keys são seguras para exposição em aplicações client-side. A segurança é garantida através das Firebase Security Rules no servidor. Para produção, certifique-se de que as regras de segurança estão adequadamente configuradas.
+**Segurança em Produção**:
+- ✅ Firebase API Keys são públicas (por design)
+- ✅ Firebase Security Rules protegem os dados (`auth != null`)
+- ✅ App Check adicional pode ser habilitado para proteção extra
+- ❌ NUNCA exponha Service Account Keys (chaves de servidor)
+- ❌ NUNCA comite arquivos `.env` com secrets reais
 
 ### Estrutura do Banco de Dados
 
