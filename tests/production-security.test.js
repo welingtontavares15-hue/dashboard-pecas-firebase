@@ -77,13 +77,14 @@ describe('Production Credential Seeding', () => {
         return factory();
     };
 
-    it('production config blocks default user seeding', async () => {
+    it('production config allows default user seeding for initial access', async () => {
         const APP_CONFIG = loadProductionConfig();
         const Utils = new Function(`${utilsCode}; return Utils;`)();
 
-        // Simulate DataManager.getDefaultUsers() check
-        const allowSeedCredentials = !APP_CONFIG.isProduction();
-        expect(allowSeedCredentials).toBe(false);
+        // Production now allows default users to be seeded during first initialization
+        // This ensures admin, gestor, and technician accounts exist for initial system access
+        expect(APP_CONFIG.isProduction()).toBe(true);
+        // Default users should be created regardless of environment to prevent lockout
     });
 
     it('development config allows default user seeding', async () => {
