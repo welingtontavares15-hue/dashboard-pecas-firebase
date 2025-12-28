@@ -210,6 +210,9 @@ const DataManager = {
     initializing: false,
     lastInitFailAt: 0,
     idbDegradedNotified: false,
+    syncInProgress: false,
+    _syncPromise: null,
+    _debouncedSync: null,
     
     // Online-only mode: In-memory session cache for already-loaded data
     // This allows read-only access to data loaded during the session
@@ -244,6 +247,9 @@ const DataManager = {
                 if (typeof CloudStorage !== 'undefined') {
                     try {
                         this.cloudInitialized = await CloudStorage.init();
+                        const cloudReady = this.cloudInitialized && typeof CloudStorage.waitForCloudReady === 'function'
+                            ? await CloudStorage.waitForCloudReady(10000)
+                            : this.cloudInitialized;
                         
                         if (this.cloudInitialized) {
                             // Subscribe to real-time updates for solicitations
@@ -294,7 +300,9 @@ const DataManager = {
                             });
                             
                             // Sync initial data from cloud into session cache
-                            await this._loadInitialDataFromCloud();
+                            if (cloudReady) {
+                                await this._loadInitialDataFromCloud();
+                            }
                         }
                     } catch (e) {
                         console.warn('Cloud storage initialization failed:', e);
@@ -324,6 +332,10 @@ const DataManager = {
                     await this.ensureDefaultGestor();
                 } catch (e) {
                     console.warn('Failed to enforce default gestor credentials', e);
+                }
+
+                if (this.cloudInitialized) {
+                    this.scheduleSync('init_complete');
                 }
 
                 success = true;
@@ -357,6 +369,7 @@ const DataManager = {
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
                     Utils.showToast('Conexão restabelecida', 'success');
                 }
+                this.scheduleSync('browser_online');
             });
             
             window.addEventListener('offline', () => {
@@ -376,6 +389,7 @@ const DataManager = {
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
                         Utils.showToast('Banco de dados conectado', 'success');
                     }
+                    this.scheduleSync('rtdb_reconnected');
                 } else if (!isConnected && wasConnected) {
                     console.log('[ONLINE-ONLY] RTDB connection lost - writes will be blocked');
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
@@ -391,7 +405,12 @@ const DataManager = {
      */
     isOnline() {
         // Use centralized RTDB connection state from FirebaseInit
-        return this._isOnline && this.cloudInitialized && typeof FirebaseInit !== 'undefined' && FirebaseInit.isRTDBConnected();
+        const cloudReady = typeof CloudStorage !== 'undefined' ? CloudStorage.cloudReady === true : true;
+        return this._isOnline &&
+            this.cloudInitialized &&
+            cloudReady &&
+            typeof FirebaseInit !== 'undefined' &&
+            FirebaseInit.isRTDBConnected();
     },
     
     /**
@@ -411,6 +430,62 @@ const DataManager = {
         }
         console.warn('[ONLINE-ONLY]', message);
         return { success: false, error: 'offline', message };
+    },
+
+    /**
+     * Schedule a full cloud sync with debounce and lock.
+     * Prevents overlapping sync operations.
+     */
+    scheduleSync(reason = 'auto') {
+        if (!this._debouncedSync && typeof Utils !== 'undefined' && typeof Utils.debounce === 'function') {
+            this._debouncedSync = Utils.debounce(() => this.syncAll(reason), 2000);
+        }
+        if (this._debouncedSync) {
+            this._debouncedSync();
+        }
+    },
+
+    /**
+     * Execute a full cloud sync (cloud -> session cache) with mutex.
+     */
+    async syncAll(reason = 'manual') {
+        if (this._syncPromise) {
+            return this._syncPromise;
+        }
+
+        this._syncPromise = (async () => {
+            this.syncInProgress = true;
+            try {
+                if (typeof CloudStorage === 'undefined') {
+                    return false;
+                }
+
+                if (!this.cloudInitialized) {
+                    this.cloudInitialized = await CloudStorage.init();
+                }
+
+                const cloudReady = typeof CloudStorage.waitForCloudReady === 'function'
+                    ? await CloudStorage.waitForCloudReady(10000)
+                    : true;
+
+                if (!cloudReady) {
+                    console.warn(`[SYNC] Cloud not ready for sync (${reason})`);
+                    return false;
+                }
+
+                await CloudStorage.syncFromCloud();
+                await this._loadInitialDataFromCloud();
+                return true;
+            } catch (error) {
+                console.warn('syncAll failed', error);
+                return false;
+            } finally {
+                this.syncInProgress = false;
+                this._syncPromise = null;
+            }
+        })();
+
+        return this._syncPromise;
     },
     
     /**
@@ -731,7 +806,9 @@ const DataManager = {
      * Force sync data from cloud
      */
     async syncFromCloud() {
-        if (this.cloudInitialized && typeof CloudStorage !== 'undefined') {
+        if (this.cloudInitialized &&
+            typeof CloudStorage !== 'undefined' &&
+            this.isCloudReady()) {
             await CloudStorage.syncFromCloud();
             // Reload data into session cache
             await this._loadInitialDataFromCloud();
@@ -781,7 +858,34 @@ const DataManager = {
      * Check if cloud storage is available
      */
     isCloudAvailable() {
-        return this.cloudInitialized && typeof CloudStorage !== 'undefined' && CloudStorage.isCloudAvailable();
+        return this.cloudInitialized &&
+            typeof CloudStorage !== 'undefined' &&
+            CloudStorage.isCloudAvailable();
+    },
+
+    /**
+     * Check if cloud is fully ready (auth + RTDB connection).
+     */
+    isCloudReady() {
+        return this.cloudInitialized &&
+            typeof CloudStorage !== 'undefined' &&
+            CloudStorage.cloudReady === true;
+    },
+
+    /**
+     * Check if the app is still establishing the cloud connection.
+     */
+    isCloudConnecting() {
+        return this.cloudInitialized &&
+            typeof CloudStorage !== 'undefined' &&
+            CloudStorage.cloudReady !== true;
+    },
+
+    /**
+     * Expose sync progress flag for UI.
+     */
+    isSyncInProgress() {
+        return this.syncInProgress === true;
     },
 
     // ===== USERS =====

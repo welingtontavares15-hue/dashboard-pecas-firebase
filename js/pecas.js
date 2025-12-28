@@ -8,6 +8,7 @@ const Pecas = {
     itemsPerPage: 10,
     searchQuery: '',
     categoryFilter: '',
+    autoSyncRequested: false,
 
     /**
      * Render parts catalog page
@@ -121,6 +122,28 @@ const Pecas = {
         const paginated = parts.slice(start, start + this.itemsPerPage);
         
         if (parts.length === 0) {
+            const cloudReady = typeof DataManager !== 'undefined' &&
+                typeof DataManager.isCloudReady === 'function' &&
+                DataManager.isCloudReady();
+            const syncing = typeof DataManager !== 'undefined' &&
+                typeof DataManager.isSyncInProgress === 'function' &&
+                DataManager.isSyncInProgress();
+
+            if (cloudReady) {
+                if (!this.autoSyncRequested && typeof DataManager.scheduleSync === 'function') {
+                    this.autoSyncRequested = true;
+                    DataManager.scheduleSync('parts_empty');
+                }
+                return `
+                    <div class="empty-state">
+                        <i class="fas fa-sync-alt fa-spin"></i>
+                        <h4>Sincronizando…</h4>
+                        <p>${syncing ? 'Buscando catálogo de peças na nuvem.' : 'Iniciando sincronização automática das peças.'}</p>
+                    </div>
+                `;
+            }
+
+            this.autoSyncRequested = false;
             return `
                 <div class="empty-state">
                     <i class="fas fa-cogs"></i>
@@ -129,6 +152,8 @@ const Pecas = {
                 </div>
             `;
         }
+
+        this.autoSyncRequested = false;
         
         const canEdit = Auth.hasPermission('pecas', 'edit');
         const canDelete = Auth.hasPermission('pecas', 'delete');

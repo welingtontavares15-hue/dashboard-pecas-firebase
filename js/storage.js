@@ -7,6 +7,8 @@
 const CloudStorage = {
     // Connection state is now managed centrally by FirebaseInit
     isInitialized: false,
+    isInitializing: false,
+    cloudReady: false,
     database: null,
 
     // Listeners for real-time updates
@@ -23,6 +25,7 @@ const CloudStorage = {
      */
     async init() {
         try {
+            this.isInitializing = true;
             if (typeof IndexedDBStorage !== 'undefined') {
                 const idbReady = await IndexedDBStorage.init();
                 if (!idbReady) {
@@ -37,6 +40,7 @@ const CloudStorage = {
             if (typeof window.firebaseModules === 'undefined') {
                 console.warn('Firebase SDK not loaded, using localStorage only');
                 this.isInitialized = false;
+                this.isInitializing = false;
                 return false;
             }
 
@@ -44,6 +48,7 @@ const CloudStorage = {
             if (typeof FirebaseInit === 'undefined') {
                 console.warn('FirebaseInit module not loaded');
                 this.isInitialized = false;
+                this.isInitializing = false;
                 return false;
             }
 
@@ -68,11 +73,16 @@ const CloudStorage = {
             // Register callback for connection state changes
             FirebaseInit.onConnectionChange((isConnected, wasConnected) => {
                 console.log('Firebase connection status:', isConnected ? 'Connected' : 'Disconnected');
+                this.cloudReady = isConnected && FirebaseInit.isReady();
                 
                 // If we just connected, sync from cloud
                 if (isConnected && !wasConnected) {
-                    this.syncFromCloud();
-                    this.flushQueue();
+                    if (typeof DataManager !== 'undefined' && typeof DataManager.scheduleSync === 'function') {
+                        DataManager.scheduleSync('rtdb_reconnected');
+                    } else {
+                        this.syncFromCloud();
+                        this.flushQueue();
+                    }
                 }
             });
             
@@ -98,11 +108,13 @@ const CloudStorage = {
             // Wait for initial connection (not stored, just for initial sync check)
             const initiallyConnected = await connectionPromise;
             this.isInitialized = true;
+            this.cloudReady = await this.waitForCloudReady(10000);
             
             console.log('CloudStorage initialized with Firebase and authenticated');
             
             // Initial sync from cloud if connected (using centralized state)
             if (initiallyConnected && FirebaseInit.isRTDBConnected()) {
+                this.cloudReady = true;
                 await this.syncFromCloud();
                 await this.flushQueue();
             }
@@ -112,7 +124,50 @@ const CloudStorage = {
             console.error('Error initializing CloudStorage:', error);
             this.isInitialized = false;
             return false;
+        } finally {
+            this.isInitializing = false;
         }
+    },
+
+    /**
+     * Wait until Firebase auth is ready AND RTDB is connected.
+     * Uses FirebaseInit waitForCloudReady and sets cloudReady flag.
+     */
+    async waitForCloudReady(timeoutMs = 10000) {
+        if (!this.isInitialized) {
+            if (this.isInitializing) {
+                // Already initializing via another call; allow loop below to wait.
+            } else {
+                const initialized = await this.init();
+                if (!initialized) {
+                    return false;
+                }
+            }
+        }
+
+        if (this.isInitialized && this.cloudReady) {
+            return true;
+        }
+
+        if (typeof FirebaseInit !== 'undefined' && typeof FirebaseInit.waitForCloudReady === 'function') {
+            const ready = await FirebaseInit.waitForCloudReady(timeoutMs);
+            this.cloudReady = ready && this.isInitialized;
+            return this.cloudReady;
+        }
+
+        // Fallback polling when helper is unavailable
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+            if (this.isInitialized &&
+                typeof FirebaseInit !== 'undefined' &&
+                FirebaseInit.isReady() &&
+                FirebaseInit.isRTDBConnected()) {
+                this.cloudReady = true;
+                return true;
+            }
+            await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        return false;
     },
 
     /**
@@ -542,6 +597,7 @@ const CloudStorage = {
     isCloudAvailable() {
         // Use centralized connection state from FirebaseInit
         return this.isInitialized &&
+            this.cloudReady &&
             typeof FirebaseInit !== 'undefined' &&
             typeof FirebaseInit.isRTDBConnected === 'function' &&
             FirebaseInit.isRTDBConnected();

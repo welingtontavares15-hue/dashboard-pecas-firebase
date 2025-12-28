@@ -517,7 +517,15 @@ const App = {
         const content = document.getElementById('content-area');
         const settings = DataManager.getSettings();
         const canEdit = Auth.hasPermission('configuracoes', 'edit');
+        const cloudReady = DataManager.isCloudReady();
+        const isConnecting = DataManager.isCloudConnecting();
         const isCloudAvailable = DataManager.isCloudAvailable();
+        const cloudStatusLabel = cloudReady ? 'Conectado à Nuvem' : (isConnecting ? 'Conectando à nuvem…' : 'Armazenamento Local');
+        const cloudStatusDesc = cloudReady
+            ? 'Os dados são sincronizados automaticamente entre dispositivos.'
+            : (isConnecting
+                ? 'Aguardando autenticação e conexão segura com a nuvem.'
+                : 'Os dados estão sendo salvos apenas neste dispositivo. A sincronização em nuvem não está disponível.');
         const canManageGestores = Auth.getRole() === 'administrador';
         
         content.innerHTML = `
@@ -526,14 +534,12 @@ const App = {
             </div>
             
             <!-- Cloud Storage Status -->
-            <div class="cloud-status ${isCloudAvailable ? 'connected' : 'disconnected'}">
-                <i class="fas ${isCloudAvailable ? 'fa-cloud' : 'fa-cloud-slash'}"></i>
+            <div class="cloud-status ${cloudReady ? 'connected' : 'disconnected'}">
+                <i class="fas ${cloudReady ? 'fa-cloud' : 'fa-cloud-slash'} ${isConnecting && !cloudReady ? 'fa-spin' : ''}"></i>
                 <div>
-                    <strong>${isCloudAvailable ? 'Conectado à Nuvem' : 'Armazenamento Local'}</strong>
+                    <strong>${cloudStatusLabel}</strong>
                     <p class="mb-0" style="font-size: 0.875rem;">
-                        ${isCloudAvailable 
-        ? 'Os dados são sincronizados automaticamente entre dispositivos.' 
-        : 'Os dados estão sendo salvos apenas neste dispositivo. A sincronização em nuvem não está disponível.'}
+                        ${cloudStatusDesc}
                     </p>
                 </div>
                 ${isCloudAvailable ? `
@@ -1030,16 +1036,19 @@ const App = {
         }
         
         try {
-            if (typeof CloudStorage !== 'undefined' && DataManager.isCloudAvailable()) {
-                await CloudStorage.syncFromCloud();
+            const synced = typeof DataManager !== 'undefined'
+                ? await DataManager.syncAll('manual')
+                : false;
+
+            if (synced) {
                 Utils.showToast('Dados sincronizados com sucesso', 'success');
-                
-                // Refresh current page
-                this.renderPage(this.currentPage);
-                Auth.renderMenu(this.currentPage);
             } else {
                 Utils.showToast('Sincronização em nuvem não disponível', 'warning');
             }
+
+            // Refresh current page
+            this.renderPage(this.currentPage);
+            Auth.renderMenu(this.currentPage);
         } catch (error) {
             console.error('Sync error:', error);
             Utils.showToast('Erro ao sincronizar dados', 'error');
