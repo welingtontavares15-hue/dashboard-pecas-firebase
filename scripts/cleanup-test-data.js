@@ -80,7 +80,7 @@ function getFirebaseConfig() {
                        process.env.URL_DO_BANCO_DE_DADOS_FIREBASE ||
                        'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com';
     
-    // Service Account credentials
+    // Service Account credentials - null until loaded from env or file
     let credential = null;
     
     // Option 1: GOOGLE_APPLICATION_CREDENTIALS (path to JSON file)
@@ -144,12 +144,7 @@ function initializeFirebase(config) {
     }
     
     try {
-        let credentialObj;
-        if (typeof config.credential === 'string') {
-            credentialObj = admin.credential.cert(config.credential);
-        } else {
-            credentialObj = admin.credential.cert(config.credential);
-        }
+        const credentialObj = admin.credential.cert(config.credential);
         
         admin.initializeApp({
             credential: credentialObj,
@@ -361,7 +356,7 @@ async function cleanTestData(admin, scanResults) {
             const solicitations = solSnapshot.val();
             
             if (solicitations && solicitations.data && Array.isArray(solicitations.data)) {
-                // Filter out test solicitations
+                // Filter out test solicitations using consistent ID resolution
                 const testIds = new Set(scanResults.testSolicitations.map(t => t.id));
                 const cleanedSolicitations = solicitations.data.filter(sol => {
                     const solId = sol.id || sol.numero || 'unknown';
@@ -402,7 +397,7 @@ async function cleanTestData(admin, scanResults) {
             const exportFiles = exportSnapshot.val();
             
             if (exportFiles && exportFiles.data && Array.isArray(exportFiles.data)) {
-                // Filter out test export files
+                // Filter out test export files using consistent filename resolution
                 const testFilenames = new Set(scanResults.testExportFiles.map(t => t.filename));
                 const cleanedExports = exportFiles.data.filter(exportFile => {
                     const filename = exportFile.filename || 'unknown';
