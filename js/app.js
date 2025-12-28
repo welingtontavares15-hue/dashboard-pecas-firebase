@@ -1264,8 +1264,9 @@ const App = {
                 <div class="card-body">
                     <p>Para suporte técnico, entre em contato:</p>
                     <p>
-                        <i class="fas fa-envelope"></i> suporte@diversey.com<br>
-                        <i class="fas fa-phone"></i> (11) 3000-0000
+                        Welington Tavares<br>
+                        <i class="fas fa-envelope"></i> <a href="mailto:wbastostavares@solenis.com">wbastostavares@solenis.com</a><br>
+                        <i class="fas fa-phone"></i> <a href="tel:+5562998124727">62998124727</a>
                     </p>
                 </div>
             </div>
