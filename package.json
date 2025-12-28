@@ -10,7 +10,9 @@
     "lint": "eslint js/*.js --fix",
     "lint:check": "eslint js/*.js",
     "healthcheck": "node healthcheck.js",
-    "healthcheck:web": "npx http-server -p 8080 -o /firebase-healthcheck.html"
+    "healthcheck:web": "npx http-server -p 8080 -o /firebase-healthcheck.html",
+    "cleanup:dry-run": "node scripts/cleanup-test-data.js",
+    "cleanup:apply": "node scripts/cleanup-test-data.js --apply"
   },
   "keywords": [
     "pwa",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "eslint": "^9.39.2",
+    "firebase-admin": "^13.6.0",
     "globals": "^16.5.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
