@@ -14,6 +14,7 @@ const FirebaseInit = {
     authPromise: null,
     connectionListener: null,
     connectionCallbacks: [],
+    cloudReadyCallbacks: [],
 
     /**
      * Firebase configuration from environment or hardcoded values
@@ -107,6 +108,7 @@ const FirebaseInit = {
                         if (user) {
                             this.isAuthenticated = true;
                             console.log('Firebase authenticated successfully (anonymous)');
+                            this._notifyCloudReady();
                             resolve(true);
                         }
                     }, (error) => {
@@ -208,6 +210,10 @@ const FirebaseInit = {
                     console.log('RTDB connection lost: cloudConnected = false');
                 }
 
+                if (this.isReady() && this.isRTDBConnected()) {
+                    this._notifyCloudReady();
+                }
+
                 // Notify registered callbacks of connection state change
                 this.connectionCallbacks.forEach(callback => {
                     try {
@@ -240,6 +246,60 @@ const FirebaseInit = {
      */
     isRTDBConnected() {
         return this.isConnected;
+    },
+
+    /**
+     * Wait until Firebase is authenticated AND RTDB is connected.
+     * Resolves true when ready, false on timeout.
+     */
+    async waitForCloudReady(timeoutMs = 10000) {
+        const start = Date.now();
+
+        // Ensure initialization has been attempted
+        if (!this.isInitialized) {
+            await this.init();
+        }
+
+        if (this.isReady() && this.isRTDBConnected()) {
+            return true;
+        }
+
+        return new Promise((resolve) => {
+            const onReady = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            const timeout = setTimeout(() => {
+                cleanup();
+                resolve(false);
+            }, timeoutMs);
+
+            const cleanup = () => {
+                clearTimeout(timeout);
+                this.cloudReadyCallbacks = this.cloudReadyCallbacks.filter(cb => cb !== onReady);
+            };
+
+            this.cloudReadyCallbacks.push(onReady);
+        });
+    },
+
+    /**
+     * Resolve any pending cloud-ready waiters when both auth and RTDB are ready.
+     */
+    _notifyCloudReady() {
+        if (!this.isReady() || !this.isRTDBConnected()) {
+            return;
+        }
+        const callbacks = [...this.cloudReadyCallbacks];
+        this.cloudReadyCallbacks = [];
+        callbacks.forEach(cb => {
+            try {
+                cb();
+            } catch (error) {
+                console.warn('Cloud ready callback error:', error);
+            }
+        });
     }
 };
 
