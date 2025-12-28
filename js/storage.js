@@ -238,8 +238,8 @@ const CloudStorage = {
                     });
                 }
             } else {
-                // No cloud data is not an error, just log info
-                console.log('Cloud sync completed: no data in cloud');
+                // No cloud data is not an error, just log debug info
+                console.debug('Cloud sync completed: no data in cloud');
                 if (typeof Logger !== 'undefined') {
                     Logger.logSync('sync_complete', { 
                         direction: 'cloud_to_session',
