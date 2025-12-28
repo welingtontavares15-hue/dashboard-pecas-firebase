@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Healthcheck - Dashboard de Peças</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 2rem;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .test-item .status {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .status.pending {
+            background: #ffa500;
+        }
+        
+        .status.success {
+            background: #28a745;
+        }
+        
+        .status.error {
+            background: #dc3545;
+        }
+        
+        .test-item .label {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .test-item .result {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .log-section {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #1e1e1e;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-section h3 {
+            color: #4fc3f7;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 0.25rem 0;
+            color: #e0e0e0;
+        }
+        
+        .log-entry.success {
+            color: #4caf50;
+        }
+        
+        .log-entry.error {
+            color: #f44336;
+        }
+        
+        .log-entry.warning {
+            color: #ff9800;
+        }
+        
+        .log-entry.info {
+            color: #2196f3;
+        }
+        
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 1rem;
+        }
+        
+        .button:hover {
+            background: #5568d3;
+        }
+        
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .config-info {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .config-info strong {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Firebase Healthcheck</h1>
+        <p class="subtitle">Testing Firebase Realtime Database connectivity and operations</p>
+        
+        <div class="test-section">
+            <h2>Connection Tests</h2>
+            <div class="test-item">
+                <div class="status pending" id="status-sdk">⏳</div>
+                <div class="label">Firebase SDK Loaded</div>
+                <div class="result" id="result-sdk">Checking...</div>
+            </div>
+            <div class="test-item">
+                <div class="status pending" id="status-init">⏳</div>
+                <div class="label">Firebase Initialized</div>
+                <div class="result" id="result-init">Waiting...</div>
+            </div>
+            <div class="test-item">
+                <div class="status pending" id="status-auth">⏳</div>
+                <div class="label">Anonymous Authentication</div>
+                <div class="result" id="result-auth">Waiting...</div>
+            </div>
+            <div class="test-item">
+                <div class="status pending" id="status-connection">⏳</div>
+                <div class="label">Database Connection</div>
+                <div class="result" id="result-connection">Waiting...</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Read/Write Tests</h2>
+            <div class="test-item">
+                <div class="status pending" id="status-write">⏳</div>
+                <div class="label">Write to /data/healthcheck</div>
+                <div class="result" id="result-write">Waiting for auth...</div>
+            </div>
+            <div class="test-item">
+                <div class="status pending" id="status-read">⏳</div>
+                <div class="label">Read from /data/healthcheck</div>
+                <div class="result" id="result-read">Waiting for write...</div>
+            </div>
+        </div>
+        
+        <div class="config-info">
+            <strong>Database URL:</strong> <span id="db-url">Loading...</span><br>
+            <strong>Path:</strong> /data/*<br>
+            <strong>Auth Method:</strong> Anonymous (automatic)
+        </div>
+        
+        <button class="button" id="retry-button" disabled>Retry Tests</button>
+        
+        <div class="log-section">
+            <h3>Console Log</h3>
+            <div id="log-container"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK v9 modular -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        
+        const logContainer = document.getElementById('log-container');
+        const retryButton = document.getElementById('retry-button');
+        
+        let testResults = {
+            sdk: false,
+            init: false,
+            auth: false,
+            connection: false,
+            write: false,
+            read: false
+        };
+        
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(testId, status, result) {
+            const statusEl = document.getElementById(`status-${testId}`);
+            const resultEl = document.getElementById(`result-${testId}`);
+            
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'success' ? '✓' : status === 'error' ? '✗' : '⏳';
+            resultEl.textContent = result;
+            
+            testResults[testId] = status === 'success';
+        }
+        
+        async function runHealthcheck() {
+            log('Starting Firebase healthcheck...', 'info');
+            
+            // Test 1: SDK Loaded
+            try {
+                if (typeof initializeApp === 'function') {
+                    updateStatus('sdk', 'success', 'Loaded');
+                    log('✓ Firebase SDK loaded successfully', 'success');
+                } else {
+                    throw new Error('Firebase SDK not found');
+                }
+            } catch (error) {
+                updateStatus('sdk', 'error', error.message);
+                log('✗ Firebase SDK failed to load: ' + error.message, 'error');
+                return;
+            }
+            
+            // Firebase config
+            const firebaseConfig = {
+                apiKey: 'AIzaSyD0Z56ZTk2cBg8xWI12j8s67de9oIMJ2Y0',
+                authDomain: 'solicitacoes-de-pecas.firebaseapp.com',
+                databaseURL: 'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com',
+                projectId: 'solicitacoes-de-pecas',
+                storageBucket: 'solicitacoes-de-pecas.firebasestorage.app',
+                messagingSenderId: '782693023312',
+                appId: '1:782693023312:web:f22340c11c8c96cd4e9b55'
+            };
+            
+            document.getElementById('db-url').textContent = firebaseConfig.databaseURL;
+            
+            // Test 2: Initialize Firebase
+            let app, database, auth;
+            try {
+                app = initializeApp(firebaseConfig);
+                database = getDatabase(app);
+                auth = getAuth(app);
+                updateStatus('init', 'success', 'Initialized');
+                log('✓ Firebase app initialized', 'success');
+            } catch (error) {
+                updateStatus('init', 'error', error.message);
+                log('✗ Firebase initialization failed: ' + error.message, 'error');
+                return;
+            }
+            
+            // Test 3: Authenticate
+            try {
+                log('Attempting anonymous authentication...', 'info');
+                const authResult = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Auth timeout')), 10000);
+                    
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            clearTimeout(timeout);
+                            resolve(user);
+                        }
+                    }, (error) => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    });
+                    
+                    signInAnonymously(auth).catch(reject);
+                });
+                
+                updateStatus('auth', 'success', `UID: ${authResult.uid.substring(0, 8)}...`);
+                log(`✓ Anonymous authentication successful (UID: ${authResult.uid})`, 'success');
+            } catch (error) {
+                updateStatus('auth', 'error', error.message);
+                log('✗ Authentication failed: ' + error.message, 'error');
+                log('⚠ Make sure Anonymous Authentication is enabled in Firebase Console', 'warning');
+                return;
+            }
+            
+            // Test 4: Connection Status
+            try {
+                const connectedRef = ref(database, '.info/connected');
+                const connected = await new Promise((resolve) => {
+                    const timeout = setTimeout(() => resolve(false), 5000);
+                    onValue(connectedRef, (snapshot) => {
+                        clearTimeout(timeout);
+                        resolve(snapshot.val() === true);
+                    }, { onlyOnce: true });
+                });
+                
+                if (connected) {
+                    updateStatus('connection', 'success', 'Connected');
+                    log('✓ Database connection established', 'success');
+                } else {
+                    throw new Error('Not connected');
+                }
+            } catch (error) {
+                updateStatus('connection', 'error', 'Disconnected');
+                log('✗ Database connection failed: ' + error.message, 'error');
+                return;
+            }
+            
+            // Test 5: Write Data
+            try {
+                log('Writing test data to /data/healthcheck...', 'info');
+                const testData = {
+                    timestamp: Date.now(),
+                    message: 'Healthcheck test',
+                    status: 'OK'
+                };
+                
+                await set(ref(database, 'data/healthcheck'), testData);
+                updateStatus('write', 'success', 'Data written');
+                log('✓ Successfully wrote data to /data/healthcheck', 'success');
+            } catch (error) {
+                updateStatus('write', 'error', error.message);
+                log('✗ Write failed: ' + error.message, 'error');
+                log('⚠ Check Firebase rules - ensure auth != null is allowed', 'warning');
+                return;
+            }
+            
+            // Test 6: Read Data
+            try {
+                log('Reading data from /data/healthcheck...', 'info');
+                const snapshot = await get(ref(database, 'data/healthcheck'));
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    updateStatus('read', 'success', 'Data retrieved');
+                    log('✓ Successfully read data from /data/healthcheck', 'success');
+                    log(`  Data: ${JSON.stringify(data)}`, 'info');
+                } else {
+                    throw new Error('No data found');
+                }
+            } catch (error) {
+                updateStatus('read', 'error', error.message);
+                log('✗ Read failed: ' + error.message, 'error');
+                return;
+            }
+            
+            log('', 'info');
+            log('='.repeat(50), 'success');
+            log('All tests passed! Firebase is working correctly.', 'success');
+            log('='.repeat(50), 'success');
+            
+            retryButton.disabled = false;
+        }
+        
+        retryButton.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+            retryButton.disabled = true;
+            
+            // Reset all statuses
+            ['sdk', 'init', 'auth', 'connection', 'write', 'read'].forEach(testId => {
+                updateStatus(testId, 'pending', 'Checking...');
+            });
+            
+            runHealthcheck();
+        });
+        
+        // Run tests on page load
+        runHealthcheck();
+    </script>
+</body>
+</html>
