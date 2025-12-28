@@ -5,18 +5,6 @@
  */
 
 const CloudStorage = {
-    // Firebase configuration for "Solicitações de Peças" project
-    // This enables cross-device data synchronization
-    firebaseConfig: {
-        apiKey: 'AIzaSyD0Z56ZTk2cBg8xWI12j8s67de9oIMJ2Y0',
-        authDomain: 'solicitacoes-de-pecas.firebaseapp.com',
-        databaseURL: 'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com',
-        projectId: 'solicitacoes-de-pecas',
-        storageBucket: 'solicitacoes-de-pecas.firebasestorage.app',
-        messagingSenderId: '782693023312',
-        appId: '1:782693023312:web:f22340c11c8c96cd4e9b55'
-    },
-
     // Connection state
     isConnected: false,
     isInitialized: false,
@@ -45,39 +33,46 @@ const CloudStorage = {
                     }
                 }
             }
-            // Check if Firebase SDK is available
-            if (typeof firebase === 'undefined') {
+
+            // Check if Firebase modules are available
+            if (typeof window.firebaseModules === 'undefined') {
                 console.warn('Firebase SDK not loaded, using localStorage only');
                 this.isInitialized = false;
                 return false;
             }
 
-            // Check if firebase.database is available
-            if (!firebase.database) {
-                console.warn('Firebase Database SDK not loaded, using localStorage only');
+            // Initialize Firebase through centralized module
+            if (typeof FirebaseInit === 'undefined') {
+                console.warn('FirebaseInit module not loaded');
                 this.isInitialized = false;
                 return false;
             }
 
-            // Initialize Firebase if not already initialized
-            if (!firebase.apps.length) {
-                try {
-                    firebase.initializeApp(this.firebaseConfig);
-                } catch (initError) {
-                    console.warn('Firebase initialization failed:', initError.message);
-                    this.isInitialized = false;
-                    return false;
-                }
+            // Initialize Firebase and authenticate
+            const firebaseReady = await FirebaseInit.init();
+            if (!firebaseReady) {
+                console.warn('Firebase initialization failed');
+                this.isInitialized = false;
+                return false;
             }
-            
-            this.database = firebase.database();
+
+            // Wait for authentication to complete (required for RTDB rules)
+            const authReady = await FirebaseInit.waitForReady(10000);
+            if (!authReady) {
+                console.warn('Firebase authentication failed or timed out');
+                this.isInitialized = false;
+                return false;
+            }
+
+            this.database = FirebaseInit.database;
             
             // Test connection with timeout
             try {
-                const connectedRef = this.database.ref('.info/connected');
+                const { onValue } = window.firebaseModules;
+                const connectedRef = FirebaseInit.getRef('.info/connected');
                 
                 // Set up connection listener
-                connectedRef.on('value', (snapshot) => {
+                onValue(connectedRef, (snapshot) => {
                     const wasConnected = this.isConnected;
                     this.isConnected = snapshot.val() === true;
                     
@@ -91,22 +86,26 @@ const CloudStorage = {
                 });
 
                 // Wait for initial connection check with timeout
+                const { get } = window.firebaseModules;
                 const connectionPromise = new Promise((resolve) => {
                     const timeout = setTimeout(() => {
                         console.warn('Firebase connection timeout');
                         resolve(false);
                     }, 5000);
 
-                    connectedRef.once('value', (snapshot) => {
+                    get(connectedRef).then((snapshot) => {
                         clearTimeout(timeout);
                         resolve(snapshot.val() === true);
+                    }).catch(() => {
+                        clearTimeout(timeout);
+                        resolve(false);
                     });
                 });
 
                 this.isConnected = await connectionPromise;
                 this.isInitialized = true;
                 
-                console.log('CloudStorage initialized with Firebase');
+                console.log('CloudStorage initialized with Firebase and authenticated');
                 
                 // Initial sync from cloud if connected
                 if (this.isConnected) {
@@ -143,10 +142,19 @@ const CloudStorage = {
             return false;
         }
 
+        // Ensure Firebase is authenticated
+        if (!FirebaseInit.isReady()) {
+            console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
+            return false;
+        }
+
         // Save to cloud
         try {
+            const { set } = window.firebaseModules;
             const sanitizedKey = this.sanitizeKey(key);
-            await this.database.ref(`data/${sanitizedKey}`).set({
+            const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
+            
+            await set(dataRef, {
                 data: data,
                 updatedAt: Date.now(),
                 updatedBy: this.getDeviceId(),
@@ -168,10 +176,13 @@ const CloudStorage = {
      */
     async loadData(key) {
         // Online-only mode: Load from cloud only
-        if (this.isInitialized && this.database && this.isConnected) {
+        if (this.isInitialized && this.database && this.isConnected && FirebaseInit.isReady()) {
             try {
+                const { get } = window.firebaseModules;
                 const sanitizedKey = this.sanitizeKey(key);
-                const snapshot = await this.database.ref(`data/${sanitizedKey}`).once('value');
+                const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
+                
+                const snapshot = await get(dataRef);
                 const cloudData = snapshot.val();
                 
                 if (cloudData && cloudData.data !== undefined) {
@@ -198,6 +209,12 @@ const CloudStorage = {
             return;
         }
 
+        // Ensure Firebase is authenticated
+        if (!FirebaseInit.isReady()) {
+            console.debug('Firebase not authenticated, skipping sync');
+            return;
+        }
+
         // Validate DataManager is available and has session cache
         if (typeof DataManager === 'undefined' || !DataManager._sessionCache) {
             console.warn('DataManager not initialized, skipping sync');
@@ -210,7 +227,10 @@ const CloudStorage = {
         }
 
         try {
-            const snapshot = await this.database.ref('data').once('value');
+            const { get } = window.firebaseModules;
+            const dataRef = FirebaseInit.getRef('data');
+            
+            const snapshot = await get(dataRef);
             const cloudData = snapshot.val();
             
             if (cloudData) {
@@ -276,20 +296,21 @@ const CloudStorage = {
      * @param {function} callback - Callback function when data changes
      */
     subscribe(key, callback) {
-        if (!this.isInitialized || !this.database) {
+        if (!this.isInitialized || !this.database || !FirebaseInit.isReady()) {
             return;
         }
 
+        const { onValue, off } = window.firebaseModules;
         const sanitizedKey = this.sanitizeKey(key);
-        const ref = this.database.ref(`data/${sanitizedKey}`);
+        const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
         
         // Remove existing listener
         if (this.listeners[key]) {
-            ref.off('value', this.listeners[key]);
+            off(dataRef, 'value', this.listeners[key]);
         }
 
         // Add new listener - Online-only mode: No local persistence
-        this.listeners[key] = ref.on('value', async (snapshot) => {
+        this.listeners[key] = onValue(dataRef, async (snapshot) => {
             const cloudData = snapshot.val();
             if (cloudData && cloudData.data !== undefined) {
                 // Check if update came from different device
@@ -313,11 +334,12 @@ const CloudStorage = {
             return;
         }
 
+        const { off } = window.firebaseModules;
         const sanitizedKey = this.sanitizeKey(key);
-        const ref = this.database.ref(`data/${sanitizedKey}`);
+        const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
         
         if (this.listeners[key]) {
-            ref.off('value', this.listeners[key]);
+            off(dataRef, 'value', this.listeners[key]);
             delete this.listeners[key];
         }
     },

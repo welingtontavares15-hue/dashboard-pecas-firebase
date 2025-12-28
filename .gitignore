@@ -25,6 +25,12 @@ build/
 .env.local
 .env.*.local
 
+# Firebase credentials - NEVER COMMIT
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+firebase-credentials.json
+.firebase/
+
 # Temporary files
 *.tmp
 *.temp
