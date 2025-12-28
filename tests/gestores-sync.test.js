@@ -253,3 +253,56 @@ describe('Integration: Full Sync Scenario', () => {
         expect(expectedBehavior).toContain('Local-only gestor is preserved');
     });
 });
+
+describe('Cloud merge pushes local gestores to cloud', () => {
+    let CloudStorage;
+    let DataManager;
+
+    beforeEach(() => {
+        const storageCode = fs.readFileSync(path.join(__dirname, '../js/storage.js'), 'utf8');
+        global.window = { firebaseModules: {} };
+        global.FirebaseInit = {
+            isReady: () => true,
+            isRTDBConnected: () => true,
+            getRef: (path) => path
+        };
+        global.Logger = { logSync: () => {} };
+
+        eval(storageCode);
+        CloudStorage = global.window.CloudStorage;
+
+        DataManager = {
+            _sessionCache: { diversey_users: [] },
+            KEYS: { USERS: 'diversey_users' }
+        };
+        global.DataManager = DataManager;
+    });
+
+    afterEach(() => {
+        delete global.window;
+        delete global.FirebaseInit;
+        delete global.Logger;
+        delete global.DataManager;
+    });
+
+    it('should push merged user list when local has entries missing in cloud', async () => {
+        const now = Date.now();
+        const localOnlyUser = { id: 'local-1', username: 'novo.gestor', updatedAt: now };
+        const cloudUser = { id: 'cloud-1', username: 'gestor.cloud', updatedAt: now - 1000 };
+
+        // Prepare environment
+        DataManager._sessionCache[DataManager.KEYS.USERS] = [localOnlyUser];
+        CloudStorage.isInitialized = true;
+        CloudStorage.database = {};
+        global.FirebaseInit.getRef = (path) => path;
+        const getMock = jest.fn(async () => ({ val: () => ({ diversey_users: { data: [cloudUser] } }) }));
+        window.firebaseModules.get = getMock;
+
+        const saveSpy = jest.spyOn(CloudStorage, 'saveData').mockResolvedValue(true);
+
+        await CloudStorage.syncFromCloud();
+
+        expect(saveSpy).toHaveBeenCalledWith('diversey_users', expect.arrayContaining([localOnlyUser, cloudUser]));
+        saveSpy.mockRestore();
+    });
+});

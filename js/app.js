@@ -814,7 +814,7 @@ const App = {
             return;
         }
 
-        const success = DataManager.deleteUserById(gestorId);
+        const success = await DataManager.deleteUserById(gestorId);
         if (!success) {
             Utils.showToast('Não foi possível excluir o gestor', 'error');
             return;

@@ -892,7 +892,27 @@ const DataManager = {
         return users.find(u => this.normalizeUsername(u.username) === target);
     },
 
-    deleteUserById(userId) {
+    async _persistUsersToCloud(users) {
+        if (!this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.init === 'function') {
+            try {
+                this.cloudInitialized = await CloudStorage.init();
+            } catch (_e) {
+                // fall through to availability check
+            }
+        }
+
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+            return false;
+        }
+        try {
+            return await CloudStorage.saveData(this.KEYS.USERS, users);
+        } catch (e) {
+            console.warn('Erro ao salvar usuários na nuvem', e);
+            return false;
+        }
+    },
+
+    async deleteUserById(userId) {
         if (!userId) {
             return false;
         }
@@ -901,7 +921,11 @@ const DataManager = {
         if (filtered.length === users.length) {
             return false;
         }
-        return this.saveData(this.KEYS.USERS, filtered);
+        const saved = await this._persistUsersToCloud(filtered);
+        if (saved) {
+            this._sessionCache[this.KEYS.USERS] = filtered;
+        }
+        return saved;
     },
 
     /**
@@ -922,7 +946,8 @@ const DataManager = {
             }
         }
         if (updated) {
-            this.saveData(this.KEYS.USERS, users);
+            this._sessionCache[this.KEYS.USERS] = users;
+            await this._persistUsersToCloud(users);
         }
     },
 
@@ -974,8 +999,13 @@ const DataManager = {
             users.push(normalizedUser);
         }
 
-        const saved = this.saveData(this.KEYS.USERS, users);
-        return { success: saved, user: normalizedUser };
+        const saved = await this._persistUsersToCloud(users);
+        if (!saved) {
+            return { success: false, error: 'Não foi possível salvar o gestor na nuvem. Verifique sua conexão e tente novamente.' };
+        }
+
+        this._sessionCache[this.KEYS.USERS] = users;
+        return { success: true, user: normalizedUser };
     },
 
     getGestorUsers() {
@@ -1020,7 +1050,8 @@ const DataManager = {
         }
 
         if (updated) {
-            this.saveData(this.KEYS.USERS, users);
+            this._sessionCache[this.KEYS.USERS] = users;
+            await this._persistUsersToCloud(users);
         }
     },
 
