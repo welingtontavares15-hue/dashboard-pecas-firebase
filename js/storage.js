@@ -101,8 +101,8 @@ const CloudStorage = {
             
             console.log('CloudStorage initialized with Firebase and authenticated');
             
-            // Initial sync from cloud if connected
-            if (this.isConnected) {
+            // Initial sync from cloud if connected (using centralized state)
+            if (FirebaseInit.isRTDBConnected()) {
                 await this.syncFromCloud();
                 await this.flushQueue();
             }
