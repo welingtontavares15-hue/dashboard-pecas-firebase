@@ -238,8 +238,8 @@ const CloudStorage = {
                     });
                 }
             } else {
-                // No cloud data is not an error, just log debug info
-                console.debug('Cloud sync completed: no data in cloud');
+                // No cloud data is not an error - could be first-time sync or empty Firebase collection
+                console.debug('Cloud sync completed: no data in cloud (first-time sync or empty collection)');
                 if (typeof Logger !== 'undefined') {
                     Logger.logSync('sync_complete', { 
                         direction: 'cloud_to_session',
