@@ -5,8 +5,7 @@
  */
 
 const CloudStorage = {
-    // Connection state
-    isConnected: false,
+    // Connection state is now managed centrally by FirebaseInit
     isInitialized: false,
     database: null,
 
@@ -96,13 +95,14 @@ const CloudStorage = {
                 });
             });
 
-            this.isConnected = await connectionPromise;
+            // Wait for initial connection (not stored, just for initial sync check)
+            const initiallyConnected = await connectionPromise;
             this.isInitialized = true;
             
             console.log('CloudStorage initialized with Firebase and authenticated');
             
             // Initial sync from cloud if connected (using centralized state)
-            if (FirebaseInit.isRTDBConnected()) {
+            if (initiallyConnected && FirebaseInit.isRTDBConnected()) {
                 await this.syncFromCloud();
                 await this.flushQueue();
             }
@@ -131,7 +131,7 @@ const CloudStorage = {
             return false;
         }
 
-        // Online-only mode: Require cloud connection
+        // Online-only mode: Require cloud connection (optimized check order)
         if (!this.isInitialized || !this.database || !FirebaseInit.isRTDBConnected()) {
             console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
             return false;

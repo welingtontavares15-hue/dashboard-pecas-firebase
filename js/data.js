@@ -391,8 +391,7 @@ const DataManager = {
      */
     isOnline() {
         // Use centralized RTDB connection state from FirebaseInit
-        return this._isOnline && this.cloudInitialized && 
-               (typeof FirebaseInit !== 'undefined' && FirebaseInit.isRTDBConnected());
+        return this._isOnline && this.cloudInitialized && typeof FirebaseInit !== 'undefined' && FirebaseInit.isRTDBConnected();
     },
     
     /**
