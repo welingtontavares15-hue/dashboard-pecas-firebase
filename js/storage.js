@@ -190,6 +190,7 @@ const CloudStorage = {
     /**
      * Synchronize data from cloud - Online-only mode
      * Does not persist locally; data is loaded into DataManager session cache.
+     * For users (gestores), implements merge logic to prevent data loss.
      */
     async syncFromCloud() {
         // Early return if cloud is not initialized - this is not an error, just not ready yet
@@ -232,10 +233,20 @@ const CloudStorage = {
                     const entry = cloudData[sanitizedKey];
                     
                     if (entry && entry.data !== undefined) {
-                        // Online-only mode: Update DataManager session cache directly
-                        DataManager._sessionCache[originalKey] = entry.data;
-                        keysUpdated++;
-                        console.log(`Synced from cloud to session: ${originalKey}`);
+                        // Special merge logic for users to prevent data loss
+                        if (originalKey === 'diversey_users' && Array.isArray(entry.data)) {
+                            const localUsers = DataManager._sessionCache[originalKey] || [];
+                            const cloudUsers = entry.data;
+                            const mergedUsers = this.mergeUsers(localUsers, cloudUsers);
+                            DataManager._sessionCache[originalKey] = mergedUsers;
+                            keysUpdated++;
+                            console.log(`Merged users from cloud to session: ${mergedUsers.length} total users`);
+                        } else {
+                            // For other data types, use direct replacement
+                            DataManager._sessionCache[originalKey] = entry.data;
+                            keysUpdated++;
+                            console.log(`Synced from cloud to session: ${originalKey}`);
+                        }
                     }
                 }
                 
@@ -267,6 +278,54 @@ const CloudStorage = {
             }
             console.error('Error syncing from cloud:', error);
         }
+    },
+
+    /**
+     * Merge users using last-write-wins strategy based on updatedAt timestamp
+     * @param {Array} localUsers - Users in local session cache
+     * @param {Array} cloudUsers - Users from cloud
+     * @returns {Array} Merged user list
+     */
+    mergeUsers(localUsers, cloudUsers) {
+        if (!Array.isArray(localUsers)) localUsers = [];
+        if (!Array.isArray(cloudUsers)) cloudUsers = [];
+
+        // Create maps by user ID for efficient lookup
+        const userMap = new Map();
+
+        // Add cloud users first
+        cloudUsers.forEach(user => {
+            if (user && user.id) {
+                userMap.set(user.id, { ...user });
+            }
+        });
+
+        // Merge local users using last-write-wins based on updatedAt
+        localUsers.forEach(user => {
+            if (!user || !user.id) return;
+
+            const existingUser = userMap.get(user.id);
+            if (!existingUser) {
+                // User only exists locally, add it
+                userMap.set(user.id, { ...user });
+                console.log(`Keeping local-only user: ${user.username}`);
+            } else {
+                // User exists in both, use updatedAt to determine which is newer
+                const localUpdatedAt = user.updatedAt || 0;
+                const cloudUpdatedAt = existingUser.updatedAt || 0;
+
+                if (localUpdatedAt > cloudUpdatedAt) {
+                    // Local version is newer
+                    userMap.set(user.id, { ...user });
+                    console.log(`Local user is newer: ${user.username}`);
+                } else {
+                    // Cloud version is newer or same, keep cloud
+                    console.log(`Cloud user is newer or same: ${existingUser.username}`);
+                }
+            }
+        });
+
+        return Array.from(userMap.values());
     },
 
     /**

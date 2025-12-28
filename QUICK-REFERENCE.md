@@ -252,6 +252,87 @@ Once complete, PERMISSION_DENIED errors will be resolved.
 
 ---
 
+## 🔄 Gestores Synchronization Strategy
+
+### Overview
+The system implements a **merge-based synchronization** strategy for user (gestor) data to prevent data loss during cloud synchronization. This ensures that newly added gestores are never lost during sync operations.
+
+### Merge Strategy
+
+#### Key Principles
+1. **Stable Identifiers**: Each user has a unique `id` field (e.g., `usuario` or `email`) used for merging
+2. **Last-Write-Wins**: When the same user exists in both local and cloud, the version with the latest `updatedAt` timestamp is kept
+3. **Union of Records**: Users existing only in local OR only in cloud are both preserved
+4. **Automatic Timestamps**: Every user save operation automatically adds an `updatedAt` timestamp
+
+#### Merge Algorithm
+```javascript
+// For each user:
+1. If user exists ONLY in local → Keep local version
+2. If user exists ONLY in cloud → Keep cloud version  
+3. If user exists in BOTH:
+   - Compare updatedAt timestamps
+   - Keep version with latest timestamp (last-write-wins)
+```
+
+#### When Sync Happens
+- **Initial Load**: During app initialization after authentication
+- **Real-time Updates**: When changes are detected in Firebase
+- **Manual Refresh**: When user manually refreshes data
+
+#### Default Seeding
+- Defaults (2 gestores) are seeded ONLY if cloud is completely empty
+- Once any data exists in cloud, defaults are never re-applied
+- This prevents overwriting custom configurations
+
+### Implementation Details
+
+#### User Structure
+```javascript
+{
+  id: 'user_123',           // Stable identifier
+  username: 'gestor.name',   // Login username
+  name: 'Full Name',
+  email: 'user@example.com',
+  role: 'gestor',
+  passwordHash: '...',
+  updatedAt: 1640995200000  // Timestamp for merge resolution
+}
+```
+
+#### Code Locations
+- **Merge Logic**: `js/storage.js` → `CloudStorage.mergeUsers()`
+- **Timestamp Addition**: `js/data.js` → `DataManager.saveUser()`
+- **Sync Implementation**: `js/storage.js` → `CloudStorage.syncFromCloud()`
+
+### Testing
+Run the automated test suite to verify merge behavior:
+```bash
+npm run test:gestores-sync
+```
+
+The test validates:
+- ✅ Local-only users are preserved
+- ✅ Cloud-only users are preserved
+- ✅ Conflicting users use last-write-wins
+- ✅ Missing timestamps default to 0 (oldest)
+- ✅ All user properties are preserved
+
+### Expected Behavior
+1. **Add New Gestor** → User gets `updatedAt` timestamp → Saved to session cache
+2. **First Sync** → Cloud defaults loaded → Merge combines local + cloud users
+3. **Result** → New gestor preserved, defaults kept → All saved to cloud
+4. **Page Reload** → All users (including new gestor) load from cloud
+
+### Troubleshooting
+If gestores disappear after sync:
+1. Check browser console for merge logs: `"Merged users from cloud to session"`
+2. Verify `updatedAt` timestamps exist on users
+3. Run test suite: `npm run test:gestores-sync`
+4. Check Firebase Console `/data/diversey_users` path
+
+---
+
 ## 📞 Support
 
 If you encounter issues after Firebase Console configuration:
@@ -277,6 +358,6 @@ If you encounter issues after Firebase Console configuration:
 
 ---
 
-**PR**: copilot/fix-permission-denied-issues  
+**PR**: copilot/fix-gestores-sync-issue  
 **Date**: 2025-12-28  
 **Status**: ✅ READY FOR PRODUCTION
