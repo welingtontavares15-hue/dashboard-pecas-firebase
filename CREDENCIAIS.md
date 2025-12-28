@@ -16,5 +16,6 @@
 - Para reset de senha, acione o administrador; o envio é feito fora do repositório.
 
 ### Suporte
-- Email: suporte@diversey.com
-- Telefone: (11) 3000-0000
+- Nome: Welington Tavares
+- Email: wbastostavares@solenis.com
+- Telefone: 62998124727
