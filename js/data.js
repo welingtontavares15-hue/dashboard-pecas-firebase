@@ -792,10 +792,11 @@ const DataManager = {
         const gestorPassword = this.getGestorPassword();
         const canonicalGestorUsername = 'gestor';
         const gestorPasswordHash = await Utils.hashSHA256(gestorPassword, `${Utils.PASSWORD_SALT}:${canonicalGestorUsername}`);
+        const baseTimestamp = Date.now();
         const baseUsersRaw = [
-            { id: 'admin', username: 'admin', password: 'admin', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com' },
-            { id: 'gestor', username: 'gestor', passwordHash: gestorPasswordHash, name: 'Welington Tavares', role: 'gestor', email: 'gestor@diversey.com' },
-            { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com' }
+            { id: 'admin', username: 'admin', password: 'admin', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
+            { id: 'gestor', username: 'gestor', passwordHash: gestorPasswordHash, name: 'Welington Tavares', role: 'gestor', email: 'gestor@diversey.com', updatedAt: baseTimestamp },
+            { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com', updatedAt: baseTimestamp }
         ];
         const baseUsers = [];
         for (const user of baseUsersRaw) {
@@ -831,7 +832,8 @@ const DataManager = {
                     role: 'tecnico',
                     email: tech.email,
                     tecnicoId: tech.id,
-                    disabled: tech.ativo === false
+                    disabled: tech.ativo === false,
+                    updatedAt: baseTimestamp
                 });
             } catch (e) {
                 console.error('Erro ao gerar hash de técnico padrão', e);
@@ -943,7 +945,8 @@ const DataManager = {
             role: user.role || 'gestor',
             email: user.email || '',
             tecnicoId: user.tecnicoId || null,
-            disabled: user.disabled === true ? true : (user.disabled === false ? false : undefined)
+            disabled: user.disabled === true ? true : (user.disabled === false ? false : undefined),
+            updatedAt: Date.now() // Add timestamp for merge conflict resolution
         };
 
         try {
