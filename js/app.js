@@ -135,6 +135,11 @@ const App = {
         
         // Handle mobile sidebar
         this.handleMobileSidebar();
+
+        // Data update events refresh only the active view without navigation
+        window.addEventListener('data:updated', (event) => {
+            this.refreshActiveView(event?.detail?.keys || []);
+        });
     },
 
     /**
@@ -1027,12 +1032,76 @@ const App = {
     },
 
     /**
+     * Refresh only the active view when data changes without altering navigation
+     */
+    refreshActiveView() {
+        switch (this.currentPage) {
+        case 'dashboard':
+            if (typeof Dashboard !== 'undefined') {
+                Dashboard.render();
+            }
+            break;
+        case 'solicitacoes':
+        case 'minhas-solicitacoes':
+            if (typeof Solicitacoes !== 'undefined') {
+                Solicitacoes.render();
+            }
+            break;
+        case 'aprovacoes':
+            if (typeof Aprovacoes !== 'undefined') {
+                Aprovacoes.render();
+            }
+            break;
+        case 'pecas':
+        case 'catalogo':
+            if (typeof Pecas !== 'undefined') {
+                Pecas.render();
+            }
+            break;
+        case 'relatorios':
+            if (typeof Relatorios !== 'undefined') {
+                Relatorios.render();
+                setTimeout(() => Relatorios.initCharts(), 100);
+            }
+            break;
+        case 'tecnicos':
+            if (typeof Tecnicos !== 'undefined') {
+                Tecnicos.render();
+            }
+            break;
+        case 'fornecedores':
+            if (typeof Fornecedores !== 'undefined') {
+                Fornecedores.render();
+            }
+            break;
+        case 'configuracoes':
+            this.renderConfiguracoes();
+            break;
+        default:
+            break;
+        }
+
+        if (typeof Auth !== 'undefined' && typeof Auth.renderMenu === 'function' && this.currentPage) {
+            Auth.renderMenu(this.currentPage);
+        }
+    },
+
+    /**
      * Sync data with cloud storage
      */
     async syncData() {
         const syncBtn = document.getElementById('sync-btn');
         if (syncBtn) {
             syncBtn.classList.add('rotating');
+        }
+
+        const emitSyncStatus = (state, error = null) => {
+            window.dispatchEvent(new CustomEvent('sync:status', { detail: { state, error } }));
+        };
+
+        emitSyncStatus('start');
+        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+            Utils.showToast('Sincronizando...', 'info');
         }
         
         try {
@@ -1041,17 +1110,29 @@ const App = {
                 : false;
 
             if (synced) {
-                Utils.showToast('Dados sincronizados com sucesso', 'success');
+                emitSyncStatus('done');
+                window.dispatchEvent(new CustomEvent('data:updated', {
+                    detail: {
+                        keys: Object.values((DataManager && DataManager.KEYS) || {})
+                    }
+                }));
+                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                    Utils.showToast('Sincronizado', 'success');
+                }
+                this.refreshActiveView();
             } else {
-                Utils.showToast('Sincronização em nuvem não disponível', 'warning');
+                emitSyncStatus('error');
+                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                    Utils.showToast('Sincronização em nuvem não disponível', 'warning');
+                }
             }
 
-            // Refresh current page
-            this.renderPage(this.currentPage);
-            Auth.renderMenu(this.currentPage);
         } catch (error) {
             console.error('Sync error:', error);
-            Utils.showToast('Erro ao sincronizar dados', 'error');
+            emitSyncStatus('error', error);
+            if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                Utils.showToast('Erro ao sincronizar dados', 'error');
+            }
         } finally {
             if (syncBtn) {
                 syncBtn.classList.remove('rotating');
