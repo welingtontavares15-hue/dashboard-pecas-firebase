@@ -111,7 +111,8 @@ describe('Fallback seeding without cloud', () => {
         expect(Array.isArray(technicians)).toBe(true);
         expect(technicians.length).toBeGreaterThan(0);
 
-        const techUser = DataManager.getUserByUsername(technicians[0].username);
+        const firstTech = technicians[0];
+        const techUser = firstTech ? DataManager.getUserByUsername(firstTech.username) : null;
         expect(techUser?.role).toBe('tecnico');
     });
 });
