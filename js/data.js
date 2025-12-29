@@ -188,7 +188,7 @@ const DataManager = {
 
     PARTS_VERSION: PARTS_CATALOG_VERSION,
     SOLICITATIONS_RESET_KEY: 'diversey_solicitations_reset_version',
-    SOLICITATIONS_RESET_VERSION: '2025-12-reset-v1',
+    SOLICITATIONS_RESET_VERSION: '2025-12-reset-v2-test-purge',
 
     // Status definitions (shared across the application)
     STATUS: {
@@ -591,9 +591,34 @@ const DataManager = {
             return false;
         }
 
+        const isTestSolicitation = (sol) => {
+            if (!sol || typeof sol !== 'object') {
+                return false;
+            }
+            const id = ((sol.id || sol.numero || '') + '').toUpperCase();
+            const source = ((sol.source || sol.createdBy || '') + '').toLowerCase();
+            const description = ((sol.descricao || sol.description || sol.observacoes || '') + '').toLowerCase();
+            if (sol.isTest === true) {
+                return true;
+            }
+            if (source.includes('test') || sol.createdBy === 'healthcheck') {
+                return true;
+            }
+            if (id.includes('TEST')) {
+                return true;
+            }
+            if (description.includes('teste') || description.includes('test')) {
+                return true;
+            }
+            return false;
+        };
+
+        const solicitations = this.getSolicitations() || [];
+        const cleanedSolicitations = solicitations.filter(sol => !isTestSolicitation(sol));
+
         let resetCompleted = false;
         try {
-            resetCompleted = this.saveDataLocalOnly(this.KEYS.SOLICITATIONS, []);
+            resetCompleted = this.saveDataLocalOnly(this.KEYS.SOLICITATIONS, cleanedSolicitations);
         } catch (e) {
             console.warn('Failed to clear solicitations locally', e);
             return false;
@@ -622,7 +647,7 @@ const DataManager = {
             }
             if (typeof IndexedDBStorage.replaceStore === 'function') {
                 try {
-                    await IndexedDBStorage.replaceStore('requests', []);
+                    await IndexedDBStorage.replaceStore('requests', cleanedSolicitations);
                 } catch (e) {
                     console.warn('Failed to clear IndexedDB requests store', e);
                     replaceOk = false;
@@ -639,7 +664,7 @@ const DataManager = {
 
         if (shouldClearCloud) {
             try {
-                await CloudStorage.saveData(this.KEYS.SOLICITATIONS, []);
+                await CloudStorage.saveData(this.KEYS.SOLICITATIONS, cleanedSolicitations);
                 cloudCleared = true;
             } catch (e) {
                 console.warn('Failed to clear solicitations in cloud storage', e);
