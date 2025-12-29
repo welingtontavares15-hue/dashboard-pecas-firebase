@@ -355,7 +355,8 @@ const DataManager = {
                     }
                 }
 
-                if (!this._sessionCache[this.KEYS.TECHNICIANS] || !Array.isArray(this._sessionCache[this.KEYS.TECHNICIANS]) || this._sessionCache[this.KEYS.TECHNICIANS].length === 0) {
+                const cachedTechnicians = this._sessionCache[this.KEYS.TECHNICIANS];
+                if (!cachedTechnicians || !Array.isArray(cachedTechnicians) || cachedTechnicians.length === 0) {
                     const defaultTechnicians = this.getDefaultTechnicians();
                     if (Array.isArray(defaultTechnicians) && defaultTechnicians.length > 0) {
                         this._sessionCache[this.KEYS.TECHNICIANS] = defaultTechnicians;
