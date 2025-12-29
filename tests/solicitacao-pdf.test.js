@@ -18,7 +18,7 @@ jest.mock('puppeteer', () => {
 });
 
 const puppeteer = require('puppeteer');
-const { generateSolicitacaoPdf } = require('../scripts/generate-solicitacao-pdf');
+const { generateSolicitacaoPdf } = require('../scripts/generateSolicitacaoPdf.js');
 
 describe('generateSolicitacaoPdf', () => {
     it('gera buffer de PDF e calcula totais corretamente', async () => {
@@ -43,11 +43,18 @@ describe('generateSolicitacaoPdf', () => {
 
         const result = await generateSolicitacaoPdf(data);
 
-        expect(result.filename).toBe(`Solicitacao_${data.numero}.pdf`);
-        expect(result.payload.subtotalItens).toBeCloseTo(265.08);
-        expect(result.payload.total).toBeCloseTo(265.08);
-        expect(result.buffer).toBe(puppeteer.__mock.pdfBuffer);
+        expect(result.path).toContain(`Solicitacao_${data.numero}.pdf`);
+        expect(result.subtotal).toBeCloseTo(265.08);
+        expect(result.total).toBeCloseTo(265.08);
         expect(puppeteer.launch).toHaveBeenCalled();
+        expect(puppeteer.__mock.pdfMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                path: expect.stringContaining(`Solicitacao_${data.numero}.pdf`),
+                format: 'A4',
+                printBackground: true,
+                preferCSSPageSize: true
+            })
+        );
         expect(puppeteer.__mock.newPageMock).toHaveBeenCalled();
     });
 });
