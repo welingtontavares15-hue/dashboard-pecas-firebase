@@ -356,7 +356,7 @@ const DataManager = {
                 }
 
                 if (!this._sessionCache[this.KEYS.TECHNICIANS] || !Array.isArray(this._sessionCache[this.KEYS.TECHNICIANS]) || this._sessionCache[this.KEYS.TECHNICIANS].length === 0) {
-                    const defaultTechnicians = this.getDefaultTechnicians();
+                    const defaultTechnicians = await Promise.resolve(this.getDefaultTechnicians());
                     if (Array.isArray(defaultTechnicians) && defaultTechnicians.length > 0) {
                         this._sessionCache[this.KEYS.TECHNICIANS] = defaultTechnicians;
                     }

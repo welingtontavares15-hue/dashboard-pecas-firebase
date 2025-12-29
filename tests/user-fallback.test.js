@@ -1,6 +1,6 @@
 /**
  * Fallback user seeding when cloud is unavailable
- * Ensures Admin, Gestor, and Técnico accounts remain accessible locally
+ * Ensures Admin, Gestor, and Technician accounts remain accessible locally
  */
 
 const fs = require('fs');
@@ -67,7 +67,10 @@ const dataCode = fs.readFileSync(path.join(__dirname, '../js/data.js'), 'utf8');
 const createDataManager = () => {
     const loadUtils = new Function(`${utilsCode}; return Utils;`);
     const Utils = loadUtils();
-    Utils.hashSHA256 = jest.fn(async (value, salt = '') => `hash:${value}:${salt}`);
+    Utils.hashSHA256 = jest.fn(async (value, salt = '') => {
+        const input = `${value ?? ''}:${salt ?? ''}`;
+        return Buffer.from(input).toString('hex').slice(0, 64) || 'hash';
+    });
     const factory = new Function('Utils', `
         ${dataCode}
         return DataManager;
