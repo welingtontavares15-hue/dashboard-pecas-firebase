@@ -334,6 +334,34 @@ const DataManager = {
                     console.warn('Failed to enforce default gestor credentials', e);
                 }
 
+                // Fallback seeding when cloud is unavailable: keep essential users/technicians in session cache
+                const cachedUsers = Array.isArray(this._sessionCache[this.KEYS.USERS]) ? [...this._sessionCache[this.KEYS.USERS]] : [];
+                const hasAdmin = cachedUsers.some(u => this.normalizeUsername(u.username) === 'admin');
+                const hasTechnician = cachedUsers.some(u => u.role === 'tecnico');
+                if (cachedUsers.length === 0 || !hasAdmin || !hasTechnician) {
+                    try {
+                        const defaultUsers = await this.getDefaultUsers();
+                        if (Array.isArray(defaultUsers) && defaultUsers.length > 0) {
+                            const existingUsernames = new Set(cachedUsers.map(u => this.normalizeUsername(u.username)));
+                            defaultUsers.forEach(u => {
+                                if (!existingUsernames.has(this.normalizeUsername(u.username))) {
+                                    cachedUsers.push(u);
+                                }
+                            });
+                            this._sessionCache[this.KEYS.USERS] = cachedUsers;
+                        }
+                    } catch (e) {
+                        console.warn('Failed to seed default users locally', e);
+                    }
+                }
+
+                if (!this._sessionCache[this.KEYS.TECHNICIANS] || !Array.isArray(this._sessionCache[this.KEYS.TECHNICIANS]) || this._sessionCache[this.KEYS.TECHNICIANS].length === 0) {
+                    const defaultTechnicians = this.getDefaultTechnicians();
+                    if (Array.isArray(defaultTechnicians) && defaultTechnicians.length > 0) {
+                        this._sessionCache[this.KEYS.TECHNICIANS] = defaultTechnicians;
+                    }
+                }
+
                 if (this.cloudInitialized) {
                     this.scheduleSync('init_complete');
                 }
