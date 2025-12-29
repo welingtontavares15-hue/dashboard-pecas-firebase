@@ -15,7 +15,7 @@
     "cleanup:apply": "node scripts/cleanup-test-data.mjs --apply",
     "cleanup:test:dry": "node scripts/cleanup-test-data.mjs --dry-run",
     "cleanup:test": "node scripts/cleanup-test-data.mjs --apply",
-    "generate:pdf": "node scripts/generate-solicitacao-pdf.js"
+    "generate:pdf": "node scripts/generateSolicitacaoPdf.js"
   },
   "keywords": [
     "pwa",
