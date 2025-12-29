@@ -12,12 +12,8 @@ function brl(v) {
 }
 
 function ddmmyyyy(iso) {
-    if (!iso) {
-        const now = new Date();
-        const pad = (n) => String(n).padStart(2, '0');
-        return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
-    }
-    const [y, m, d] = iso.split('-');
+    const use = iso || new Date().toISOString().slice(0, 10);
+    const [y, m, d] = use.split('-');
     return `${d}/${m}/${y}`;
 }
 
@@ -72,7 +68,7 @@ async function generateSolicitacaoPdf(data) {
     html = html
         .replaceAll('{{NUMERO}}', data.numero ?? '')
         .replaceAll('{{TECNICO}}', data.tecnico ?? '')
-        .replaceAll('{{DATA}}', ddmmyyyy(data.data ?? '2025-01-01'))
+        .replaceAll('{{DATA}}', ddmmyyyy(data.data))
         .replaceAll('{{ENDERECO}}', data.endereco ?? '')
         .replaceAll('{{CIDADE_UF}}', data.cidadeUf ?? '')
         .replaceAll('{{ENVIO}}', data.envio ?? '')
@@ -86,10 +82,11 @@ async function generateSolicitacaoPdf(data) {
         .replaceAll('{{GERADO_EM}}', nowBR());
 
     await fs.promises.mkdir(OUT_DIR, { recursive: true });
-    const outFile = path.join(OUT_DIR, `Solicitacao_${data.numero || 'sem-numero'}.pdf`);
+    const numero = data.numero || `sem-numero-${Date.now()}`;
+    const outFile = path.join(OUT_DIR, `Solicitacao_${numero}.pdf`);
 
     const launchOptions = {
-        headless: 'new',
+        headless: true,
         args: ['--no-sandbox', '--font-render-hinting=medium']
     };
 

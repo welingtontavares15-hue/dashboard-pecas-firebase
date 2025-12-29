@@ -18,7 +18,7 @@ jest.mock('puppeteer', () => {
 });
 
 const puppeteer = require('puppeteer');
-const { generateSolicitacaoPdf } = require('../scripts/generateSolicitacaoPdf');
+const { generateSolicitacaoPdf } = require('../scripts/generateSolicitacaoPdf.js');
 
 describe('generateSolicitacaoPdf', () => {
     it('gera buffer de PDF e calcula totais corretamente', async () => {
