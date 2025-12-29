@@ -1,6 +1,6 @@
 /**
  * Fallback user seeding when cloud is unavailable
- * Ensures Admin, Gestor e Técnicos permanecem acessíveis localmente
+ * Ensures Admin, Gestor, and Técnico accounts remain accessible locally
  */
 
 const fs = require('fs');
@@ -75,7 +75,7 @@ const createDataManager = () => {
     return factory(Utils);
 };
 
-describe('Fallback seeding sem nuvem', () => {
+describe('Fallback seeding without cloud', () => {
     let DataManager;
 
     beforeEach(async () => {
@@ -95,7 +95,7 @@ describe('Fallback seeding sem nuvem', () => {
         await DataManager.init();
     });
 
-    it('garante Admin e Gestor mesmo sem CloudStorage', async () => {
+    it('keeps Admin and Gestor accounts available without CloudStorage', async () => {
         const admin = DataManager.getUserByUsername('admin');
         const gestor = DataManager.getUserByUsername('gestor');
 
@@ -103,7 +103,7 @@ describe('Fallback seeding sem nuvem', () => {
         expect(gestor?.role).toBe('gestor');
     });
 
-    it('semente técnicos localmente para login', () => {
+    it('seeds technician accounts locally for login', () => {
         const technicians = DataManager.getTechnicians();
         expect(Array.isArray(technicians)).toBe(true);
         expect(technicians.length).toBeGreaterThan(0);
