@@ -595,13 +595,17 @@ const DataManager = {
             if (!sol || typeof sol !== 'object') {
                 return false;
             }
-            const id = ((sol.id || sol.numero || '') + '').toUpperCase();
-            const source = ((sol.source || sol.createdBy || '') + '').toLowerCase();
-            const description = ((sol.descricao || sol.description || sol.observacoes || '') + '').toLowerCase();
             if (sol.isTest === true) {
                 return true;
             }
-            if (source.includes('test') || sol.createdBy === 'healthcheck') {
+            const createdBy = ((sol.createdBy || '') + '').toLowerCase();
+            if (createdBy === 'healthcheck') {
+                return true;
+            }
+            const id = ((sol.id || sol.numero || '') + '').toUpperCase();
+            const source = ((sol.source || createdBy) + '').toLowerCase();
+            const description = ((sol.descricao || sol.description || sol.observacoes || '') + '').toLowerCase();
+            if (source.includes('test')) {
                 return true;
             }
             if (id.includes('TEST')) {
