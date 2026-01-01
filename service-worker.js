@@ -3,6 +3,7 @@
 const CACHE_VERSION = 'v6'; // Incremented for performance improvements
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
+const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 const MODULE_CACHES = {
   core: `${CACHE_PREFIX}-core-${CACHE_VERSION}`,
@@ -66,6 +67,16 @@ Object.entries(PRECACHE).forEach(([module, assets]) => {
 
 const ALL_CACHES = Object.values(MODULE_CACHES);
 
+// Helper function to check if cached response is too old
+function isCacheFresh(response) {
+  if (!response) return false;
+  const cachedDate = response.headers.get('date');
+  if (!cachedDate) return true; // If no date header, treat as fresh
+  const cacheTime = new Date(cachedDate).getTime();
+  const now = Date.now();
+  return (now - cacheTime) < CACHE_MAX_AGE;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all(
@@ -95,7 +106,10 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
   
   // Performance: Network-first strategy for Firebase API calls
-  if (requestUrl.hostname.includes('firebaseio.com') || requestUrl.hostname.includes('googleapis.com')) {
+  const isFirebaseAPI = requestUrl.hostname.endsWith('firebaseio.com') || 
+                        requestUrl.hostname.endsWith('googleapis.com');
+  
+  if (isFirebaseAPI) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -139,8 +153,11 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => cachedResponse || caches.match(OFFLINE_URL));
         
-        // Return cached response immediately, update in background
-        return cachedResponse || fetchPromise;
+        // Return cached response if fresh, otherwise wait for network
+        if (cachedResponse && isCacheFresh(cachedResponse)) {
+          return cachedResponse;
+        }
+        return fetchPromise;
       })
     )
   );

@@ -1,5 +1,20 @@
 import { defineConfig } from 'vite';
 
+// Define module paths for better maintainability
+const SECURITY_MODULES = [
+  './js/security/sanitizer.js',
+  './js/security/rate-limiter.js',
+  './js/security/validator.js'
+];
+
+const CORE_MODULES = [
+  './js/config.js',
+  './js/utils.js',
+  './js/app.js',
+  './js/storage.js',
+  './js/data.js'
+];
+
 export default defineConfig({
   define: {
     'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify(process.env.VITE_FIREBASE_API_KEY),
@@ -31,19 +46,9 @@ export default defineConfig({
             'qrcode'
           ],
           // Security modules chunk
-          'security': [
-            './js/security/sanitizer.js',
-            './js/security/rate-limiter.js',
-            './js/security/validator.js'
-          ],
+          'security': SECURITY_MODULES,
           // Core application chunk
-          'core': [
-            './js/config.js',
-            './js/utils.js',
-            './js/app.js',
-            './js/storage.js',
-            './js/data.js'
-          ],
+          'core': CORE_MODULES,
           // Firebase related chunk
           'firebase': [
             './js/firebase-init.js'
