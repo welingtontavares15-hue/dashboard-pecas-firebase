@@ -963,7 +963,7 @@ const DataManager = {
         const gestorPasswordHash = await Utils.hashSHA256(gestorPassword, `${Utils.PASSWORD_SALT}:${canonicalGestorUsername}`);
         const baseTimestamp = Date.now();
         const baseUsersRaw = [
-            { id: 'admin', username: 'admin', password: 'admin', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
+            { id: 'admin', username: 'admin', password: 'admin123', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
             { id: 'gestor', username: 'gestor', passwordHash: gestorPasswordHash, name: 'Welington Tavares', role: 'gestor', email: 'gestor@diversey.com', updatedAt: baseTimestamp },
             { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com', updatedAt: baseTimestamp }
         ];
