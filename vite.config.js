@@ -81,7 +81,7 @@ export default defineConfig({
   },
   // Performance: Optimize dependencies
   optimizeDeps: {
-    include: ['dompurify'],
+    include: [],
     exclude: []
   }
 });

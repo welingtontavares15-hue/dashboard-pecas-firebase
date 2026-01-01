@@ -71,7 +71,7 @@ const ALL_CACHES = Object.values(MODULE_CACHES);
 function isCacheFresh(response) {
   if (!response) return false;
   const cachedDate = response.headers.get('date');
-  if (!cachedDate) return true; // If no date header, treat as fresh
+  if (!cachedDate) return false; // Default to false for safety if no date header
   const cacheTime = new Date(cachedDate).getTime();
   const now = Date.now();
   return (now - cacheTime) < CACHE_MAX_AGE;
@@ -110,7 +110,9 @@ self.addEventListener('fetch', (event) => {
   const isFirebaseAPI = (requestUrl.hostname === 'firebaseio.com' || 
                          requestUrl.hostname.endsWith('.firebaseio.com') ||
                          requestUrl.hostname === 'googleapis.com' ||
-                         requestUrl.hostname.endsWith('.googleapis.com'));
+                         requestUrl.hostname.endsWith('.googleapis.com') ||
+                         requestUrl.hostname === 'www.gstatic.com' ||
+                         requestUrl.hostname.endsWith('.gstatic.com'));
   
   if (isFirebaseAPI) {
     event.respondWith(
