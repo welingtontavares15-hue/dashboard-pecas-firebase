@@ -393,6 +393,10 @@ const App = {
                 this.renderConfiguracoes();
                 break;
                     
+            case 'user-management':
+                this.renderUserManagement();
+                break;
+                    
             case 'ajuda':
                 this.renderAjuda();
                 break;
@@ -1149,6 +1153,11 @@ const App = {
                 this.renderConfiguracoes();
             }
             break;
+        case 'user-management':
+            if (shouldUpdate(DataManager?.KEYS?.USERS)) {
+                this.renderUserManagement();
+            }
+            break;
         default:
             break;
         }
@@ -1245,6 +1254,457 @@ const App = {
         // Logout and show login
         Auth.logout();
         this.showLogin();
+    },
+
+    /**
+     * Render user management page
+     */
+    renderUserManagement() {
+        const content = document.getElementById('content-area');
+        
+        // Check if user is admin
+        if (Auth.getRole() !== 'administrador') {
+            content.innerHTML = `
+                <div class="page-header">
+                    <h2><i class="fas fa-users-cog"></i> Gerenciar Usuários</h2>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center" style="padding: 60px 20px;">
+                        <i class="fas fa-lock" style="font-size: 64px; color: #ddd; margin-bottom: 20px;"></i>
+                        <h3>Acesso Restrito</h3>
+                        <p>Apenas administradores podem acessar esta seção.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        content.innerHTML = `
+            <div class="page-header">
+                <h2><i class="fas fa-users-cog"></i> Gerenciar Usuários</h2>
+            </div>
+            
+            <div id="userManagementContainer"></div>
+        `;
+        
+        // Load user management module
+        this.loadUserManagementModule();
+    },
+
+    /**
+     * Load and initialize user management module
+     */
+    async loadUserManagementModule() {
+        const container = document.getElementById('userManagementContainer');
+        if (!container) return;
+        
+        try {
+            // Show loading state
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center" style="padding: 60px 20px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #667eea; margin-bottom: 20px;"></i>
+                        <p>Loading user management module...</p>
+                    </div>
+                </div>
+            `;
+            
+            // Initialize Firebase if needed
+            if (typeof FirebaseInit !== 'undefined' && !FirebaseInit.isReady()) {
+                await FirebaseInit.init();
+            }
+            
+            // Get users from DataManager
+            const users = DataManager.getUsers();
+            
+            // Render user management interface
+            this.renderUserManagementInterface(users);
+            
+        } catch (error) {
+            console.error('Error loading user management:', error);
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Error:</strong> Failed to load user management module. ${error.message}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    },
+
+    /**
+     * Render user management interface
+     */
+    renderUserManagementInterface(users) {
+        const container = document.getElementById('userManagementContainer');
+        if (!container) return;
+        
+        const userCount = users.length;
+        const activeUsers = users.filter(u => !u.disabled).length;
+        const disabledUsers = userCount - activeUsers;
+        
+        container.innerHTML = `
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-value">${userCount}</span>
+                        <span class="stat-label">Total Users</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #10b981;"><i class="fas fa-user-check"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-value">${activeUsers}</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #ef4444;"><i class="fas fa-user-slash"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-value">${disabledUsers}</span>
+                        <span class="stat-label">Disabled</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h4>User Management</h4>
+                    <button class="btn btn-primary" onclick="App.showUserModal()">
+                        <i class="fas fa-plus"></i> Add New User
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <input type="text" id="userSearchInput" class="form-control" placeholder="🔍 Search by name, username, or email..." 
+                               onkeyup="App.filterUserTable()">
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                ${this.renderUserTableRows(users)}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Modal -->
+            <div id="userModal" class="modal" style="display: none;">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="userModalTitle">Add New User</h5>
+                            <button type="button" class="close" onclick="App.closeUserModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="userForm">
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="userName">Name *</label>
+                                        <input type="text" class="form-control" id="userName" required>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="userUsername">Username *</label>
+                                        <input type="text" class="form-control" id="userUsername" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="userEmail">Email</label>
+                                        <input type="email" class="form-control" id="userEmail">
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="userRole">Role *</label>
+                                        <select class="form-control" id="userRole" required>
+                                            <option value="">Select a role</option>
+                                            <option value="administrador">Administrator</option>
+                                            <option value="gestor">Manager</option>
+                                            <option value="tecnico">Technician</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="userTecnicoId">Technician ID (for tecnico role)</label>
+                                    <input type="text" class="form-control" id="userTecnicoId">
+                                </div>
+                                <div class="form-group">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="userDisabled">
+                                        <label class="custom-control-label" for="userDisabled">Disabled</label>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="userId">
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="App.closeUserModal()">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="App.saveUser()">
+                                <i class="fas fa-save"></i> Save User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Render user table rows
+     */
+    renderUserTableRows(users) {
+        if (users.length === 0) {
+            return '<tr><td colspan="7" class="text-center">No users found</td></tr>';
+        }
+        
+        return users.map(user => {
+            const statusClass = user.disabled ? 'text-danger' : 'text-success';
+            const statusIcon = user.disabled ? 'fa-circle' : 'fa-circle';
+            const roleBadgeClass = {
+                'administrador': 'badge-danger',
+                'gestor': 'badge-primary',
+                'tecnico': 'badge-success'
+            }[user.role] || 'badge-secondary';
+            const roleLabel = Auth.getRoleLabel(user.role);
+            const updatedDate = user.updatedAt ? Utils.formatDate(user.updatedAt, true) : '-';
+            
+            return `
+                <tr data-username="${Utils.escapeHtml(user.username || '')}" data-name="${Utils.escapeHtml(user.name || '')}" data-email="${Utils.escapeHtml(user.email || '')}">
+                    <td><i class="fas ${statusIcon} ${statusClass}" title="${user.disabled ? 'Disabled' : 'Active'}"></i></td>
+                    <td>${Utils.escapeHtml(user.name || '-')}</td>
+                    <td><strong>${Utils.escapeHtml(user.username || '-')}</strong></td>
+                    <td>${Utils.escapeHtml(user.email || '-')}</td>
+                    <td><span class="badge ${roleBadgeClass}">${roleLabel}</span></td>
+                    <td>${updatedDate}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline" onclick='App.editUser(${JSON.stringify(user)})' title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick='App.resetUserPassword("${user.username}")' title="Reset Password">
+                            <i class="fas fa-key"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick='App.deleteUser("${user.username}")' title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Filter user table
+     */
+    filterUserTable() {
+        const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTableBody tr');
+        
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name').toLowerCase();
+            const username = row.getAttribute('data-username').toLowerCase();
+            const email = row.getAttribute('data-email').toLowerCase();
+            
+            const matches = name.includes(searchTerm) || username.includes(searchTerm) || email.includes(searchTerm);
+            row.style.display = matches ? '' : 'none';
+        });
+    },
+
+    /**
+     * Show user modal
+     */
+    showUserModal(user = null) {
+        const modal = document.getElementById('userModal');
+        const title = document.getElementById('userModalTitle');
+        
+        if (user) {
+            title.textContent = 'Edit User';
+            document.getElementById('userId').value = user.id || '';
+            document.getElementById('userName').value = user.name || '';
+            document.getElementById('userUsername').value = user.username || '';
+            document.getElementById('userUsername').disabled = true;
+            document.getElementById('userEmail').value = user.email || '';
+            document.getElementById('userRole').value = user.role || '';
+            document.getElementById('userTecnicoId').value = user.tecnicoId || '';
+            document.getElementById('userDisabled').checked = user.disabled || false;
+        } else {
+            title.textContent = 'Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('userUsername').disabled = false;
+        }
+        
+        modal.style.display = 'block';
+    },
+
+    /**
+     * Close user modal
+     */
+    closeUserModal() {
+        const modal = document.getElementById('userModal');
+        modal.style.display = 'none';
+    },
+
+    /**
+     * Edit user
+     */
+    editUser(user) {
+        this.showUserModal(user);
+    },
+
+    /**
+     * Save user (create or update)
+     */
+    async saveUser() {
+        const userId = document.getElementById('userId').value;
+        const name = document.getElementById('userName').value.trim();
+        const username = document.getElementById('userUsername').value.trim();
+        const email = document.getElementById('userEmail').value.trim();
+        const role = document.getElementById('userRole').value;
+        const tecnicoId = document.getElementById('userTecnicoId').value.trim();
+        const disabled = document.getElementById('userDisabled').checked;
+        
+        if (!name || !username || !role) {
+            Utils.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+        
+        try {
+            // Generate default password hash
+            const defaultPasswords = {
+                'administrador': 'admin123',
+                'gestor': 'gestor123',
+                'tecnico': 'tecnico123'
+            };
+            const passwordHash = await Utils.hashSHA256(defaultPasswords[role], `${Utils.PASSWORD_SALT}:${username}`);
+            
+            const users = DataManager.getUsers();
+            const existingIndex = users.findIndex(u => u.username === username);
+            
+            const userData = {
+                id: userId || username,
+                name,
+                username,
+                email,
+                role,
+                passwordHash,
+                disabled,
+                updatedAt: new Date().toISOString(),
+                updatedBy: Auth.getCurrentUser()?.username || 'admin'
+            };
+            
+            if (tecnicoId) {
+                userData.tecnicoId = tecnicoId;
+            }
+            
+            if (existingIndex >= 0) {
+                // Update existing user
+                userData.createdAt = users[existingIndex].createdAt;
+                userData.createdBy = users[existingIndex].createdBy;
+                users[existingIndex] = userData;
+                Utils.showToast('User updated successfully', 'success');
+            } else {
+                // Create new user
+                userData.createdAt = new Date().toISOString();
+                userData.createdBy = Auth.getCurrentUser()?.username || 'admin';
+                users.push(userData);
+                Utils.showToast('User created successfully', 'success');
+            }
+            
+            // Save users
+            DataManager.saveData(DataManager.KEYS.USERS, users);
+            
+            // Close modal and refresh
+            this.closeUserModal();
+            this.renderUserManagement();
+            
+        } catch (error) {
+            console.error('Error saving user:', error);
+            Utils.showToast(`Error: ${error.message}`, 'error');
+        }
+    },
+
+    /**
+     * Delete user
+     */
+    async deleteUser(username) {
+        const confirmed = await Utils.confirm(
+            `Are you sure you want to delete user "${username}"? This action cannot be undone.`,
+            'Delete User'
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            const users = DataManager.getUsers();
+            const updatedUsers = users.filter(u => u.username !== username);
+            
+            DataManager.saveData(DataManager.KEYS.USERS, updatedUsers);
+            Utils.showToast('User deleted successfully', 'success');
+            
+            this.renderUserManagement();
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            Utils.showToast(`Error: ${error.message}`, 'error');
+        }
+    },
+
+    /**
+     * Reset user password
+     */
+    async resetUserPassword(username) {
+        const user = DataManager.getUsers().find(u => u.username === username);
+        if (!user) {
+            Utils.showToast('User not found', 'error');
+            return;
+        }
+        
+        const defaultPasswords = {
+            'administrador': 'admin123',
+            'gestor': 'gestor123',
+            'tecnico': 'tecnico123'
+        };
+        const defaultPassword = defaultPasswords[user.role];
+        
+        const confirmed = await Utils.confirm(
+            `Reset password for user "${username}"?\n\nThe password will be reset to: ${defaultPassword}`,
+            'Reset Password'
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            const users = DataManager.getUsers();
+            const userIndex = users.findIndex(u => u.username === username);
+            
+            if (userIndex >= 0) {
+                const passwordHash = await Utils.hashSHA256(defaultPassword, `${Utils.PASSWORD_SALT}:${username}`);
+                users[userIndex].passwordHash = passwordHash;
+                users[userIndex].updatedAt = new Date().toISOString();
+                users[userIndex].updatedBy = Auth.getCurrentUser()?.username || 'admin';
+                
+                DataManager.saveData(DataManager.KEYS.USERS, users);
+                Utils.showToast(`Password reset to: ${defaultPassword}`, 'success');
+            }
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            Utils.showToast(`Error: ${error.message}`, 'error');
+        }
     },
 
     /**
