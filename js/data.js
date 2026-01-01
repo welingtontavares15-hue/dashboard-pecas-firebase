@@ -334,6 +334,13 @@ const DataManager = {
                     console.warn('Failed to enforce default gestor credentials', e);
                 }
 
+                // Ensure baseline users exist for staging/development environments
+                try {
+                    await this.ensureBaselineUsersForStaging();
+                } catch (e) {
+                    console.warn('Failed to seed baseline users for staging', e);
+                }
+
                 // Fallback seeding when cloud is unavailable: keep essential users/technicians in session cache
                 const cachedUsers = Array.isArray(this._sessionCache[this.KEYS.USERS]) ? [...this._sessionCache[this.KEYS.USERS]] : [];
                 const hasAdmin = cachedUsers.some(u => this.normalizeUsername(u.username) === 'admin');
@@ -1146,6 +1153,9 @@ const DataManager = {
             return { success: false, error: 'Nome de usuário já cadastrado' };
         }
 
+        const existingUser = user.id ? users.find(u => u.id === user.id) : null;
+        const isUpdate = !!existingUser;
+
         const normalizedUser = {
             id: user.id || Utils.generateId(),
             username: String(user.username).trim(),
@@ -1158,10 +1168,19 @@ const DataManager = {
         };
 
         try {
+            // Handle password/passwordHash
             if (user.passwordHash) {
+                // passwordHash provided directly - use it
                 normalizedUser.passwordHash = user.passwordHash;
             } else if (user.password) {
+                // password provided - hash it
                 normalizedUser.passwordHash = await Utils.hashSHA256(user.password, `${Utils.PASSWORD_SALT}:${normalizedUser.username}`);
+            } else if (isUpdate && existingUser.passwordHash) {
+                // Update mode: no password provided, keep existing hash
+                normalizedUser.passwordHash = existingUser.passwordHash;
+            } else {
+                // Create mode: password required
+                return { success: false, error: 'Senha é obrigatória' };
             }
         } catch (e) {
             console.error('Erro ao gerar hash de senha', e);
@@ -1252,6 +1271,100 @@ const DataManager = {
             this._sessionCache[this.KEYS.USERS] = users;
             await this._persistUsersToCloud(users);
         }
+    },
+
+    /**
+     * Ensure baseline users exist for staging/development environments.
+     * Creates or updates admin, gestor, and welington.btavares accounts with pre-computed hashes.
+     * Only runs when APP_CONFIG.environment !== 'production'.
+     * 
+     * Pre-computed hashes (using salt "diversey_salt_v1"):
+     * - admin / admin123: c08ab1a7671509ccb5ecdf9868eb30df793ce5104b404d11cfa82d4b84029283
+     * - gestor / gestor123: ca762c2ec7cdcc2fb79450121aba3642873df25ed035810c8f6a12b76f9f42fa
+     * - welington.btavares / btavares123: d012e1413fe36160d4b5caf6bc81c0286904116c5506040d943a2e4f5faa943b
+     */
+    async ensureBaselineUsersForStaging() {
+        // Only run in non-production environments
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.environment === 'production') {
+            console.info('[BASELINE] Skipping baseline user seeding in production environment');
+            return false;
+        }
+
+        const baseTimestamp = Date.now();
+        
+        // Define baseline users with pre-computed hashes
+        // These hashes were computed using: SHA256(password + (PASSWORD_SALT + ":" + username))
+        const baselineUsers = [
+            {
+                id: 'admin',
+                username: 'admin',
+                name: 'Administrador',
+                role: 'administrador',
+                email: 'admin@diversey.com',
+                passwordHash: 'c08ab1a7671509ccb5ecdf9868eb30df793ce5104b404d11cfa82d4b84029283', // admin123
+                disabled: false,
+                updatedAt: baseTimestamp
+            },
+            {
+                id: 'gestor',
+                username: 'gestor',
+                name: 'Welington Tavares',
+                role: 'gestor',
+                email: 'gestor@diversey.com',
+                passwordHash: 'ca762c2ec7cdcc2fb79450121aba3642873df25ed035810c8f6a12b76f9f42fa', // gestor123
+                disabled: false,
+                updatedAt: baseTimestamp
+            },
+            {
+                id: 'gestor_wt',
+                username: 'welington.btavares',
+                name: 'Welington Bastos Tavares',
+                role: 'gestor',
+                email: 'welington.tavares@diversey.com',
+                passwordHash: 'd012e1413fe36160d4b5caf6bc81c0286904116c5506040d943a2e4f5faa943b', // btavares123
+                disabled: false,
+                updatedAt: baseTimestamp
+            }
+        ];
+
+        const users = this.getUsers();
+        let updated = false;
+
+        // Upsert each baseline user
+        for (const baselineUser of baselineUsers) {
+            const normalizedUsername = this.normalizeUsername(baselineUser.username);
+            const existingIndex = users.findIndex(u => 
+                this.normalizeUsername(u.username) === normalizedUsername
+            );
+
+            if (existingIndex >= 0) {
+                // Update existing user - preserve ID but update other fields
+                const existing = users[existingIndex];
+                users[existingIndex] = {
+                    ...baselineUser,
+                    id: existing.id, // Keep existing ID
+                    updatedAt: baseTimestamp
+                };
+                updated = true;
+                console.info(`[BASELINE] Updated baseline user: ${baselineUser.username}`);
+            } else {
+                // Create new user
+                users.push(baselineUser);
+                updated = true;
+                console.info(`[BASELINE] Created baseline user: ${baselineUser.username}`);
+            }
+        }
+
+        if (updated) {
+            this._sessionCache[this.KEYS.USERS] = users;
+            const saved = await this._persistUsersToCloud(users);
+            if (saved) {
+                console.info('[BASELINE] Baseline users seeded successfully');
+            }
+            return saved;
+        }
+
+        return false;
     },
 
     // ===== TECHNICIANS =====
