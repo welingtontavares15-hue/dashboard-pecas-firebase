@@ -1153,6 +1153,9 @@ const DataManager = {
             return { success: false, error: 'Nome de usuário já cadastrado' };
         }
 
+        const existingUser = user.id ? users.find(u => u.id === user.id) : null;
+        const isUpdate = !!existingUser;
+
         const normalizedUser = {
             id: user.id || Utils.generateId(),
             username: String(user.username).trim(),
@@ -1165,10 +1168,19 @@ const DataManager = {
         };
 
         try {
+            // Handle password/passwordHash
             if (user.passwordHash) {
+                // passwordHash provided directly - use it
                 normalizedUser.passwordHash = user.passwordHash;
             } else if (user.password) {
+                // password provided - hash it
                 normalizedUser.passwordHash = await Utils.hashSHA256(user.password, `${Utils.PASSWORD_SALT}:${normalizedUser.username}`);
+            } else if (isUpdate && existingUser.passwordHash) {
+                // Update mode: no password provided, keep existing hash
+                normalizedUser.passwordHash = existingUser.passwordHash;
+            } else {
+                // Create mode: password required
+                return { success: false, error: 'Senha é obrigatória' };
             }
         } catch (e) {
             console.error('Erro ao gerar hash de senha', e);

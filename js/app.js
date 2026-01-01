@@ -719,22 +719,30 @@ const App = {
                                         <th>Nome</th>
                                         <th>Usuário</th>
                                         <th>Email</th>
-                                        <th style="width: 120px;">Ações</th>
+                                        <th>Status</th>
+                                        <th style="width: 220px;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${(() => {
         const gestores = DataManager.getGestorUsers();
         if (!gestores || gestores.length === 0) {
-            return '<tr><td colspan="4" class="text-muted">Nenhum gestor cadastrado.</td></tr>';
+            return '<tr><td colspan="5" class="text-muted">Nenhum gestor cadastrado.</td></tr>';
         }
         return gestores.map(g => `
                                             <tr>
                                                 <td>${Utils.escapeHtml(g.name || '-')}</td>
                                                 <td><code>${Utils.escapeHtml(g.username || '-')}</code></td>
                                                 <td>${Utils.escapeHtml(g.email || '-')}</td>
+                                                <td>${g.disabled ? '<span class="badge badge-secondary">Inativo</span>' : '<span class="badge badge-success">Ativo</span>'}</td>
                                                 <td>
-                                                    <button class="btn btn-danger btn-sm delete-gestor-btn" data-gestor-id="${Utils.escapeHtml(g.id)}">
+                                                    <button class="btn btn-info btn-sm edit-gestor-btn" data-gestor-id="${Utils.escapeHtml(g.id)}" title="Editar gestor">
+                                                        <i class="fas fa-edit"></i> Editar
+                                                    </button>
+                                                    <button class="btn btn-warning btn-sm change-password-btn" data-gestor-id="${Utils.escapeHtml(g.id)}" title="Alterar senha">
+                                                        <i class="fas fa-key"></i> Senha
+                                                    </button>
+                                                    <button class="btn btn-danger btn-sm delete-gestor-btn" data-gestor-id="${Utils.escapeHtml(g.id)}" title="Excluir gestor">
                                                         <i class="fas fa-trash-alt"></i> Excluir
                                                     </button>
                                                 </td>
@@ -779,9 +787,16 @@ const App = {
         const gestoresTable = document.getElementById('gestores-table');
         if (gestoresTable) {
             gestoresTable.addEventListener('click', (event) => {
-                const btn = event.target.closest('.delete-gestor-btn');
-                if (btn?.dataset?.gestorId) {
-                    this.handleDeleteGestor(btn.dataset.gestorId);
+                const deleteBtn = event.target.closest('.delete-gestor-btn');
+                const editBtn = event.target.closest('.edit-gestor-btn');
+                const changePasswordBtn = event.target.closest('.change-password-btn');
+                
+                if (deleteBtn?.dataset?.gestorId) {
+                    this.handleDeleteGestor(deleteBtn.dataset.gestorId);
+                } else if (editBtn?.dataset?.gestorId) {
+                    this.handleEditGestor(editBtn.dataset.gestorId);
+                } else if (changePasswordBtn?.dataset?.gestorId) {
+                    this.handleChangeGestorPassword(changePasswordBtn.dataset.gestorId);
                 }
             });
         }
@@ -900,6 +915,217 @@ const App = {
 
         Utils.showToast('Gestor excluído com sucesso', 'success');
         this.refreshGestorView();
+    },
+
+    /**
+     * Handle editing an existing gestor
+     */
+    async handleEditGestor(gestorId) {
+        if (Auth.getRole() !== 'administrador') {
+            Utils.showToast('Apenas administradores podem editar gestores', 'error');
+            return;
+        }
+
+        const gestor = DataManager.getUserById(gestorId);
+        if (!gestor || gestor.role !== 'gestor') {
+            Utils.showToast('Gestor não encontrado', 'warning');
+            return;
+        }
+
+        // Create modal for editing
+        const modalHtml = `
+            <div class="modal-overlay" id="edit-gestor-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-edit"></i> Editar Gestor</h3>
+                        <button class="modal-close" onclick="App.closeEditGestorModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-gestor-form">
+                            <div class="form-group">
+                                <label for="edit-gestor-name">Nome *</label>
+                                <input type="text" id="edit-gestor-name" class="form-control" 
+                                    value="${Utils.escapeHtml(gestor.name || '')}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-gestor-email">Email *</label>
+                                <input type="email" id="edit-gestor-email" class="form-control" 
+                                    value="${Utils.escapeHtml(gestor.email || '')}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-gestor-username">Usuário *</label>
+                                <input type="text" id="edit-gestor-username" class="form-control" 
+                                    value="${Utils.escapeHtml(gestor.username || '')}" required>
+                                <small class="text-muted">O nome de usuário será normalizado automaticamente</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-gestor-disabled">Status</label>
+                                <select id="edit-gestor-disabled" class="form-control">
+                                    <option value="false" ${!gestor.disabled ? 'selected' : ''}>Ativo</option>
+                                    <option value="true" ${gestor.disabled ? 'selected' : ''}>Inativo</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.closeEditGestorModal()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="App.saveEditedGestor('${gestorId}')">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    closeEditGestorModal() {
+        const modal = document.getElementById('edit-gestor-modal');
+        if (modal) {
+            modal.remove();
+        }
+    },
+
+    async saveEditedGestor(gestorId) {
+        const name = document.getElementById('edit-gestor-name')?.value.trim();
+        const email = document.getElementById('edit-gestor-email')?.value.trim();
+        const username = document.getElementById('edit-gestor-username')?.value.trim();
+        const disabled = document.getElementById('edit-gestor-disabled')?.value === 'true';
+
+        if (!name || !username || !email) {
+            Utils.showToast('Por favor, preencha todos os campos obrigatórios', 'warning');
+            return;
+        }
+
+        // Update user without changing password
+        const result = await DataManager.saveUser({
+            id: gestorId,
+            name,
+            username,
+            email,
+            role: 'gestor',
+            disabled
+        });
+
+        if (result.success) {
+            Utils.showToast('Gestor atualizado com sucesso', 'success');
+            this.closeEditGestorModal();
+            this.refreshGestorView();
+        } else {
+            Utils.showToast(result.error || 'Erro ao atualizar gestor', 'error');
+        }
+    },
+
+    /**
+     * Handle changing a gestor's password
+     */
+    async handleChangeGestorPassword(gestorId) {
+        if (Auth.getRole() !== 'administrador') {
+            Utils.showToast('Apenas administradores podem alterar senhas', 'error');
+            return;
+        }
+
+        const gestor = DataManager.getUserById(gestorId);
+        if (!gestor || gestor.role !== 'gestor') {
+            Utils.showToast('Gestor não encontrado', 'warning');
+            return;
+        }
+
+        // Create modal for password change
+        const modalHtml = `
+            <div class="modal-overlay" id="change-password-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-key"></i> Alterar Senha</h3>
+                        <button class="modal-close" onclick="App.closeChangePasswordModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Alterando senha para: <strong>${Utils.escapeHtml(gestor.name)} (${Utils.escapeHtml(gestor.username)})</strong></p>
+                        <form id="change-password-form">
+                            <div class="form-group">
+                                <label for="new-password">Nova Senha *</label>
+                                <input type="password" id="new-password" class="form-control" 
+                                    placeholder="Digite a nova senha" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-password">Confirmar Senha *</label>
+                                <input type="password" id="confirm-password" class="form-control" 
+                                    placeholder="Digite a nova senha novamente" required minlength="6">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="App.closeChangePasswordModal()">Cancelar</button>
+                        <button class="btn btn-warning" onclick="App.saveNewPassword('${gestorId}')">
+                            <i class="fas fa-key"></i> Alterar Senha
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    closeChangePasswordModal() {
+        const modal = document.getElementById('change-password-modal');
+        if (modal) {
+            modal.remove();
+        }
+    },
+
+    async saveNewPassword(gestorId) {
+        const newPassword = document.getElementById('new-password')?.value;
+        const confirmPassword = document.getElementById('confirm-password')?.value;
+
+        if (!newPassword || !confirmPassword) {
+            Utils.showToast('Por favor, preencha ambos os campos de senha', 'warning');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            Utils.showToast('A senha deve ter pelo menos 6 caracteres', 'warning');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            Utils.showToast('As senhas não coincidem', 'warning');
+            return;
+        }
+
+        const gestor = DataManager.getUserById(gestorId);
+        if (!gestor) {
+            Utils.showToast('Gestor não encontrado', 'error');
+            return;
+        }
+
+        // Calculate new password hash with canonical username
+        const canonicalUsername = gestor.username;
+        const passwordHash = await Auth.hashPassword(newPassword, canonicalUsername);
+
+        // Update user with new password hash
+        const result = await DataManager.saveUser({
+            id: gestorId,
+            name: gestor.name,
+            username: gestor.username,
+            email: gestor.email,
+            role: gestor.role,
+            disabled: gestor.disabled,
+            passwordHash: passwordHash
+        });
+
+        if (result.success) {
+            Utils.showToast('Senha alterada com sucesso', 'success');
+            this.closeChangePasswordModal();
+        } else {
+            Utils.showToast(result.error || 'Erro ao alterar senha', 'error');
+        }
+    },
+
+    refreshGestorView() {
+        // Re-render the configuracoes page to refresh the gestores table
+        this.renderPage('configuracoes');
     },
 
     /**
