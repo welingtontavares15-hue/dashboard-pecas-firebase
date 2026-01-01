@@ -96,18 +96,23 @@ self.addEventListener('fetch', (event) => {
   
   const requestUrl = new URL(event.request.url);
   
+  // Helper function to check if hostname ends with a specific domain
+  const isHostnameEndsWith = (hostname, domain) => {
+    return hostname === domain || hostname.endsWith('.' + domain);
+  };
+  
   // Handle Firebase API requests with network-first strategy
   if (requestUrl.hostname.includes('firebasestorage') || 
-      requestUrl.hostname.includes('firebaseio.com') ||
-      requestUrl.hostname.includes('googleapis.com')) {
+      isHostnameEndsWith(requestUrl.hostname, 'firebaseio.com') ||
+      isHostnameEndsWith(requestUrl.hostname, 'googleapis.com')) {
     event.respondWith(networkFirst(event.request, MODULE_CACHES.runtime));
     return;
   }
   
   // Handle CDN resources with stale-while-revalidate
-  if (requestUrl.hostname.includes('cdnjs.cloudflare.com') ||
-      requestUrl.hostname.includes('fonts.googleapis.com') ||
-      requestUrl.hostname.includes('fonts.gstatic.com')) {
+  if (isHostnameEndsWith(requestUrl.hostname, 'cdnjs.cloudflare.com') ||
+      isHostnameEndsWith(requestUrl.hostname, 'fonts.googleapis.com') ||
+      isHostnameEndsWith(requestUrl.hostname, 'fonts.gstatic.com')) {
     event.respondWith(staleWhileRevalidate(event.request, MODULE_CACHES.runtime));
     return;
   }
