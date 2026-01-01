@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Seed de Usuários Padrão</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .alert h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .users-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .users-table code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .config-section h2 {
+            color: #555;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #6c757d;
+        }
+
+        .status-card.connected {
+            border-left-color: #28a745;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .log-section {
+            margin-top: 30px;
+        }
+
+        .log-section h2 {
+            color: #555;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        #log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-success {
+            color: #4ade80;
+        }
+
+        .log-error {
+            color: #f87171;
+        }
+
+        .log-info {
+            color: #60a5fa;
+        }
+
+        .log-warning {
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌱 Seed de Usuários Padrão</h1>
+        <p class="subtitle">Criar usuários padrão no Firebase se não existirem</p>
+
+        <div class="alert alert-info">
+            <h3>📋 Usuários que serão criados</h3>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Senha</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>admin</code></td>
+                        <td><code>admin123</code></td>
+                        <td>administrador</td>
+                        <td>admin@diversey.com</td>
+                    </tr>
+                    <tr>
+                        <td><code>gestor</code></td>
+                        <td><code>gestor123</code></td>
+                        <td>gestor</td>
+                        <td>gestor@diversey.com</td>
+                    </tr>
+                    <tr>
+                        <td><code>tecnico</code></td>
+                        <td><code>tecnico123</code></td>
+                        <td>tecnico</td>
+                        <td>tecnico@diversey.com</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="config-section">
+            <h2>⚙️ Status da Conexão Firebase</h2>
+            <div class="status-card" id="statusCard">
+                <div class="status-row">
+                    <span class="status-label">Firebase:</span>
+                    <span class="badge badge-danger" id="firebaseStatus">Desconectado</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Usuários Existentes:</span>
+                    <span class="status-value" id="usersCount">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" id="seedBtn" onclick="seedUsers()">
+                🌱 Criar Usuários Padrão
+            </button>
+            <button class="btn-secondary" onclick="clearLog()">
+                🗑️ Limpar Log
+            </button>
+        </div>
+
+        <div class="log-section">
+            <h2>📊 Log de Execução</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase SDK v9 modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getDatabase, ref, get, update, child } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+
+        let db = null;
+        let app = null;
+
+        // Make functions available globally
+        window.seedUsers = seedUsers;
+        window.clearLog = clearLog;
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkR0HSCj4rkT_NmvGLQEnDv2zNXiUaO7Q",
+            authDomain: "solicitacoes-de-pecas.firebaseapp.com",
+            databaseURL: "https://solicitacoes-de-pecas-default-rtdb.firebaseio.com",
+            projectId: "solicitacoes-de-pecas",
+            storageBucket: "solicitacoes-de-pecas.firebasestorage.app",
+            messagingSenderId: "531360939",
+            appId: "1:531360939:web:59f4e825a526463cc93d8f"
+        };
+
+        // SHA-256 hashing function
+        async function hashSHA256(password, username) {
+            const salt = 'diversey_salt_v1';
+            const input = password + salt + ':' + username;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(input);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        // Generate unique ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+
+        // Default users to create
+        const defaultUsers = [
+            {
+                username: 'admin',
+                password: 'admin123',
+                role: 'administrador',
+                email: 'admin@diversey.com',
+                name: 'Administrador'
+            },
+            {
+                username: 'gestor',
+                password: 'gestor123',
+                role: 'gestor',
+                email: 'gestor@diversey.com',
+                name: 'Gestor'
+            },
+            {
+                username: 'tecnico',
+                password: 'tecnico123',
+                role: 'tecnico',
+                email: 'tecnico@diversey.com',
+                name: 'Técnico'
+            }
+        ];
+
+        // Logging functions
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log limpo', 'info');
+        }
+
+        function updateStatus(connected, usersCount = 0) {
+            const statusCard = document.getElementById('statusCard');
+            const firebaseStatus = document.getElementById('firebaseStatus');
+            const usersCountEl = document.getElementById('usersCount');
+
+            if (connected) {
+                statusCard.classList.add('connected');
+                firebaseStatus.className = 'badge badge-success';
+                firebaseStatus.textContent = 'Conectado';
+                usersCountEl.textContent = usersCount;
+            } else {
+                statusCard.classList.remove('connected');
+                firebaseStatus.className = 'badge badge-danger';
+                firebaseStatus.textContent = 'Desconectado';
+            }
+        }
+
+        // Seed users function
+        async function seedUsers() {
+            const btn = document.getElementById('seedBtn');
+            btn.disabled = true;
+            
+            log('🚀 Iniciando seed de usuários padrão...', 'info');
+
+            try {
+                // Initialize Firebase
+                if (!app) {
+                    log('🔌 Conectando ao Firebase...', 'info');
+                    app = initializeApp(firebaseConfig);
+                    db = getDatabase(app);
+                    log('✅ Firebase inicializado com sucesso', 'success');
+                }
+
+                // Load existing users
+                log('📥 Carregando usuários existentes...', 'info');
+                const dbRef = ref(db);
+                const snapshot = await get(child(dbRef, 'data/diversey_users'));
+                
+                let existingUsers = [];
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (data && data.data && Array.isArray(data.data)) {
+                        existingUsers = data.data;
+                    } else if (Array.isArray(data)) {
+                        existingUsers = data;
+                    }
+                    log(`📊 ${existingUsers.length} usuário(s) existente(s)`, 'info');
+                } else {
+                    log('⚠️ Nenhum usuário existente encontrado', 'warning');
+                }
+
+                updateStatus(true, existingUsers.length);
+
+                // Check which users need to be created
+                let createdCount = 0;
+                let skippedCount = 0;
+                const usersToAdd = [];
+
+                for (const defaultUser of defaultUsers) {
+                    const exists = existingUsers.some(u => 
+                        u.username.toLowerCase() === defaultUser.username.toLowerCase()
+                    );
+
+                    if (exists) {
+                        log(`⏭️ Usuário ${defaultUser.username} já existe`, 'warning');
+                        skippedCount++;
+                    } else {
+                        log(`\n➕ Criando usuário: ${defaultUser.username}`, 'info');
+                        
+                        // Generate password hash
+                        const passwordHash = await hashSHA256(defaultUser.password, defaultUser.username);
+                        
+                        // Create user object
+                        const newUser = {
+                            id: generateId(),
+                            username: defaultUser.username,
+                            passwordHash: passwordHash,
+                            role: defaultUser.role,
+                            email: defaultUser.email,
+                            name: defaultUser.name,
+                            disabled: false,
+                            createdAt: Date.now(),
+                            updatedAt: Date.now()
+                        };
+
+                        usersToAdd.push(newUser);
+                        
+                        log(`   ID: ${newUser.id}`, 'info');
+                        log(`   Role: ${newUser.role}`, 'info');
+                        log(`   Email: ${newUser.email}`, 'info');
+                        log(`   Hash: ${passwordHash}`, 'info');
+                        log(`✅ Usuário ${defaultUser.username} preparado`, 'success');
+                        
+                        createdCount++;
+                    }
+                }
+
+                // Save to Firebase if there are users to add
+                if (usersToAdd.length > 0) {
+                    log('\n💾 Salvando novos usuários no Firebase...', 'info');
+                    
+                    const updatedUsers = [...existingUsers, ...usersToAdd];
+                    const updates = {};
+                    updates['data/diversey_users'] = {
+                        data: updatedUsers,
+                        updatedAt: Date.now(),
+                        updatedBy: 'seed-users-tool'
+                    };
+
+                    await update(dbRef, updates);
+                    log('✅ Usuários salvos com sucesso no Firebase!', 'success');
+                    updateStatus(true, updatedUsers.length);
+                } else {
+                    log('⚠️ Nenhum usuário novo para adicionar', 'warning');
+                }
+
+                // Summary
+                log('\n' + '='.repeat(60), 'info');
+                log('📊 RESUMO DO SEED', 'info');
+                log('='.repeat(60), 'info');
+                log(`✅ Criados: ${createdCount}`, 'success');
+                log(`⏭️ Já existiam: ${skippedCount}`, 'warning');
+                log(`📋 Total final: ${existingUsers.length + createdCount}`, 'info');
+                log('='.repeat(60), 'info');
+
+                if (createdCount > 0) {
+                    log('\n🎉 Seed concluído com sucesso!', 'success');
+                    log('💡 Você pode fazer login com as credenciais criadas', 'info');
+                }
+
+            } catch (error) {
+                log(`❌ Erro durante o seed: ${error.message}`, 'error');
+                if (error.code) {
+                    log(`   Código do erro: ${error.code}`, 'error');
+                }
+                console.error('Erro completo:', error);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize on load
+        log('🔧 Ferramenta de Seed carregada e pronta', 'info');
+        log('⚠️ Clique em "Criar Usuários Padrão" para começar', 'warning');
+    </script>
+</body>
+</html>
