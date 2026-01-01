@@ -417,10 +417,31 @@ const App = {
         const password = document.getElementById('login-password').value;
         const errorDiv = document.getElementById('login-error');
         
+        // Basic validation
         if (!username || !password) {
             errorDiv.textContent = 'Preencha usuário e senha';
             errorDiv.classList.remove('hidden');
             return;
+        }
+        
+        // Enhanced validation using Validator module if available
+        if (typeof window !== 'undefined' && typeof window.Validator !== 'undefined') {
+            const validation = window.Validator.validateForm(
+                { username, password },
+                {
+                    username: ['required', ['minLength', 3], 'noSpecialChars'],
+                    password: ['required', ['minLength', 6]]
+                }
+            );
+            
+            if (!validation.valid) {
+                const errorMessages = Object.values(validation.errors)
+                    .flat()
+                    .join('; ');
+                errorDiv.textContent = `Erro de validação: ${errorMessages}`;
+                errorDiv.classList.remove('hidden');
+                return;
+            }
         }
         
         let result;
