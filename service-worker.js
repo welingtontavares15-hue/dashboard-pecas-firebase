@@ -106,8 +106,11 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
   
   // Performance: Network-first strategy for Firebase API calls
-  const isFirebaseAPI = requestUrl.hostname.endsWith('firebaseio.com') || 
-                        requestUrl.hostname.endsWith('googleapis.com');
+  // Use strict domain matching to prevent URL substring attacks
+  const isFirebaseAPI = (requestUrl.hostname === 'firebaseio.com' || 
+                         requestUrl.hostname.endsWith('.firebaseio.com') ||
+                         requestUrl.hostname === 'googleapis.com' ||
+                         requestUrl.hostname.endsWith('.googleapis.com'));
   
   if (isFirebaseAPI) {
     event.respondWith(
