@@ -328,6 +328,7 @@ const App = {
             'pecas': 'Peças',
             'catalogo': 'Catálogo de Peças',
             'relatorios': 'Relatórios',
+            'user-management': 'Gerenciar Usuários',
             'configuracoes': 'Configurações',
             'ajuda': 'Ajuda',
             'perfil': 'Meu Perfil'
@@ -387,6 +388,10 @@ const App = {
             case 'relatorios':
                 Relatorios.render();
                 setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+                break;
+                    
+            case 'user-management':
+                this.renderUserManagement();
                 break;
                     
             case 'configuracoes':
@@ -1245,6 +1250,22 @@ const App = {
         // Logout and show login
         Auth.logout();
         this.showLogin();
+    },
+
+    /**
+     * Render user management page
+     */
+    renderUserManagement() {
+        const content = document.getElementById('content-area');
+        
+        // Load the user management interface
+        content.innerHTML = `
+            <iframe 
+                src="user-management.html" 
+                style="width: 100%; height: calc(100vh - 140px); border: none; border-radius: 8px;"
+                title="Gerenciamento de Usuários"
+            ></iframe>
+        `;
     },
 
     /**

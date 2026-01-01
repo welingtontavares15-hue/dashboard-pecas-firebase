@@ -35,6 +35,7 @@ module.exports = [
                 SheetIntegration: 'writable',
                 Logger: 'writable',
                 FirebaseInit: 'writable',
+                UserManager: 'writable',
                 // Runtime configuration
                 APP_CONFIG: 'readonly',
                 __ENVIRONMENT__: 'readonly',
@@ -53,7 +54,7 @@ module.exports = [
             'linebreak-style': ['error', 'unix'],
             'quotes': ['error', 'single'],
             'semi': ['error', 'always'],
-            'no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^(Auth|DataManager|CloudStorage|IndexedDBStorage|Utils|App|Dashboard|Solicitacoes|Aprovacoes|Pecas|Fornecedores|Tecnicos|Relatorios|PWA|OneDriveIntegration|SheetIntegration|Logger|_)', 'caughtErrorsIgnorePattern': '^_' }],
+            'no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^(Auth|DataManager|CloudStorage|IndexedDBStorage|Utils|App|Dashboard|Solicitacoes|Aprovacoes|Pecas|Fornecedores|Tecnicos|Relatorios|PWA|OneDriveIntegration|SheetIntegration|Logger|UserManager|_)', 'caughtErrorsIgnorePattern': '^_' }],
             'no-console': 'off',
             'no-undef': 'error',
             'no-extra-semi': 'error',

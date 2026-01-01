@@ -138,6 +138,47 @@ APP_CONFIG.security.enableRecovery = true;
 
 Recomenda-se deixar desabilitado em produção e habilitar apenas quando necessário.
 
+## 👥 Gerenciamento de Usuários
+
+O sistema inclui ferramentas completas para gerenciamento de usuários e senhas.
+
+### Ferramenta de Reset de Senhas
+
+**Localização**: `scripts/reset-user-passwords.html`
+
+Ferramenta standalone para resetar senhas rapidamente:
+
+- **Reset Individual**: Resetar admin ou gestor separadamente
+- **Reset em Lote**: Resetar todos os usuários de uma vez
+- **Senhas Padrão**: 
+  - Admin: `admin123`
+  - Gestor: `gestor123`
+  - Técnico: `tecnico123`
+
+**Como usar:**
+```bash
+# Abrir no navegador
+open scripts/reset-user-passwords.html
+```
+
+⚠️ **Importante**: Esta ferramenta deve ser usada apenas por administradores e as senhas devem ser alteradas imediatamente após o reset.
+
+### Interface de Gerenciamento (Dashboard)
+
+Acesso via menu "Gerenciar Usuários" (apenas para administradores):
+
+**Funcionalidades:**
+- ✅ Criar novos usuários
+- ✅ Editar informações de usuários
+- ✅ Resetar senhas
+- ✅ Ativar/desativar usuários
+- ✅ Filtrar por perfil e status
+- ✅ Buscar por nome, usuário ou email
+- ✅ Exportar lista de usuários (CSV)
+- ✅ Logs de auditoria completos
+
+**Documentação Completa**: Ver [docs/USER-MANAGEMENT.md](docs/USER-MANAGEMENT.md)
+
 ## 🔄 Normalização de Username
 
 O sistema normaliza automaticamente os usernames para evitar erros de digitação:
@@ -481,6 +522,7 @@ serviceAccountKey.json
 - [QUICKSTART.md](QUICKSTART.md) - Guia rápido de início
 - [FIREBASE-SETUP.md](FIREBASE-SETUP.md) - Configuração detalhada do Firebase
 - [FIREBASE-CONSOLE-SETUP.md](FIREBASE-CONSOLE-SETUP.md) - Setup via console Firebase
+- [USER-MANAGEMENT.md](docs/USER-MANAGEMENT.md) - Gerenciamento de usuários e senhas
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Guia de implantação
 - [PRODUCTION-CHECKLIST.md](PRODUCTION-CHECKLIST.md) - Checklist para produção
 
