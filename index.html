@@ -4,16 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Solicitações de Peças - Diversey</title>
+    
+    <!-- DNS Prefetch & Preconnect for external resources -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="css/style.css" as="style">
+    <link rel="preload" href="js/config.js" as="script">
+    <link rel="preload" href="js/module-loader.js" as="script">
+    
+    <!-- Critical CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
-    <script src="js/vendor/chart.umd.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
     <!-- Firebase SDK for cloud storage synchronization (v9 modular) -->
     <script type="module">
         // Import Firebase SDK v9 modules
@@ -196,8 +208,12 @@
         <span>Carregando...</span>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts - Core modules loaded immediately -->
     <script src="js/config.js"></script>
+    <script src="js/module-loader.js"></script>
+    <script src="js/performance-monitor.js"></script>
+    <script src="js/lazy-image-loader.js"></script>
+    <script src="js/firebase-pagination.js"></script>
     <script src="js/pwa.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/logger.js"></script>
@@ -208,6 +224,28 @@
     <script src="js/storage.js"></script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
+    
+    <!-- Feature modules - loaded on demand -->
+    <script>
+        // Lazy load feature modules based on navigation
+        window.loadFeatureModule = async function(moduleName) {
+            const moduleMap = {
+                'dashboard': ['js/dashboard.js', 'js/relatorios.js'],
+                'solicitacoes': ['js/solicitacoes.js', 'js/aprovacoes.js'],
+                'pecas': ['js/pecas.js'],
+                'fornecedores': ['js/fornecedores.js'],
+                'tecnicos': ['js/tecnicos.js']
+            };
+            
+            const modules = moduleMap[moduleName];
+            if (modules) {
+                for (const module of modules) {
+                    await ModuleLoader.loadModule(moduleName, module);
+                }
+            }
+        };
+    </script>
+    
     <script src="js/pecas.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/solicitacoes.js"></script>

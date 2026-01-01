@@ -346,13 +346,21 @@ const App = {
     /**
      * Render page content
      */
-    renderPage(pageId) {
+    async renderPage(pageId) {
         Utils.showLoading();
         
-        // Simulate async loading for UX
-        setTimeout(() => {
+        // Mark performance for page navigation
+        if (window.PerformanceMonitor) {
+            PerformanceMonitor.mark(`page-${pageId}-start`);
+        }
+        
+        try {
             switch (pageId) {
             case 'dashboard':
+                // Lazy load Chart.js for dashboard if not already loaded
+                if (typeof Chart === 'undefined' && window.ModuleLoader) {
+                    await ModuleLoader.loadChartLibrary();
+                }
                 Dashboard.render();
                 break;
                     
@@ -385,6 +393,10 @@ const App = {
                 break;
                     
             case 'relatorios':
+                // Lazy load Chart.js for reports if not already loaded
+                if (typeof Chart === 'undefined' && window.ModuleLoader) {
+                    await ModuleLoader.loadChartLibrary();
+                }
                 Relatorios.render();
                 setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
                 break;
@@ -405,8 +417,16 @@ const App = {
                 this.renderNotFound();
             }
             
+            // Measure performance for page navigation
+            if (window.PerformanceMonitor) {
+                PerformanceMonitor.measure(`page-${pageId}-duration`, `page-${pageId}-start`);
+            }
+        } catch (error) {
+            console.error(`Error rendering page ${pageId}:`, error);
+            Utils.showToast('Erro ao carregar a página', 'error');
+        } finally {
             Utils.hideLoading();
-        }, 100);
+        }
     },
 
     /**

@@ -35,6 +35,11 @@ module.exports = [
                 SheetIntegration: 'writable',
                 Logger: 'writable',
                 FirebaseInit: 'writable',
+                // Performance optimization modules
+                ModuleLoader: 'writable',
+                PerformanceMonitor: 'writable',
+                FirebasePagination: 'writable',
+                LazyImageLoader: 'writable',
                 // Runtime configuration
                 APP_CONFIG: 'readonly',
                 __ENVIRONMENT__: 'readonly',

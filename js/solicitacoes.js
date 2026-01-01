@@ -1031,14 +1031,14 @@ const Solicitacoes = {
     /**
      * Download PDF
      */
-    downloadPDF(id) {
+    async downloadPDF(id) {
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
             Utils.showToast('Solicitação não encontrada', 'error');
             return;
         }
         
-        Utils.generatePDF(sol);
+        await Utils.generatePDF(sol);
         Utils.showToast('PDF gerado com sucesso', 'success');
     },
 
