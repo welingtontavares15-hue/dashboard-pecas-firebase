@@ -1079,24 +1079,24 @@ const DataManager = {
      * 3. Default fallback (matches documented admin credential)
      */
     getAdminPassword() {
-        let password;
         if (typeof window !== 'undefined' && window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD) {
-            password = String(window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD).trim();
+            return String(window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD).trim();
         }
-        if (!password && typeof APP_CONFIG !== 'undefined' &&
+        if (typeof APP_CONFIG !== 'undefined' &&
             APP_CONFIG.security?.bootstrap?.adminPassword) {
-            password = String(APP_CONFIG.security.bootstrap.adminPassword).trim();
+            return String(APP_CONFIG.security.bootstrap.adminPassword).trim();
         }
-        if (!password) {
-            const isProd = typeof APP_CONFIG !== 'undefined' &&
-                typeof APP_CONFIG.isProduction === 'function' &&
-                APP_CONFIG.isProduction();
-            password = isProd ? 'AdminRecovery2025!' : 'admin123';
-            if (isProd) {
-                console.warn('[BOOTSTRAP] adminPassword not configured; using production fallback AdminRecovery2025!');
-            }
+
+        const isProd = typeof APP_CONFIG !== 'undefined' &&
+            typeof APP_CONFIG.isProduction === 'function' &&
+            APP_CONFIG.isProduction();
+
+        if (isProd) {
+            console.warn('[BOOTSTRAP] adminPassword not configured; using production fallback AdminRecovery2025!');
+            return 'AdminRecovery2025!';
         }
-        return password;
+
+        return 'admin123';
     },
 
     getUsers() {

@@ -24,10 +24,9 @@ const Utils = {
         const text = String(value || '');
         const input = text + salt;
         // Prefer globalThis.crypto (Node/jsdom) and fall back to window.crypto when available
-        const globalCrypto = (typeof globalThis !== 'undefined' && globalThis.crypto) ? globalThis.crypto : undefined;
-        const cryptoSource = globalCrypto || (typeof window !== 'undefined' ? window.crypto : null);
-        const cryptoObj = cryptoSource && (cryptoSource.subtle ? cryptoSource : cryptoSource.webcrypto) || null;
-        let effectiveCrypto = cryptoObj;
+        const cryptoSource = (typeof globalThis !== 'undefined' && globalThis.crypto)
+            || (typeof window !== 'undefined' ? window.crypto : null);
+        const effectiveCrypto = cryptoSource?.subtle ? cryptoSource : cryptoSource?.webcrypto || null;
         if (!effectiveCrypto?.subtle) {
             // Node.js fallback using crypto module when Web Crypto is unavailable (e.g., during tests)
             if (typeof process !== 'undefined' && process.versions?.node) {
