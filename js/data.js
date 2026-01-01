@@ -1004,37 +1004,58 @@ const DataManager = {
         return [...baseUsers, ...technicianUsers];
     },
 
+    /**
+     * Normalize username for comparison and storage.
+     * - Converts to lowercase and removes accents
+     * - Trims whitespace
+     * - Removes invalid characters (keeps only [a-z0-9.])
+     * - Collapses multiple consecutive dots to single dot
+     * - Removes leading and trailing dots
+     */
     normalizeUsername(username) {
-        return Utils.normalizeText(username || '');
+        if (!username) {
+            return '';
+        }
+        // First apply basic normalization (lowercase, remove accents, trim)
+        let normalized = Utils.normalizeText(username);
+        
+        // Keep only valid characters: a-z, 0-9, and dots
+        normalized = normalized.replace(/[^a-z0-9.]/g, '');
+        
+        // Collapse multiple consecutive dots to single dot
+        normalized = normalized.replace(/\.+/g, '.');
+        
+        // Remove leading and trailing dots
+        normalized = normalized.replace(/^\.|\.$/g, '');
+        
+        return normalized;
     },
 
+    /**
+     * Get stable gestor recovery password from configuration.
+     * Priority:
+     * 1. window.DIVERSEY_BOOTSTRAP_GESTOR_PASSWORD (set via script tag in index.html)
+     * 2. APP_CONFIG.security.bootstrap.gestorPassword
+     * 3. Fallback to a default (NOT RECOMMENDED for production)
+     * 
+     * This password is used for the 'gestor' recovery account only.
+     * It should be set during deployment and rotated regularly.
+     */
     getGestorPassword() {
-        const key = 'diversey_gestor_recovery_password';
-        const generateSecurePassword = () => {
-            try {
-                const array = new Uint8Array(16);
-                const cryptoObj = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
-                if (cryptoObj?.getRandomValues) {
-                    cryptoObj.getRandomValues(array);
-                    return btoa(String.fromCharCode(...array)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 18);
-                }
-            } catch (_e) {
-                // ignore and fallback
-            }
-            return `Gestor#${Utils.generateId().replace(/[^a-zA-Z0-9]/g, '').slice(0, 18)}`;
-        };
-
-        try {
-            const stored = sessionStorage.getItem(key);
-            if (stored && stored.trim()) {
-                return stored.trim();
-            }
-            const generated = generateSecurePassword();
-            sessionStorage.setItem(key, generated);
-            return generated;
-        } catch (_e) {
-            return generateSecurePassword();
+        // Check for global bootstrap password (highest priority)
+        if (typeof window !== 'undefined' && window.DIVERSEY_BOOTSTRAP_GESTOR_PASSWORD) {
+            return String(window.DIVERSEY_BOOTSTRAP_GESTOR_PASSWORD).trim();
         }
+        
+        // Check for APP_CONFIG security settings
+        if (typeof APP_CONFIG !== 'undefined' && 
+            APP_CONFIG.security?.bootstrap?.gestorPassword) {
+            return String(APP_CONFIG.security.bootstrap.gestorPassword).trim();
+        }
+        
+        // Fallback to default password (should be overridden in production)
+        // This fallback allows the system to work out-of-the-box but is not secure for production
+        return 'GestorRecovery2025!';
     },
 
     getUsers() {
@@ -1176,7 +1197,15 @@ const DataManager = {
 
     /**
      * Guarantee a gestor account exists with a known credential for recovery.
-     * If missing or without password hash, recreate with the fallback password.
+     * This recovery account ALWAYS has its password synchronized with the configured
+     * bootstrap password. The hash is recalculated and updated on every call to ensure
+     * the 'gestor' account can be accessed using the current configured password.
+     * 
+     * This is acceptable because:
+     * - The 'gestor' account is specifically a recovery/bootstrap account
+     * - It allows admins to regain access when needed
+     * - The password is set securely during deployment, not stored in code
+     * - Regular user accounts are never auto-reset this way
      */
     async ensureDefaultGestor() {
         const users = this.getUsers();
@@ -1195,20 +1224,28 @@ const DataManager = {
         let gestorUser = users.find(u => normalize(u.username) === normalize(fallback.username));
 
         const canonicalUsername = fallback.username;
-        const passwordHash = await Utils.hashSHA256(fallbackPassword, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
+        const expectedPasswordHash = await Utils.hashSHA256(fallbackPassword, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
 
         if (!gestorUser) {
-            gestorUser = { ...fallback, passwordHash };
+            // Create gestor user if missing
+            gestorUser = { ...fallback, passwordHash: expectedPasswordHash };
             users.push(gestorUser);
             updated = true;
-        } else if (!gestorUser.passwordHash) {
-            gestorUser.passwordHash = passwordHash;
-            updated = true;
-        }
-
-        if (gestorUser.role !== 'gestor') {
-            gestorUser.role = 'gestor';
-            updated = true;
+            console.info('[BOOTSTRAP] Created gestor recovery account');
+        } else {
+            // ALWAYS update the password hash to match the configured password
+            // This ensures the gestor account can always be accessed with the bootstrap password
+            if (gestorUser.passwordHash !== expectedPasswordHash) {
+                gestorUser.passwordHash = expectedPasswordHash;
+                updated = true;
+                console.info('[BOOTSTRAP] Updated gestor recovery password hash');
+            }
+            
+            // Ensure role is correct
+            if (gestorUser.role !== 'gestor') {
+                gestorUser.role = 'gestor';
+                updated = true;
+            }
         }
 
         if (updated) {

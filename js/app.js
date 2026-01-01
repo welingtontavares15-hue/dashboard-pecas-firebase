@@ -183,6 +183,7 @@ const App = {
     /**
      * Show login screen
      * Credentials panel is BLOCKED in production environment.
+     * Recovery section visibility is controlled by APP_CONFIG.security.enableRecovery.
      */
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
@@ -207,6 +208,19 @@ const App = {
                 if (tbody) {
                     tbody.innerHTML = '';
                 }
+            }
+        }
+        
+        // Control gestor recovery section visibility
+        const recoverySection = document.getElementById('gestor-recovery');
+        if (recoverySection) {
+            const shouldShowRecovery = typeof APP_CONFIG !== 'undefined' && 
+                APP_CONFIG.security?.enableRecovery === true;
+            
+            if (shouldShowRecovery) {
+                recoverySection.classList.remove('hidden');
+            } else {
+                recoverySection.classList.add('hidden');
             }
         }
     },
@@ -440,6 +454,31 @@ const App = {
             Auth.logout();
             Utils.showToast('Sessão encerrada', 'info');
             this.showLogin();
+        }
+    },
+
+    /**
+     * Reset gestor recovery password
+     * Reapplies the bootstrap password for the 'gestor' recovery account.
+     * This can be used when the gestor account password has diverged from the configured password.
+     */
+    async resetGestorRecovery() {
+        const confirmed = await Utils.confirm(
+            'Isso irá reaplicar a senha de recuperação configurada para o usuário "gestor". Confirmar?',
+            'Reaplicar senha recovery'
+        );
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        try {
+            Utils.showToast('Reaplicando senha recovery...', 'info');
+            await DataManager.ensureDefaultGestor();
+            Utils.showToast('Senha recovery do gestor reaplicada com sucesso', 'success');
+        } catch (error) {
+            console.error('Erro ao reaplicar senha recovery:', error);
+            Utils.showToast('Erro ao reaplicar senha recovery', 'error');
         }
     },
 

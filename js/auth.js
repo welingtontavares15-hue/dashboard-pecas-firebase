@@ -169,7 +169,7 @@ const Auth = {
      */
     async login(username, password) {
         const inputUsername = (username || '').trim();
-        const normalizedUsername = Utils.normalizeText(inputUsername);
+        const normalizedUsername = DataManager.normalizeUsername(inputUsername);
         
         // Rate limiting check - progressive lockout for security
         const rateLimitCheck = this.checkRateLimit(normalizedUsername);
@@ -540,7 +540,7 @@ const Auth = {
 
             const payload = {
                 username: username || '',
-                normalizedUsername: normalizedUsername || Utils.normalizeText(username || ''),
+                normalizedUsername: normalizedUsername || (typeof DataManager !== 'undefined' ? DataManager.normalizeUsername(username || '') : Utils.normalizeText(username || '')),
                 role: userRole || null,
                 syncInfo,
                 device: {
