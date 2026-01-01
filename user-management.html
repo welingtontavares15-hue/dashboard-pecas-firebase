@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Usuários - Diversey</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/user-management.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="user-management-container" id="user-management-container">
+        <div class="user-management-header">
+            <h2>
+                <i class="fas fa-users-cog"></i>
+                Gerenciamento de Usuários
+            </h2>
+            <div class="user-management-actions">
+                <button class="btn btn-primary" onclick="UserManagementUI.showCreateModal()">
+                    <i class="fas fa-plus"></i> Novo Usuário
+                </button>
+                <button class="btn btn-outline" onclick="UserManagementUI.exportUsers()">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+                <button class="btn btn-outline" onclick="UserManagementUI.refreshUsers()">
+                    <i class="fas fa-sync-alt"></i> Atualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="user-stats" id="user-stats">
+            <div class="stat-card">
+                <h4>Total de Usuários</h4>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card admin">
+                <h4>Administradores</h4>
+                <div class="stat-value" id="stat-admin">0</div>
+            </div>
+            <div class="stat-card gestor">
+                <h4>Gestores</h4>
+                <div class="stat-value" id="stat-gestor">0</div>
+            </div>
+            <div class="stat-card tecnico">
+                <h4>Técnicos</h4>
+                <div class="stat-value" id="stat-tecnico">0</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="user-filters">
+            <h3><i class="fas fa-filter"></i> Filtros</h3>
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label for="filter-role">Perfil</label>
+                    <select id="filter-role" onchange="UserManagementUI.applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="administrador">Administrador</option>
+                        <option value="gestor">Gestor</option>
+                        <option value="tecnico">Técnico</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-status">Status</label>
+                    <select id="filter-status" onchange="UserManagementUI.applyFilters()">
+                        <option value="">Todos</option>
+                        <option value="active">Ativos</option>
+                        <option value="inactive">Inativos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-search">Buscar</label>
+                    <input 
+                        type="text" 
+                        id="filter-search" 
+                        placeholder="Nome, usuário ou email..." 
+                        oninput="UserManagementUI.applyFilters()"
+                    >
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="users-table-container">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Perfil</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Criado em</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body">
+                    <!-- Users will be dynamically inserted -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- User Modal (Create/Edit) -->
+    <div id="user-modal" class="user-modal" style="display: none;">
+        <div class="user-modal-content">
+            <div class="user-modal-header">
+                <h3 id="user-modal-title">
+                    <i class="fas fa-user-plus"></i>
+                    <span id="user-modal-title-text">Novo Usuário</span>
+                </h3>
+                <button class="btn-icon" onclick="UserManagementUI.closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="user-modal-body">
+                <form id="user-form">
+                    <input type="hidden" id="user-id">
+                    
+                    <div class="user-form-group">
+                        <label for="user-username">
+                            Nome de Usuário <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="user-username" 
+                            placeholder="Digite o nome de usuário"
+                            required
+                            autocomplete="off"
+                        >
+                        <div class="form-hint">Apenas letras, números, _ e -</div>
+                    </div>
+
+                    <div class="user-form-group">
+                        <label for="user-name">
+                            Nome Completo <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="user-name" 
+                            placeholder="Digite o nome completo"
+                            required
+                        >
+                    </div>
+
+                    <div class="user-form-group">
+                        <label for="user-email">Email</label>
+                        <input 
+                            type="email" 
+                            id="user-email" 
+                            placeholder="Digite o email (opcional)"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="user-form-group">
+                        <label for="user-role">
+                            Perfil <span class="required">*</span>
+                        </label>
+                        <select id="user-role" required>
+                            <option value="">Selecione um perfil</option>
+                            <option value="administrador">Administrador</option>
+                            <option value="gestor">Gestor</option>
+                            <option value="tecnico">Técnico</option>
+                        </select>
+                    </div>
+
+                    <div class="user-form-group" id="password-group">
+                        <label for="user-password">
+                            Senha <span class="required">*</span>
+                        </label>
+                        <input 
+                            type="password" 
+                            id="user-password" 
+                            placeholder="Digite a senha"
+                            autocomplete="new-password"
+                        >
+                        <div class="form-hint">Mínimo de 6 caracteres</div>
+                        <div class="password-generator">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="UserManagementUI.generatePassword()">
+                                <i class="fas fa-key"></i> Gerar Senha Segura
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="UserManagementUI.togglePasswordVisibility()">
+                                <i class="fas fa-eye" id="password-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="audit-info-display" style="display: none;">
+                        <div class="audit-info">
+                            <h4><i class="fas fa-history"></i> Informações de Auditoria</h4>
+                            <div class="audit-item">
+                                <span>Criado por:</span>
+                                <strong id="audit-created-by">-</strong>
+                            </div>
+                            <div class="audit-item">
+                                <span>Criado em:</span>
+                                <strong id="audit-created-at">-</strong>
+                            </div>
+                            <div class="audit-item">
+                                <span>Última atualização:</span>
+                                <strong id="audit-updated-at">-</strong>
+                            </div>
+                            <div class="audit-item">
+                                <span>Atualizado por:</span>
+                                <strong id="audit-updated-by">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="user-modal-footer">
+                <button class="btn btn-outline" onclick="UserManagementUI.closeModal()">
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" onclick="UserManagementUI.saveUser()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // User Management UI Controller
+        const UserManagementUI = {
+            currentFilters: {
+                role: '',
+                status: '',
+                search: ''
+            },
+
+            init() {
+                this.loadUsers();
+                this.updateStats();
+            },
+
+            loadUsers() {
+                const filters = {
+                    role: this.currentFilters.role,
+                    search: this.currentFilters.search
+                };
+
+                if (this.currentFilters.status === 'active') {
+                    filters.disabled = false;
+                } else if (this.currentFilters.status === 'inactive') {
+                    filters.disabled = true;
+                }
+
+                const users = UserManager.listUsers(filters);
+                this.renderUsers(users);
+            },
+
+            renderUsers(users) {
+                const tbody = document.getElementById('users-table-body');
+                
+                if (users.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <i class="fas fa-users"></i>
+                                    <h3>Nenhum usuário encontrado</h3>
+                                    <p>Ajuste os filtros ou crie um novo usuário</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = users.map(user => {
+                    const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                    const statusClass = user.disabled ? 'inactive' : 'active';
+                    const statusText = user.disabled ? 'Inativo' : 'Ativo';
+                    const createdDate = new Date(user.createdAt).toLocaleDateString('pt-BR');
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="user-avatar-cell">
+                                    <div class="user-avatar">${initials}</div>
+                                    <div class="user-info">
+                                        <span class="user-name">${user.name}</span>
+                                        <span class="user-username">@${user.username}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="user-role-badge ${user.role}">${user.role}</span>
+                            </td>
+                            <td>${user.email || '-'}</td>
+                            <td>
+                                <span class="user-status ${statusClass}">
+                                    <span class="user-status-dot"></span>
+                                    ${statusText}
+                                </span>
+                            </td>
+                            <td>${createdDate}</td>
+                            <td>
+                                <div class="user-actions">
+                                    <button 
+                                        class="btn-icon" 
+                                        onclick="UserManagementUI.editUser('${user.id}')"
+                                        title="Editar usuário"
+                                    >
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button 
+                                        class="btn-icon" 
+                                        onclick="UserManagementUI.resetUserPassword('${user.id}')"
+                                        title="Resetar senha"
+                                    >
+                                        <i class="fas fa-key"></i>
+                                    </button>
+                                    <button 
+                                        class="btn-icon" 
+                                        onclick="UserManagementUI.toggleStatus('${user.id}')"
+                                        title="${user.disabled ? 'Ativar' : 'Desativar'} usuário"
+                                    >
+                                        <i class="fas fa-${user.disabled ? 'check' : 'ban'}"></i>
+                                    </button>
+                                    <button 
+                                        class="btn-icon danger" 
+                                        onclick="UserManagementUI.deleteUser('${user.id}')"
+                                        title="Deletar usuário"
+                                    >
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            updateStats() {
+                const users = UserManager.listUsers();
+                const activeUsers = users.filter(u => !u.disabled);
+                
+                document.getElementById('stat-total').textContent = activeUsers.length;
+                document.getElementById('stat-admin').textContent = 
+                    activeUsers.filter(u => u.role === 'administrador').length;
+                document.getElementById('stat-gestor').textContent = 
+                    activeUsers.filter(u => u.role === 'gestor').length;
+                document.getElementById('stat-tecnico').textContent = 
+                    activeUsers.filter(u => u.role === 'tecnico').length;
+            },
+
+            applyFilters() {
+                this.currentFilters.role = document.getElementById('filter-role').value;
+                this.currentFilters.status = document.getElementById('filter-status').value;
+                this.currentFilters.search = document.getElementById('filter-search').value;
+                
+                this.loadUsers();
+            },
+
+            refreshUsers() {
+                this.loadUsers();
+                this.updateStats();
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Usuários atualizados com sucesso', 'success');
+                }
+            },
+
+            showCreateModal() {
+                document.getElementById('user-modal-title-text').textContent = 'Novo Usuário';
+                document.getElementById('user-id').value = '';
+                document.getElementById('user-form').reset();
+                document.getElementById('audit-info-display').style.display = 'none';
+                document.getElementById('password-group').style.display = 'block';
+                document.getElementById('user-password').required = true;
+                document.getElementById('user-modal').style.display = 'flex';
+            },
+
+            editUser(userId) {
+                const user = UserManager.getUserById(userId);
+                if (!user) return;
+
+                document.getElementById('user-modal-title-text').textContent = 'Editar Usuário';
+                document.getElementById('user-id').value = user.id;
+                document.getElementById('user-username').value = user.username;
+                document.getElementById('user-name').value = user.name;
+                document.getElementById('user-email').value = user.email || '';
+                document.getElementById('user-role').value = user.role;
+                document.getElementById('user-password').value = '';
+                document.getElementById('user-password').required = false;
+                document.getElementById('password-group').querySelector('.form-hint').textContent = 
+                    'Deixe em branco para manter a senha atual';
+
+                // Show audit info
+                document.getElementById('audit-created-by').textContent = user.createdBy || '-';
+                document.getElementById('audit-created-at').textContent = 
+                    new Date(user.createdAt).toLocaleString('pt-BR');
+                document.getElementById('audit-updated-at').textContent = 
+                    new Date(user.updatedAt).toLocaleString('pt-BR');
+                document.getElementById('audit-updated-by').textContent = user.updatedBy || '-';
+                document.getElementById('audit-info-display').style.display = 'block';
+
+                document.getElementById('user-modal').style.display = 'flex';
+            },
+
+            closeModal() {
+                document.getElementById('user-modal').style.display = 'none';
+                document.getElementById('user-form').reset();
+            },
+
+            async saveUser() {
+                const userId = document.getElementById('user-id').value;
+                const userData = {
+                    username: document.getElementById('user-username').value.trim(),
+                    name: document.getElementById('user-name').value.trim(),
+                    email: document.getElementById('user-email').value.trim(),
+                    role: document.getElementById('user-role').value,
+                    password: document.getElementById('user-password').value
+                };
+
+                let result;
+                if (userId) {
+                    // Update
+                    const updates = { ...userData };
+                    if (!updates.password) {
+                        delete updates.password;
+                    }
+                    result = await UserManager.updateUser(userId, updates);
+                } else {
+                    // Create
+                    if (!userData.password) {
+                        alert('Senha é obrigatória para novos usuários');
+                        return;
+                    }
+                    result = await UserManager.createUser(userData);
+                }
+
+                if (result.success) {
+                    this.closeModal();
+                    this.loadUsers();
+                    this.updateStats();
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast(
+                            userId ? 'Usuário atualizado com sucesso' : 'Usuário criado com sucesso',
+                            'success'
+                        );
+                    }
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            },
+
+            async deleteUser(userId) {
+                if (!confirm('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.')) {
+                    return;
+                }
+
+                const result = await UserManager.deleteUser(userId);
+                if (result.success) {
+                    this.loadUsers();
+                    this.updateStats();
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast('Usuário deletado com sucesso', 'success');
+                    }
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            },
+
+            async toggleStatus(userId) {
+                const result = await UserManager.toggleUserStatus(userId);
+                if (result.success) {
+                    this.loadUsers();
+                    this.updateStats();
+                    const statusText = result.user.disabled ? 'desativado' : 'ativado';
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast(`Usuário ${statusText} com sucesso`, 'success');
+                    }
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            },
+
+            async resetUserPassword(userId) {
+                const newPassword = prompt('Digite a nova senha (mínimo 6 caracteres):');
+                if (!newPassword) return;
+
+                if (newPassword.length < 6) {
+                    alert('A senha deve ter no mínimo 6 caracteres');
+                    return;
+                }
+
+                const result = await UserManager.resetPassword(userId, newPassword);
+                if (result.success) {
+                    if (typeof Utils !== 'undefined' && Utils.showToast) {
+                        Utils.showToast('Senha resetada com sucesso', 'success');
+                    }
+                    alert(`Senha resetada com sucesso!\nNova senha: ${newPassword}`);
+                } else {
+                    alert('Erro: ' + result.error);
+                }
+            },
+
+            generatePassword() {
+                const password = UserManager.generateSecurePassword();
+                document.getElementById('user-password').value = password;
+                document.getElementById('user-password').type = 'text';
+                alert(`Senha gerada:\n${password}\n\nCopie esta senha e guarde em local seguro.`);
+            },
+
+            togglePasswordVisibility() {
+                const passwordInput = document.getElementById('user-password');
+                const eyeIcon = document.getElementById('password-eye');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.className = 'fas fa-eye-slash';
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.className = 'fas fa-eye';
+                }
+            },
+
+            exportUsers() {
+                const users = UserManager.listUsers();
+                const csvContent = this.generateCSV(users);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+            },
+
+            generateCSV(users) {
+                const headers = ['ID', 'Username', 'Nome', 'Email', 'Perfil', 'Status', 'Criado em'];
+                const rows = users.map(u => [
+                    u.id,
+                    u.username,
+                    u.name,
+                    u.email || '',
+                    u.role,
+                    u.disabled ? 'Inativo' : 'Ativo',
+                    new Date(u.createdAt).toLocaleString('pt-BR')
+                ]);
+                
+                const csvRows = [headers, ...rows].map(row => 
+                    row.map(cell => `"${cell}"`).join(',')
+                );
+                
+                return csvRows.join('\n');
+            }
+        };
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => UserManagementUI.init());
+        } else {
+            UserManagementUI.init();
+        }
+    </script>
+</body>
+</html>
