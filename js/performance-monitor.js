@@ -282,7 +282,10 @@ const PerformanceMonitor = {
      * @param {number} value - Metric value
      */
     logMetric(name, value) {
-        console.log(`[Performance] ${name}: ${this.formatMetric(value)}`);
+        // Only log in development or when explicitly enabled
+        if (this.isDebugMode()) {
+            console.log(`[Performance] ${name}: ${this.formatMetric(value)}`);
+        }
     },
 
     /**
@@ -290,14 +293,28 @@ const PerformanceMonitor = {
      * @param {Object} metrics - Resource metrics
      */
     logResourceMetrics(metrics) {
-        console.log('[Performance] Resources:', {
-            total: metrics.totalResources,
-            scripts: metrics.scripts,
-            stylesheets: metrics.stylesheets,
-            images: metrics.images,
-            totalSize: `${Math.round(metrics.totalSize / 1024)}KB`,
-            avgDuration: this.formatMetric(metrics.avgDuration)
-        });
+        // Only log in development or when explicitly enabled
+        if (this.isDebugMode()) {
+            console.log('[Performance] Resources:', {
+                total: metrics.totalResources,
+                scripts: metrics.scripts,
+                stylesheets: metrics.stylesheets,
+                images: metrics.images,
+                totalSize: `${Math.round(metrics.totalSize / 1024)}KB`,
+                avgDuration: this.formatMetric(metrics.avgDuration)
+            });
+        }
+    },
+
+    /**
+     * Check if debug mode is enabled
+     * @returns {boolean}
+     */
+    isDebugMode() {
+        // Enable in development or when explicitly set
+        return (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.debug) || 
+               window.location.hostname === 'localhost' ||
+               window.location.hostname === '127.0.0.1';
     },
 
     /**

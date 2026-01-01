@@ -146,9 +146,14 @@ async function cacheFirst(request, cacheName) {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone()).catch(err => 
-        console.warn('Cache put failed:', err)
-      );
+      // Clone response before caching
+      const responseToCache = networkResponse.clone();
+      cache.put(request, responseToCache).catch(err => {
+        // Log cache errors in development only
+        if (self.location.hostname === 'localhost') {
+          console.warn('[SW] Cache put failed:', err.message);
+        }
+      });
     }
     return networkResponse;
   } catch (error) {
@@ -165,9 +170,12 @@ async function networkFirst(request, cacheName) {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone()).catch(err => 
-        console.warn('Cache put failed:', err)
-      );
+      const responseToCache = networkResponse.clone();
+      cache.put(request, responseToCache).catch(err => {
+        if (self.location.hostname === 'localhost') {
+          console.warn('[SW] Cache put failed:', err.message);
+        }
+      });
     }
     return networkResponse;
   } catch (error) {
@@ -188,9 +196,12 @@ async function staleWhileRevalidate(request, cacheName) {
   
   const fetchPromise = fetch(request).then(networkResponse => {
     if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone()).catch(err => 
-        console.warn('Cache put failed:', err)
-      );
+      const responseToCache = networkResponse.clone();
+      cache.put(request, responseToCache).catch(err => {
+        if (self.location.hostname === 'localhost') {
+          console.warn('[SW] Cache put failed:', err.message);
+        }
+      });
     }
     return networkResponse;
   }).catch(() => null);

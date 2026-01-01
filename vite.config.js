@@ -32,9 +32,9 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: false,
+        drop_console: true,  // Remove console.log in production
         drop_debugger: true,
-        pure_funcs: ['console.debug']
+        pure_funcs: ['console.debug', 'console.info']
       }
     },
     copyPublicDir: true
