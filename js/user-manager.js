@@ -254,10 +254,10 @@ const UserManager = {
             return { valid: false, error: 'Senha deve ter no mínimo 6 caracteres' };
         }
 
-        // Username validation (alphanumeric and basic characters only)
-        const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+        // Username validation (alphanumeric, dots, underscores, hyphens)
+        const usernameRegex = /^[a-zA-Z0-9._-]+$/;
         if (!usernameRegex.test(userData.username)) {
-            return { valid: false, error: 'Nome de usuário deve conter apenas letras, números, _ e -' };
+            return { valid: false, error: 'Nome de usuário deve conter apenas letras, números, . _ e -' };
         }
 
         // Role validation

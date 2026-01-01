@@ -41,18 +41,28 @@ The standalone password reset tool (`scripts/reset-user-passwords.html`) allows 
      - Gestor: `gestor123`
      - Técnico: `tecnico123`
 
-#### Default Password Hashes:
+#### Password Hashing:
 
-The tool uses pre-computed SHA-256 hashes for security:
-- `admin123`: `240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9`
-- `gestor123`: `8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918`
-- `tecnico123`: `ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db2`
+The tool uses SHA-256 with salting for security:
+- Passwords are hashed using the same algorithm as the main application
+- Each password is salted with `diversey_salt_v1` + username
+- Hashes are computed dynamically for each user's specific username
+- This prevents rainbow table attacks and ensures username-specific security
 
 #### Security Notes:
 - ⚠️ This tool should only be used by system administrators
-- ⚠️ All password resets are logged with timestamp
+- ⚠️ This tool requires Firebase database access to function
+- ⚠️ All password resets are logged with timestamp and user
 - ⚠️ Users should change their passwords immediately after reset
-- ⚠️ Keep this tool secure and limit access
+- ⚠️ Keep this tool secure and limit access to authorized personnel only
+- ⚠️ The Firebase configuration is embedded - protect access to this file
+
+#### Administrative Password Display:
+When resetting passwords or generating new ones, the system displays passwords in dialogs. This is intentional for administrator usability:
+- Administrators need to communicate passwords to users
+- The display is only visible to authenticated administrators
+- Passwords should be shared through secure channels (not email)
+- Consider using password managers for secure distribution
 
 ---
 
