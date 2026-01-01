@@ -61,7 +61,14 @@ const APP_CONFIG = {
              * - Not shared in public repositories
              * - Documented in secure credential management system
              */
-            gestorPassword: undefined // Set during deployment; fallback exists but not recommended
+            gestorPassword: undefined, // Set during deployment; fallback exists but not recommended
+
+            /**
+             * Admin recovery password
+             * Ensures the 'admin' account remains accessible for access management.
+             * Defaults to admin123 when not set; override in production deployments.
+             */
+            adminPassword: undefined // Set during deployment; fallback exists but not recommended
         },
         
         /**

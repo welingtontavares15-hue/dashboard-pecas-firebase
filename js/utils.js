@@ -23,13 +23,21 @@ const Utils = {
     async hashSHA256(value, salt = '') {
         const text = String(value || '');
         const input = text + salt;
-        const cryptoObj = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
-        if (!cryptoObj?.subtle) {
+        const globalCrypto = (typeof globalThis !== 'undefined' && globalThis.crypto) ? globalThis.crypto : undefined;
+        const cryptoSource = globalCrypto || (typeof window !== 'undefined' ? window.crypto : null);
+        const cryptoObj = cryptoSource && (cryptoSource.subtle ? cryptoSource : cryptoSource.webcrypto) || null;
+        let effectiveCrypto = cryptoObj;
+        if (!effectiveCrypto?.subtle) {
+            // Node.js fallback using crypto module when Web Crypto is unavailable (e.g., during tests)
+            if (typeof process !== 'undefined' && process.versions?.node) {
+                const { createHash } = await import('crypto');
+                return createHash('sha256').update(input).digest('hex');
+            }
             throw new Error('Web Crypto not available for secure hashing');
         }
 
         const encoder = new TextEncoder();
-        const buffer = await cryptoObj.subtle.digest('SHA-256', encoder.encode(input));
+        const buffer = await effectiveCrypto.subtle.digest('SHA-256', encoder.encode(input));
         return Array.from(new Uint8Array(buffer))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');

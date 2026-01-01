@@ -329,6 +329,12 @@ const DataManager = {
 
                 // Ensure at least one gestor account is always available for access recovery
                 try {
+                    await this.ensureDefaultAdmin();
+                } catch (e) {
+                    console.warn('Failed to enforce default admin credentials', e);
+                }
+
+                try {
                     await this.ensureDefaultGestor();
                 } catch (e) {
                     console.warn('Failed to enforce default gestor credentials', e);
@@ -1065,6 +1071,24 @@ const DataManager = {
         return 'GestorRecovery2025!';
     },
 
+    /**
+     * Get stable admin bootstrap password from configuration.
+     * Priority:
+     * 1. window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD
+     * 2. APP_CONFIG.security.bootstrap.adminPassword
+     * 3. Default fallback (matches documented admin credential)
+     */
+    getAdminPassword() {
+        if (typeof window !== 'undefined' && window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD) {
+            return String(window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD).trim();
+        }
+        if (typeof APP_CONFIG !== 'undefined' &&
+            APP_CONFIG.security?.bootstrap?.adminPassword) {
+            return String(APP_CONFIG.security.bootstrap.adminPassword).trim();
+        }
+        return 'admin123';
+    },
+
     getUsers() {
         return this.loadData(this.KEYS.USERS) || [];
     },
@@ -1212,6 +1236,65 @@ const DataManager = {
 
     getGestorUsers() {
         return this.getUsers().filter(u => u.role === 'gestor');
+    },
+
+    /**
+     * Guarantee an admin account exists with a known credential for recovery.
+     * Ensures the admin account is active, has the correct role, and uses the
+     * configured bootstrap password (default: admin123).
+     */
+    async ensureDefaultAdmin() {
+        const users = this.getUsers();
+        const fallbackPassword = this.getAdminPassword();
+        const fallback = {
+            id: 'admin',
+            username: 'admin',
+            name: 'Administrador',
+            role: 'administrador',
+            email: 'admin@diversey.com'
+        };
+
+        const normalize = (value) => this.normalizeUsername(value);
+        let updated = false;
+
+        let adminUser = users.find(u => normalize(u.username) === normalize(fallback.username));
+
+        const canonicalUsername = fallback.username;
+        const expectedPasswordHash = await Utils.hashSHA256(fallbackPassword, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
+
+        if (!adminUser) {
+            adminUser = { ...fallback, passwordHash: expectedPasswordHash, disabled: false };
+            users.push(adminUser);
+            updated = true;
+            console.info('[BOOTSTRAP] Created admin recovery account');
+        } else {
+            if (adminUser.passwordHash !== expectedPasswordHash) {
+                adminUser.passwordHash = expectedPasswordHash;
+                updated = true;
+                console.info('[BOOTSTRAP] Updated admin recovery password hash');
+            }
+            if (adminUser.role !== 'administrador') {
+                adminUser.role = 'administrador';
+                updated = true;
+            }
+            if (adminUser.disabled) {
+                adminUser.disabled = false;
+                updated = true;
+            }
+            if (!adminUser.name) {
+                adminUser.name = fallback.name;
+                updated = true;
+            }
+            if (!adminUser.email) {
+                adminUser.email = fallback.email;
+                updated = true;
+            }
+        }
+
+        if (updated) {
+            this._sessionCache[this.KEYS.USERS] = users;
+            await this._persistUsersToCloud(users);
+        }
     },
 
     /**
