@@ -1,6 +1,6 @@
 // Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6-optimized';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -9,7 +9,23 @@ const MODULE_CACHES = {
   dashboard: `${CACHE_PREFIX}-dashboard-${CACHE_VERSION}`,
   solicitacoes: `${CACHE_PREFIX}-solicitacoes-${CACHE_VERSION}`,
   catalogo: `${CACHE_PREFIX}-catalogo-${CACHE_VERSION}`,
-  relatorios: `${CACHE_PREFIX}-relatorios-${CACHE_VERSION}`
+  relatorios: `${CACHE_PREFIX}-relatorios-${CACHE_VERSION}`,
+  runtime: `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`
+};
+
+// Cache strategy configuration
+const CACHE_STRATEGIES = {
+  CACHE_FIRST: 'cache-first',
+  NETWORK_FIRST: 'network-first',
+  STALE_WHILE_REVALIDATE: 'stale-while-revalidate',
+  NETWORK_ONLY: 'network-only'
+};
+
+// Cache max age in milliseconds
+const CACHE_MAX_AGE = {
+  static: 7 * 24 * 60 * 60 * 1000, // 7 days
+  dynamic: 1 * 60 * 60 * 1000, // 1 hour
+  api: 5 * 60 * 1000 // 5 minutes
 };
 
 const PRECACHE = {
@@ -23,32 +39,22 @@ const PRECACHE = {
     './icons/icon.svg',
     './js/config.js',
     './js/utils.js',
+    './js/logger.js',
     './js/pwa.js',
+    './js/module-loader.js',
+    './js/performance-monitor.js',
     './js/indexeddb-storage.js',
     './js/storage.js',
+    './js/firebase-init.js',
     './js/data.js',
+    './js/auth.js',
     './js/app.js'
   ],
-  dashboard: [
-    './js/dashboard.js',
-    './js/sheets.js',
-    './js/onedrive.js',
-    './js/relatorios.js',
-    './js/vendor/chart.umd.js'
-  ],
-  solicitacoes: [
-    './js/solicitacoes.js',
-    './js/aprovacoes.js',
-    './js/auth.js',
-    './js/tecnicos.js'
-  ],
-  catalogo: [
-    './js/pecas.js',
-    './js/fornecedores.js'
-  ],
-  relatorios: [
-    './js/relatorios.js'
-  ]
+  // These modules will be lazy-loaded on demand
+  dashboard: [],
+  solicitacoes: [],
+  catalogo: [],
+  relatorios: []
 };
 
 const ASSET_CACHE_MAP = {};
@@ -87,32 +93,122 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  
   const requestUrl = new URL(event.request.url);
+  
+  // Handle Firebase API requests with network-first strategy
+  if (requestUrl.hostname.includes('firebasestorage') || 
+      requestUrl.hostname.includes('firebaseio.com') ||
+      requestUrl.hostname.includes('googleapis.com')) {
+    event.respondWith(networkFirst(event.request, MODULE_CACHES.runtime));
+    return;
+  }
+  
+  // Handle CDN resources with stale-while-revalidate
+  if (requestUrl.hostname.includes('cdnjs.cloudflare.com') ||
+      requestUrl.hostname.includes('fonts.googleapis.com') ||
+      requestUrl.hostname.includes('fonts.gstatic.com')) {
+    event.respondWith(staleWhileRevalidate(event.request, MODULE_CACHES.runtime));
+    return;
+  }
+  
   const matchedCache = ASSET_CACHE_MAP[requestUrl.href];
 
-  if (!matchedCache) {
-    if (event.request.mode === 'navigate') {
-      event.respondWith(
-        fetch(event.request).catch(() => caches.match(OFFLINE_URL))
-      );
-    }
+  // Handle precached assets with cache-first strategy
+  if (matchedCache) {
+    event.respondWith(cacheFirst(event.request, matchedCache));
     return;
   }
 
-  event.respondWith(
-    caches.open(matchedCache).then((cache) =>
-      cache.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request)
-          .then((networkResponse) => {
-            cache.put(event.request, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
-            return networkResponse;
-          })
-          .catch(() => caches.match(OFFLINE_URL));
-      })
-    )
-  );
+  // Handle navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+  
+  // Handle other requests with stale-while-revalidate
+  event.respondWith(staleWhileRevalidate(event.request, MODULE_CACHES.runtime));
 });
+
+/**
+ * Cache-first strategy: Serve from cache, fallback to network
+ */
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cachedResponse = await cache.match(request);
+  
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+  
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone()).catch(err => 
+        console.warn('Cache put failed:', err)
+      );
+    }
+    return networkResponse;
+  } catch (error) {
+    return caches.match(OFFLINE_URL);
+  }
+}
+
+/**
+ * Network-first strategy: Try network, fallback to cache
+ */
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone()).catch(err => 
+        console.warn('Cache put failed:', err)
+      );
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Stale-while-revalidate strategy: Return cache immediately, update in background
+ */
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cachedResponse = await cache.match(request);
+  
+  const fetchPromise = fetch(request).then(networkResponse => {
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone()).catch(err => 
+        console.warn('Cache put failed:', err)
+      );
+    }
+    return networkResponse;
+  }).catch(() => null);
+  
+  return cachedResponse || fetchPromise;
+}
+
+/**
+ * Check if cached response is fresh
+ */
+function isCacheFresh(response, maxAge) {
+  const cachedDate = response.headers.get('date');
+  if (!cachedDate) return false;
+  
+  const cacheTime = new Date(cachedDate).getTime();
+  const now = Date.now();
+  return (now - cacheTime) < maxAge;
+}
 
 async function notifyClientsUpdated() {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
