@@ -1296,7 +1296,9 @@ const App = {
      */
     async loadUserManagementModule() {
         const container = document.getElementById('userManagementContainer');
-        if (!container) return;
+        if (!container) {
+            return;
+        }
         
         try {
             // Show loading state
@@ -1340,7 +1342,9 @@ const App = {
      */
     renderUserManagementInterface(users) {
         const container = document.getElementById('userManagementContainer');
-        if (!container) return;
+        if (!container) {
+            return;
+        }
         
         const userCount = users.length;
         const activeUsers = users.filter(u => !u.disabled).length;
@@ -1648,7 +1652,9 @@ const App = {
             'Delete User'
         );
         
-        if (!confirmed) return;
+        if (!confirmed) {
+            return;
+        }
         
         try {
             const users = DataManager.getUsers();
@@ -1686,7 +1692,9 @@ const App = {
             'Reset Password'
         );
         
-        if (!confirmed) return;
+        if (!confirmed) {
+            return;
+        }
         
         try {
             const users = DataManager.getUsers();
