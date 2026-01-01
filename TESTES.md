@@ -503,9 +503,9 @@ Confirmar que hashes SHA-256 estão corretos
 3. **Verificar hashes na tabela**
    ```
    Para cada usuário, hash deve começar com:
-   - admin: 240be518fabd...
-   - gestor: 8c6976e5b541...
-   - tecnico: ee26b0dd4af7...
+   - admin: c08ab1a76715...
+   - gestor: ca762c2ec7cd...
+   - tecnico: e343cbd1e3d2...
    ```
 
 4. **Comparar hashes completos**
@@ -513,9 +513,9 @@ Confirmar que hashes SHA-256 estão corretos
    Hover sobre hash na tabela para ver completo
    
    Hashes esperados:
-   admin123 → 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
-   gestor123 → 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-   tecnico123 → ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db2
+   admin123 → c08ab1a7671509ccb5ecdf9868eb30df793ce5104b404d11cfa82d4b84029283
+   gestor123 → ca762c2ec7cdcc2fb79450121aba3642873df25ed035810c8f6a12b76f9f42fa
+   tecnico123 → e343cbd1e3d223ee96c21a2b18a61b10d35549cdecae770e36b2c598100f3c02
    ```
 
 ### Resultado Esperado
