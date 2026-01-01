@@ -516,7 +516,7 @@ const Relatorios = {
     /**
      * Export solicitations report
      */
-    exportSolicitacoes() {
+    async exportSolicitacoes() {
         let solicitations = DataManager.getSolicitations();
         
         // Apply same filters
@@ -575,14 +575,14 @@ const Relatorios = {
             });
         });
         
-        Utils.exportToExcel(data, 'relatorio_solicitacoes.xlsx', 'Solicitações');
+        await Utils.exportToExcel(data, 'relatorio_solicitacoes.xlsx', 'Solicitações');
         Utils.showToast('Relatório exportado com sucesso', 'success');
     },
 
     /**
      * Export SLA report
      */
-    exportSLA() {
+    async exportSLA() {
         const solicitations = DataManager.getSolicitations();
         const approved = solicitations.filter(s => s.approvedAt && s.createdAt);
         
@@ -598,14 +598,14 @@ const Relatorios = {
             };
         });
         
-        Utils.exportToExcel(data, 'relatorio_sla.xlsx', 'SLA');
+        await Utils.exportToExcel(data, 'relatorio_sla.xlsx', 'SLA');
         Utils.showToast('Relatório exportado com sucesso', 'success');
     },
 
     /**
      * Export technicians report
      */
-    exportTecnicos() {
+    async exportTecnicos() {
         const stats = DataManager.getStatistics(null, { includeHistoricalManual: true });
         
         const data = Object.entries(stats.byTechnician).map(([nome, t]) => ({
@@ -617,14 +617,14 @@ const Relatorios = {
             TaxaAprovacao: t.total > 0 ? (t.approved / t.total * 100).toFixed(1) + '%' : '0%'
         }));
         
-        Utils.exportToExcel(data, 'relatorio_tecnicos.xlsx', 'Técnicos');
+        await Utils.exportToExcel(data, 'relatorio_tecnicos.xlsx', 'Técnicos');
         Utils.showToast('Relatório exportado com sucesso', 'success');
     },
 
     /**
      * Export parts report
      */
-    exportPecas() {
+    async exportPecas() {
         const stats = DataManager.getStatistics();
         const parts = DataManager.getParts();
         
@@ -639,7 +639,7 @@ const Relatorios = {
             };
         });
         
-        Utils.exportToExcel(data, 'relatorio_pecas.xlsx', 'Top Peças');
+        await Utils.exportToExcel(data, 'relatorio_pecas.xlsx', 'Top Peças');
         Utils.showToast('Relatório exportado com sucesso', 'success');
     },
 

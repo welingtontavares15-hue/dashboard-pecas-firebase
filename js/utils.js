@@ -675,9 +675,21 @@ Equipe Diversey`;
      * @param {string} options.source - Source module name
      * @param {object} options.filters - Applied filters
      */
-    exportToExcel(data, filename, sheetName = 'Dados', options = {}) {
+    async exportToExcel(data, filename, sheetName = 'Dados', options = {}) {
+        // Lazy load XLSX library if not already loaded
+        if (!window.XLSX && window.ModuleLoader) {
+            this.showToast('Carregando biblioteca de exportação...', 'info');
+            try {
+                await ModuleLoader.loadExcelLibrary();
+            } catch (error) {
+                console.error('Failed to load XLSX library:', error);
+                this.showToast('Erro ao carregar biblioteca de exportação', 'error');
+                return;
+            }
+        }
+        
         if (!window.XLSX) {
-            this.showToast('Biblioteca XLSX não carregada', 'error');
+            this.showToast('Biblioteca XLSX não disponível', 'error');
             return;
         }
         
@@ -712,9 +724,21 @@ Equipe Diversey`;
     /**
      * Generate PDF for solicitation
      */
-    generatePDF(solicitation, options = {}) {
+    async generatePDF(solicitation, options = {}) {
+        // Lazy load jsPDF library if not already loaded
+        if (!window.jspdf && window.ModuleLoader) {
+            this.showToast('Carregando biblioteca PDF...', 'info');
+            try {
+                await ModuleLoader.loadPdfLibrary();
+            } catch (error) {
+                console.error('Failed to load jsPDF library:', error);
+                this.showToast('Erro ao carregar biblioteca PDF', 'error');
+                return;
+            }
+        }
+        
         if (!window.jspdf) {
-            this.showToast('Biblioteca jsPDF não carregada', 'error');
+            this.showToast('Biblioteca jsPDF não disponível', 'error');
             return;
         }
         
