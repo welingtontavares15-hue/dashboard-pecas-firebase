@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Autenticação - Dashboard de Peças</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 2rem;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .stat-card .label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            color: #333;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .role-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .role-administrador {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .role-gestor {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .role-tecnico {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-disabled {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .hash-preview {
+            font-family: 'Courier New', monospace;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .validator-form {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .result-box {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .result-box.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result-box.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .access-denied {
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .access-denied h2 {
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico de Autenticação</h1>
+        <div class="subtitle">Sistema de análise e validação de usuários</div>
+        
+        <div id="loading-indicator" class="section">
+            <p>Carregando sistema...</p>
+        </div>
+        
+        <div id="access-denied" class="access-denied" style="display: none;">
+            <h2>⛔ Acesso Negado</h2>
+            <p>Esta página é restrita a administradores.</p>
+            <p>Por favor, faça login com uma conta de administrador.</p>
+            <br>
+            <button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar ao Login</button>
+        </div>
+        
+        <div id="main-content" style="display: none;">
+            <!-- User Statistics -->
+            <div class="section">
+                <h2>📊 Estatísticas de Usuários</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="label">Total de Usuários</div>
+                        <div class="value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Administradores</div>
+                        <div class="value" id="stat-admin">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Gestores</div>
+                        <div class="value" id="stat-gestor">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Técnicos</div>
+                        <div class="value" id="stat-tecnico">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Inativos</div>
+                        <div class="value" id="stat-disabled">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Table -->
+            <div class="section">
+                <h2>👥 Lista de Usuários</h2>
+                <div style="overflow-x: auto;">
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Nome</th>
+                                <th>Perfil</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Hash (preview)</th>
+                                <th>Atualizado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Hash Validator -->
+            <div class="section">
+                <h2>🔐 Validador de Hash de Senha</h2>
+                <p style="margin-bottom: 1rem; color: #666;">
+                    Digite o nome de usuário e senha para validar se o hash armazenado está correto.
+                </p>
+                <div class="validator-form">
+                    <div class="form-group">
+                        <label for="validate-username">Nome de Usuário</label>
+                        <input type="text" id="validate-username" placeholder="Ex: admin" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="validate-password">Senha</label>
+                        <input type="password" id="validate-password" placeholder="Digite a senha" autocomplete="off">
+                    </div>
+                    <button class="btn btn-primary" onclick="validateHash()">Validar Hash</button>
+                    <div id="validation-result" class="result-box"></div>
+                </div>
+            </div>
+            
+            <!-- System Information -->
+            <div class="section">
+                <h2>ℹ️ Informações do Sistema</h2>
+                <p><strong>Algoritmo de Hash:</strong> SHA-256 via Web Crypto API</p>
+                <p><strong>Fórmula Atual:</strong> <code>SHA256(password + (PASSWORD_SALT + ":" + username))</code></p>
+                <p><strong>Fórmula Legada:</strong> <code>SHA256(password + PASSWORD_SALT)</code></p>
+                <p><strong>Salt Global:</strong> <code id="system-salt">-</code></p>
+                <p><strong>Caminho Firebase:</strong> <code>/data/diversey_users/data</code></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load Dependencies -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/firebase-init.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/indexeddb-storage.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        let usersData = [];
+        
+        async function initializeDiagnostic() {
+            const loadingEl = document.getElementById('loading-indicator');
+            const accessDeniedEl = document.getElementById('access-denied');
+            const mainContentEl = document.getElementById('main-content');
+            
+            try {
+                // Wait for DataManager to initialize
+                await DataManager.init();
+                
+                // Check if user is logged in
+                const isLoggedIn = Auth.init();
+                
+                if (!isLoggedIn || !Auth.isLoggedIn()) {
+                    loadingEl.style.display = 'none';
+                    accessDeniedEl.style.display = 'block';
+                    return;
+                }
+                
+                // Check if user is administrator
+                const currentUser = Auth.getCurrentUser();
+                if (!currentUser || currentUser.role !== 'administrador') {
+                    loadingEl.style.display = 'none';
+                    accessDeniedEl.style.display = 'block';
+                    return;
+                }
+                
+                // User is authorized, show main content
+                loadingEl.style.display = 'none';
+                mainContentEl.style.display = 'block';
+                
+                // Load and display users
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error initializing diagnostic:', error);
+                loadingEl.innerHTML = '<p style="color: #dc3545;">Erro ao inicializar: ' + error.message + '</p>';
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                // Sync from cloud to ensure latest data
+                if (DataManager.cloudInitialized) {
+                    await DataManager.syncUsersFromCloud();
+                }
+                
+                usersData = DataManager.getUsers() || [];
+                
+                // Update statistics
+                updateStatistics();
+                
+                // Render users table
+                renderUsersTable();
+                
+                // Display system salt
+                document.getElementById('system-salt').textContent = Utils.PASSWORD_SALT;
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                alert('Erro ao carregar usuários: ' + error.message);
+            }
+        }
+        
+        function updateStatistics() {
+            const total = usersData.length;
+            const admin = usersData.filter(u => u.role === 'administrador').length;
+            const gestor = usersData.filter(u => u.role === 'gestor').length;
+            const tecnico = usersData.filter(u => u.role === 'tecnico').length;
+            const disabled = usersData.filter(u => u.disabled === true).length;
+            
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-admin').textContent = admin;
+            document.getElementById('stat-gestor').textContent = gestor;
+            document.getElementById('stat-tecnico').textContent = tecnico;
+            document.getElementById('stat-disabled').textContent = disabled;
+        }
+        
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-table-body');
+            
+            if (usersData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">Nenhum usuário encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = usersData.map(user => {
+                const hashPreview = user.passwordHash ? user.passwordHash.substring(0, 16) + '...' : 'N/A';
+                const updatedAt = user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : '-';
+                const isDisabled = user.disabled === true;
+                
+                return `
+                    <tr>
+                        <td><code>${escapeHtml(user.username || '-')}</code></td>
+                        <td>${escapeHtml(user.name || '-')}</td>
+                        <td>
+                            <span class="role-badge role-${user.role || 'unknown'}">
+                                ${getRoleLabel(user.role)}
+                            </span>
+                        </td>
+                        <td>${escapeHtml(user.email || '-')}</td>
+                        <td>
+                            <span class="status-badge status-${isDisabled ? 'disabled' : 'active'}">
+                                ${isDisabled ? 'Inativo' : 'Ativo'}
+                            </span>
+                        </td>
+                        <td class="hash-preview">${hashPreview}</td>
+                        <td>${updatedAt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function validateHash() {
+            const username = document.getElementById('validate-username').value.trim();
+            const password = document.getElementById('validate-password').value;
+            const resultEl = document.getElementById('validation-result');
+            
+            if (!username || !password) {
+                resultEl.className = 'result-box error';
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = '⚠️ Por favor, preencha o usuário e a senha.';
+                return;
+            }
+            
+            try {
+                // Find user
+                const user = DataManager.getUserByUsername(username);
+                
+                if (!user) {
+                    resultEl.className = 'result-box error';
+                    resultEl.style.display = 'block';
+                    resultEl.innerHTML = `❌ Usuário "<strong>${escapeHtml(username)}</strong>" não encontrado.`;
+                    return;
+                }
+                
+                // Calculate expected hash
+                const canonicalUsername = user.username;
+                const expectedHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
+                
+                // Check legacy hash too
+                const legacyHash = await Utils.hashSHA256(password, Utils.PASSWORD_SALT);
+                
+                // Compare
+                const storedHash = user.passwordHash || '';
+                const matchesCurrent = storedHash === expectedHash;
+                const matchesLegacy = storedHash === legacyHash;
+                
+                if (matchesCurrent) {
+                    resultEl.className = 'result-box success';
+                    resultEl.style.display = 'block';
+                    resultEl.innerHTML = `
+                        ✅ <strong>Hash válido!</strong><br>
+                        A senha fornecida corresponde ao hash armazenado (formato atual).<br>
+                        <small>Hash: ${expectedHash.substring(0, 32)}...</small>
+                    `;
+                } else if (matchesLegacy) {
+                    resultEl.className = 'result-box success';
+                    resultEl.style.display = 'block';
+                    resultEl.innerHTML = `
+                        ⚠️ <strong>Hash válido (formato legado)</strong><br>
+                        A senha corresponde, mas está usando o formato antigo de hash.<br>
+                        O sistema irá migrar automaticamente no próximo login.<br>
+                        <small>Hash: ${legacyHash.substring(0, 32)}...</small>
+                    `;
+                } else {
+                    resultEl.className = 'result-box error';
+                    resultEl.style.display = 'block';
+                    resultEl.innerHTML = `
+                        ❌ <strong>Hash inválido!</strong><br>
+                        A senha fornecida NÃO corresponde ao hash armazenado.<br>
+                        <br>
+                        <strong>Detalhes:</strong><br>
+                        Esperado (atual): ${expectedHash.substring(0, 32)}...<br>
+                        Esperado (legado): ${legacyHash.substring(0, 32)}...<br>
+                        Armazenado: ${storedHash.substring(0, 32)}...<br>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Validation error:', error);
+                resultEl.className = 'result-box error';
+                resultEl.style.display = 'block';
+                resultEl.innerHTML = '❌ Erro ao validar: ' + escapeHtml(error.message);
+            }
+        }
+        
+        function getRoleLabel(role) {
+            const labels = {
+                'administrador': 'Administrador',
+                'gestor': 'Gestor',
+                'tecnico': 'Técnico'
+            };
+            return labels[role] || role || 'Desconhecido';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initializeDiagnostic);
+    </script>
+</body>
+</html>
