@@ -68,6 +68,7 @@ const Auth = {
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
+            { id: 'user-management', icon: 'fa-users-cog', label: 'Gerenciar Usuários', section: 'Sistema' },
             { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Sistema' }
         ],
         gestor: [
