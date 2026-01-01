@@ -1079,14 +1079,23 @@ const DataManager = {
      * 3. Default fallback (matches documented admin credential)
      */
     getAdminPassword() {
+        let password;
         if (typeof window !== 'undefined' && window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD) {
-            return String(window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD).trim();
+            password = String(window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD).trim();
         }
-        if (typeof APP_CONFIG !== 'undefined' &&
+        if (!password && typeof APP_CONFIG !== 'undefined' &&
             APP_CONFIG.security?.bootstrap?.adminPassword) {
-            return String(APP_CONFIG.security.bootstrap.adminPassword).trim();
+            password = String(APP_CONFIG.security.bootstrap.adminPassword).trim();
         }
-        return 'admin123';
+        if (!password) {
+            password = 'admin123';
+            if (typeof APP_CONFIG !== 'undefined' &&
+                typeof APP_CONFIG.isProduction === 'function' &&
+                APP_CONFIG.isProduction()) {
+                console.warn('[BOOTSTRAP] adminPassword not configured; using default admin123');
+            }
+        }
+        return password;
     },
 
     getUsers() {
