@@ -38,6 +38,41 @@ const APP_CONFIG = {
     buildTime: new Date().toISOString(),
     
     /**
+     * Security configuration for bootstrap and recovery
+     */
+    security: {
+        /**
+         * Bootstrap configuration for initial system setup
+         */
+        bootstrap: {
+            /**
+             * Gestor recovery password
+             * This password is used for the 'gestor' account which is the system recovery account.
+             * 
+             * Set this during deployment via:
+             * - window.DIVERSEY_BOOTSTRAP_GESTOR_PASSWORD (highest priority - set in index.html)
+             * - Or this config property
+             * 
+             * If not set, a default fallback password is used (NOT RECOMMENDED for production).
+             * 
+             * Security note: This password should be:
+             * - Strong and unique
+             * - Rotated regularly (update and re-deploy)
+             * - Not shared in public repositories
+             * - Documented in secure credential management system
+             */
+            gestorPassword: undefined // Set during deployment; fallback exists but not recommended
+        },
+        
+        /**
+         * Enable recovery features on login screen
+         * When true, shows "Recuperar acesso do Gestor" link and recovery button
+         * Should only be enabled in staging/dev or when explicitly needed
+         */
+        enableRecovery: false
+    },
+    
+    /**
      * Feature flags for controlled rollout
      */
     features: {

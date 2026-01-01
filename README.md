@@ -99,6 +99,61 @@ Todos os dados são armazenados sob o prefixo `/data/`:
   /healthcheck            → Dados de teste de conexão
 ```
 
+## 🔐 Senha de Recuperação do Gestor
+
+O sistema possui uma conta de recuperação `gestor` para acesso de emergência. A senha desta conta deve ser configurada durante o deploy:
+
+### Como Configurar
+
+**Opção 1: Variável Global (Recomendado)**
+
+Adicione no `index.html` ANTES dos scripts:
+```html
+<script>
+  window.DIVERSEY_BOOTSTRAP_GESTOR_PASSWORD = 'SuaSenhaForteAqui2025!';
+</script>
+```
+
+**Opção 2: Configuração no APP_CONFIG**
+
+Edite `js/config.js`:
+```javascript
+APP_CONFIG.security.bootstrap.gestorPassword = 'SuaSenhaForteAqui2025!';
+```
+
+### Segurança
+
+- ✅ Use senha forte e única
+- ✅ Rotacione regularmente (atualize e re-publique)
+- ✅ Mantenha em sistema seguro de gerenciamento de credenciais
+- ❌ NÃO comite a senha em repositórios públicos
+- ⚠️ Se não configurada, uma senha padrão será usada (NÃO RECOMENDADO para produção)
+
+### Habilitando UI de Recuperação
+
+Para mostrar o link de recuperação na tela de login, edite `js/config.js`:
+```javascript
+APP_CONFIG.security.enableRecovery = true;
+```
+
+Recomenda-se deixar desabilitado em produção e habilitar apenas quando necessário.
+
+## 🔄 Normalização de Username
+
+O sistema normaliza automaticamente os usernames para evitar erros de digitação:
+
+- Remove acentos e caracteres especiais
+- Remove pontos no início e no fim
+- Colapsa múltiplos pontos consecutivos
+- Converte para minúsculas
+
+**Exemplos:**
+- `"Welington.Tavares."` → `"welington.tavares"`
+- `"user..name"` → `"user.name"`
+- `".admin."` → `"admin"`
+
+Isso garante que `welington.tavares.` e `welington.tavares` sejam reconhecidos como o mesmo usuário.
+
 ## 🔧 Comandos NPM Disponíveis
 
 ```bash

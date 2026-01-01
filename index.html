@@ -65,6 +65,18 @@
                 </button>
                 <div id="login-error" class="error-message hidden"></div>
             </form>
+            
+            <!-- Gestor Recovery Section (only shown when enableRecovery flag is true) -->
+            <div id="gestor-recovery" class="gestor-recovery hidden">
+                <div class="recovery-info">
+                    <p><i class="fas fa-life-ring"></i> <strong>Recuperação de Acesso</strong></p>
+                    <p>O usuário <code>gestor</code> é uma conta de recuperação. Utilize a senha definida durante o deploy do sistema.</p>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="App.resetGestorRecovery()">
+                        <i class="fas fa-sync-alt"></i> Reaplicar senha recovery do gestor
+                    </button>
+                </div>
+            </div>
+            
             <div class="demo-info">
                 <p><strong>Versão oficial:</strong></p>
                 <p>O ambiente está pronto para uso em produção. Solicite suas credenciais ao administrador responsável.</p>
