@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Diversey Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .config-section h2 {
+            color: #555;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: monospace;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e0a800;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .users-section {
+            margin-top: 30px;
+        }
+
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .users-header h2 {
+            color: #555;
+            font-size: 24px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filters input, .filters select {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .users-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .role-administrador {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+
+        .role-gestor {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .role-tecnico {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .user-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .user-active {
+            background: #10b981;
+        }
+
+        .user-disabled {
+            background: #ef4444;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .audit-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .audit-info div {
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading i {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.active {
+            display: block;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        .toast.warning {
+            background: #f59e0b;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .actions-cell {
+            white-space: nowrap;
+        }
+
+        .password-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>👥 User Management</h1>
+        <p class="subtitle">Professional admin interface for user CRUD operations with audit logging and role-based access control</p>
+
+        <div class="config-section">
+            <h2>⚙️ Firebase Configuration</h2>
+            <div class="input-group">
+                <label for="firebaseConfig">Firebase Config JSON:</label>
+                <textarea id="firebaseConfig" placeholder='{
+  "apiKey": "your-api-key",
+  "authDomain": "your-project.firebaseapp.com",
+  "databaseURL": "https://your-project.firebaseio.com",
+  "projectId": "your-project-id",
+  "storageBucket": "your-project.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "your-app-id"
+}'></textarea>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="initFirebase()">
+                    🔌 Connect to Firebase
+                </button>
+                <span id="statusBadge" class="status-badge status-disconnected">Not Connected</span>
+            </div>
+        </div>
+
+        <div class="users-section" id="usersSection" style="display: none;">
+            <div class="users-header">
+                <h2>Users <span id="userCount" class="status-badge status-connected">0</span></h2>
+                <button class="btn-success" onclick="showCreateUserModal()">
+                    <i class="fas fa-plus"></i> Create New User
+                </button>
+            </div>
+
+            <div class="filters">
+                <input type="text" id="searchInput" placeholder="🔍 Search by name or username..." onkeyup="filterUsers()">
+                <select id="roleFilter" onchange="filterUsers()">
+                    <option value="">All Roles</option>
+                    <option value="administrador">Administrator</option>
+                    <option value="gestor">Manager</option>
+                    <option value="tecnico">Technician</option>
+                </select>
+                <select id="statusFilter" onchange="filterUsers()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                </select>
+            </div>
+
+            <div id="usersTableContainer">
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Loading users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Create New User</h3>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            
+            <form id="userForm" onsubmit="saveUser(event)">
+                <div class="password-info" id="passwordInfo" style="display: none;">
+                    <strong>ℹ️ Password Reset:</strong> The user's password will be reset to the default password for their role.
+                </div>
+                
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="userName">Name *</label>
+                        <input type="text" id="userName" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="userUsername">Username *</label>
+                        <input type="text" id="userUsername" required autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="userEmail">Email</label>
+                        <input type="email" id="userEmail">
+                    </div>
+                    <div class="input-group">
+                        <label for="userRole">Role *</label>
+                        <select id="userRole" required>
+                            <option value="">Select a role</option>
+                            <option value="administrador">Administrator</option>
+                            <option value="gestor">Manager</option>
+                            <option value="tecnico">Technician</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row full">
+                    <div class="input-group">
+                        <label for="userTecnicoId">Technician ID (for tecnico role)</label>
+                        <input type="text" id="userTecnicoId">
+                    </div>
+                </div>
+
+                <div class="form-row full">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="userDisabled">
+                        <label for="userDisabled">Disabled</label>
+                    </div>
+                </div>
+
+                <div class="audit-info" id="auditInfo" style="display: none;">
+                    <div><strong>Created:</strong> <span id="auditCreated">-</span></div>
+                    <div><strong>Created By:</strong> <span id="auditCreatedBy">-</span></div>
+                    <div><strong>Updated:</strong> <span id="auditUpdated">-</span></div>
+                    <div><strong>Updated By:</strong> <span id="auditUpdatedBy">-</span></div>
+                </div>
+
+                <input type="hidden" id="userId">
+
+                <div class="button-group">
+                    <button type="submit" class="btn-success">
+                        <i class="fas fa-save"></i> Save User
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="closeUserModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getDatabase, ref, get, set, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+        let db = null;
+        let app = null;
+        let auth = null;
+        let allUsers = [];
+        let currentUserId = null;
+
+        // Expose functions to global scope
+        window.initFirebase = initFirebase;
+        window.showCreateUserModal = showCreateUserModal;
+        window.closeUserModal = closeUserModal;
+        window.saveUser = saveUser;
+        window.editUser = editUser;
+        window.deleteUser = deleteUser;
+        window.resetUserPassword = resetUserPassword;
+        window.filterUsers = filterUsers;
+
+        // SHA-256 hashing function with salt
+        async function sha256(password, username = '') {
+            const salt = 'diversey_salt_v1';
+            const input = password + salt + ':' + username;
+            const msgBuffer = new TextEncoder().encode(input);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        // Default passwords mapping
+        const defaultPasswords = {
+            'administrador': 'admin123',
+            'gestor': 'gestor123',
+            'tecnico': 'tecnico123'
+        };
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} active`;
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        // Initialize Firebase
+        async function initFirebase() {
+            try {
+                const configText = document.getElementById('firebaseConfig').value.trim();
+                if (!configText) {
+                    throw new Error('Firebase configuration is empty');
+                }
+
+                const firebaseConfig = JSON.parse(configText);
+                
+                // Initialize Firebase
+                app = initializeApp(firebaseConfig);
+                db = getDatabase(app);
+                auth = getAuth(app);
+                
+                // Authenticate anonymously (required for RTDB rules)
+                await signInAnonymously(auth);
+                
+                document.getElementById('statusBadge').textContent = 'Connected';
+                document.getElementById('statusBadge').className = 'status-badge status-connected';
+                
+                // Show users section and load users
+                document.getElementById('usersSection').style.display = 'block';
+                await loadUsers();
+                
+                showToast('✅ Connected to Firebase successfully', 'success');
+            } catch (error) {
+                showToast(`❌ Error: ${error.message}`, 'error');
+                document.getElementById('statusBadge').textContent = 'Connection Failed';
+                document.getElementById('statusBadge').className = 'status-badge status-disconnected';
+            }
+        }
+
+        // Load all users from RTDB
+        async function loadUsers() {
+            try {
+                const usersRef = ref(db, 'data/diversey_users');
+                const snapshot = await get(usersRef);
+                
+                if (!snapshot.exists()) {
+                    allUsers = [];
+                    renderUsersTable([]);
+                    return;
+                }
+
+                const usersData = snapshot.val();
+                allUsers = Object.entries(usersData).map(([id, user]) => ({
+                    id,
+                    ...user
+                }));
+                
+                document.getElementById('userCount').textContent = allUsers.length;
+                renderUsersTable(allUsers);
+            } catch (error) {
+                showToast(`❌ Error loading users: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        // Render users table
+        function renderUsersTable(users) {
+            const container = document.getElementById('usersTableContainer');
+            
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>No Users Found</h3>
+                        <p>Create your first user to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            users.forEach(user => {
+                const status = user.disabled ? 'user-disabled' : 'user-active';
+                const statusTitle = user.disabled ? 'Disabled' : 'Active';
+                const roleClass = `role-${user.role}`;
+                const roleName = getRoleName(user.role);
+                const updatedDate = user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : '-';
+
+                html += `
+                    <tr>
+                        <td><span class="user-status ${status}" title="${statusTitle}"></span></td>
+                        <td>${escapeHtml(user.name || '-')}</td>
+                        <td><strong>${escapeHtml(user.username || '-')}</strong></td>
+                        <td>${escapeHtml(user.email || '-')}</td>
+                        <td><span class="role-badge ${roleClass}">${roleName}</span></td>
+                        <td>${updatedDate}</td>
+                        <td class="actions-cell">
+                            <button class="btn-primary btn-sm" onclick="editUser('${user.id}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-warning btn-sm" onclick="resetUserPassword('${user.id}')" title="Reset Password">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <button class="btn-danger btn-sm" onclick="deleteUser('${user.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Get role display name
+        function getRoleName(role) {
+            const names = {
+                'administrador': 'Administrator',
+                'gestor': 'Manager',
+                'tecnico': 'Technician'
+            };
+            return names[role] || role;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Filter users based on search and filters
+        function filterUsers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const roleFilter = document.getElementById('roleFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            let filtered = allUsers;
+
+            if (searchTerm) {
+                filtered = filtered.filter(user => 
+                    (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+                    (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+                    (user.email && user.email.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (roleFilter) {
+                filtered = filtered.filter(user => user.role === roleFilter);
+            }
+
+            if (statusFilter === 'active') {
+                filtered = filtered.filter(user => !user.disabled);
+            } else if (statusFilter === 'disabled') {
+                filtered = filtered.filter(user => user.disabled);
+            }
+
+            renderUsersTable(filtered);
+        }
+
+        // Show create user modal
+        function showCreateUserModal() {
+            document.getElementById('modalTitle').textContent = 'Create New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('auditInfo').style.display = 'none';
+            document.getElementById('passwordInfo').style.display = 'none';
+            document.getElementById('userUsername').disabled = false;
+            currentUserId = null;
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        // Edit user
+        function editUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            currentUserId = userId;
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userId').value = userId;
+            document.getElementById('userName').value = user.name || '';
+            document.getElementById('userUsername').value = user.username || '';
+            document.getElementById('userUsername').disabled = true; // Don't allow username change
+            document.getElementById('userEmail').value = user.email || '';
+            document.getElementById('userRole').value = user.role || '';
+            document.getElementById('userTecnicoId').value = user.tecnicoId || '';
+            document.getElementById('userDisabled').checked = user.disabled || false;
+            
+            // Show audit info
+            document.getElementById('auditCreated').textContent = user.createdAt ? new Date(user.createdAt).toLocaleString('pt-BR') : '-';
+            document.getElementById('auditCreatedBy').textContent = user.createdBy || '-';
+            document.getElementById('auditUpdated').textContent = user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : '-';
+            document.getElementById('auditUpdatedBy').textContent = user.updatedBy || '-';
+            document.getElementById('auditInfo').style.display = 'block';
+            document.getElementById('passwordInfo').style.display = 'none';
+            
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        // Close user modal
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+            currentUserId = null;
+        }
+
+        // Save user (create or update)
+        async function saveUser(event) {
+            event.preventDefault();
+            
+            try {
+                const userId = document.getElementById('userId').value;
+                const isEdit = !!userId;
+                
+                const name = document.getElementById('userName').value.trim();
+                const username = document.getElementById('userUsername').value.trim();
+                const email = document.getElementById('userEmail').value.trim();
+                const role = document.getElementById('userRole').value;
+                const tecnicoId = document.getElementById('userTecnicoId').value.trim();
+                const disabled = document.getElementById('userDisabled').checked;
+                
+                if (!name || !username || !role) {
+                    showToast('❌ Please fill in all required fields', 'error');
+                    return;
+                }
+                
+                // Generate password hash with default password
+                const defaultPassword = defaultPasswords[role];
+                const passwordHash = await sha256(defaultPassword, username);
+                
+                const userData = {
+                    name,
+                    username,
+                    email,
+                    role,
+                    passwordHash,
+                    disabled: disabled || false
+                };
+                
+                if (tecnicoId) {
+                    userData.tecnicoId = tecnicoId;
+                }
+                
+                if (isEdit) {
+                    // Update existing user
+                    userData.updatedAt = new Date().toISOString();
+                    userData.updatedBy = 'user-management-tool';
+                    
+                    // Preserve creation audit fields
+                    const existingUser = allUsers.find(u => u.id === userId);
+                    if (existingUser) {
+                        userData.createdAt = existingUser.createdAt;
+                        userData.createdBy = existingUser.createdBy;
+                    }
+                    
+                    const userRef = ref(db, `data/diversey_users/${userId}`);
+                    await update(userRef, userData);
+                    
+                    showToast('✅ User updated successfully', 'success');
+                } else {
+                    // Create new user
+                    userData.createdAt = new Date().toISOString();
+                    userData.createdBy = 'user-management-tool';
+                    userData.updatedAt = new Date().toISOString();
+                    userData.updatedBy = 'user-management-tool';
+                    
+                    // Use username as the key
+                    const userRef = ref(db, `data/diversey_users/${username}`);
+                    await set(userRef, userData);
+                    
+                    showToast('✅ User created successfully', 'success');
+                }
+                
+                closeUserModal();
+                await loadUsers();
+                
+            } catch (error) {
+                showToast(`❌ Error saving user: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        // Delete user
+        async function deleteUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            
+            if (!confirm(`⚠️ Are you sure you want to delete user "${user.name}" (${user.username})?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const userRef = ref(db, `data/diversey_users/${userId}`);
+                await remove(userRef);
+                
+                showToast('✅ User deleted successfully', 'success');
+                await loadUsers();
+            } catch (error) {
+                showToast(`❌ Error deleting user: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        // Reset user password
+        async function resetUserPassword(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            
+            const defaultPassword = defaultPasswords[user.role];
+            if (!defaultPassword) {
+                showToast('❌ No default password defined for this role', 'error');
+                return;
+            }
+            
+            if (!confirm(`🔐 Reset password for "${user.name}" (${user.username})?\n\nThe password will be reset to: ${defaultPassword}`)) {
+                return;
+            }
+            
+            try {
+                const passwordHash = await sha256(defaultPassword, user.username);
+                
+                const userRef = ref(db, `data/diversey_users/${userId}`);
+                await update(userRef, {
+                    passwordHash,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: 'user-management-tool'
+                });
+                
+                showToast(`✅ Password reset to: ${defaultPassword}`, 'success');
+                await loadUsers();
+            } catch (error) {
+                showToast(`❌ Error resetting password: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
