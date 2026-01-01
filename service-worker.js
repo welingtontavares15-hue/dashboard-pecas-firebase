@@ -1,15 +1,17 @@
 // Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6'; // Incremented for performance improvements
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
+const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 const MODULE_CACHES = {
   core: `${CACHE_PREFIX}-core-${CACHE_VERSION}`,
   dashboard: `${CACHE_PREFIX}-dashboard-${CACHE_VERSION}`,
   solicitacoes: `${CACHE_PREFIX}-solicitacoes-${CACHE_VERSION}`,
   catalogo: `${CACHE_PREFIX}-catalogo-${CACHE_VERSION}`,
-  relatorios: `${CACHE_PREFIX}-relatorios-${CACHE_VERSION}`
+  relatorios: `${CACHE_PREFIX}-relatorios-${CACHE_VERSION}`,
+  static: `${CACHE_PREFIX}-static-${CACHE_VERSION}` // New: for static assets
 };
 
 const PRECACHE = {
@@ -27,7 +29,11 @@ const PRECACHE = {
     './js/indexeddb-storage.js',
     './js/storage.js',
     './js/data.js',
-    './js/app.js'
+    './js/app.js',
+    // Security modules
+    './js/security/sanitizer.js',
+    './js/security/rate-limiter.js',
+    './js/security/validator.js'
   ],
   dashboard: [
     './js/dashboard.js',
@@ -61,6 +67,16 @@ Object.entries(PRECACHE).forEach(([module, assets]) => {
 
 const ALL_CACHES = Object.values(MODULE_CACHES);
 
+// Helper function to check if cached response is too old
+function isCacheFresh(response) {
+  if (!response) return false;
+  const cachedDate = response.headers.get('date');
+  if (!cachedDate) return false; // Default to false for safety if no date header
+  const cacheTime = new Date(cachedDate).getTime();
+  const now = Date.now();
+  return (now - cacheTime) < CACHE_MAX_AGE;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all(
@@ -88,6 +104,37 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const requestUrl = new URL(event.request.url);
+  
+  // Performance: Network-first strategy for Firebase API calls
+  // Use strict domain matching to prevent URL substring attacks
+  const isFirebaseAPI = (requestUrl.hostname === 'firebaseio.com' || 
+                         requestUrl.hostname.endsWith('.firebaseio.com') ||
+                         requestUrl.hostname === 'googleapis.com' ||
+                         requestUrl.hostname.endsWith('.googleapis.com') ||
+                         requestUrl.hostname === 'www.gstatic.com' ||
+                         requestUrl.hostname.endsWith('.gstatic.com'));
+  
+  if (isFirebaseAPI) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache successful responses
+          if (response.ok) {
+            const clonedResponse = response.clone();
+            caches.open(MODULE_CACHES.core).then((cache) => {
+              cache.put(event.request, clonedResponse);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+  
   const matchedCache = ASSET_CACHE_MAP[requestUrl.href];
 
   if (!matchedCache) {
@@ -99,16 +146,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Performance: Stale-while-revalidate strategy for cached assets
   event.respondWith(
     caches.open(matchedCache).then((cache) =>
       cache.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(event.request)
+        const fetchPromise = fetch(event.request)
           .then((networkResponse) => {
+            // Update cache in the background
             cache.put(event.request, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
             return networkResponse;
           })
-          .catch(() => caches.match(OFFLINE_URL));
+          .catch(() => cachedResponse || caches.match(OFFLINE_URL));
+        
+        // Return cached response if fresh, otherwise wait for network
+        if (cachedResponse && isCacheFresh(cachedResponse)) {
+          return cachedResponse;
+        }
+        return fetchPromise;
       })
     )
   );
