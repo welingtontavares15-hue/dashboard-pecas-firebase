@@ -531,6 +531,106 @@ Para contribuir com o projeto:
 5. Faça commit das mudanças
 6. Abra um Pull Request
 
+## 🔒 Segurança
+
+### Medidas Implementadas
+
+Este sistema implementa múltiplas camadas de segurança:
+
+#### 1. Proteção contra XSS (Cross-Site Scripting)
+- **DOMPurify**: Sanitização de HTML em todos os inputs
+- **Escape automático**: Todos os textos são sanitizados antes de renderização
+- **CSP Headers**: Content-Security-Policy configurado no Firebase Hosting
+
+#### 2. Proteção contra Brute Force
+- **Rate Limiting Progressivo**: 5 tentativas → lockout de 15 minutos
+- **Bloqueio Escalável**: Cada lockout subsequente dobra a duração (até 24h)
+- **Monitoramento**: Logs de tentativas de autenticação
+
+#### 3. Validação de Dados
+- **Validação de Formulários**: Regras de validação em todos os inputs
+- **Sanitização de Objetos**: Limpeza recursiva de dados
+- **Bloqueio de Caracteres Perigosos**: Prevenção de injeção de código
+
+#### 4. Firebase Security Rules
+- **Autenticação Obrigatória**: Todos os dados requerem `auth != null`
+- **Controle por Role**: Permissões granulares por função (administrador, gestor, técnico)
+- **Validação de Campos**: Schema validation no servidor
+
+#### 5. Headers de Segurança
+Configurados em `firebase.json`:
+- `Content-Security-Policy`: Controla fontes permitidas de recursos
+- `X-Frame-Options: DENY`: Previne clickjacking
+- `X-Content-Type-Options: nosniff`: Previne MIME sniffing
+- `X-XSS-Protection`: Proteção adicional contra XSS
+- `Referrer-Policy`: Controla informações de referência
+
+### Módulos de Segurança
+
+#### Sanitizer (`js/security/sanitizer.js`)
+```javascript
+// Sanitizar HTML
+const clean = Sanitizer.sanitizeHTML(userInput);
+
+// Sanitizar texto (remove todas as tags)
+const text = Sanitizer.sanitizeText(userInput);
+
+// Validar URL
+const safeUrl = Sanitizer.sanitizeURL(url);
+```
+
+#### RateLimiter (`js/security/rate-limiter.js`)
+```javascript
+// Verificar limite
+const check = RateLimiter.check(username, 'login');
+if (!check.allowed) {
+    console.log(check.message); // "Bloqueado por X minutos"
+}
+
+// Resetar após sucesso
+RateLimiter.reset(username, 'login');
+```
+
+#### Validator (`js/security/validator.js`)
+```javascript
+// Validar formulário
+const validation = Validator.validateForm(
+    { username, password },
+    {
+        username: ['required', ['minLength', 3], 'username'],
+        password: ['required', ['minLength', 6]]
+    }
+);
+```
+
+### Documentação Adicional
+
+- **[docs/SECURITY.md](docs/SECURITY.md)**: Guia completo de segurança
+- **[docs/DEPLOYMENT-SECURITY.md](docs/DEPLOYMENT-SECURITY.md)**: Checklist de deploy seguro
+
+### Deploy de Regras de Segurança
+
+```bash
+# Deploy apenas das regras do database
+firebase deploy --only database
+
+# Deploy completo (hosting + database)
+firebase deploy
+```
+
+### Testes de Segurança
+
+```bash
+# 1. Teste XSS - tentar injetar script em campo de texto
+# Esperado: script não executa
+
+# 2. Teste Rate Limiting - fazer 5 logins com senha errada
+# Esperado: bloqueio por 15 minutos
+
+# 3. Teste Firebase Rules - tentar acessar dados sem autenticação
+# Esperado: acesso negado
+```
+
 ## 📄 Licença
 
 MIT License - veja o arquivo LICENSE para detalhes

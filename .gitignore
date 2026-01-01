@@ -19,11 +19,14 @@ npm-debug.log*
 # Build artifacts
 dist/
 build/
+.vite/
 
 # Environment files
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 
 # Firebase credentials - NEVER COMMIT
 serviceAccountKey.json

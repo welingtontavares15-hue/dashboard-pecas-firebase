@@ -258,11 +258,19 @@ const Utils = {
     /**
      * Escape HTML to prevent XSS
      * Replaces dangerous characters with their HTML entities
+     * Uses Sanitizer module if available for enhanced security
      */
     escapeHtml(text) {
         if (text === null || text === undefined) {
             return '';
         }
+        
+        // Use Sanitizer module if available for enhanced XSS protection
+        if (typeof Sanitizer !== 'undefined') {
+            return Sanitizer.sanitizeText(text);
+        }
+        
+        // Fallback to basic HTML escape
         const str = String(text);
         const htmlEscapes = {
             '&': '&amp;',
