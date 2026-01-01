@@ -925,8 +925,8 @@ const App = {
             return;
         }
 
-        if (!gestorId || !name) {
-            Utils.showToast('Informe o nome do gestor', 'warning');
+        if (!gestorId || !name || !email) {
+            Utils.showToast('Informe o nome e e-mail do gestor', 'warning');
             return;
         }
 
