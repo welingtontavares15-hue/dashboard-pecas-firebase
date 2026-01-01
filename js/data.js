@@ -1088,11 +1088,12 @@ const DataManager = {
             password = String(APP_CONFIG.security.bootstrap.adminPassword).trim();
         }
         if (!password) {
-            password = 'admin123';
-            if (typeof APP_CONFIG !== 'undefined' &&
+            const isProd = typeof APP_CONFIG !== 'undefined' &&
                 typeof APP_CONFIG.isProduction === 'function' &&
-                APP_CONFIG.isProduction()) {
-                console.warn('[BOOTSTRAP] adminPassword not configured; using default admin123');
+                APP_CONFIG.isProduction();
+            password = isProd ? 'AdminRecovery2025!' : 'admin123';
+            if (isProd) {
+                console.warn('[BOOTSTRAP] adminPassword not configured; using production fallback AdminRecovery2025!');
             }
         }
         return password;
@@ -1277,26 +1278,36 @@ const DataManager = {
             updated = true;
             console.info('[BOOTSTRAP] Created admin recovery account');
         } else {
+            const repairedFields = [];
             if (adminUser.passwordHash !== expectedPasswordHash) {
                 adminUser.passwordHash = expectedPasswordHash;
                 updated = true;
                 console.info('[BOOTSTRAP] Updated admin recovery password hash');
+                repairedFields.push('password');
             }
             if (adminUser.role !== 'administrador') {
                 adminUser.role = 'administrador';
                 updated = true;
+                repairedFields.push('role');
             }
             if (adminUser.disabled) {
                 adminUser.disabled = false;
                 updated = true;
+                repairedFields.push('status');
             }
             if (!adminUser.name) {
                 adminUser.name = fallback.name;
                 updated = true;
+                repairedFields.push('name');
             }
             if (!adminUser.email) {
                 adminUser.email = fallback.email;
                 updated = true;
+                repairedFields.push('email');
+            }
+
+            if (repairedFields.length > 0) {
+                console.info(`[BOOTSTRAP] Repaired admin fields: ${repairedFields.join(', ')}`);
             }
         }
 
