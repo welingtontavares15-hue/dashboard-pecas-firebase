@@ -13,14 +13,14 @@ const Sanitizer = {
      * @returns {string} HTML limpo
      */
     sanitizeHTML(dirty) {
-        if (typeof DOMPurify === 'undefined') {
+        if (typeof window !== 'undefined' && typeof window.DOMPurify === 'undefined') {
             console.warn('DOMPurify not loaded, falling back to textContent');
             const div = document.createElement('div');
             div.textContent = dirty;
             return div.innerHTML;
         }
         
-        return DOMPurify.sanitize(dirty, {
+        return window.DOMPurify.sanitize(dirty, {
             ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'span', 'br'],
             ALLOWED_ATTR: ['class']
         });
@@ -32,11 +32,11 @@ const Sanitizer = {
      * @returns {string} Texto puro
      */
     sanitizeText(text) {
-        if (typeof DOMPurify === 'undefined') {
+        if (typeof window !== 'undefined' && typeof window.DOMPurify === 'undefined') {
             return String(text || '').replace(/<[^>]*>/g, '');
         }
         
-        return DOMPurify.sanitize(text, {
+        return window.DOMPurify.sanitize(text, {
             ALLOWED_TAGS: [],
             ALLOWED_ATTR: []
         });
@@ -48,7 +48,9 @@ const Sanitizer = {
      * @returns {string} URL segura ou '#'
      */
     sanitizeURL(url) {
-        if (!url) return '#';
+        if (!url) {
+            return '#';
+        }
         
         const urlStr = String(url).trim().toLowerCase();
         
@@ -76,7 +78,7 @@ const Sanitizer = {
         const sanitized = Array.isArray(obj) ? [] : {};
         
         for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const value = obj[key];
                 
                 if (typeof value === 'string') {

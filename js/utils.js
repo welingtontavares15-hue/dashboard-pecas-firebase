@@ -266,8 +266,8 @@ const Utils = {
         }
         
         // Use Sanitizer module if available for enhanced XSS protection
-        if (typeof Sanitizer !== 'undefined') {
-            return Sanitizer.sanitizeText(text);
+        if (typeof window !== 'undefined' && typeof window.Sanitizer !== 'undefined') {
+            return window.Sanitizer.sanitizeText(text);
         }
         
         // Fallback to basic HTML escape

@@ -425,8 +425,8 @@ const App = {
         }
         
         // Enhanced validation using Validator module if available
-        if (typeof Validator !== 'undefined') {
-            const validation = Validator.validateForm(
+        if (typeof window !== 'undefined' && typeof window.Validator !== 'undefined') {
+            const validation = window.Validator.validateForm(
                 { username, password },
                 {
                     username: ['required', ['minLength', 3], 'noSpecialChars'],
