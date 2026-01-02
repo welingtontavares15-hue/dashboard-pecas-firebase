@@ -169,7 +169,7 @@ describe('User Management Module', () => {
 
         it('should have password hashing function', () => {
             const resetToolCode = fs.readFileSync(resetToolPath, 'utf8');
-            expect(resetToolCode).toContain('async function hashPassword');
+            expect(resetToolCode).toContain('async function computePasswordHash');
             expect(resetToolCode).toContain('PASSWORD_SALT');
         });
 
