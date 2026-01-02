@@ -53,7 +53,7 @@ describe('User Access in Production Mode', () => {
     it('should use passwordHash for security', () => {
         // Verify users use passwordHash instead of plain passwords
         expect(dataCode).toContain('passwordHash');
-        expect(dataCode).toContain('Utils.hashSHA256');
+        expect(dataCode).toContain('Utils.computePasswordHash');
     });
 
     it('should handle technician credential overrides', () => {
