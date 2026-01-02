@@ -429,7 +429,7 @@ const Tecnicos = {
         let passwordHash = existingUserIndex >= 0 ? users[existingUserIndex].passwordHash : null;
         if (password) {
             try {
-                passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
+                passwordHash = await Utils.computePasswordHash(password, username);
             } catch (error) {
                 console.error('Erro ao gerar hash de senha do técnico', error);
                 Utils.showToast('Não foi possível salvar a senha com segurança', 'error');

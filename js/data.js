@@ -966,7 +966,7 @@ const DataManager = {
         const technicians = this.getDefaultTechnicians();
         const gestorPassword = this.getGestorPassword();
         const canonicalGestorUsername = 'gestor';
-        const gestorPasswordHash = await Utils.hashSHA256(gestorPassword, `${Utils.PASSWORD_SALT}:${canonicalGestorUsername}`);
+        const gestorPasswordHash = await Utils.computePasswordHash(gestorPassword, canonicalGestorUsername);
         const baseTimestamp = Date.now();
         const baseUsersRaw = [
             { id: 'admin', username: 'admin', password: 'admin123', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
@@ -979,7 +979,7 @@ const DataManager = {
                 if (user.passwordHash) {
                     baseUsers.push(user);
                 } else {
-                    const passwordHash = await Utils.hashSHA256(user.password, `${Utils.PASSWORD_SALT}:${user.username}`);
+                    const passwordHash = await Utils.computePasswordHash(user.password, user.username);
                     const { password: _password, ...userData } = user;
                     baseUsers.push({ ...userData, passwordHash });
                 }
@@ -998,7 +998,7 @@ const DataManager = {
         for (const [idx, tech] of technicians.entries()) {
             const plainPassword = credentialOverrides[tech.username]?.password || 'Altere@123';
             try {
-                const passwordHash = await Utils.hashSHA256(plainPassword, `${Utils.PASSWORD_SALT}:${tech.username}`);
+                const passwordHash = await Utils.computePasswordHash(plainPassword, tech.username);
                 technicianUsers.push({
                     id: `user_${tech.id || idx + 1}`,
                     username: tech.username,
@@ -1164,7 +1164,7 @@ const DataManager = {
                 if (!u.username) {
                     console.warn(`User ${u.id} missing username during password migration`);
                 }
-                u.passwordHash = await Utils.hashSHA256(u.password, `${Utils.PASSWORD_SALT}:${saltKey}`);
+                u.passwordHash = await Utils.computePasswordHash(u.password, saltKey);
                 delete u.password;
                 updated = true;
             }
@@ -1208,7 +1208,7 @@ const DataManager = {
                 normalizedUser.passwordHash = user.passwordHash;
             } else if (user.password) {
                 // password provided - hash it
-                normalizedUser.passwordHash = await Utils.hashSHA256(user.password, `${Utils.PASSWORD_SALT}:${normalizedUser.username}`);
+                normalizedUser.passwordHash = await Utils.computePasswordHash(user.password, normalizedUser.username);
             } else if (isUpdate && existingUser.passwordHash) {
                 // Update mode: no password provided, keep existing hash
                 normalizedUser.passwordHash = existingUser.passwordHash;
@@ -1270,7 +1270,7 @@ const DataManager = {
         let adminUser = users.find(u => normalize(u.username) === normalize(fallback.username));
 
         const canonicalUsername = fallback.username;
-        const expectedPasswordHash = await Utils.hashSHA256(fallbackPassword, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
+        const expectedPasswordHash = await Utils.computePasswordHash(fallbackPassword, canonicalUsername);
 
         if (!adminUser) {
             adminUser = { ...fallback, passwordHash: expectedPasswordHash, disabled: false };
@@ -1346,7 +1346,7 @@ const DataManager = {
         let gestorUser = users.find(u => normalize(u.username) === normalize(fallback.username));
 
         const canonicalUsername = fallback.username;
-        const expectedPasswordHash = await Utils.hashSHA256(fallbackPassword, `${Utils.PASSWORD_SALT}:${canonicalUsername}`);
+        const expectedPasswordHash = await Utils.computePasswordHash(fallbackPassword, canonicalUsername);
 
         if (!gestorUser) {
             // Create gestor user if missing

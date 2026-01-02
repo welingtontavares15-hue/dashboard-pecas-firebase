@@ -171,21 +171,40 @@ Se for primeira vez ou tiver problemas:
 
 ### Como as Senhas São Armazenadas
 - As senhas são hasheadas com SHA-256
-- O hash inclui um salt único por usuário
+- O hash inclui um salt único por usuário baseado no username
 - Salt padrão: `diversey_salt_v1`
-- Formato: `SHA256(senha + salt + ':' + username)`
+- **Fórmula canônica**: `SHA256(password + 'diversey_salt_v1:' + usernameCanonical)`
+  - O `usernameCanonical` é o username normalizado armazenado no registro do usuário
+  - A normalização remove acentos, converte para minúsculas, e mantém apenas [a-z0-9.]
+
+### Função Centralizada
+O sistema utiliza uma função centralizada `Utils.computePasswordHash(password, usernameCanonical)` para garantir consistência em todo o código.
 
 ### Hashes Esperados
+Para os usuários padrão com usernames normalizados:
 ```
-admin123 (para user 'admin'):
-c08ab1a7671509ccb5ecdf9868eb30df793ce5104b404d11cfa82d4b84029283
+admin123 (para username 'admin'):
+  Fórmula: SHA256('admin123' + 'diversey_salt_v1:admin')
 
-gestor123 (para user 'gestor'):
-ca762c2ec7cdcc2fb79450121aba3642873df25ed035810c8f6a12b76f9f42fa
+gestor123 (para username 'gestor'):
+  Fórmula: SHA256('gestor123' + 'diversey_salt_v1:gestor')
 
-tecnico123 (para user 'tecnico'):
-e343cbd1e3d223ee96c21a2b18a61b10d35549cdecae770e36b2c598100f3c02
+tecnico123 (para username 'tecnico'):
+  Fórmula: SHA256('tecnico123' + 'diversey_salt_v1:tecnico')
 ```
+
+### Normalização de Username
+O username é normalizado antes de ser usado no hash:
+1. Converte para minúsculas
+2. Remove acentos (NFD normalization)
+3. Remove caracteres inválidos (mantém apenas a-z, 0-9, e ponto)
+4. Colapsa múltiplos pontos consecutivos em um único ponto
+5. Remove pontos no início e fim
+
+Exemplos:
+- `"Admin"` → `"admin"`
+- `"Welington.Tavares."` → `"welington.tavares"`
+- `"José.Silva"` → `"jose.silva"`
 
 ### Boas Práticas
 1. ✅ Altere as senhas padrão em produção

@@ -853,7 +853,7 @@ const App = {
 
         let passwordHash;
         try {
-            passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
+            passwordHash = await Utils.computePasswordHash(password, username);
         } catch (error) {
             console.error('Erro ao gerar hash da senha do gestor', error);
             Utils.showToast('Não foi possível gerar a senha com segurança', 'error');
@@ -1277,11 +1277,6 @@ const App = {
 
         Utils.showToast('Logs do sistema limpos', 'success');
         this.refreshHealthPanel();
-    },
-
-    refreshGestorView() {
-        this.renderConfiguracoes();
-        Auth.renderMenu(this.currentPage);
     },
 
     /**

@@ -109,10 +109,10 @@ const Auth = {
     },
 
     /**
-     * Hash password using shared util
+     * Hash password using shared util (delegates to centralized function)
      */
     async hashPassword(password, username = '') {
-        return Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
+        return Utils.computePasswordHash(password, username);
     },
 
     /**

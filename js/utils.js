@@ -44,6 +44,18 @@ const Utils = {
     },
 
     /**
+     * Compute password hash using the canonical formula.
+     * This is THE ONLY function that should be used for password hashing.
+     * Formula: SHA256(password + 'diversey_salt_v1:' + usernameCanonical)
+     * @param {string} password - Plain text password
+     * @param {string} usernameCanonical - Canonical username (from user record, not input)
+     * @returns {Promise<string>} SHA-256 hex hash
+     */
+    async computePasswordHash(password, usernameCanonical) {
+        return this.hashSHA256(password, `${this.PASSWORD_SALT}:${usernameCanonical}`);
+    },
+
+    /**
      * Parse a date value as local time.
      * Handles "YYYY-MM-DD" strings (from input[type="date"]) as local dates
      * to avoid UTC parsing that shifts dates in negative UTC timezones.
