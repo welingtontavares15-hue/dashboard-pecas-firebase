@@ -2217,6 +2217,11 @@ body.dark-mode .loading-overlay {
         display: inline-flex;
     }
 
+    .breadcrumb .breadcrumb-home,
+    .breadcrumb > i {
+        display: none;
+    }
+
     .main-header {
         padding: 1rem 1.25rem;
         gap: 0.5rem;
