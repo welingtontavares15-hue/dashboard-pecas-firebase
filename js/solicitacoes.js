@@ -25,7 +25,7 @@ const Solicitacoes = {
         const content = document.getElementById('content-area');
         const canCreate = Auth.hasPermission('solicitacoes', 'create');
         const isTecnico = Auth.getRole() === 'tecnico';
-        const canExport = !!(window && window.XLSX);
+        const canExport = typeof XLSX !== 'undefined';
         const exportAttrs = canExport ? '' : 'disabled aria-disabled="true"';
         const exportTitle = canExport ? '' : 'title="Exportação indisponível: biblioteca XLSX não carregada"';
         

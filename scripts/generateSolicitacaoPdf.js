@@ -59,6 +59,8 @@ function getExecutablePath() {
 async function generateSolicitacaoPdf(data) {
     const tplPath = TEMPLATE_PATH;
     const itens = data.itens || [];
+    const solicitanteLabel = data.solicitanteLabel || 'Solicitante';
+    const recebidoPorLabel = data.recebidoPorLabel || 'Recebido por';
     const subtotalNum = itens.reduce((acc, i) => acc + (i.qtd || 0) * (i.valorUnit || 0), 0);
     const descontoNum = data.desconto || 0;
     const freteNum = data.frete || 0;
@@ -79,6 +81,8 @@ async function generateSolicitacaoPdf(data) {
         .replaceAll('{{FRETE}}', brl(freteNum))
         .replaceAll('{{TOTAL}}', brl(totalNum))
         .replaceAll('{{FLUXO_APROVACAO}}', data.fluxoAprovacao ?? 'Supervisor Diversey')
+        .replaceAll('{{SOLICITANTE_LABEL}}', solicitanteLabel)
+        .replaceAll('{{RECEBIDO_POR_LABEL}}', recebidoPorLabel)
         .replaceAll('{{GERADO_EM}}', nowBR());
 
     await fs.promises.mkdir(OUT_DIR, { recursive: true });

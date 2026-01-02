@@ -43,6 +43,11 @@ describe('generateSolicitacaoPdf', () => {
 
         const result = await generateSolicitacaoPdf(data);
 
+        const [htmlArg, optionsArg] = puppeteer.__mock.setContentMock.mock.calls[0];
+        expect(htmlArg).toContain(data.solicitanteLabel);
+        expect(htmlArg).toContain(data.recebidoPorLabel);
+        expect(optionsArg).toMatchObject({ waitUntil: 'networkidle0' });
+
         expect(result.path).toContain(`Solicitacao_${data.numero}.pdf`);
         expect(result.subtotal).toBeCloseTo(265.08);
         expect(result.total).toBeCloseTo(265.08);
