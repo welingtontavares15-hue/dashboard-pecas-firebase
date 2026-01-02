@@ -1,73 +1,98 @@
-# React + TypeScript + Vite
+# Dashboard de Solicitações de Peças - Diversey
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> Modern PWA for parts requisition management with real-time Firebase synchronization
 
-Currently, two official plugins are available:
+**Version 2.0** - Complete rewrite with React, TypeScript, and modern tooling
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 🚀 Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
+- Node.js 18+ or 20+
+- npm or yarn
+- Modern web browser
 
-## Expanding the ESLint configuration
+### Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Install dependencies
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Start development server
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Build for production
+npm run build
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run tests
+npm test
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 📋 Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server with HMR |
+| `npm run build` | Build optimized production bundle |
+| `npm test` | Run tests with Vitest |
+| `npm run lint` | Run ESLint |
+| `npm run type-check` | Run TypeScript type checking |
+
+---
+
+## 🏗️ Architecture
+
+### Tech Stack
+- **Frontend**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **State Management**: Zustand
+- **Routing**: React Router v6
+- **Database**: Firebase Realtime Database v11
+- **Authentication**: Firebase Auth + Custom User DB
+- **Testing**: Vitest + React Testing Library
+- **CI/CD**: GitHub Actions
+
+---
+
+## 🔐 Authentication
+
+The application uses custom authentication built on Firebase:
+
+1. Firebase Anonymous Auth (required for RTDB rules)
+2. Custom User Database with SHA-256 password hashing
+3. Role-Based Access Control: `administrador`, `gestor`, `tecnico`
+
+---
+
+## 🔥 Firebase Configuration
+
+Create `.env.local`:
+
+```env
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
 ```
+
+---
+
+## 🚢 Deployment
+
+```bash
+npm run build
+firebase deploy --only hosting
+```
+
+---
+
+## 📝 License
+
+MIT License
+
+**Developed for Diversey - A Solenis Company**
