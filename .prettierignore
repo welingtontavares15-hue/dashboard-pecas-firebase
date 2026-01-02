@@ -1,7 +1,0 @@
-node_modules
-dist
-build
-.git
-.old-app-reference
-*.log
-package-lock.json
