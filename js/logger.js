@@ -138,6 +138,24 @@ const Logger = {
     persist(entry) {
         try {
             const logs = this.getLogs();
+            
+            // Deduplication: Check if we have a very similar error in the last 5 minutes
+            if (entry.level === 'error') {
+                const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                const recentSimilarError = logs.find(log => {
+                    return log.level === 'error' &&
+                           log.category === entry.category &&
+                           log.message === entry.message &&
+                           new Date(log.timestamp).getTime() > fiveMinutesAgo;
+                });
+                
+                if (recentSimilarError) {
+                    // Skip logging the same error again within 5 minutes
+                    console.debug(`Skipping duplicate error: ${entry.category}/${entry.message}`);
+                    return;
+                }
+            }
+            
             logs.unshift(entry);
             
             // Trim to limit
@@ -153,6 +171,11 @@ const Logger = {
                     entry.level === 'debug' ? console.debug : console.log;
             
             consoleFn(`[${entry.category.toUpperCase()}] ${entry.requestId}`, entry.message, entry.data);
+            
+            // Cleanup old logs every 50 log entries to prevent bloat
+            if (logs.length % 50 === 0) {
+                this.cleanupOldLogs();
+            }
         } catch (e) {
             console.error('Logger persist failed:', e);
         }
@@ -335,6 +358,31 @@ const Logger = {
             localStorage.removeItem(this.HEALTH_KEY);
         } catch (e) {
             console.error('Failed to clear logs:', e);
+        }
+    },
+
+    /**
+     * Clean up old logs (older than 24 hours)
+     * Called automatically during persist to prevent log bloat
+     */
+    cleanupOldLogs() {
+        try {
+            const logs = this.getLogs();
+            const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+            
+            // Keep only logs from the last 24 hours
+            const recentLogs = logs.filter(log => {
+                const logTime = new Date(log.timestamp).getTime();
+                return logTime > dayAgo;
+            });
+            
+            // Only update if we actually removed logs
+            if (recentLogs.length < logs.length) {
+                localStorage.setItem(this.LOG_KEY, JSON.stringify(recentLogs));
+                console.debug(`Cleaned up ${logs.length - recentLogs.length} old log entries`);
+            }
+        } catch (e) {
+            console.error('Failed to cleanup old logs:', e);
         }
     },
 
