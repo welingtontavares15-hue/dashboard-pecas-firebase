@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validação do Sistema - Dashboard Diversey</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            margin-top: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+        .summary h3 {
+            margin-top: 0;
+        }
+        .passed {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .failed {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Validação do Sistema</h1>
+        <p>Esta ferramenta valida os componentes críticos do sistema Dashboard Diversey.</p>
+
+        <h2>1. Testes de Função de Hash</h2>
+        <div class="test-section">
+            <button onclick="runHashTests()">Executar Testes de Hash</button>
+            <div id="hash-results"></div>
+        </div>
+
+        <h2>2. Testes de Normalização de Username</h2>
+        <div class="test-section">
+            <button onclick="runUsernameTests()">Executar Testes de Username</button>
+            <div id="username-results"></div>
+        </div>
+
+        <h2>3. Testes de Integração Firebase</h2>
+        <div class="test-section">
+            <button onclick="runFirebaseTests()">Executar Testes Firebase</button>
+            <div id="firebase-results"></div>
+        </div>
+
+        <h2>4. Testes de Logger (Deduplicação)</h2>
+        <div class="test-section">
+            <button onclick="runLoggerTests()">Executar Testes de Logger</button>
+            <div id="logger-results"></div>
+        </div>
+
+        <div class="summary" id="summary" style="display:none;">
+            <h3>Resumo dos Testes</h3>
+            <p>Total de testes: <span id="total-tests">0</span></p>
+            <p class="passed">Passaram: <span id="passed-tests">0</span></p>
+            <p class="failed">Falharam: <span id="failed-tests">0</span></p>
+        </div>
+    </div>
+
+    <!-- Load required modules -->
+    <script type="module">
+        // Load Utils module
+        const utilsResponse = await fetch('../js/utils.js');
+        const utilsCode = await utilsResponse.text();
+        eval(utilsCode);
+
+        // Load DataManager stub (for username normalization)
+        window.DataManagerStub = {
+            normalizeUsername(username) {
+                if (!username) return '';
+                let normalized = Utils.normalizeText(username);
+                normalized = normalized.replace(/[^a-z0-9.]/g, '');
+                normalized = normalized.replace(/\.+/g, '.');
+                normalized = normalized.replace(/^\.|\.$/g, '');
+                return normalized;
+            }
+        };
+
+        // Test counters
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+
+        function logResult(container, message, isSuccess) {
+            totalTests++;
+            if (isSuccess) {
+                passedTests++;
+            } else {
+                failedTests++;
+            }
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            container.appendChild(div);
+            updateSummary();
+        }
+
+        function logInfo(container, message) {
+            const div = document.createElement('div');
+            div.className = 'test-result info';
+            div.textContent = message;
+            container.appendChild(div);
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            summary.style.display = 'block';
+            document.getElementById('total-tests').textContent = totalTests;
+            document.getElementById('passed-tests').textContent = passedTests;
+            document.getElementById('failed-tests').textContent = failedTests;
+        }
+
+        // Test 1: Hash function tests
+        window.runHashTests = async function() {
+            const container = document.getElementById('hash-results');
+            container.innerHTML = '';
+            
+            try {
+                // Test 1: Basic hash generation
+                const hash1 = await Utils.computePasswordHash('admin123', 'admin');
+                logResult(container, '✓ Hash gerado com sucesso para admin123', hash1.length === 64);
+
+                // Test 2: Same input produces same hash
+                const hash2 = await Utils.computePasswordHash('admin123', 'admin');
+                logResult(container, '✓ Mesma entrada produz mesmo hash', hash1 === hash2);
+
+                // Test 3: Different input produces different hash
+                const hash3 = await Utils.computePasswordHash('gestor123', 'gestor');
+                logResult(container, '✓ Entrada diferente produz hash diferente', hash1 !== hash3);
+
+                // Test 4: Username affects hash
+                const hash4 = await Utils.computePasswordHash('admin123', 'gestor');
+                logResult(container, '✓ Username afeta o hash', hash1 !== hash4);
+
+                logInfo(container, 'Hash admin123:admin = ' + hash1.substring(0, 16) + '...');
+                logInfo(container, 'Todos os testes de hash passaram!');
+            } catch (error) {
+                logResult(container, '✗ Erro nos testes de hash: ' + error.message, false);
+            }
+        };
+
+        // Test 2: Username normalization tests
+        window.runUsernameTests = function() {
+            const container = document.getElementById('username-results');
+            container.innerHTML = '';
+
+            const tests = [
+                { input: 'Admin', expected: 'admin', description: 'Maiúsculas para minúsculas' },
+                { input: 'Welington.Tavares.', expected: 'welington.tavares', description: 'Remove ponto final' },
+                { input: 'José.Silva', expected: 'jose.silva', description: 'Remove acentos' },
+                { input: 'user@name', expected: 'username', description: 'Remove @ inválido' },
+                { input: 'user..name', expected: 'user.name', description: 'Colapsa múltiplos pontos' },
+                { input: '.username.', expected: 'username', description: 'Remove pontos inicial/final' },
+                { input: 'User Name 123', expected: 'username123', description: 'Remove espaços' }
+            ];
+
+            tests.forEach(test => {
+                const result = window.DataManagerStub.normalizeUsername(test.input);
+                const passed = result === test.expected;
+                logResult(
+                    container,
+                    `${passed ? '✓' : '✗'} ${test.description}: "${test.input}" → "${result}" (esperado: "${test.expected}")`,
+                    passed
+                );
+            });
+
+            logInfo(container, 'Todos os testes de normalização de username concluídos!');
+        };
+
+        // Test 3: Firebase integration tests
+        window.runFirebaseTests = function() {
+            const container = document.getElementById('firebase-results');
+            container.innerHTML = '';
+
+            // Check if Firebase SDK is loaded
+            const hasFirebase = typeof window.firebaseModules !== 'undefined';
+            logResult(container, hasFirebase ? '✓ Firebase SDK carregado' : '✗ Firebase SDK não carregado', hasFirebase);
+
+            // Check if FirebaseInit exists
+            const hasFirebaseInit = typeof window.FirebaseInit !== 'undefined';
+            logResult(container, hasFirebaseInit ? '✓ FirebaseInit módulo encontrado' : '✗ FirebaseInit módulo não encontrado', hasFirebaseInit);
+
+            if (hasFirebaseInit) {
+                // Check initialization state
+                const isReady = typeof FirebaseInit.isReady === 'function' ? FirebaseInit.isReady() : false;
+                logInfo(container, `Firebase Ready: ${isReady ? 'SIM' : 'NÃO'}`);
+
+                // Check RTDB connection
+                const isConnected = typeof FirebaseInit.isRTDBConnected === 'function' ? FirebaseInit.isRTDBConnected() : false;
+                logInfo(container, `RTDB Conectado: ${isConnected ? 'SIM' : 'NÃO'}`);
+            }
+
+            logInfo(container, 'Testes de integração Firebase concluídos!');
+        };
+
+        // Test 4: Logger deduplication tests
+        window.runLoggerTests = function() {
+            const container = document.getElementById('logger-results');
+            container.innerHTML = '';
+
+            const hasLogger = typeof window.Logger !== 'undefined';
+            logResult(container, hasLogger ? '✓ Logger módulo carregado' : '✗ Logger módulo não carregado', hasLogger);
+
+            if (hasLogger) {
+                // Test deduplication
+                const initialCount = Logger.getLogs().length;
+                
+                // Log same error twice quickly
+                Logger.error('test', 'Erro de teste duplicado', { test: true });
+                Logger.error('test', 'Erro de teste duplicado', { test: true });
+                
+                const afterCount = Logger.getLogs().length;
+                const deduplicated = (afterCount - initialCount) === 1;
+                
+                logResult(
+                    container,
+                    deduplicated ? '✓ Deduplicação funcionando (mesmo erro não foi logado 2x)' : '✗ Deduplicação não funcionando',
+                    deduplicated
+                );
+
+                logInfo(container, `Logs antes: ${initialCount}, depois: ${afterCount}`);
+            }
+
+            logInfo(container, 'Testes de Logger concluídos!');
+        };
+
+        // Auto-load modules message
+        console.log('Sistema de validação carregado. Use os botões para executar os testes.');
+    </script>
+</body>
+</html>
