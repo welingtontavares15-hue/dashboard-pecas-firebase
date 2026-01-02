@@ -50,8 +50,8 @@ export const signIn = async (username: string, password: string): Promise<User> 
 
     // Find user by normalized username
     for (const [key, userData] of Object.entries(users)) {
-      const user = userData as any;
-      const dbUsername = (user.username || '').toLowerCase().trim();
+      const user = userData as Record<string, unknown>;
+      const dbUsername = String(user.username || '').toLowerCase().trim();
       
       if (dbUsername === normalizedUsername) {
         // Verify password
@@ -65,13 +65,13 @@ export const signIn = async (username: string, password: string): Promise<User> 
 
           matchedUser = {
             id: key,
-            username: user.username,
-            name: user.name,
-            email: user.email,
+            username: String(user.username),
+            name: String(user.name),
+            email: user.email ? String(user.email) : undefined,
             role: user.role as UserRole,
             active: user.active !== false,
-            createdAt: new Date(user.createdAt || Date.now()),
-            updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined
+            createdAt: new Date((user.createdAt as number) || Date.now()),
+            updatedAt: user.updatedAt ? new Date(user.updatedAt as number) : undefined
           };
           break;
         }
@@ -86,7 +86,7 @@ export const signIn = async (username: string, password: string): Promise<User> 
     sessionStorage.setItem('current_user', JSON.stringify(matchedUser));
 
     return matchedUser;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Sign in error:', error);
     throw error;
   }

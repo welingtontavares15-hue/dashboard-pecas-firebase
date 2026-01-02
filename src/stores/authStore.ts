@@ -34,10 +34,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const user = await signIn(username, password);
       set({ user, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer login';
       set({ 
         loading: false, 
-        error: error.message || 'Erro ao fazer login' 
+        error: errorMessage
       });
       throw error;
     }
@@ -49,10 +50,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       await signOut();
       set({ user: null, loading: false, error: null });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao fazer logout';
       set({ 
         loading: false, 
-        error: error.message || 'Erro ao fazer logout' 
+        error: errorMessage
       });
     }
   },
