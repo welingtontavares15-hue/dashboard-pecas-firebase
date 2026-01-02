@@ -54,6 +54,7 @@ const mockCrypto = {
     })
 };
 global.crypto = mockCrypto;
+globalThis.crypto = mockCrypto;
 global.window = { crypto: mockCrypto };
 
 // Mock navigator
@@ -223,6 +224,45 @@ describe('Gestor Recovery Password', () => {
             
             // Hash should be consistent
             expect(hash1).toBe(hash2);
+        });
+    });
+
+    describe('ensureDefaultAdmin', () => {
+        it('should create admin user when missing', async () => {
+            global.window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD = 'AdminCreate123!';
+            DataManager._sessionCache[DataManager.KEYS.USERS] = [];
+
+            await DataManager.ensureDefaultAdmin();
+
+            const users = DataManager._sessionCache[DataManager.KEYS.USERS];
+            const adminUser = users.find(u => DataManager.normalizeUsername(u.username) === 'admin');
+
+            expect(adminUser).toBeDefined();
+            expect(adminUser.role).toBe('administrador');
+            expect(adminUser.disabled).toBe(false);
+            expect(adminUser.passwordHash).toBeDefined();
+        });
+
+        it('should repair admin hash, role and status when mismatched', async () => {
+            global.window.DIVERSEY_BOOTSTRAP_ADMIN_PASSWORD = 'AdminRepair456!';
+            const wrongHash = await Utils.hashSHA256('OldAdmin', `${Utils.PASSWORD_SALT}:admin`);
+            DataManager._sessionCache[DataManager.KEYS.USERS] = [{
+                id: 'admin',
+                username: 'admin',
+                role: 'gestor',
+                disabled: true,
+                passwordHash: wrongHash
+            }];
+
+            await DataManager.ensureDefaultAdmin();
+
+            const users = DataManager._sessionCache[DataManager.KEYS.USERS];
+            const adminUser = users.find(u => u.username === 'admin');
+            const expectedHash = await Utils.hashSHA256('AdminRepair456!', `${Utils.PASSWORD_SALT}:admin`);
+
+            expect(adminUser.passwordHash).toBe(expectedHash);
+            expect(adminUser.role).toBe('administrador');
+            expect(adminUser.disabled).toBe(false);
         });
     });
 });
