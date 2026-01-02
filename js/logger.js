@@ -140,13 +140,16 @@ const Logger = {
             const logs = this.getLogs();
             
             // Deduplication: Check if we have a very similar error in the last 5 minutes
+            // Only check the first 50 entries (most recent) for performance
             if (entry.level === 'error') {
                 const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-                const recentSimilarError = logs.find(log => {
-                    return log.level === 'error' &&
-                           log.category === entry.category &&
-                           log.message === entry.message &&
-                           new Date(log.timestamp).getTime() > fiveMinutesAgo;
+                const recentLogs = logs.slice(0, 50);
+                const recentSimilarError = recentLogs.find(log => {
+                    if (log.level !== 'error' || log.category !== entry.category || log.message !== entry.message) {
+                        return false;
+                    }
+                    const logTime = new Date(log.timestamp).getTime();
+                    return logTime > fiveMinutesAgo;
                 });
                 
                 if (recentSimilarError) {
@@ -172,8 +175,14 @@ const Logger = {
             
             consoleFn(`[${entry.category.toUpperCase()}] ${entry.requestId}`, entry.message, entry.data);
             
-            // Cleanup old logs every 50 log entries to prevent bloat
-            if (logs.length % 50 === 0) {
+            // Cleanup old logs every 100 log entries to prevent bloat
+            // Using a counter instead of modulo to be more reliable
+            if (!this._cleanupCounter) {
+                this._cleanupCounter = 0;
+            }
+            this._cleanupCounter++;
+            if (this._cleanupCounter >= 100) {
+                this._cleanupCounter = 0;
                 this.cleanupOldLogs();
             }
         } catch (e) {
