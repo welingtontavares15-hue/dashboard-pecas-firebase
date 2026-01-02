@@ -318,7 +318,8 @@
             appId: "1:531360939:web:59f4e825a526463cc93d8f"
         };
 
-        // SHA-256 hashing function
+        // SHA-256 hashing function - Canonical formula
+        // Formula: SHA256(password + 'diversey_salt_v1:' + username)
         async function hashSHA256(password, username) {
             const salt = 'diversey_salt_v1';
             const input = password + salt + ':' + username;
