@@ -713,7 +713,7 @@ Equipe Diversey`;
      * Generate PDF for solicitation
      */
     generatePDF(solicitation, options = {}) {
-        if (!window.jspdf) {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
             this.showToast('Biblioteca jsPDF não carregada', 'error');
             return;
         }
