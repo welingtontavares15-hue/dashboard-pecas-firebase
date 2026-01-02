@@ -263,6 +263,12 @@ const CloudStorage = {
             return;
         }
 
+        // Check if RTDB is connected - don't attempt sync if offline
+        if (typeof FirebaseInit !== 'undefined' && typeof FirebaseInit.isRTDBConnected === 'function' && !FirebaseInit.isRTDBConnected()) {
+            console.debug('RTDB not connected, skipping sync');
+            return;
+        }
+
         // Validate DataManager is available and has session cache
         if (typeof DataManager === 'undefined' || !DataManager._sessionCache) {
             console.warn('DataManager not initialized, skipping sync');
@@ -332,15 +338,26 @@ const CloudStorage = {
                 }
             }
         } catch (error) {
-            // Log sync failure only for actual errors (not initialization issues)
-            if (typeof Logger !== 'undefined') {
-                Logger.logSync('sync_failed', { 
-                    direction: 'cloud_to_session',
-                    error: error?.message || 'unknown',
-                    errorCode: error?.code || 'unknown'
-                });
+            // Don't log sync_failed errors if the connection is already known to be down
+            // This prevents flooding the logs with repeated sync_failed messages
+            const isConnectionError = error?.code === 'PERMISSION_DENIED' || 
+                                     error?.message?.includes('offline') ||
+                                     error?.message?.includes('network');
+            
+            if (isConnectionError) {
+                // Just debug log connection errors - these are expected when offline
+                console.debug('Cloud sync skipped due to connection issue:', error?.message || 'unknown');
+            } else {
+                // Log actual sync failures (unexpected errors)
+                if (typeof Logger !== 'undefined') {
+                    Logger.logSync('sync_failed', { 
+                        direction: 'cloud_to_session',
+                        error: error?.message || 'unknown',
+                        errorCode: error?.code || 'unknown'
+                    });
+                }
+                console.error('Error syncing from cloud:', error);
             }
-            console.error('Error syncing from cloud:', error);
         }
     },
 
