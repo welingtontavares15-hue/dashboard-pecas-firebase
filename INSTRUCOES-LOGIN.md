@@ -7,7 +7,7 @@ Este guia explica como usar as ferramentas de autenticação e fazer login no si
 
 ## 🔧 Ferramentas Disponíveis
 
-O sistema possui 3 ferramentas principais na pasta `scripts/`:
+O sistema possui ferramentas na pasta `scripts/`:
 
 ### 1. 🔍 `diagnose-auth.html` - Diagnóstico de Autenticação
 **Use quando:** Precisar verificar o estado dos usuários e testar senhas
@@ -28,105 +28,103 @@ O sistema possui 3 ferramentas principais na pasta `scripts/`:
    - Clique em "Testar Login"
    - O sistema mostrará se a autenticação foi bem-sucedida
 
-### 2. 🌱 `seed-users.html` - Criar Usuários Padrão
-**Use quando:** Precisar criar usuários iniciais no sistema
-
-**Funcionalidades:**
-- Cria usuários padrão se não existirem
-- Não sobrescreve usuários existentes
-- Gera hashes SHA-256 automaticamente
-
-**Usuários criados:**
-| Username | Senha | Role | Email |
-|----------|-------|------|-------|
-| admin | admin123 | administrador | admin@diversey.com |
-| gestor | gestor123 | gestor | gestor@diversey.com |
-| tecnico | tecnico123 | tecnico | tecnico@diversey.com |
-
-**Como usar:**
-1. Abra o arquivo `scripts/seed-users.html` no navegador
-2. Clique em "Criar Usuários Padrão"
-3. Aguarde o processo completar
-4. Verifique o log para confirmar criação
-
-### 3. 🔐 `fix-passwords.html` - Resetar Senhas
+### 2. 🔐 `reset-user-passwords.html` - Resetar Senhas (Ferramenta Principal)
 **Use quando:** Esquecer senha ou precisar resetar credenciais
 
 **Funcionalidades:**
+- Conecta ao Firebase com autenticação
 - Reseta senha de um usuário específico
-- Reseta senha de todos os usuários de uma vez
 - Usa hashes SHA-256 corretos
-- Mantém as senhas padrão
+- Mantém as senhas padrão do ambiente (produção ou desenvolvimento)
 
 **Como usar:**
-1. Abra o arquivo `scripts/fix-passwords.html` no navegador
+1. Abra o arquivo `scripts/reset-user-passwords.html` no navegador
 2. Clique em "Conectar Firebase"
 3. Aguarde conexão ser estabelecida
-4. Escolha uma opção:
-   - "Resetar Admin" - Reseta apenas admin
-   - "Resetar Gestor" - Reseta apenas gestor
-   - "Resetar Técnico" - Reseta apenas tecnico
-   - "Resetar Todos" - Reseta todos de uma vez
+4. Escolha o usuário para resetar
+5. Confirme a operação
+
+### 3. Outras Ferramentas
+- `seed-users.html` - Cria usuários iniciais (desenvolvimento)
+- `fix-passwords.html` - Correção de senhas (legado)
+- `reset-passwords.html` - Reset de senhas (legado)
 
 ---
 
 ## 🔐 Credenciais Padrão
 
-### Modo Desenvolvimento (Development)
+### ⚠️ IMPORTANTE: Diferença entre Ambientes
 
-Após usar as ferramentas de seed ou reset, as credenciais padrão para desenvolvimento são:
+O sistema utiliza **senhas diferentes** conforme o ambiente configurado em `js/config.js`:
 
-#### Administrador
+#### 🔧 Modo Desenvolvimento (`environment: 'development'`)
+
+Usado para testes locais e desenvolvimento:
+
+**Administrador:**
 ```
 Username: admin
 Senha: admin123
 ```
-**Permissões:** Acesso completo ao sistema
 
-#### Gestor
+**Gestor:**
 ```
 Username: gestor
 Senha: gestor123
 ```
-**Permissões:** Aprovação de solicitações, visualização de relatórios
 
-#### Técnico
-```
-Username: tecnico
-Senha: tecnico123
-```
-**Permissões:** Criar e gerenciar solicitações próprias
+**Permissões:**
+- Admin: Acesso completo ao sistema, gestão de usuários, configurações
+- Gestor: Aprovação de solicitações, visualização de relatórios
 
-### Modo Produção (Production)
+#### 🚀 Modo Produção (`environment: 'production'`)
 
-⚠️ **IMPORTANTE**: Em produção, o sistema utiliza senhas mais complexas para maior segurança:
+Usado em deploy de produção com senhas mais complexas:
 
-#### Administrador (Produção)
+**Administrador:**
 ```
 Username: admin
 Senha: AdminRecovery2025!
 ```
-**Permissões:** Acesso completo ao sistema
 
-#### Gestor (Produção)
+**Gestor:**
 ```
 Username: gestor
 Senha: GestorRecovery2025!
 ```
-**Permissões:** Aprovação de solicitações, visualização de relatórios
 
-> **Nota de Segurança**: É altamente recomendado alterar essas senhas padrão após o primeiro login em produção. Use senhas fortes com pelo menos 12 caracteres, incluindo letras maiúsculas, minúsculas, números e símbolos.
+**Permissões:**
+- Admin: Acesso completo ao sistema, gestão de usuários, configurações
+- Gestor: Aprovação de solicitações, visualização de relatórios
+
+> **Nota de Segurança**: 
+> - As senhas de produção são mais complexas por segurança
+> - É altamente recomendado alterar essas senhas após o primeiro login
+> - Use senhas fortes com pelo menos 12 caracteres
+> - Inclua letras maiúsculas, minúsculas, números e símbolos
+> - O sistema identifica automaticamente o ambiente e aplica a senha correta
+
+#### 📋 Como Identificar o Ambiente
+
+1. Abra o console do navegador (F12)
+2. Digite: `APP_CONFIG.environment`
+3. Retornará: `'development'` ou `'production'`
+
+Ou verifique no arquivo `js/config.js`:
+```javascript
+const APP_CONFIG = {
+    environment: 'production',  // ou 'development'
+    // ...
+}
+```
 
 ---
 
 ## 🚀 Como Fazer Login
 
-### Passo 1: Preparar o Sistema
-Se for primeira vez ou tiver problemas:
-
-1. Execute `seed-users.html` para criar usuários iniciais
-   - OU -
-2. Execute `fix-passwords.html` para resetar senhas existentes
+### Passo 1: Identificar o Ambiente
+1. Verifique se está em produção ou desenvolvimento
+2. Use as credenciais correspondentes (veja seção "Credenciais Padrão" acima)
 
 ### Passo 2: Acessar o Dashboard
 1. Abra `index.html` no navegador
@@ -134,12 +132,79 @@ Se for primeira vez ou tiver problemas:
 
 ### Passo 3: Fazer Login
 1. Digite o username (ex: `admin`)
-2. Digite a senha (ex: `admin123`)
+2. Digite a senha correspondente ao ambiente:
+   - Desenvolvimento: `admin123`
+   - Produção: `AdminRecovery2025!`
 3. Clique em "Entrar"
 
 ### Passo 4: Confirmar Acesso
 - Se bem-sucedido, você será direcionado ao dashboard
 - O menu lateral mostrá opções baseadas no seu perfil
+
+---
+
+## 🔄 Procedimento de Reset de Senhas
+
+### Ferramenta Principal: reset-user-passwords.html
+
+Esta é a ferramenta recomendada para reset de senhas, pois:
+- ✅ Conecta ao Firebase com autenticação adequada
+- ✅ Identifica automaticamente o ambiente (produção/desenvolvimento)
+- ✅ Aplica a senha correta baseada no ambiente
+- ✅ Usa a fórmula canônica de hash
+- ✅ Atualiza o campo `updatedAt` do usuário
+
+### Como Usar:
+
+1. **Abrir a ferramenta:**
+   ```
+   Abra scripts/reset-user-passwords.html no navegador
+   ```
+
+2. **Conectar ao Firebase:**
+   - Clique em "Conectar Firebase"
+   - Aguarde mensagem de confirmação
+
+3. **Selecionar usuário:**
+   - A ferramenta listará os usuários disponíveis
+   - Selecione o usuário que deseja resetar
+
+4. **Confirmar reset:**
+   - Revise as informações
+   - Confirme a operação
+   - Aguarde a mensagem de sucesso
+
+5. **Testar login:**
+   - Use as credenciais do ambiente atual
+   - Faça login no sistema principal
+
+### Senhas Aplicadas Automaticamente:
+
+A ferramenta identifica o ambiente e aplica:
+
+| Usuário | Desenvolvimento | Produção |
+|---------|----------------|----------|
+| admin   | admin123       | AdminRecovery2025! |
+| gestor  | gestor123      | GestorRecovery2025! |
+
+### Fórmula do Hash
+
+As senhas são sempre hasheadas usando:
+```
+SHA256(password + 'diversey_salt_v1:' + usernameCanonical)
+```
+
+Onde:
+- `password` = senha em texto plano
+- `diversey_salt_v1` = salt constante do sistema
+- `usernameCanonical` = username normalizado (lowercase, sem acentos, apenas [a-z0-9.])
+
+### Path do Firebase RTDB
+
+Os usuários estão armazenados em:
+```
+data/diversey_users
+```
 
 ---
 
@@ -150,17 +215,21 @@ Se for primeira vez ou tiver problemas:
 
 **Solução:**
 1. Execute `diagnose-auth.html` para ver usuários existentes
-2. Se vazio, execute `seed-users.html` para criar usuários
-3. Tente fazer login novamente
+2. Se o usuário não estiver listado, contate o administrador
+3. Em desenvolvimento, pode executar `seed-users.html` para criar usuários base
 
 ### Problema: "Senha incorreta"
-**Causa:** Hash da senha não corresponde
+**Causa:** Hash da senha não corresponde ou senha do ambiente errado
 
 **Solução:**
-1. Execute `fix-passwords.html`
-2. Clique em "Conectar Firebase"
-3. Clique no botão de reset do seu usuário
-4. Use a senha padrão para fazer login
+1. Verifique se está usando a senha correta para o ambiente:
+   - Desenvolvimento: use `admin123` ou `gestor123`
+   - Produção: use `AdminRecovery2025!` ou `GestorRecovery2025!`
+2. Se ainda não funcionar, execute `reset-user-passwords.html`:
+   - Conecte ao Firebase
+   - Selecione o usuário
+   - Confirme o reset
+   - Tente fazer login novamente com a senha do ambiente
 
 ### Problema: "Conta temporariamente bloqueada"
 **Causa:** Muitas tentativas de login falhadas (proteção de segurança)
@@ -177,15 +246,25 @@ Se for primeira vez ou tiver problemas:
 1. Verifique conexão com internet
 2. Abra console do navegador (F12)
 3. Verifique mensagens de erro
-4. Confirme que Firebase está configurado corretamente
+4. Confirme que Firebase está configurado corretamente em `js/firebase-init.js`
+5. Sistema mostrará "Firebase SDK not loaded" se houver problema de carregamento
 
 ### Problema: Usuário desabilitado
-**Causa:** Conta foi desativada
+**Causa:** Conta foi desativada por um administrador
 
 **Solução:**
 - Contate o administrador do sistema
+- Ou acesse como administrador e reative a conta em Configurações > Gestores
 - Ou acesse o Firebase Console diretamente
-- Ou use outro usuário com permissões de admin
+
+### Problema: Sistema mostra "Degradado" constantemente
+**Causa:** Erros de sync repetidos quando Firebase está offline
+
+**Solução:**
+1. Verifique sua conexão com internet
+2. Verifique se o Firebase está configurado corretamente
+3. O sistema agora evita logs repetidos de erro
+4. Status "Degradado" só aparece se houver erros reais, não apenas desconexões temporárias
 
 ---
 
@@ -318,17 +397,36 @@ Se nenhuma solução funcionar:
 
 Antes de considerar o sistema pronto:
 
+### Desenvolvimento:
 - [ ] Firebase conecta com sucesso
 - [ ] Usuários existem no caminho `data/diversey_users`
 - [ ] Todos os usuários têm `passwordHash`
 - [ ] Hash SHA-256 está correto
 - [ ] Login com admin/admin123 funciona
 - [ ] Login com gestor/gestor123 funciona
-- [ ] Login com tecnico/tecnico123 funciona
-- [ ] Sem erros no console do navegador
-- [ ] Ferramentas de reset funcionam corretamente
+- [ ] Sem erros repetidos no console do navegador
+- [ ] Ferramenta `reset-user-passwords.html` funciona corretamente
+
+### Produção:
+- [ ] Firebase conecta com sucesso
+- [ ] Usuários existem no caminho `data/diversey_users`
+- [ ] Todos os usuários têm `passwordHash`
+- [ ] Hash SHA-256 está correto
+- [ ] Login com admin/AdminRecovery2025! funciona
+- [ ] Login com gestor/GestorRecovery2025! funciona
+- [ ] Sem erros repetidos no console do navegador
+- [ ] Sistema não mostra "Degradado" desnecessariamente
+- [ ] Ferramenta `reset-user-passwords.html` funciona corretamente
+
+### Funcionalidades Gerais:
+- [ ] Modal de Editar Gestor tem layout correto
+- [ ] Alterar senha de gestor funciona
+- [ ] Gestores podem ser criados/editados/excluídos
+- [ ] CRUDs funcionam sem erros
+- [ ] Relatórios carregam corretamente
+- [ ] Aprovações funcionam
 
 ---
 
-**Última atualização:** 2026-01-01
-**Versão:** 1.0
+**Última atualização:** 2026-01-02
+**Versão:** 2.0 - Review Completo
