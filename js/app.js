@@ -934,7 +934,8 @@ const App = {
 
         // Create modal for editing
         const modalHtml = `
-            <div class="modal-overlay" id="edit-gestor-modal">
+            <div class="modal-container" id="edit-gestor-modal">
+                <div class="modal-backdrop" onclick="App.closeEditGestorModal()"></div>
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3><i class="fas fa-edit"></i> Editar Gestor</h3>
@@ -1034,7 +1035,8 @@ const App = {
 
         // Create modal for password change
         const modalHtml = `
-            <div class="modal-overlay" id="change-password-modal">
+            <div class="modal-container" id="change-password-modal">
+                <div class="modal-backdrop" onclick="App.closeChangePasswordModal()"></div>
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3><i class="fas fa-key"></i> Alterar Senha</h3>

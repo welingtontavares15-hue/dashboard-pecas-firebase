@@ -72,28 +72,50 @@ O sistema possui 3 ferramentas principais na pasta `scripts/`:
 
 ## 🔐 Credenciais Padrão
 
-Após usar as ferramentas de seed ou reset, as credenciais padrão são:
+### Modo Desenvolvimento (Development)
 
-### Administrador
+Após usar as ferramentas de seed ou reset, as credenciais padrão para desenvolvimento são:
+
+#### Administrador
 ```
 Username: admin
 Senha: admin123
 ```
 **Permissões:** Acesso completo ao sistema
 
-### Gestor
+#### Gestor
 ```
 Username: gestor
 Senha: gestor123
 ```
 **Permissões:** Aprovação de solicitações, visualização de relatórios
 
-### Técnico
+#### Técnico
 ```
 Username: tecnico
 Senha: tecnico123
 ```
 **Permissões:** Criar e gerenciar solicitações próprias
+
+### Modo Produção (Production)
+
+⚠️ **IMPORTANTE**: Em produção, o sistema utiliza senhas mais complexas para maior segurança:
+
+#### Administrador (Produção)
+```
+Username: admin
+Senha: AdminRecovery2025!
+```
+**Permissões:** Acesso completo ao sistema
+
+#### Gestor (Produção)
+```
+Username: gestor
+Senha: GestorRecovery2025!
+```
+**Permissões:** Aprovação de solicitações, visualização de relatórios
+
+> **Nota de Segurança**: É altamente recomendado alterar essas senhas padrão após o primeiro login em produção. Use senhas fortes com pelo menos 12 caracteres, incluindo letras maiúsculas, minúsculas, números e símbolos.
 
 ---
 
