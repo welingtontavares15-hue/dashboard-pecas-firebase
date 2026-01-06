@@ -344,10 +344,10 @@ const Relatorios = {
         }
 
         if (Array.isArray(costs)) {
-            costs.forEach((cost) => {
+            for (const cost of costs) {
                 const value = Number(cost?.valor) || 0;
                 if (value < 0) {
-                    return;
+                    continue;
                 }
                 stats.total += value;
 
@@ -361,7 +361,7 @@ const Relatorios = {
 
                 const categoria = (cost?.categoria || 'Outros').trim() || 'Outros';
                 stats.categoryTotals[categoria] = (stats.categoryTotals[categoria] || 0) + value;
-            });
+            }
         }
 
         stats.monthlyData = last12Months.map((key) => ({ month: key, total: stats.monthlyTotals[key] || 0 }));
@@ -1012,13 +1012,14 @@ const Relatorios = {
      */
     async exportCustosPPT() {
         try {
-            if (!window.pptxgen) {
+            const pptxFactory = window.pptxgen;
+            if (typeof pptxFactory === 'undefined') {
                 Utils.showToast('Biblioteca PPTXGenJS não carregada.', 'danger');
                 return;
             }
             const costStats = this.computeCostStatistics();
             const technicians = DataManager.getTechnicians ? DataManager.getTechnicians() : [];
-            const pptx = new window.pptxgen();
+            const pptx = new pptxFactory();
             pptx.defineLayout({ name: '16x9', width: 10, height: 5.625 });
             pptx.layout = '16x9';
             // Load logo
