@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Solicitações de Peças - Diversey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="manifest" href="manifest.webmanifest">
+    <script src="js/vendor/chart.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- PPTXGenJS library for PowerPoint export -->
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs/dist/pptxgen.bundle.js"></script>
+    <script type="module" src="./js/firebase-init.js"></script>
+</head>
+<body class="light-mode">
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <!-- Custom logo image for the login screen -->
+                <img src="icons/diversey-login-logo.png" alt="Diversey logo" class="login-brand-image">
+                <!-- Slogan retained below the logo for clarity -->
+                <p>Controle total das peças, sem surpresas nos custos.</p>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-username">Usuário</label>
+                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Senha</label>
+                    <div class="password-field">
+                        <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
+                        <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </button>
+                <div id="login-error" class="error-message hidden"></div>
+            </form>
+            <div class="demo-info">
+                <p><strong>Versão oficial:</strong></p>
+                <p>O ambiente está pronto para uso em produção. Solicite suas credenciais ao administrador responsável.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.75rem;"><i class="fas fa-info-circle"></i> Dados sincronizados via Firebase para garantir estabilidade e suporte.</p>
+            </div>
+            <div id="login-credentials" class="credentials-panel hidden">
+                <div class="credentials-header">
+                    <div>
+                        <h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3>
+                        <p>Use um dos usuários abaixo para acessar imediatamente.</p>
+                    </div>
+                    <span class="badge-info"><i class="fas fa-shield-alt"></i> RBAC ativo</span>
+                </div>
+                <div class="credentials-table-wrapper">
+                    <table class="credentials-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Usuário</th>
+                                <th>Perfil</th>
+                            </tr>
+                        </thead>
+                        <tbody id="login-credentials-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-container" class="app-container hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-tools"></i>
+                    <span>Diversey</span>
+                </div>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <nav id="sidebar-nav" class="sidebar-nav">
+                <!-- Menu items will be dynamically inserted based on user role -->
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <span id="user-name">Usuário</span>
+                        <span id="user-role" class="user-role">Perfil</span>
+                    </div>
+                </div>
+                <div class="sidebar-actions">
+                    <button id="theme-toggle" class="btn-icon" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="logout-btn" class="btn-icon" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+        <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <div class="mobile-nav-buttons">
+                        <button id="mobile-menu-btn" class="btn-icon" aria-label="Abrir menu">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para início">
+                            <i class="fas fa-home"></i>
+                        </button>
+                    </div>
+                    <div class="breadcrumb" id="breadcrumb">
+                        <span>Dashboard</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <div id="pending-badge" class="notification-badge hidden">
+                        <i class="fas fa-bell"></i>
+                        <span id="pending-count">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div id="content-area" class="content-area">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="modal-container hidden">
+        <div class="modal-backdrop"></div>
+        <div id="modal-content" class="modal-content">
+            <!-- Modal content will be dynamically inserted -->
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <span>Carregando...</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/pwa.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/indexeddb-storage.js"></script>
+    <script src="js/sheets.js"></script>
+    <script src="js/onedrive.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/pecas.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/solicitacoes.js"></script>
+    <script src="js/aprovacoes.js"></script>
+    <script src="js/tecnicos.js"></script>
+    <script src="js/fornecedores.js"></script>
+    <script src="js/relatorios.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
