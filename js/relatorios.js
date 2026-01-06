@@ -290,7 +290,9 @@ const Relatorios = {
         // Cost by category: use parts catalog to map codes to categories
         const partsCatalog = DataManager.getParts ? DataManager.getParts() : [];
         const categoryMap = {};
-        partsCatalog.forEach(p => { categoryMap[p.codigo] = p.categoria || 'Outro'; });
+        partsCatalog.forEach((p) => {
+            categoryMap[p.codigo] = p.categoria || 'Outro';
+        });
         stats.costByCategory = {};
         Object.entries(stats.costByPart).forEach(([codigo, info]) => {
             const categoria = categoryMap[codigo] || 'Outro';
@@ -308,7 +310,7 @@ const Relatorios = {
             .map(([name, total]) => ({ name, total }))
             .sort((a, b) => b.total - a.total);
         stats.topCostByTech = techArray.slice(0, 10);
-        let partArray = Object.entries(stats.costByPart)
+        const partArray = Object.entries(stats.costByPart)
             .map(([codigo, info]) => ({ codigo, descricao: info.descricao, quantidade: info.quantidade, cost: info.cost }))
             .sort((a, b) => b.cost - a.cost);
         stats.topPartsByCost = partArray.slice(0, 10);
@@ -317,6 +319,61 @@ const Relatorios = {
         stats.topPartsByQuantity = qtyArray.slice(0, 10);
         const monthlyKeys = Object.keys(stats.monthlyCosts).sort();
         stats.monthlyData = monthlyKeys.map(key => ({ month: key, cost: stats.monthlyCosts[key] }));
+        return stats;
+    },
+
+    /**
+     * Compute statistics for manual costs dataset
+     */
+    computeManualCostStatistics() {
+        const costs = DataManager.getCosts ? DataManager.getCosts() : [];
+        const stats = {
+            total: 0,
+            count: Array.isArray(costs) ? costs.length : 0,
+            monthlyTotals: {},
+            categoryTotals: {}
+        };
+
+        const now = new Date();
+        const last12Months = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            last12Months.push(key);
+            stats.monthlyTotals[key] = 0;
+        }
+
+        if (Array.isArray(costs)) {
+            for (const cost of costs) {
+                const value = Number(cost?.valor) || 0;
+                if (value < 0) {
+                    continue;
+                }
+                stats.total += value;
+
+                const dateObj = Utils.parseAsLocalDate(cost?.data || cost?.createdAt);
+                if (!isNaN(dateObj.getTime())) {
+                    const key = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+                    if (stats.monthlyTotals[key] !== undefined) {
+                        stats.monthlyTotals[key] += value;
+                    }
+                }
+
+                const categoria = (cost?.categoria || 'Outros').trim() || 'Outros';
+                stats.categoryTotals[categoria] = (stats.categoryTotals[categoria] || 0) + value;
+            }
+        }
+
+        stats.monthlyData = last12Months.map((key) => ({ month: key, total: stats.monthlyTotals[key] || 0 }));
+        const monthsDivisor = stats.monthlyData.length || 1;
+        stats.monthlyAverage = stats.total / monthsDivisor;
+
+        const topCategories = Object.entries(stats.categoryTotals)
+            .map(([categoria, total]) => ({ categoria, total }))
+            .sort((a, b) => b.total - a.total);
+        stats.topCategories = topCategories.slice(0, 10);
+        stats.topCategory = stats.topCategories[0]?.categoria || '-';
+
         return stats;
     },
 
@@ -592,6 +649,10 @@ const Relatorios = {
      */
     renderCustosReport() {
         const costStats = this.computeCostStatistics();
+        const manualStats = this.computeManualCostStatistics();
+        const hasManualMonthlyData = Array.isArray(manualStats.monthlyData) && manualStats.monthlyData.some((m) => m.total > 0);
+        const hasManualTotalData = manualStats.total > 0;
+        const hasManualData = hasManualMonthlyData || hasManualTotalData;
         // Build table rows for top parts by cost
         const topPartRows = costStats.topPartsByCost.map((p, idx) => {
             const partNum = idx + 1;
@@ -619,87 +680,153 @@ const Relatorios = {
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- KPIs -->
-                    <div class="kpi-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-                        <div class="kpi-card">
-                            <div class="kpi-icon primary">
-                                <i class="fas fa-money-bill-wave"></i>
+                    <section class="mb-4">
+                        <h4 class="mb-3">Custos Manuais</h4>
+                        <div class="kpi-grid mb-3" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                            <div class="kpi-card">
+                                <div class="kpi-icon primary">
+                                    <i class="fas fa-wallet"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Total Custos</h4>
+                                    <div class="kpi-value">${Utils.formatCurrency(manualStats.total)}</div>
+                                </div>
                             </div>
-                            <div class="kpi-content">
-                                <h4>Montante Total</h4>
-                                <div class="kpi-value">${Utils.formatCurrency(costStats.totalCost)}</div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon info">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Média Mensal</h4>
+                                    <div class="kpi-value">${Utils.formatCurrency(manualStats.monthlyAverage)}</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-icon info">
-                                <i class="fas fa-receipt"></i>
+                            <div class="kpi-card">
+                                <div class="kpi-icon warning">
+                                    <i class="fas fa-list"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Top Categoria</h4>
+                                    <div class="kpi-value">${Utils.escapeHtml(manualStats.topCategory)}</div>
+                                </div>
                             </div>
-                            <div class="kpi-content">
-                                <h4>Custo Médio por Pedido</h4>
-                                <div class="kpi-value">${Utils.formatCurrency(costStats.avgCost)}</div>
-                            </div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-icon warning">
-                                <i class="fas fa-box-open"></i>
-                            </div>
-                            <div class="kpi-content">
-                                <h4>Pedidos Analisados</h4>
-                                <div class="kpi-value">${costStats.orderCount}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Charts -->
-                    <div class="charts-grid">
-                        <div class="chart-container">
-                            <h4 class="mb-3">Custo por Técnico (Top 10)</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="costByTechChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <h4 class="mb-3">Tendência de Custos Mensais</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="monthlyCostTrendChart"></canvas>
+                            <div class="kpi-card">
+                                <div class="kpi-icon success">
+                                    <i class="fas fa-receipt"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Registros</h4>
+                                    <div class="kpi-value">${manualStats.count}</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <h4 class="mb-3">Top 10 Peças por Custo</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="topPartsCostChart"></canvas>
+                        ${hasManualData ? `
+                            <div class="charts-grid">
+                                <div class="chart-container">
+                                    <h4 class="mb-3">Custo Mensal (Últimos 12 meses)</h4>
+                                    <div class="chart-wrapper">
+                                        <canvas id="manualCostTrendChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="chart-container">
+                                    <h4 class="mb-3">Custos por Categoria (Top 10)</h4>
+                                    <div class="chart-wrapper">
+                                        <canvas id="manualCostCategoryChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="empty-state">
+                                <i class="fas fa-info-circle"></i>
+                                <h4>Sem custos manuais registrados</h4>
+                                <p>Cadastre custos na aba Custos para visualizar gráficos.</p>
+                            </div>
+                        `}
+                    </section>
+
+                    <hr style="margin: 2rem 0;">
+
+                    <section>
+                        <h4 class="mb-3">Custos por Solicitações</h4>
+                        <div class="kpi-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                            <div class="kpi-card">
+                                <div class="kpi-icon primary">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Montante Total</h4>
+                                    <div class="kpi-value">${Utils.formatCurrency(costStats.totalCost)}</div>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon info">
+                                    <i class="fas fa-receipt"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Custo Médio por Pedido</h4>
+                                    <div class="kpi-value">${Utils.formatCurrency(costStats.avgCost)}</div>
+                                </div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-icon warning">
+                                    <i class="fas fa-box-open"></i>
+                                </div>
+                                <div class="kpi-content">
+                                    <h4>Pedidos Analisados</h4>
+                                    <div class="kpi-value">${costStats.orderCount}</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <h4 class="mb-3">Top 10 Peças por Quantidade</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="topPartsQtyChart"></canvas>
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <h4 class="mb-3">Custo por Técnico (Top 10)</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="costByTechChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h4 class="mb-3">Tendência de Custos Mensais</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="monthlyCostTrendChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h4 class="mb-3">Top 10 Peças por Custo</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="topPartsCostChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h4 class="mb-3">Top 10 Peças por Quantidade</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="topPartsQtyChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <h4 class="mb-3">Custo por Categoria</h4>
+                                <div class="chart-wrapper">
+                                    <canvas id="costByCategoryChart"></canvas>
+                                </div>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <h4 class="mb-3">Custo por Categoria</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="costByCategoryChart"></canvas>
-                            </div>
+                        <h4 class="mt-4 mb-2">Peças com Maior Custo (Top 10)</h4>
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Código</th>
+                                        <th>Descrição</th>
+                                        <th>Quantidade</th>
+                                        <th>Custo Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${topPartRows}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-                    <!-- Top Parts by Cost Table -->
-                    <h4 class="mt-4 mb-2">Peças com Maior Custo (Top 10)</h4>
-                    <div class="table-container">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Código</th>
-                                    <th>Descrição</th>
-                                    <th>Quantidade</th>
-                                    <th>Custo Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${topPartRows}
-                            </tbody>
-                        </table>
-                    </div>
+                    </section>
                 </div>
             </div>
         `;
@@ -887,13 +1014,14 @@ const Relatorios = {
      */
     async exportCustosPPT() {
         try {
-            if (typeof pptxgen === 'undefined') {
+            const pptxFactory = window.pptxgen;
+            if (typeof pptxFactory === 'undefined') {
                 Utils.showToast('Biblioteca PPTXGenJS não carregada.', 'danger');
                 return;
             }
             const costStats = this.computeCostStatistics();
             const technicians = DataManager.getTechnicians ? DataManager.getTechnicians() : [];
-            const pptx = new pptxgen();
+            const pptx = new pptxFactory();
             pptx.defineLayout({ name: '16x9', width: 10, height: 5.625 });
             pptx.layout = '16x9';
             // Load logo
@@ -909,7 +1037,7 @@ const Relatorios = {
                 });
                 reader.readAsDataURL(blob);
                 logoData = await dataUrlPromise;
-            } catch (err) {
+            } catch (_err) {
                 // If logo fails to load, ignore and continue
                 logoData = null;
             }
@@ -1125,7 +1253,7 @@ const Relatorios = {
         };
 
         if (typeof Chart === 'undefined') {
-            ['slaDistributionChart', 'techVolumeChart', 'topPartsReportChart'].forEach(renderFallback);
+            ['slaDistributionChart', 'techVolumeChart', 'topPartsReportChart', 'manualCostTrendChart', 'manualCostCategoryChart'].forEach(renderFallback);
             if (!this.chartWarningShown && typeof Utils !== 'undefined' && Utils.showToast) {
                 Utils.showToast('Biblioteca de gráficos não carregada. Exibindo dados sem gráficos.', 'warning');
                 this.chartWarningShown = true;
@@ -1250,6 +1378,65 @@ const Relatorios = {
         const monthlyCostCtx = document.getElementById('monthlyCostTrendChart');
         const topPartsCostCtx = document.getElementById('topPartsCostChart');
         const topPartsQtyCtx = document.getElementById('topPartsQtyChart');
+        const manualTrendCtx = document.getElementById('manualCostTrendChart');
+        const manualCategoryCtx = document.getElementById('manualCostCategoryChart');
+
+        if (manualTrendCtx || manualCategoryCtx) {
+            const manualStats = this.computeManualCostStatistics();
+            const manualLabels = manualStats.monthlyData.map((d) => d.month);
+            const manualValues = manualStats.monthlyData.map((d) => d.total);
+            if (manualTrendCtx) {
+                new Chart(manualTrendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: manualLabels,
+                        datasets: [{
+                            label: 'Custos',
+                            data: manualValues,
+                            fill: false,
+                            borderColor: '#1cc88a',
+                            tension: 0.2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { color: textColor }, grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            }
+
+            if (manualCategoryCtx) {
+                const catLabels = manualStats.topCategories.map((c) => c.categoria);
+                const catValues = manualStats.topCategories.map((c) => c.total);
+                new Chart(manualCategoryCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: catLabels,
+                        datasets: [{
+                            label: 'Custos',
+                            data: catValues,
+                            backgroundColor: '#4e73df',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } },
+                            y: { ticks: { color: textColor }, grid: { display: false } }
+                        }
+                    }
+                });
+            }
+        }
         if (costTechCtx || monthlyCostCtx || topPartsCostCtx || topPartsQtyCtx) {
             const costStats = this.computeCostStatistics();
             const techLabels = costStats.topCostByTech.map(t => t.name);

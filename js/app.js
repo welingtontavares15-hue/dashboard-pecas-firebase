@@ -314,6 +314,7 @@ const App = {
             'pecas': 'Peças',
             'catalogo': 'Catálogo de Peças',
             'relatorios': 'Relatórios',
+            'custos': 'Custos',
             'configuracoes': 'Configurações',
             'ajuda': 'Ajuda',
             'perfil': 'Meu Perfil'
@@ -369,7 +370,15 @@ const App = {
             case 'catalogo':
                 Pecas.render();
                 break;
-                    
+
+            case 'custos':
+                if (typeof window !== 'undefined' && window.Custos && typeof window.Custos.render === 'function') {
+                    window.Custos.render();
+                } else {
+                    this.renderNotFound();
+                }
+                break;
+
             case 'relatorios':
                 Relatorios.render();
                 setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
@@ -1071,10 +1080,17 @@ const App = {
                 Pecas.render();
             }
             break;
-        case 'relatorios':
-            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+        case 'relatorios': {
+            const shouldRefreshRelatorios = shouldUpdate(DataManager?.KEYS?.SOLICITATIONS) || shouldUpdate(DataManager?.KEYS?.COSTS);
+            if (typeof Relatorios !== 'undefined' && shouldRefreshRelatorios) {
                 Relatorios.render();
                 setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+            }
+            break;
+        }
+        case 'custos':
+            if (typeof window !== 'undefined' && window.Custos && shouldUpdate(DataManager?.KEYS?.COSTS) && typeof window.Custos.render === 'function') {
+                window.Custos.render();
             }
             break;
         case 'tecnicos':

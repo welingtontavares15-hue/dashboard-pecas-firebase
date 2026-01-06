@@ -2,6 +2,7 @@
  * Data Management Module
  * Handles all data operations with cloud storage and localStorage fallback
  */
+/* global Custos */
 
 const OFFICIAL_TECHNICIANS_BASE = {
     'Antonio Ferreira De Santana Filho':{'endereco':'Av Curió - Campanário, Ap 510 Bloco B','bairro':'','cep':'09.925-000','municipio':'Diadema','uf':'SP'},
@@ -189,7 +190,8 @@ const DataManager = {
         RECENT_PARTS: 'diversey_recent_parts',
         PARTS_VERSION: 'diversey_parts_version',
         EXPORT_LOG: 'diversey_export_log',
-        EXPORT_FILES: 'diversey_export_files'
+        EXPORT_FILES: 'diversey_export_files',
+        COSTS: 'diversey_custos'
     },
     
     // Export log configuration (cloud-first)
@@ -456,6 +458,33 @@ const DataManager = {
                 }
             });
 
+            // Subscribe to real-time updates for manual costs
+            subscribeSafe(this.KEYS.COSTS, (costs) => {
+                console.log('Costs updated from cloud');
+                this._sessionCache[this.KEYS.COSTS] = Array.isArray(costs) ? costs : [];
+
+                if (typeof App !== 'undefined') {
+                    const custosModule = typeof Custos !== 'undefined'
+                        ? Custos
+                        : ((typeof window !== 'undefined' && window.Custos) ? window.Custos : null);
+                    switch (App.currentPage) {
+                    case 'custos':
+                        if (custosModule && typeof custosModule.render === 'function') {
+                            custosModule.render();
+                        }
+                        break;
+                    case 'relatorios':
+                        if (typeof Relatorios !== 'undefined') {
+                            Relatorios.render();
+                            setTimeout(() => Relatorios.initCharts(), 100);
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            });
+
             this.realtimeSubscribed = true;
         } catch (e) {
             this.realtimeSubscribed = false;
@@ -566,7 +595,8 @@ const DataManager = {
             this.KEYS.SUPPLIERS,
             this.KEYS.PARTS,
             this.KEYS.SOLICITATIONS,
-            this.KEYS.SETTINGS
+            this.KEYS.SETTINGS,
+            this.KEYS.COSTS
         ];
         
         for (const key of keys) {
@@ -621,6 +651,13 @@ const DataManager = {
             const defaultParts = this.getDefaultParts();
             await CloudStorage.saveData(this.KEYS.PARTS, defaultParts);
             this._sessionCache[this.KEYS.PARTS] = defaultParts;
+        }
+
+        // Initialize costs dataset if not present
+        const cloudCosts = this._sessionCache[this.KEYS.COSTS];
+        if (!Array.isArray(cloudCosts)) {
+            await CloudStorage.saveData(this.KEYS.COSTS, []);
+            this._sessionCache[this.KEYS.COSTS] = [];
         }
         
         // Initialize settings if not present
@@ -1361,6 +1398,91 @@ const DataManager = {
     deleteSupplier(id) {
         const suppliers = this.getSuppliers().filter(s => s.id !== id);
         return this.saveData(this.KEYS.SUPPLIERS, suppliers);
+    },
+
+    // ===== COSTS =====
+    getCosts() {
+        const costs = this.loadData(this.KEYS.COSTS);
+        return Array.isArray(costs) ? costs : [];
+    },
+
+    getCostById(id) {
+        return this.getCosts().find(c => c.id === id);
+    },
+
+    saveCost(cost) {
+        if (!cost) {
+            return { success: false, error: 'Custo inválido' };
+        }
+
+        if (this.isWriteBlocked()) {
+            return this.showOfflineError('salvar custo');
+        }
+
+        const normalizedValue = Number(cost.valor);
+        if (!Number.isFinite(normalizedValue)) {
+            return { success: false, error: 'Valor deve ser numérico e finito' };
+        }
+        if (normalizedValue < 0) {
+            return { success: false, error: 'Valor deve ser maior ou igual a zero' };
+        }
+
+        const normalized = {
+            id: cost.id || Utils.generateId(),
+            data: cost.data || Utils.getLocalDateString(),
+            categoria: (cost.categoria || '').trim(),
+            descricao: (cost.descricao || '').trim(),
+            valor: normalizedValue,
+            observacao: (cost.observacao || '').trim() || '',
+            vinculoSolicitacaoId: (cost.vinculoSolicitacaoId || '').trim() || '',
+            updatedAt: Date.now(),
+            updatedBy: cost.updatedBy || ((typeof Auth !== 'undefined' && Auth.getCurrentUser) ? Auth.getCurrentUser()?.username : null)
+        };
+
+        if (!normalized.categoria || !normalized.descricao) {
+            return { success: false, error: 'Informe categoria e descrição' };
+        }
+
+        if (!cost.id) {
+            normalized.createdAt = Date.now();
+            normalized.createdBy = normalized.updatedBy || ((typeof Auth !== 'undefined' && Auth.getCurrentUser) ? Auth.getCurrentUser()?.username : null);
+        } else {
+            normalized.createdAt = cost.createdAt || Date.now();
+            normalized.createdBy = cost.createdBy || normalized.updatedBy || null;
+        }
+
+        const costs = this.getCosts();
+        const index = costs.findIndex(c => c.id === normalized.id);
+
+        if (index >= 0) {
+            costs[index] = { ...costs[index], ...normalized };
+        } else {
+            costs.push(normalized);
+        }
+
+        const saved = this.saveData(this.KEYS.COSTS, costs);
+        if (saved && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('data:updated', { detail: { keys: [this.KEYS.COSTS] } }));
+        }
+
+        return { success: !!saved, cost: normalized };
+    },
+
+    deleteCost(id) {
+        if (!id) {
+            return { success: false, error: 'Custo não encontrado' };
+        }
+
+        if (this.isWriteBlocked()) {
+            return this.showOfflineError('excluir custo');
+        }
+
+        const costs = this.getCosts().filter(c => c.id !== id);
+        const saved = this.saveData(this.KEYS.COSTS, costs);
+        if (saved && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('data:updated', { detail: { keys: [this.KEYS.COSTS] } }));
+        }
+        return { success: !!saved };
     },
 
     // ===== PARTS =====

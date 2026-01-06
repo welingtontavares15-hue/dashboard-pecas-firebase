@@ -39,6 +39,7 @@ const Auth = {
             fornecedores: { view: true, create: true, edit: true, delete: true },
             pecas: { view: true, create: true, edit: true, delete: true, import: true },
             relatorios: { view: true, export: true },
+            custos: { view: true, create: true, edit: true, delete: true },
             configuracoes: { view: true, edit: true }
         },
         gestor: {
@@ -49,6 +50,7 @@ const Auth = {
             fornecedores: { view: true, create: false, edit: false, delete: false },
             pecas: { view: true, create: false, edit: false, delete: false, import: false },
             relatorios: { view: true, export: true },
+            custos: { view: true, create: true, edit: true, delete: true },
             configuracoes: { view: true, edit: false }
         },
         tecnico: {
@@ -59,6 +61,7 @@ const Auth = {
             fornecedores: { view: false, create: false, edit: false, delete: false },
             pecas: { view: true, create: false, edit: false, delete: false, import: false },
             relatorios: { view: false, export: false },
+            custos: { view: false, create: false, edit: false, delete: false },
             configuracoes: { view: false, edit: false }
         }
     },
@@ -72,6 +75,7 @@ const Auth = {
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
+            { id: 'custos', icon: 'fa-coins', label: 'Custos', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
             { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Sistema' }
         ],
@@ -82,6 +86,7 @@ const Auth = {
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
+            { id: 'custos', icon: 'fa-coins', label: 'Custos', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
             { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Sistema' }
         ],
