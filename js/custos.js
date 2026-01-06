@@ -213,7 +213,7 @@ const Custos = {
                     <tbody>
                         ${costs.map(cost => `
                             <tr>
-                                <td>${Utils.formatDate(cost.data)}</td>
+                                <td>${Utils.formatDate(cost.data || cost.createdAt)}</td>
                                 <td>${Utils.escapeHtml(cost.categoria || '-')}</td>
                                 <td>${Utils.escapeHtml(cost.descricao || '-')}</td>
                                 <td>${Utils.formatCurrency(cost.valor)}</td>

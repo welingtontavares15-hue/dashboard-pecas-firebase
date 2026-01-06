@@ -1080,12 +1080,14 @@ const App = {
                 Pecas.render();
             }
             break;
-        case 'relatorios':
-            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.COSTS)) {
+        case 'relatorios': {
+            const shouldRefreshRelatorios = shouldUpdate(DataManager?.KEYS?.SOLICITATIONS) || shouldUpdate(DataManager?.KEYS?.COSTS);
+            if (typeof Relatorios !== 'undefined' && shouldRefreshRelatorios) {
                 Relatorios.render();
                 setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
             }
             break;
+        }
         case 'custos':
             if (typeof window !== 'undefined' && window.Custos && shouldUpdate(DataManager?.KEYS?.COSTS) && typeof window.Custos.render === 'function') {
                 window.Custos.render();

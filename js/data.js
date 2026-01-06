@@ -2,6 +2,7 @@
  * Data Management Module
  * Handles all data operations with cloud storage and localStorage fallback
  */
+/* global Custos */
 
 const OFFICIAL_TECHNICIANS_BASE = {
     'Antonio Ferreira De Santana Filho':{'endereco':'Av Curió - Campanário, Ap 510 Bloco B','bairro':'','cep':'09.925-000','municipio':'Diadema','uf':'SP'},
@@ -463,7 +464,9 @@ const DataManager = {
                 this._sessionCache[this.KEYS.COSTS] = Array.isArray(costs) ? costs : [];
 
                 if (typeof App !== 'undefined') {
-                    const custosModule = (typeof window !== 'undefined' && window.Custos) ? window.Custos : null;
+                    const custosModule = typeof Custos !== 'undefined'
+                        ? Custos
+                        : ((typeof window !== 'undefined' && window.Custos) ? window.Custos : null);
                     switch (App.currentPage) {
                     case 'custos':
                         if (custosModule && typeof custosModule.render === 'function') {
