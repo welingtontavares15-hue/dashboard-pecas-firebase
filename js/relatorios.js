@@ -1012,14 +1012,13 @@ const Relatorios = {
      */
     async exportCustosPPT() {
         try {
-            if (typeof window === 'undefined' || typeof window.pptxgen === 'undefined') {
+            if (!window.pptxgen) {
                 Utils.showToast('Biblioteca PPTXGenJS não carregada.', 'danger');
                 return;
             }
             const costStats = this.computeCostStatistics();
             const technicians = DataManager.getTechnicians ? DataManager.getTechnicians() : [];
-            const PptxGen = window.pptxgen;
-            const pptx = new PptxGen();
+            const pptx = new window.pptxgen();
             pptx.defineLayout({ name: '16x9', width: 10, height: 5.625 });
             pptx.layout = '16x9';
             // Load logo
