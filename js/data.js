@@ -464,12 +464,20 @@ const DataManager = {
 
                 if (typeof App !== 'undefined') {
                     const custosModule = (typeof window !== 'undefined' && window.Custos) ? window.Custos : null;
-                    if (App.currentPage === 'custos' && custosModule && typeof custosModule.render === 'function') {
-                        custosModule.render();
-                    }
-                    if (App.currentPage === 'relatorios' && typeof Relatorios !== 'undefined') {
-                        Relatorios.render();
-                        setTimeout(() => Relatorios.initCharts(), 100);
+                    switch (App.currentPage) {
+                    case 'custos':
+                        if (custosModule && typeof custosModule.render === 'function') {
+                            custosModule.render();
+                        }
+                        break;
+                    case 'relatorios':
+                        if (typeof Relatorios !== 'undefined') {
+                            Relatorios.render();
+                            setTimeout(() => Relatorios.initCharts(), 100);
+                        }
+                        break;
+                    default:
+                        break;
                     }
                 }
             });

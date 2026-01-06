@@ -650,7 +650,9 @@ const Relatorios = {
     renderCustosReport() {
         const costStats = this.computeCostStatistics();
         const manualStats = this.computeManualCostStatistics();
-        const hasManualData = (Array.isArray(manualStats.monthlyData) && manualStats.monthlyData.some((m) => m.total > 0)) || manualStats.total > 0;
+        const hasManualMonthlyData = Array.isArray(manualStats.monthlyData) && manualStats.monthlyData.some((m) => m.total > 0);
+        const hasManualTotalData = manualStats.total > 0;
+        const hasManualData = hasManualMonthlyData || hasManualTotalData;
         // Build table rows for top parts by cost
         const topPartRows = costStats.topPartsByCost.map((p, idx) => {
             const partNum = idx + 1;
