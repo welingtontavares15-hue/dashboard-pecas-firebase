@@ -13,12 +13,12 @@ import { getDatabase, ref, set, get, onValue, off } from 'https://www.gstatic.co
 // is pulled from window.FIREBASE_CONFIG which is populated by js/firebase-config.js
 // and should reflect your actual Firebase project settings.
 const firebaseConfig = {
-    apiKey: 'AIzaSyD0Z654T7k2cBg8xwI1Zij8s67de9oIMJ2Y0',
+    apiKey: 'AIzaSyDQZ56ZTk2cBg8xWI2j8s67de9oIMJ2Y0',
     authDomain: 'solicitacoes-de-pecas.firebaseapp.com',
     databaseURL: 'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com',
     projectId: 'solicitacoes-de-pecas',
-    // Fix storageBucket to appspot.com to ensure file uploads work correctly.
-    storageBucket: 'solicitacoes-de-pecas.appspot.com',
+    // Storage bucket configured in Firebase console.
+    storageBucket: 'solicitacoes-de-pecas.firebasestorage.app',
     messagingSenderId: '782693023312',
     appId: '1:782693023312:web:f22340c11c8c96cd4e9b55',
     measurementId: 'G-QVTQ20HN39'
