@@ -1018,7 +1018,8 @@ const Relatorios = {
             }
             const costStats = this.computeCostStatistics();
             const technicians = DataManager.getTechnicians ? DataManager.getTechnicians() : [];
-            const pptx = new window.pptxgen();
+            const PptxGen = window.pptxgen;
+            const pptx = new PptxGen();
             pptx.defineLayout({ name: '16x9', width: 10, height: 5.625 });
             pptx.layout = '16x9';
             // Load logo
