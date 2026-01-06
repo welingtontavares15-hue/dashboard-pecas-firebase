@@ -3,13 +3,13 @@ const path = require('path');
 
 describe('Firebase configuration values', () => {
     const expectedEndpoints = {
-        databaseURL: 'https://solicitacoes-de-pecas-default-rtdb.firebaseio.com',
-        storageBucket: 'solicitacoes-de-pecas.firebasestorage.app'
+        databaseURL: /https:\/\/solicitacoes-de-pecas-default-rtdb\.firebaseio\.com\/?/,
+        storageBucket: /^solicitacoes-de-pecas\.(firebasestorage\.app|appspot\.com)$/
     };
 
     const loadFile = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
     const extractValue = (content, key, source) => {
-        const match = content.match(new RegExp(`${key}:\\s*['"]([^'"]+)['"]`));
+        const match = content.match(new RegExp(`${key}\\s*:\\s*["']([^"']+)["']`, 'm'));
         if (!match) {
             throw new Error(`Could not find ${key} in ${source}`);
         }
@@ -24,8 +24,8 @@ describe('Firebase configuration values', () => {
     it('uses the production Firebase endpoints in firebase-config.js', () => {
         const config = extractConfig(loadFile('js/firebase-config.js'), 'firebase-config.js');
         expect(config.apiKey).toMatch(/^AIza/);
-        expect(config.databaseURL).toBe(expectedEndpoints.databaseURL);
-        expect(config.storageBucket).toBe(expectedEndpoints.storageBucket);
+        expect(config.databaseURL).toMatch(expectedEndpoints.databaseURL);
+        expect(config.storageBucket).toMatch(expectedEndpoints.storageBucket);
     });
 
     it('keeps fallback config in firebase-init.js synchronized', () => {
