@@ -3,6 +3,9 @@
 ## Overview
 This document provides Firebase Realtime Database security rules for the Dashboard de Solicitação de Peças application, implementing minimum privilege principle and RBAC.
 
+## Novidades
+- Adicionado nó `diversey_custos` para registro de custos manuais; leitura e escrita permitidas apenas para administrador e gestor com sessão válida (`expiresAt > now`).
+
 ## Security Principles
 1. **Minimum Privilege**: Users can only access what they need
 2. **Server-side Validation**: All critical validations happen on the server
