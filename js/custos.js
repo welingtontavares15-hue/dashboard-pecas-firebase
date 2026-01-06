@@ -305,18 +305,12 @@ const Custos = {
         const observacao = document.getElementById('cost-notes')?.value;
         const vinculo = document.getElementById('cost-link')?.value;
 
-        const valor = Number(valorStr);
-        if (!data || !categoria || !descricao || Number.isNaN(valor) || valor < 0) {
-            Utils.showToast('Preencha os campos obrigatórios com valores válidos', 'warning');
-            return;
-        }
-
         const payload = {
             id: id || undefined,
-            data,
+            data: data || Utils.getLocalDateString(),
             categoria,
             descricao,
-            valor,
+            valor: valorStr,
             observacao,
             vinculoSolicitacaoId: vinculo
         };

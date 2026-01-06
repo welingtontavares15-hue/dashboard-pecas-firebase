@@ -1409,8 +1409,11 @@ const DataManager = {
         }
 
         const normalizedValue = Number(cost.valor);
-        if (!Number.isFinite(normalizedValue) || normalizedValue < 0) {
-            return { success: false, error: 'Valor inválido' };
+        if (!Number.isFinite(normalizedValue)) {
+            return { success: false, error: 'Valor deve ser numérico' };
+        }
+        if (normalizedValue < 0) {
+            return { success: false, error: 'Valor deve ser maior ou igual a zero' };
         }
 
         const normalized = {
