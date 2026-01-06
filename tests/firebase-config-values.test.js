@@ -4,12 +4,13 @@ const path = require('path');
 describe('Firebase configuration values', () => {
     const expectedEndpoints = {
         databaseURL: /https:\/\/solicitacoes-de-pecas-default-rtdb\.firebaseio\.com\/?/,
-        storageBucket: /^solicitacoes-de-pecas\.(firebasestorage\.app|appspot\.com)$/
+        storageBucket: /^solicitacoes-de-pecas\.firebasestorage\.app$/
     };
 
     const loadFile = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
+    const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const extractValue = (content, key, source) => {
-        const match = content.match(new RegExp(`${key}\\s*:\\s*["']([^"']+)["']`, 'm'));
+        const match = content.match(new RegExp(`${escapeRegex(key)}\\s*:\\s*["']([^"']+)["']`, 'm'));
         if (!match) {
             throw new Error(`Could not find ${key} in ${source}`);
         }
