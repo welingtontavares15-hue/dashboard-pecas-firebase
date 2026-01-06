@@ -1,4 +1,0 @@
-BUILD_INFO
-bloco=08
-createdAt=2026-01-03T00:10:00.933078
-contents=rules+rbac-snippet
