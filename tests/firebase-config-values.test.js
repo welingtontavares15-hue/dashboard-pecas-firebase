@@ -10,7 +10,7 @@ describe('Firebase configuration values', () => {
     const loadFile = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
     const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const extractValue = (content, key, source) => {
-        const match = content.match(new RegExp(`${escapeRegex(key)}\\s*:\\s*["']((?:\\\\.|[^"'])*)["']`, 'm'));
+        const match = content.match(new RegExp(`${escapeRegex(key)}\\s*:\\s*["']((?:\\\\.|[^"'\\\\])*)["']`, 'm'));
         if (!match) {
             throw new Error(`Could not find ${key} in ${source}`);
         }
