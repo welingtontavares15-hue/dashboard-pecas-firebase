@@ -7,7 +7,7 @@
 Edite o arquivo `js/firebase-config.js` e cole o objeto `firebaseConfig` do seu app Web no Firebase Console **ou** injete um objeto `window.__ENV.firebaseConfig` gerado no deploy (recomendado para separar credenciais do bundle).
 
 
-This application uses **Firebase Realtime Database** for cloud data synchronization. Anonymous Authentication is allowed only in non‑production environments (or when you explicitly set `window.FIREBASE_ALLOW_ANONYMOUS = true` before loading the app).
+This application uses **Firebase Realtime Database** for cloud data synchronization. Anonymous Authentication is allowed only in non-production environments (or when you explicitly set `window.FIREBASE_ALLOW_ANONYMOUS = true` before loading the app).
 
 ## Firebase Configuration
 

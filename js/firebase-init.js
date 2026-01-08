@@ -189,7 +189,7 @@ const FirebaseInit = {
                             // When no user is logged in automatically sign in anonymously to satisfy
                             // RTDB rules that require auth != null. This call is idempotent if the user
                             // is already signed in anonymously or via another method.
-                            console.warn('Firebase Auth: no user detected. Attempting anonymous sign‑in.');
+                            console.warn('Firebase Auth: no user detected. Attempting anonymous sign-in.');
                             signInAnonymously(this.auth).catch((err) => {
                                 this.authPromise = null;
                                 settle(() => {
@@ -201,7 +201,6 @@ const FirebaseInit = {
                             return;
                         }
                         settle(() => {
-                            clearTimeout(timeout);
                             // A user is logged in (either anonymously or via email/password); mark authenticated and notify listeners
                             this.isAuthenticated = true;
                             if (typeof window !== 'undefined') {
@@ -214,7 +213,6 @@ const FirebaseInit = {
                         });
                     }, (error) => {
                         settle(() => {
-                            clearTimeout(timeout);
                             console.error('Auth state change error:', error);
                             reject(error);
                         });
