@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { getDatabase, ref, set, get, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
+import './firebase-policy.js';
 
 /**
  * Firebase Initialization Module
@@ -22,6 +23,11 @@ const firebaseConfig = {
     messagingSenderId: '782693023312',
     appId: '1:782693023312:web:f22340c11c8c96cd4e9b55',
     measurementId: 'G-QVTQ20HN39'
+};
+
+const firebasePolicy = (typeof window !== 'undefined' && window.FirebasePolicy) || {
+    allowAnonymousAuth: () => false,
+    getRuntimeFirebaseConfig: () => null
 };
 
 // Expose firebase modules globally to preserve backward compatibility
@@ -67,6 +73,11 @@ const FirebaseInit = {
      * In production, use environment variables
      */
     getConfig() {
+        const runtimeConfig = firebasePolicy.getRuntimeFirebaseConfig ? firebasePolicy.getRuntimeFirebaseConfig() : null;
+        if (runtimeConfig) {
+            return runtimeConfig;
+        }
+
         // Prefer config fornecida em js/firebase-config.js
         if (typeof window !== 'undefined' && window.FIREBASE_CONFIG) {
             return window.FIREBASE_CONFIG;
@@ -125,8 +136,11 @@ const FirebaseInit = {
      * Authenticate with Firebase using Anonymous Auth
      * This is required because RTDB rules require auth != null
      * @returns {Promise<boolean>} Success status
-     */
+         */
     async authenticate() {
+        const anonymousAllowed = firebasePolicy.allowAnonymousAuth ? firebasePolicy.allowAnonymousAuth() : true;
+        this.anonymousAllowed = anonymousAllowed;
+
         // If already authenticated, no further action needed
         if (this.isAuthenticated) {
             return true;
@@ -156,6 +170,12 @@ const FirebaseInit = {
                     onAuthStateChanged(this.auth, (user) => {
                         clearTimeout(timeout);
                         if (!user) {
+                            if (!anonymousAllowed) {
+                                console.warn('Firebase Auth: anonymous login blocked by policy; awaiting interactive auth.');
+                                this.isAuthenticated = false;
+                                resolve(false);
+                                return;
+                            }
                             // When no user is logged in automatically sign in anonymously to satisfy
                             // RTDB rules that require auth != null. This call is idempotent if the user
                             // is already signed in anonymously or via another method.

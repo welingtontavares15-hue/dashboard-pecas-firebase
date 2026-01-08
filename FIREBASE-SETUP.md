@@ -4,10 +4,10 @@
 
 ## Configuração no Front-end
 
-Edite o arquivo `js/firebase-config.js` e cole o objeto `firebaseConfig` do seu app Web no Firebase Console.
+Edite o arquivo `js/firebase-config.js` e cole o objeto `firebaseConfig` do seu app Web no Firebase Console **ou** injete um objeto `window.__ENV.firebaseConfig` gerado no deploy (recomendado para separar credenciais do bundle).
 
 
-This application uses **Firebase Realtime Database** for cloud data synchronization with **Anonymous Authentication** to meet security rules requirements.
+This application uses **Firebase Realtime Database** for cloud data synchronization. Anonymous Authentication is allowed somente em ambientes não‑produtivos (ou quando você define explicitamente `window.FIREBASE_ALLOW_ANONYMOUS = true` antes de carregar o app).
 
 ## Firebase Configuration
 
@@ -47,35 +47,29 @@ These rules require authentication for all read and write operations under `/dat
 
 ## Authentication
 
-The application uses **Firebase Anonymous Authentication** automatically:
-
-1. When the app loads, it initializes Firebase
-2. Anonymous sign-in is performed automatically
-3. Once authenticated, database operations are permitted
-4. No user action required - completely transparent
-
-### Enable Anonymous Authentication
-
-In the Firebase Console:
-
-1. Go to **Authentication** > **Sign-in method**
-2. Enable **Anonymous** provider
-3. Save changes
+Anonymous sign-in is **disabled by default in production**. For local development or staging, enable the Anonymous provider in Firebase Console and (optionally) set `window.FIREBASE_ALLOW_ANONYMOUS = true` before carregar os scripts. Produção deve usar um provedor autenticado (por exemplo, e-mail/senha ou custom token).
 
 ## Environment Variables (Optional)
 
-You can override Firebase configuration using environment variables or by editing `js/firebase-init.js`:
+At runtime, you can inject the Firebase config via:
 
-```javascript
-// Optional environment variables
-FIREBASE_API_KEY="SUA_API_KEY"
-FIREBASE_AUTH_DOMAIN="SEU_PROJETO.firebaseapp.com"
-FIREBASE_DATABASE_URL="https://SEU_PROJETO-default-rtdb.firebaseio.com"
-FIREBASE_PROJECT_ID="SEU_PROJETO"
-FIREBASE_STORAGE_BUCKET="SEU_PROJETO.firebasestorage.app"
-FIREBASE_MESSAGING_SENDER_ID="782693023312"
-FIREBASE_APP_ID="1:782693023312:web:f22340c11c8c96cd4e9b55"
+```html
+<script>
+  window.__ENV = {
+    firebaseConfig: {
+      apiKey: 'SUA_API_KEY',
+      authDomain: 'SEU_PROJETO.firebaseapp.com',
+      databaseURL: 'https://SEU_PROJETO-default-rtdb.firebaseio.com',
+      projectId: 'SEU_PROJETO',
+      storageBucket: 'SEU_PROJETO.firebasestorage.app',
+      messagingSenderId: '782693023312',
+      appId: '1:782693023312:web:f22340c11c8c96cd4e9b55'
+    }
+  };
+</script>
 ```
+
+If `window.__ENV.firebaseConfig` is not provided, the fallback inside `js/firebase-config.js` will be used.
 
 ## Testing Firebase Connection
 
