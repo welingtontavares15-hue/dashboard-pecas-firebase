@@ -162,14 +162,18 @@ const FirebaseInit = {
                 return new Promise((resolve, reject) => {
                     let settled = false;
                     let timeout = null;
+                    const clearAuthTimeout = () => {
+                        if (timeout) {
+                            clearTimeout(timeout);
+                            timeout = null;
+                        }
+                    };
                     const settle = (cb) => {
                         if (settled) {
                             return;
                         }
                         settled = true;
-                        if (timeout) {
-                            clearTimeout(timeout);
-                        }
+                        clearAuthTimeout();
                         cb();
                     };
 
@@ -191,7 +195,6 @@ const FirebaseInit = {
                             // is already signed in anonymously or via another method.
                             console.warn('Firebase Auth: no user detected. Attempting anonymous sign-in.');
                             signInAnonymously(this.auth).catch((err) => {
-                                this.authPromise = null;
                                 settle(() => {
                                     console.error('Failed to sign in anonymously:', err);
                                     reject(err);
