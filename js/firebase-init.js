@@ -73,7 +73,7 @@ const FirebaseInit = {
      * In production, use environment variables
      */
     getConfig() {
-        const runtimeConfig = firebasePolicy.getRuntimeFirebaseConfig ? firebasePolicy.getRuntimeFirebaseConfig() : null;
+        const runtimeConfig = firebasePolicy.getRuntimeFirebaseConfig();
         if (runtimeConfig) {
             return runtimeConfig;
         }
@@ -138,7 +138,7 @@ const FirebaseInit = {
      * @returns {Promise<boolean>} Success status
          */
     async authenticate() {
-        const anonymousAllowed = firebasePolicy.allowAnonymousAuth ? firebasePolicy.allowAnonymousAuth() : true;
+        const anonymousAllowed = firebasePolicy.allowAnonymousAuth();
         this.anonymousAllowed = anonymousAllowed;
 
         // If already authenticated, no further action needed
@@ -160,20 +160,30 @@ const FirebaseInit = {
                 }
 
                 return new Promise((resolve, reject) => {
+                    let settled = false;
+                    let timeout = null;
+                    const settle = (cb) => {
+                        if (settled) {
+                            return;
+                        }
+                        settled = true;
+                        if (timeout) {
+                            clearTimeout(timeout);
+                        }
+                        cb();
+                    };
+
                     // Timeout to avoid waiting indefinitely when no user ever signs in
-                    const timeout = setTimeout(() => {
+                    timeout = setTimeout(() => {
                         console.warn('No authenticated user detected within timeout');
-                        // Resolve as false to allow the application to continue running in offline mode
-                        resolve(false);
+                        settle(() => resolve(false));
                     }, 10000);
 
                     onAuthStateChanged(this.auth, (user) => {
-                        clearTimeout(timeout);
                         if (!user) {
                             if (!anonymousAllowed) {
                                 console.warn('Firebase Auth: anonymous login blocked by policy; awaiting interactive auth.');
-                                this.isAuthenticated = false;
-                                resolve(false);
+                                settle(() => resolve(false));
                                 return;
                             }
                             // When no user is logged in automatically sign in anonymously to satisfy
@@ -181,26 +191,33 @@ const FirebaseInit = {
                             // is already signed in anonymously or via another method.
                             console.warn('Firebase Auth: no user detected. Attempting anonymous sign‑in.');
                             signInAnonymously(this.auth).catch((err) => {
-                                console.error('Failed to sign in anonymously:', err);
+                                this.authPromise = null;
+                                settle(() => {
+                                    console.error('Failed to sign in anonymously:', err);
+                                    reject(err);
+                                });
                             });
                             this.isAuthenticated = false;
-                            // Resolve false to indicate that authentication will continue asynchronously.
-                            resolve(false);
                             return;
                         }
-                        // A user is logged in (either anonymously or via email/password); mark authenticated and notify listeners
-                        this.isAuthenticated = true;
-                        if (typeof window !== 'undefined') {
-                            window.firebaseUser = user;
-                            window.dispatchEvent(new CustomEvent('firebase-ready', { detail: { uid: user.uid } }));
-                        }
-                        console.log('Firebase user authenticated:', user.uid);
-                        this._notifyCloudReady();
-                        resolve(true);
+                        settle(() => {
+                            clearTimeout(timeout);
+                            // A user is logged in (either anonymously or via email/password); mark authenticated and notify listeners
+                            this.isAuthenticated = true;
+                            if (typeof window !== 'undefined') {
+                                window.firebaseUser = user;
+                                window.dispatchEvent(new CustomEvent('firebase-ready', { detail: { uid: user.uid } }));
+                            }
+                            console.log('Firebase user authenticated:', user.uid);
+                            this._notifyCloudReady();
+                            resolve(true);
+                        });
                     }, (error) => {
-                        clearTimeout(timeout);
-                        console.error('Auth state change error:', error);
-                        reject(error);
+                        settle(() => {
+                            clearTimeout(timeout);
+                            console.error('Auth state change error:', error);
+                            reject(error);
+                        });
                     });
                 });
             } catch (error) {

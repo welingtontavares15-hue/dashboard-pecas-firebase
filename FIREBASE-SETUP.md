@@ -7,7 +7,7 @@
 Edite o arquivo `js/firebase-config.js` e cole o objeto `firebaseConfig` do seu app Web no Firebase Console **ou** injete um objeto `window.__ENV.firebaseConfig` gerado no deploy (recomendado para separar credenciais do bundle).
 
 
-This application uses **Firebase Realtime Database** for cloud data synchronization. Anonymous Authentication is allowed somente em ambientes não‑produtivos (ou quando você define explicitamente `window.FIREBASE_ALLOW_ANONYMOUS = true` antes de carregar o app).
+This application uses **Firebase Realtime Database** for cloud data synchronization. Anonymous Authentication is allowed only in non‑production environments (or when you explicitly set `window.FIREBASE_ALLOW_ANONYMOUS = true` before loading the app).
 
 ## Firebase Configuration
 
@@ -47,7 +47,7 @@ These rules require authentication for all read and write operations under `/dat
 
 ## Authentication
 
-Anonymous sign-in is **disabled by default in production**. For local development or staging, enable the Anonymous provider in Firebase Console and (optionally) set `window.FIREBASE_ALLOW_ANONYMOUS = true` before carregar os scripts. Produção deve usar um provedor autenticado (por exemplo, e-mail/senha ou custom token).
+Anonymous sign-in is **disabled by default in production**. In development or staging, enable the Anonymous provider in Firebase Console and, if needed, set `window.FIREBASE_ALLOW_ANONYMOUS = true` before loading the scripts. In production use an authenticated provider (for example, email/password or custom token).
 
 ## Environment Variables (Optional)
 
