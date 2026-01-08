@@ -5,9 +5,10 @@
 // Como obter: Firebase Console > Project settings > Your apps (Web app) > Firebase SDK snippet (Config)
 
 // Define the Firebase configuration for this application.
-// These values are pulled from the Firebase console (Project settings → Config).  
+// These values are pulled from the Firebase console (Project settings → Config).
 // The apiKey is public and safe to expose in client-side code.
-window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
+const runtimeFirebaseConfig = (window.__ENV && window.__ENV.firebaseConfig) || window.FIREBASE_CONFIG;
+window.FIREBASE_CONFIG = runtimeFirebaseConfig || {
     // API key for the Firebase project. This enables use of Firebase services on the web.
     apiKey: 'AIzaSyDQZ56ZTk2cBg8xWI2j8s67de9oIMJ2Y0',
     // Auth domain used by Firebase Authentication.
