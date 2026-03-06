@@ -1242,7 +1242,7 @@ Equipe Diversey`;
 
 
 const AnalyticsHelper = {
-    COST_STATUSES: [''aprovada'', ''em-transito'', ''entregue'', ''finalizada'', ''historico-manual''],
+    COST_STATUSES: ['aprovada', 'em-transito', 'entregue', 'finalizada', 'historico-manual'],
 
     getDefaultRangeDays() {
         return DataManager.getSettings().statsRangeDays || 30;
@@ -1602,3 +1602,4 @@ const AnalyticsHelper = {
         };
     }
 };
+
