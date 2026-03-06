@@ -87,8 +87,13 @@ const Tecnicos = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-users"></i>
-                    <h4>Nenhum técnico encontrado</h4>
-                    <p>${this.searchQuery ? 'Tente uma busca diferente.' : 'Cadastre o primeiro técnico.'}</p>
+                    <h4>Você ainda não possui técnicos cadastrados</h4>
+                    <p>${this.searchQuery ? 'Tente outro termo para localizar um técnico já cadastrado.' : 'Cadastre a equipe técnica para acompanhar chamados, custos e desempenho operacional.'}</p>
+                    ${Auth.hasPermission('tecnicos', 'create') ? `
+                        <button class="btn btn-primary" onclick="Tecnicos.openForm()">
+                            <i class="fas fa-plus"></i> Novo Técnico
+                        </button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -519,4 +524,6 @@ const Tecnicos = {
         }
     }
 };
+
+
 

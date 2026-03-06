@@ -46,42 +46,45 @@ const Aprovacoes = {
                 </div>
             ` : ''}
 
-            <div class="filters-bar">
-                <div class="filter-group">
-                    <label>Valor mínimo:</label>
-                    <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
+            <details class="filter-panel" open>
+                <summary class="filter-panel-toggle">Filtros</summary>
+                <div class="filters-bar filter-panel-body">
+                    <div class="filter-group">
+                        <label>Valor mínimo:</label>
+                        <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
+                    </div>
+                    <div class="filter-group">
+                        <label>Técnico:</label>
+                        <select id="approval-tecnico" class="form-control">
+                            <option value="">Todos</option>
+                            ${DataManager.getTechnicians().map(t => `
+                                <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Região:</label>
+                        <select id="approval-regiao" class="form-control">
+                            <option value="">Todas</option>
+                            ${this.getRegionOptions().map(regiao => `
+                                <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Prioridade:</label>
+                        <select id="approval-prioridade" class="form-control">
+                            <option value="">Todas</option>
+                            <option value="alta" ${this.filters.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
+                            <option value="media" ${this.filters.prioridade === 'media' ? 'selected' : ''}>Média</option>
+                            <option value="baixa" ${this.filters.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline" onclick="Aprovacoes.clearFilters()">
+                        <i class="fas fa-times"></i> Limpar
+                    </button>
                 </div>
-                <div class="filter-group">
-                    <label>Técnico:</label>
-                    <select id="approval-tecnico" class="form-control">
-                        <option value="">Todos</option>
-                        ${DataManager.getTechnicians().map(t => `
-                            <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Região:</label>
-                    <select id="approval-regiao" class="form-control">
-                        <option value="">Todas</option>
-                        ${this.getRegionOptions().map(regiao => `
-                            <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Prioridade:</label>
-                    <select id="approval-prioridade" class="form-control">
-                        <option value="">Todas</option>
-                        <option value="alta" ${this.filters.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
-                        <option value="media" ${this.filters.prioridade === 'media' ? 'selected' : ''}>Média</option>
-                        <option value="baixa" ${this.filters.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
-                    </select>
-                </div>
-                <button class="btn btn-outline" onclick="Aprovacoes.clearFilters()">
-                    <i class="fas fa-times"></i> Limpar
-                </button>
-            </div>
+            </details>
 
             <div class="card">
                 <div class="card-body">
@@ -106,8 +109,8 @@ const Aprovacoes = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-check-circle"></i>
-                    <h4>Nenhuma solicitação pendente</h4>
-                    <p>${Object.values(this.filters).some(Boolean) ? 'Nenhum registro atende aos filtros atuais.' : 'Todas as solicitações foram processadas.'}</p>
+                    <h4>Sem solicitações pendentes</h4>
+                    <p>${Object.values(this.filters).some(Boolean) ? 'Nenhuma solicitação atende aos filtros atuais. Revise o período, técnico ou prioridade selecionados.' : 'Todas as solicitações já foram tratadas. Novos pedidos que exigirem aprovação aparecerão aqui.'}</p>
                     ${Auth.hasPermission('solicitacoes', 'create') ? `
                         <button class="btn btn-primary" onclick="Solicitacoes.openForm()">
                             <i class="fas fa-plus"></i> Nova Solicitação
@@ -834,6 +837,9 @@ const Aprovacoes = {
         Auth.renderMenu(App.currentPage);
     }
 };
+
+
+
 
 
 

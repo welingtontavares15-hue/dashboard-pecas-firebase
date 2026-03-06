@@ -7,7 +7,7 @@ const Solicitacoes = {
     currentPage: 1,
     itemsPerPage: 10,
     filters: {
-        status: '',
+        status: [],
         tecnico: '',
         dateFrom: '',
         dateTo: '',
@@ -33,76 +33,80 @@ const Solicitacoes = {
         content.innerHTML = `
             <div class="page-header">
                 <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
-                <div class="btn-group">
+                <div class="page-actions">
                     ${canCreate ? `
                         <button class="btn btn-success" onclick="Solicitacoes.openForm()">
                             <i class="fas fa-plus"></i> Nova Solicitação
                         </button>
                     ` : ''}
-                    ${canManageBackup ? `
-                        <button class="btn btn-outline" onclick="Solicitacoes.downloadBackup()">
-                            <i class="fas fa-database"></i> Backup
-                        </button>
-                        <button class="btn btn-outline" onclick="Solicitacoes.triggerRestoreBackup()">
-                            <i class="fas fa-upload"></i> Restaurar
-                        </button>
+                    ${(canManageBackup || canExport) ? `
+                        <details class="action-menu">
+                            <summary class="btn btn-outline">
+                                <i class="fas fa-ellipsis-v"></i> Mais ações
+                            </summary>
+                            <div class="action-menu-dropdown">
+                                ${canManageBackup ? `
+                                    <button class="action-menu-item" onclick="Solicitacoes.downloadBackup()">
+                                        <i class="fas fa-database"></i> Backup
+                                    </button>
+                                    <button class="action-menu-item" onclick="Solicitacoes.triggerRestoreBackup()">
+                                        <i class="fas fa-upload"></i> Restaurar
+                                    </button>
+                                ` : ''}
+                                ${canExport ? `
+                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()">
+                                        <i class="fas fa-file-excel"></i> Exportar
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </details>
                     ` : ''}
-                    <button class="btn btn-outline" ${exportAttrs} ${exportTitle} onclick="Solicitacoes.exportList()">
-                        <i class="fas fa-file-excel"></i> Exportar
-                    </button>
                 </div>
             </div>
             ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <div class="filters-bar">
-                <div class="search-box">
-                    <input type="text" id="sol-search" class="form-control"
-                           placeholder="Buscar por número, cliente, técnico ou peça..."
-                           value="${Utils.escapeHtml(this.filters.search)}">
-                    <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
-                        <i class="fas fa-search"></i>
+            <details class="filter-panel" open>
+                <summary class="filter-panel-toggle">Filtros</summary>
+                <div class="filters-bar filter-panel-body">
+                    <div class="search-box">
+                        <input type="text" id="sol-search" class="form-control"
+                               placeholder="Buscar por número, cliente, técnico ou peça..."
+                               value="${Utils.escapeHtml(this.filters.search)}">
+                        <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        ${this.renderStatusFilter('sol-status-filter')}
+                    </div>
+                    ${!isTecnico ? `
+                        <div class="filter-group">
+                            <label>Técnico:</label>
+                            <select id="sol-tecnico-filter" class="form-control">
+                                <option value="">Todos</option>
+                                ${DataManager.getTechnicians().map(t =>
+        `<option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
+                                        ${Utils.escapeHtml(t.nome)}
+                                    </option>`
+    ).join('')}
+                            </select>
+                        </div>
+                    ` : ''}
+                    <div class="filter-group">
+                        <label>De:</label>
+                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Até:</label>
+                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
+                    <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
+                        <i class="fas fa-times"></i> Limpar
                     </button>
                 </div>
-                <div class="filter-group">
-                    <label>Status:</label>
-                    <select id="sol-status-filter" class="form-control">
-                        <option value="">Todos</option>
-                        <option value="rascunho" ${this.filters.status === 'rascunho' ? 'selected' : ''}>Rascunho</option>
-                        <option value="pendente" ${this.filters.status === 'pendente' ? 'selected' : ''}>Pendente</option>
-                        <option value="aprovada" ${this.filters.status === 'aprovada' ? 'selected' : ''}>Aprovada</option>
-                        <option value="rejeitada" ${this.filters.status === 'rejeitada' ? 'selected' : ''}>Rejeitada</option>
-                        <option value="em-transito" ${this.filters.status === 'em-transito' ? 'selected' : ''}>Rastreio</option>
-                        <option value="entregue" ${this.filters.status === 'entregue' ? 'selected' : ''}>Entregue</option>
-                        <option value="finalizada" ${this.filters.status === 'finalizada' ? 'selected' : ''}>Finalizada</option>
-                        <option value="historico-manual" ${this.filters.status === 'historico-manual' ? 'selected' : ''}>Histórico/Manual</option>
-                    </select>
-                </div>
-                ${!isTecnico ? `
-                    <div class="filter-group">
-                        <label>Técnico:</label>
-                        <select id="sol-tecnico-filter" class="form-control">
-                            <option value="">Todos</option>
-                            ${DataManager.getTechnicians().map(t =>
-        `<option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
-                                    ${Utils.escapeHtml(t.nome)}
-                                </option>`
-    ).join('')}
-                        </select>
-                    </div>
-                ` : ''}
-                <div class="filter-group">
-                    <label>De:</label>
-                    <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
-                </div>
-                <div class="filter-group">
-                    <label>Até:</label>
-                    <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
-                </div>
-                <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
-                    <i class="fas fa-times"></i> Limpar
-                </button>
-            </div>
+            </details>
 
             <div id="sol-summary-container">
                 ${this.renderSummaryCards()}
@@ -123,12 +127,32 @@ const Solicitacoes = {
             }
         });
 
-        ['sol-status-filter', 'sol-date-from', 'sol-date-to'].forEach(id => {
+        ['sol-date-from', 'sol-date-to'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => this.applyFilters());
             }
         });
+
+        const statusTrigger = document.querySelector('[data-status-trigger="sol-status-filter"]');
+        if (statusTrigger) {
+            statusTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleStatusDropdown('sol-status-filter');
+            });
+        }
+
+        document.querySelectorAll('[data-status-group="sol-status-filter"]').forEach(input => {
+            input.addEventListener('change', () => this.applyFilters());
+            input.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        document.querySelectorAll('[data-status-dropdown="sol-status-filter"]').forEach(panel => {
+            panel.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        this.bindStatusDropdownClose();
 
         if (!isTecnico) {
             const tecnicoFilter = document.getElementById('sol-tecnico-filter');
@@ -136,6 +160,104 @@ const Solicitacoes = {
                 tecnicoFilter.addEventListener('change', () => this.applyFilters());
             }
         }
+    },
+
+    getStatusOptions() {
+        return [
+            { value: 'rascunho', label: 'Rascunho' },
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovada', label: 'Aprovada' },
+            { value: 'rejeitada', label: 'Rejeitada' },
+            { value: 'em-transito', label: 'Rastreio' },
+            { value: 'entregue', label: 'Entregue' },
+            { value: 'finalizada', label: 'Finalizada' },
+            { value: 'historico-manual', label: 'Histórico/Manual' }
+        ];
+    },
+
+    renderStatusFilter(controlId) {
+        const selected = this.getSelectedStatusSummary();
+        const summaryText = selected.length > 0 ? `${selected.length} status selecionado(s)` : 'Todos os status';
+        return `
+            <div class="status-filter" data-status-filter="${controlId}" role="group" aria-label="Filtro de status">
+                <button type="button" class="status-filter-trigger" data-status-trigger="${controlId}">
+                    <span class="status-filter-label">
+                        <i class="fas fa-filter"></i>
+                        <span class="status-filter-label-text">${Utils.escapeHtml(summaryText)}</span>
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="status-filter-dropdown" data-status-dropdown="${controlId}">
+                    <div class="status-filter-summary">
+                        ${selected.length > 0
+                            ? selected.map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                            : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
+                    </div>
+                    <div class="status-filter-options">
+                        ${this.getStatusOptions().map(option => `
+                            <label class="status-filter-option">
+                                <input type="checkbox" data-status-group="${controlId}" value="${option.value}" ${Array.isArray(this.filters.status) && this.filters.status.includes(option.value) ? 'checked' : ''}>
+                                <span>${option.label}</span>
+                                ${Utils.renderStatusBadge(option.value)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    getSelectedStatusValues(controlId = 'sol-status-filter') {
+        return Array.from(document.querySelectorAll(`[data-status-group="${controlId}"]:checked`)).map(option => option.value);
+    },
+
+    getSelectedStatusSummary() {
+        const selectedValues = Array.isArray(this.filters.status) ? this.filters.status : [];
+        return this.getStatusOptions().filter(option => selectedValues.includes(option.value));
+    },
+
+    toggleStatusDropdown(controlId = 'sol-status-filter') {
+        const filter = document.querySelector(`[data-status-filter="${controlId}"]`);
+        if (!filter) {
+            return;
+        }
+
+        const shouldOpen = !filter.classList.contains('open');
+        this.closeStatusDropdowns();
+        if (shouldOpen) {
+            filter.classList.add('open');
+        }
+    },
+
+    closeStatusDropdowns() {
+        document.querySelectorAll('[data-status-filter].open').forEach(filter => {
+            filter.classList.remove('open');
+        });
+    },
+
+    bindStatusDropdownClose() {
+        if (this._statusDropdownCloseBound) {
+            return;
+        }
+
+        document.addEventListener('click', () => this.closeStatusDropdowns());
+        this._statusDropdownCloseBound = true;
+    },
+
+    hasActiveFilters() {
+        return !!(
+            this.filters.search ||
+            this.filters.tecnico ||
+            this.filters.dateFrom ||
+            this.filters.dateTo ||
+            (Array.isArray(this.filters.status) && this.filters.status.length > 0)
+        );
+    },
+
+    setStatusFilter(statuses = []) {
+        this.filters.status = Array.isArray(statuses) ? statuses : (statuses ? [statuses] : []);
+        this.currentPage = 1;
+        this.render();
     },
 
     /**
@@ -154,7 +276,7 @@ const Solicitacoes = {
                 <div class="empty-state">
                     <i class="fas fa-clipboard-list"></i>
                     <h4>Nenhuma solicitação encontrada</h4>
-                    <p>${Object.values(this.filters).some(Boolean) ? 'Tente ajustar os filtros.' : 'Crie sua primeira solicitação.'}</p>
+                    <p>${this.hasActiveFilters() ? 'Tente ajustar os filtros.' : 'Crie sua primeira solicitação.'}</p>
                     ${Auth.hasPermission('solicitacoes', 'create') ? `
                         <button class="btn btn-primary" onclick="Solicitacoes.openForm()">
                             <i class="fas fa-plus"></i> Nova Solicitação
@@ -325,10 +447,10 @@ const Solicitacoes = {
             solicitations = solicitations.filter(s => s.tecnicoId === tecnicoId);
         }
 
-        if (this.filters.status) {
-            solicitations = solicitations.filter(s => s.status === this.filters.status);
+        const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : (this.filters.status ? [this.filters.status] : []);
+        if (selectedStatuses.length > 0) {
+            solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
         }
-
         if (this.filters.tecnico) {
             solicitations = solicitations.filter(s => s.tecnicoId === this.filters.tecnico);
         }
@@ -365,7 +487,7 @@ const Solicitacoes = {
      */
     applyFilters() {
         this.filters.search = document.getElementById('sol-search').value;
-        this.filters.status = document.getElementById('sol-status-filter').value;
+        this.filters.status = this.getSelectedStatusValues('sol-status-filter');
         this.filters.dateFrom = document.getElementById('sol-date-from').value;
         this.filters.dateTo = document.getElementById('sol-date-to').value;
         
@@ -382,7 +504,7 @@ const Solicitacoes = {
      * Clear filters
      */
     clearFilters() {
-        this.filters = { status: '', tecnico: '', dateFrom: '', dateTo: '', search: '' };
+        this.filters = { status: [], tecnico: '', dateFrom: '', dateTo: '', search: '' };
         this.currentPage = 1;
         this.render();
     },
@@ -1247,6 +1369,10 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
 
 
 

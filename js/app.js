@@ -303,6 +303,9 @@ const App = {
      */
     updateBreadcrumb(pageId) {
         const breadcrumb = document.getElementById('breadcrumb');
+        if (!breadcrumb) {
+            return;
+        }
         const labels = {
             'dashboard': 'Dashboard',
             'solicitacoes': 'Solicitações',
@@ -318,15 +321,8 @@ const App = {
             'ajuda': 'Ajuda',
             'perfil': 'Meu Perfil'
         };
-        
-        breadcrumb.innerHTML = `
-            <button type="button" class="breadcrumb-home" aria-label="Voltar para início">
-                <i class="fas fa-home"></i>
-                <span>Início</span>
-            </button>
-            <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 0.5rem; opacity: 0.5;"></i>
-            <span>${labels[pageId] || pageId}</span>
-        `;
+
+        breadcrumb.innerHTML = `<span>${labels[pageId] || pageId}</span>`;
     },
 
     /**
@@ -1467,4 +1463,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 

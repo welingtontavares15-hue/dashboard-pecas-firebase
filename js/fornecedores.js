@@ -87,8 +87,13 @@ const Fornecedores = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-truck"></i>
-                    <h4>Nenhum fornecedor encontrado</h4>
-                    <p>${this.searchQuery ? 'Tente uma busca diferente.' : 'Cadastre o primeiro fornecedor.'}</p>
+                    <h4>Você ainda não possui fornecedores</h4>
+                    <p>${this.searchQuery ? 'Tente outro termo para localizar um fornecedor cadastrado.' : 'Cadastre o primeiro fornecedor para organizar compras, peças e histórico de abastecimento.'}</p>
+                    ${Auth.hasPermission('fornecedores', 'create') ? `
+                        <button class="btn btn-primary" onclick="Fornecedores.openForm()">
+                            <i class="fas fa-plus"></i> Novo Fornecedor
+                        </button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -311,4 +316,6 @@ const Fornecedores = {
         }
     }
 };
+
+
 

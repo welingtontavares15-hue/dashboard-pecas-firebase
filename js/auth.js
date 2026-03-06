@@ -66,24 +66,24 @@ const Auth = {
     // Menu items by role
     menus: {
         administrador: [
-            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Principal' },
-            { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Principal', badge: true },
-            { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Principal' },
+            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Operação' },
+            { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
+            { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
-            { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Sistema' }
+            { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
         ],
         gestor: [
-            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Principal' },
-            { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Principal', badge: true },
-            { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Principal' },
+            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Operação' },
+            { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
+            { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
-            { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Sistema' }
+            { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
         ],
         tecnico: [
             { id: 'nova-solicitacao', icon: 'fa-plus-circle', label: 'Nova Solicitação', section: 'Principal' },
@@ -689,4 +689,6 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
+
 

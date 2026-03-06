@@ -1,9 +1,4 @@
-﻿/**
- * Dashboard Module
- * Renders KPIs and charts for gestor/administrador
- */
-
-const Dashboard = {
+﻿const Dashboard = {
     // Number of pending approvals to show in the dashboard preview
     approvalsPreviewLimit: 5,
     rangeDays: null,
@@ -12,7 +7,7 @@ const Dashboard = {
     charts: {},
     recentFilters: {
         search: '',
-        status: '',
+        status: [],
         tecnico: '',
         dateFrom: '',
         dateTo: ''
@@ -43,145 +38,26 @@ const Dashboard = {
                 </div>
             </div>
 
-            <div class="kpi-grid">
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('pendentes')" onkeydown="Dashboard.handleCardKey(event, 'pendentes')" title="Ver solicitações em aberto">
-                    <div class="kpi-icon warning">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Solicitações abertas</h4>
-                        <div class="kpi-value">${Utils.formatNumber(dashboardData.openCount)}</div>
-                        <div class="kpi-change ${dashboardData.openCount > 0 ? 'negative' : 'positive'}">
-                            ${dashboardData.pendingCount} pendentes de aprovação
-                        </div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('aprovacoes')" onkeydown="Dashboard.handleCardKey(event, 'aprovacoes')" title="Ver aprovações do mês">
-                    <div class="kpi-icon success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Aprovadas no mês</h4>
-                        <div class="kpi-value">${Utils.formatNumber(dashboardData.approvedThisMonth)}</div>
-                        <div class="kpi-change">${Utils.formatCurrency(dashboardData.currentMonthCost)}</div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('solicitacoes-rejeitadas')" onkeydown="Dashboard.handleCardKey(event, 'solicitacoes-rejeitadas')" title="Ver solicitações rejeitadas">
-                    <div class="kpi-icon danger">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Solicitações rejeitadas</h4>
-                        <div class="kpi-value">${Utils.formatNumber(dashboardData.rejectedCount)}</div>
-                        <div class="kpi-change">${dashboardData.rangeLabel}</div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('solicitacoes-finalizadas')" onkeydown="Dashboard.handleCardKey(event, 'solicitacoes-finalizadas')" title="Ver solicitações finalizadas">
-                    <div class="kpi-icon primary">
-                        <i class="fas fa-flag-checkered"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Solicitações finalizadas</h4>
-                        <div class="kpi-value">${Utils.formatNumber(dashboardData.completedCount)}</div>
-                        <div class="kpi-change">${dashboardData.deliveredCount} entregues aguardando fechamento</div>
-                    </div>
-                </div>
+            <div class="kpi-grid dashboard-primary-grid">
+                ${this.renderPrimaryKpis(dashboardData)}
             </div>
 
-            <div class="kpi-grid">
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Abrir relatório de custos">
-                    <div class="kpi-icon success">
-                        <i class="fas fa-money-bill-wave"></i>
+            <div class="insight-grid">
+                <div class="card compact-card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-users"></i> Ranking técnico por custo</h4>
                     </div>
-                    <div class="kpi-content">
-                        <h4>Custo mês atual</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(dashboardData.currentMonthCost)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(dashboardData.currentMonthCalls)} atendimentos aprovados</div>
+                    <div class="card-body">
+                        ${this.renderTopTechnicians(dashboardData.topTechniciansByCost, dashboardData.rangeLabel)}
                     </div>
                 </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Comparar custo mensal">
-                    <div class="kpi-icon info">
-                        <i class="fas fa-calendar-alt"></i>
+                <div class="card compact-card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-wave-square"></i> Destaques operacionais</h4>
                     </div>
-                    <div class="kpi-content">
-                        <h4>Custo mês anterior</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(dashboardData.previousMonthCost)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(dashboardData.previousMonthCalls)} atendimentos aprovados</div>
+                    <div class="card-body">
+                        ${this.renderOperationalHighlights(dashboardData)}
                     </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Ver variação de custo">
-                    <div class="kpi-icon ${dashboardData.costVariation >= 0 ? 'warning' : 'success'}">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Variação %</h4>
-                        <div class="kpi-value">${Utils.formatNumber(dashboardData.costVariation, 1)}%</div>
-                        <div class="kpi-change ${dashboardData.costVariation >= 0 ? 'negative' : 'positive'}">
-                            ${dashboardData.costVariation >= 0 ? 'Acima' : 'Abaixo'} do mês anterior
-                        </div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Ver ticket médio">
-                    <div class="kpi-icon primary">
-                        <i class="fas fa-receipt"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Ticket médio</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(dashboardData.averageTicket)}</div>
-                        <div class="kpi-change">Média por solicitação aprovada no mês</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="kpi-grid">
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('solicitacoes')" onkeydown="Dashboard.handleCardKey(event, 'solicitacoes')" title="Ver solicitações do período">
-                    <div class="kpi-icon info">
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Técnico com mais chamados</h4>
-                        <div class="kpi-value">${Utils.escapeHtml(dashboardData.topByCalls.name)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(dashboardData.topByCalls.count)} chamados em ${dashboardData.rangeLabel}</div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Ver custo por técnico">
-                    <div class="kpi-icon warning">
-                        <i class="fas fa-user-tie"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Técnico com maior custo</h4>
-                        <div class="kpi-value">${Utils.escapeHtml(dashboardData.topByCost.name)}</div>
-                        <div class="kpi-change">${Utils.formatCurrency(dashboardData.topByCost.total)} em ${dashboardData.rangeLabel}</div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Ver eficiência por técnico">
-                    <div class="kpi-icon success">
-                        <i class="fas fa-bullseye"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Técnico mais eficiente</h4>
-                        <div class="kpi-value">${Utils.escapeHtml(dashboardData.mostEfficient.name)}</div>
-                        <div class="kpi-change">${Utils.formatCurrency(dashboardData.mostEfficient.costPerCall)} por chamado</div>
-                    </div>
-                </div>
-                <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('relatorios')" onkeydown="Dashboard.handleCardKey(event, 'relatorios')" title="Abrir tendência de custo mensal">
-                    <div class="kpi-icon primary">
-                        <i class="fas fa-wand-magic-sparkles"></i>
-                    </div>
-                    <div class="kpi-content">
-                        <h4>Previsão próximo mês</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(dashboardData.forecastNextMonth)}</div>
-                        <div class="kpi-change">Média dos últimos 3 meses aprovados</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card compact-card">
-                <div class="card-header">
-                    <h4><i class="fas fa-users"></i> Ranking técnico por custo</h4>
-                </div>
-                <div class="card-body">
-                    ${this.renderTopTechnicians(dashboardData.topTechniciansByCost, dashboardData.rangeLabel)}
                 </div>
             </div>
 
@@ -203,35 +79,53 @@ const Dashboard = {
                         <h4><i class="fas fa-history"></i> Solicitações Recentes</h4>
                         <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Busca rápida, filtros e ações diretas.</p>
                     </div>
-                    <div class="dashboard-filters">
-                        <div class="search-box">
-                            <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente ou técnico..." value="${Utils.escapeHtml(this.recentFilters.search)}">
-                            <button class="btn btn-primary" onclick="Dashboard.applyRecentFilters()">
-                                <i class="fas fa-search"></i>
+                    <details class="filter-panel compact" open>
+                        <summary class="filter-panel-toggle">Filtros</summary>
+                        <div class="dashboard-filters filter-panel-body">
+                            <div class="search-box">
+                                <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente ou técnico..." value="${Utils.escapeHtml(this.recentFilters.search)}">
+                                <button class="btn btn-primary" onclick="Dashboard.applyRecentFilters()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div class="status-filter" data-status-filter="recent-status" role="group" aria-label="Filtro rápido de status">
+                                <button type="button" class="status-filter-trigger" data-status-trigger="recent-status">
+                                    <span class="status-filter-label">
+                                        <i class="fas fa-filter"></i>
+                                        <span class="status-filter-label-text">${this.getRecentSelectedStatusSummary().length > 0 ? `${this.getRecentSelectedStatusSummary().length} status selecionado(s)` : 'Todos os status'}</span>
+                                    </span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="status-filter-dropdown" data-status-dropdown="recent-status">
+                                    <div class="status-filter-summary">
+                                        ${this.getRecentSelectedStatusSummary().length > 0
+                                            ? this.getRecentSelectedStatusSummary().map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                                            : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
+                                    </div>
+                                    <div class="status-filter-options">
+                                        ${this.getRecentStatusOptions().map(option => `
+                                            <label class="status-filter-option">
+                                                <input type="checkbox" data-status-group="recent-status" value="${option.value}" ${Array.isArray(this.recentFilters.status) && this.recentFilters.status.includes(option.value) ? 'checked' : ''}>
+                                                <span>${option.label}</span>
+                                                ${Utils.renderStatusBadge(option.value)}
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            <select id="recent-tecnico" class="form-control">
+                                <option value="">Técnico</option>
+                                ${DataManager.getTechnicians().map(t => `
+                                    <option value="${t.id}" ${this.recentFilters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
+                                `).join('')}
+                            </select>
+                            <input type="date" id="recent-date-from" class="form-control" value="${this.recentFilters.dateFrom}">
+                            <input type="date" id="recent-date-to" class="form-control" value="${this.recentFilters.dateTo}">
+                            <button class="btn btn-outline btn-sm" id="recent-clear" title="Limpar filtros">
+                                <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <select id="recent-status" class="form-control">
-                            <option value="">Status</option>
-                            <option value="pendente" ${this.recentFilters.status === 'pendente' ? 'selected' : ''}>Pendente</option>
-                            <option value="aprovada" ${this.recentFilters.status === 'aprovada' ? 'selected' : ''}>Aprovada</option>
-                            <option value="rejeitada" ${this.recentFilters.status === 'rejeitada' ? 'selected' : ''}>Rejeitada</option>
-                            <option value="em-transito" ${this.recentFilters.status === 'em-transito' ? 'selected' : ''}>Rastreio</option>
-                            <option value="entregue" ${this.recentFilters.status === 'entregue' ? 'selected' : ''}>Entregue</option>
-                            <option value="finalizada" ${this.recentFilters.status === 'finalizada' ? 'selected' : ''}>Finalizada</option>
-                            <option value="historico-manual" ${this.recentFilters.status === 'historico-manual' ? 'selected' : ''}>Histórico/Manual</option>
-                        </select>
-                        <select id="recent-tecnico" class="form-control">
-                            <option value="">Técnico</option>
-                            ${DataManager.getTechnicians().map(t => `
-                                <option value="${t.id}" ${this.recentFilters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
-                            `).join('')}
-                        </select>
-                        <input type="date" id="recent-date-from" class="form-control" value="${this.recentFilters.dateFrom}">
-                        <input type="date" id="recent-date-to" class="form-control" value="${this.recentFilters.dateTo}">
-                        <button class="btn btn-outline btn-sm" id="recent-clear" title="Limpar filtros">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+                    </details>
                 </div>
                 <div class="card-body">
                     <div id="recent-table-container">
@@ -243,6 +137,72 @@ const Dashboard = {
 
         this.bindRecentFilters();
     },
+    renderPrimaryKpis(dashboardData) {
+        const cards = [
+            {
+                title: 'Solicitações abertas',
+                value: Utils.formatNumber(dashboardData.openCount),
+                change: `${Utils.formatNumber(dashboardData.pendingCount)} pendentes de aprovação`,
+                icon: 'fa-inbox',
+                tone: 'warning',
+                target: 'pendentes'
+            },
+            {
+                title: 'Solicitações no mês',
+                value: Utils.formatNumber(dashboardData.currentMonthRequests),
+                change: `${Utils.formatNumber(dashboardData.approvedThisMonth)} aprovadas no mês`,
+                icon: 'fa-calendar-days',
+                tone: 'info',
+                target: 'solicitacoes'
+            },
+            {
+                title: 'Custo total do mês',
+                value: Utils.formatCurrency(dashboardData.currentMonthCost),
+                change: `${Utils.formatNumber(dashboardData.currentMonthCalls)} atendimentos aprovados`,
+                icon: 'fa-money-bill-wave',
+                tone: 'success',
+                target: 'relatorios'
+            },
+            {
+                title: 'Ticket médio',
+                value: Utils.formatCurrency(dashboardData.averageTicket),
+                change: 'Média por solicitação aprovada',
+                icon: 'fa-receipt',
+                tone: 'primary',
+                target: 'relatorios'
+            },
+            {
+                title: 'Variação vs mês anterior',
+                value: `${Utils.formatNumber(dashboardData.costVariation, 1)}%`,
+                change: dashboardData.costVariation >= 0 ? 'Acima do mês anterior' : 'Abaixo do mês anterior',
+                icon: 'fa-chart-line',
+                tone: dashboardData.costVariation >= 0 ? 'warning' : 'success',
+                changeClass: dashboardData.costVariation >= 0 ? 'negative' : 'positive',
+                target: 'relatorios'
+            },
+            {
+                title: 'SLA médio',
+                value: Utils.formatDuration(dashboardData.slaAverageHours),
+                change: `${Utils.formatNumber(dashboardData.slaBaseCount)} solicitação(ões) analisadas`,
+                icon: 'fa-stopwatch',
+                tone: 'info',
+                target: 'aprovacoes'
+            }
+        ];
+
+        return cards.map(card => `
+            <div class="kpi-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('${card.target}')" onkeydown="Dashboard.handleCardKey(event, '${card.target}')" title="${card.title}">
+                <div class="kpi-icon ${card.tone}">
+                    <i class="fas ${card.icon}"></i>
+                </div>
+                <div class="kpi-content">
+                    <h4>${card.title}</h4>
+                    <div class="kpi-value">${card.value}</div>
+                    <div class="kpi-change ${card.changeClass || ''}">${card.change}</div>
+                </div>
+            </div>
+        `).join('');
+    },
 
     buildDashboardMetrics(solicitations = [], rangeDays = 30) {
         const now = new Date();
@@ -252,7 +212,6 @@ const Dashboard = {
         const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const monthBeforePreviousStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
 
         const getReferenceTime = (sol) => {
             const preferred = sol.approvedAt || sol.createdAt || sol.updatedAt || sol.data;
@@ -267,11 +226,20 @@ const Dashboard = {
 
         const currentMonthApproved = approvedInPeriod(currentMonthStart, nextMonthStart);
         const previousMonthApproved = approvedInPeriod(previousMonthStart, currentMonthStart);
-        const monthBeforePreviousApproved = approvedInPeriod(monthBeforePreviousStart, previousMonthStart);
+        const currentMonthRequests = solicitations.filter(sol => {
+            const reference = Utils.parseAsLocalDate(sol.data || sol.createdAt);
+            return !isNaN(reference) && reference.getTime() >= currentMonthStart.getTime() && reference.getTime() < nextMonthStart.getTime();
+        });
         const rangeSolicitations = solicitations.filter(sol => {
             const reference = Utils.parseAsLocalDate(sol.data || sol.createdAt);
-            return !isNaN(reference) && reference.getTime() >= rangeStart.getTime();
+            return !isNaN(reference) && reference.getTime() >= rangeStart.getTime() && reference.getTime() <= now.getTime();
         });
+
+        const rangeMonthKeys = new Set(rangeSolicitations.map(sol => {
+            const reference = Utils.parseAsLocalDate(sol.data || sol.createdAt);
+            return `${reference.getFullYear()}-${String(reference.getMonth() + 1).padStart(2, '0')}`;
+        }));
+        const monthSpan = Math.max(rangeMonthKeys.size, rangeSolicitations.length > 0 ? 1 : 0);
 
         const technicianMap = new Map();
         rangeSolicitations.forEach(sol => {
@@ -298,16 +266,22 @@ const Dashboard = {
         const currentMonthCost = currentMonthApproved.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0);
         const previousMonthCost = previousMonthApproved.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0);
         const averageTicket = currentMonthApproved.length > 0 ? currentMonthCost / currentMonthApproved.length : 0;
-        const forecastSources = [currentMonthApproved, previousMonthApproved, monthBeforePreviousApproved]
-            .map(month => month.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0));
-        const validForecastSources = forecastSources.filter(value => value > 0);
-        const forecastNextMonth = validForecastSources.length > 0
-            ? validForecastSources.reduce((sum, value) => sum + value, 0) / validForecastSources.length
-            : 0;
+        const slaSamples = currentMonthApproved
+            .map(sol => {
+                const createdAt = Utils.parseAsLocalDate(sol.createdAt || sol.data);
+                const completedAt = Utils.parseAsLocalDate(sol.approvedAt || sol.updatedAt || sol.data);
+                if (isNaN(createdAt) || isNaN(completedAt)) {
+                    return null;
+                }
+                return Math.max((completedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60), 0);
+            })
+            .filter(value => value !== null);
+        const slaAverageHours = slaSamples.length > 0 ? slaSamples.reduce((sum, value) => sum + value, 0) / slaSamples.length : 0;
 
         return {
             openCount: solicitations.filter(sol => !['rejeitada', 'finalizada', 'historico-manual'].includes(sol.status)).length,
             pendingCount: solicitations.filter(sol => sol.status === 'pendente').length,
+            currentMonthRequests: currentMonthRequests.length,
             approvedThisMonth: currentMonthApproved.length,
             rejectedCount: solicitations.filter(sol => sol.status === 'rejeitada').length,
             completedCount: solicitations.filter(sol => sol.status === 'finalizada').length,
@@ -318,7 +292,10 @@ const Dashboard = {
             previousMonthCalls: previousMonthApproved.length,
             costVariation: previousMonthCost > 0 ? ((currentMonthCost - previousMonthCost) / previousMonthCost) * 100 : (currentMonthCost > 0 ? 100 : 0),
             averageTicket,
-            forecastNextMonth,
+            slaAverageHours,
+            slaBaseCount: slaSamples.length,
+            monthlyAverageRequests: monthSpan > 0 ? rangeSolicitations.length / monthSpan : 0,
+            monthSpan,
             topByCalls,
             topByCost,
             mostEfficient,
@@ -329,8 +306,7 @@ const Dashboard = {
 
     /**
      * Render approvals preview
-     */
-    renderApprovalsPreview(pendingSolicitations = []) {
+     */    renderApprovalsPreview(pendingSolicitations = []) {
         const pending = [...pendingSolicitations]
             .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
             .slice(0, this.approvalsPreviewLimit);
@@ -440,6 +416,33 @@ const Dashboard = {
 
     /**
      * Render recent solicitations table     */
+    renderOperationalHighlights(dashboardData) {
+        return `
+            <div class="metric-list">
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Maior volume de chamados</span>
+                    <strong>${Utils.escapeHtml(dashboardData.topByCalls.name)}</strong>
+                    <span class="metric-list-meta">${Utils.formatNumber(dashboardData.topByCalls.count)} chamados em ${Utils.escapeHtml(dashboardData.rangeLabel)}</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Maior custo</span>
+                    <strong>${Utils.escapeHtml(dashboardData.topByCost.name)}</strong>
+                    <span class="metric-list-meta">${Utils.formatCurrency(dashboardData.topByCost.total)} no período</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Melhor eficiência</span>
+                    <strong>${Utils.escapeHtml(dashboardData.mostEfficient.name)}</strong>
+                    <span class="metric-list-meta">${Utils.formatCurrency(dashboardData.mostEfficient.costPerCall)} por chamado</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Média mensal do período</span>
+                    <strong>${Utils.formatNumber(dashboardData.monthlyAverageRequests, 1)}</strong>
+                    <span class="metric-list-meta">${Utils.formatNumber(dashboardData.monthSpan)} mês(es) cobertos</span>
+                </div>
+            </div>
+        `;
+    },
+
     renderRecentTable() {
         const solicitations = this.getFilteredRecentSolicitations();
         const slaHours = DataManager.getSettings().slaHours || 24;
@@ -449,8 +452,8 @@ const Dashboard = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-inbox"></i>
-                    <h4>Nenhuma solicitação</h4>
-                    <p>${Object.values(this.recentFilters).some(Boolean) ? 'Ajuste os filtros para ver mais resultados.' : 'As solicitações recentes aparecerão aqui.'}</p>
+                    <h4>Sem solicitações recentes</h4>
+                    <p>${this.hasActiveRecentFilters() ? 'Revise os filtros para exibir as solicitações do período desejado.' : 'As solicitações mais recentes aparecerão aqui assim que a operação começar a registrar atendimentos.'}</p>
                 </div>
             `;
         }
@@ -524,6 +527,7 @@ const Dashboard = {
         };
 
         const { search, status, tecnico, dateFrom, dateTo } = this.recentFilters;
+        const selectedStatuses = Array.isArray(status) ? status : (status ? [status] : []);
         let solicitations = DataManager.getSolicitations()
             .slice()
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -534,8 +538,8 @@ const Dashboard = {
             );
         }
 
-        if (status) {
-            solicitations = solicitations.filter(s => s.status === status);
+        if (selectedStatuses.length > 0) {
+            solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
         }
 
         if (tecnico) {
@@ -571,12 +575,32 @@ const Dashboard = {
             });
         }
 
-        ['recent-status', 'recent-tecnico', 'recent-date-from', 'recent-date-to'].forEach(id => {
+        ['recent-tecnico', 'recent-date-from', 'recent-date-to'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => this.applyRecentFilters());
             }
         });
+
+        const trigger = document.querySelector('[data-status-trigger="recent-status"]');
+        if (trigger) {
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleRecentStatusDropdown();
+            });
+        }
+
+        document.querySelectorAll('[data-status-group="recent-status"]').forEach(input => {
+            input.addEventListener('change', () => this.applyRecentFilters());
+            input.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        document.querySelectorAll('[data-status-dropdown="recent-status"]').forEach(panel => {
+            panel.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        this.bindRecentStatusDropdownClose();
 
         const clearBtn = document.getElementById('recent-clear');
         if (clearBtn) {
@@ -588,7 +612,7 @@ const Dashboard = {
 
     applyRecentFilters() {
         this.recentFilters.search = document.getElementById('recent-search')?.value || '';
-        this.recentFilters.status = document.getElementById('recent-status')?.value || '';
+        this.recentFilters.status = Array.from(document.querySelectorAll('[data-status-group="recent-status"]:checked')).map(option => option.value);
         this.recentFilters.tecnico = document.getElementById('recent-tecnico')?.value || '';
         this.recentFilters.dateFrom = document.getElementById('recent-date-from')?.value || '';
         this.recentFilters.dateTo = document.getElementById('recent-date-to')?.value || '';
@@ -596,13 +620,13 @@ const Dashboard = {
     },
 
     clearRecentFilters() {
-        this.recentFilters = { search: '', status: '', tecnico: '', dateFrom: '', dateTo: '' };
+        this.recentFilters = { search: '', status: [], tecnico: '', dateFrom: '', dateTo: '' };
         if (document.getElementById('recent-search')) {
             document.getElementById('recent-search').value = '';
         }
-        if (document.getElementById('recent-status')) {
-            document.getElementById('recent-status').value = '';
-        }
+        document.querySelectorAll('[data-status-group="recent-status"]').forEach(option => {
+            option.checked = false;
+        });
         if (document.getElementById('recent-tecnico')) {
             document.getElementById('recent-tecnico').value = '';
         }
@@ -620,6 +644,61 @@ const Dashboard = {
         if (container) {
             container.innerHTML = this.renderRecentTable();
         }
+    },
+
+    getRecentStatusOptions() {
+        return [
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovada', label: 'Aprovada' },
+            { value: 'rejeitada', label: 'Rejeitada' },
+            { value: 'em-transito', label: 'Rastreio' },
+            { value: 'entregue', label: 'Entregue' },
+            { value: 'finalizada', label: 'Finalizada' },
+            { value: 'historico-manual', label: 'Histórico/Manual' }
+        ];
+    },
+
+    getRecentSelectedStatusSummary() {
+        const selectedValues = Array.isArray(this.recentFilters.status) ? this.recentFilters.status : [];
+        return this.getRecentStatusOptions().filter(option => selectedValues.includes(option.value));
+    },
+
+    toggleRecentStatusDropdown() {
+        const filter = document.querySelector('[data-status-filter="recent-status"]');
+        if (!filter) {
+            return;
+        }
+
+        const shouldOpen = !filter.classList.contains('open');
+        this.closeRecentStatusDropdowns();
+        if (shouldOpen) {
+            filter.classList.add('open');
+        }
+    },
+
+    closeRecentStatusDropdowns() {
+        document.querySelectorAll('[data-status-filter="recent-status"].open').forEach(filter => {
+            filter.classList.remove('open');
+        });
+    },
+
+    bindRecentStatusDropdownClose() {
+        if (this._recentStatusDropdownCloseBound) {
+            return;
+        }
+
+        document.addEventListener('click', () => this.closeRecentStatusDropdowns());
+        this._recentStatusDropdownCloseBound = true;
+    },
+
+    hasActiveRecentFilters() {
+        return !!(
+            this.recentFilters.search ||
+            this.recentFilters.tecnico ||
+            this.recentFilters.dateFrom ||
+            this.recentFilters.dateTo ||
+            (Array.isArray(this.recentFilters.status) && this.recentFilters.status.length > 0)
+        );
     },
 
     /**
@@ -832,10 +911,8 @@ const Dashboard = {
             let navRetry = 0;
             const applyFilterAfterNav = () => {
                 if (App.currentPage === 'solicitacoes') {
-                    const statusSelect = document.getElementById('sol-status-filter');
-                    if (statusSelect) {
-                        statusSelect.value = 'pendente';
-                        Solicitacoes.applyFilters();
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['pendente']);
                     }
                 } else if (navRetry < this.MAX_NAV_RETRY) {
                     navRetry += 1;
@@ -856,10 +933,8 @@ const Dashboard = {
             let navRetry = 0;
             const applyRejectedFilterAfterNav = () => {
                 if (App.currentPage === 'solicitacoes') {
-                    const statusSelect = document.getElementById('sol-status-filter');
-                    if (statusSelect) {
-                        statusSelect.value = 'rejeitada';
-                        Solicitacoes.applyFilters();
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['rejeitada']);
                     }
                 } else if (navRetry < this.MAX_NAV_RETRY) {
                     navRetry += 1;
@@ -874,10 +949,8 @@ const Dashboard = {
             let navRetry = 0;
             const applyFinalizedFilterAfterNav = () => {
                 if (App.currentPage === 'solicitacoes') {
-                    const statusSelect = document.getElementById('sol-status-filter');
-                    if (statusSelect) {
-                        statusSelect.value = 'finalizada';
-                        Solicitacoes.applyFilters();
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['finalizada']);
                     }
                 } else if (navRetry < this.MAX_NAV_RETRY) {
                     navRetry += 1;
@@ -905,6 +978,16 @@ const Dashboard = {
         }
     }
 };
+
+
+
+
+
+
+
+
+
+
 
 
 

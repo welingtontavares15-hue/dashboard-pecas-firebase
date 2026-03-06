@@ -8,7 +8,7 @@ const Relatorios = {
     filters: {
         dateFrom: '',
         dateTo: '',
-        status: '',
+        status: [],
         tecnico: '',
         regiao: '',
         cliente: ''
@@ -53,6 +53,7 @@ const Relatorios = {
             </div>
 
         `;
+        this.afterRender();
     },
 
     /**
@@ -61,7 +62,6 @@ const Relatorios = {
     switchReport(report) {
         this.currentReport = report;
         this.render();
-        setTimeout(() => this.initCharts(), 50);
     },
 
     /**
@@ -108,22 +108,7 @@ const Relatorios = {
                         </div>
                         <div class="filter-group">
                             <label>Status:</label>
-                            <select id="report-status" class="form-control">
-                                <option value="">Todos</option>
-                                ${[
-        { value: 'pendente', label: 'Pendente' },
-        { value: 'aprovada', label: 'Aprovada' },
-        { value: 'rejeitada', label: 'Rejeitada' },
-        { value: 'em-transito', label: 'Rastreio' },
-        { value: 'entregue', label: 'Entregue' },
-        { value: 'finalizada', label: 'Finalizada' },
-        { value: 'historico-manual', label: 'Historico/Manual' }
-    ].map(option => `
-                                    <option value="${option.value}" ${this.filters.status === option.value ? 'selected' : ''}>
-                                        ${option.label}
-                                    </option>
-                                `).join('')}
-                            </select>
+                            ${this.renderStatusMultiSelect('report-status')}
                         </div>
                         <div class="filter-group">
                             <label>Tecnico:</label>
@@ -157,6 +142,7 @@ const Relatorios = {
      */
     generateSolicitacoesTable() {
         const solicitations = this.getFilteredSolicitations();
+        const monthlySummary = this.buildMonthlyAverageSummary(solicitations);
 
         if (solicitations.length === 0) {
             return this.renderEmptyState(
@@ -191,6 +177,13 @@ const Relatorios = {
                     <div class="kpi-content">
                         <h4>Total de itens</h4>
                         <div class="kpi-value">${Utils.formatNumber(totalItems)}</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h4>Media mensal</h4>
+                        <div class="kpi-value">${Utils.formatNumber(monthlySummary.averagePerMonth, 2)}</div>
+                        <div class="kpi-change">${Utils.formatNumber(monthlySummary.monthCount)} mes(es) no periodo</div>
                     </div>
                 </div>
                 ${Object.entries(byStatus).map(([status, count]) => `
@@ -246,8 +239,7 @@ const Relatorios = {
 
     /**
      * Render cost dashboard report
-     */
-    renderCustosReport() {
+     */    renderCustosReport() {
         const analysis = this.buildCostAnalysis();
         const latestMonth = analysis.latestMonth;
         const topClients = analysis.byClient.slice(0, 6);
@@ -669,6 +661,10 @@ const Relatorios = {
                     <input type="date" id="report-date-to" class="form-control" value="${this.filters.dateTo}">
                 </div>
                 <div class="filter-group">
+                    <label>Status:</label>
+                    ${this.renderStatusMultiSelect('report-status')}
+                </div>
+                <div class="filter-group">
                     <label>Regiao:</label>
                     <select id="report-regiao" class="form-control">
                         <option value="">Todas</option>
@@ -712,13 +708,177 @@ const Relatorios = {
         `;
     },
 
+    afterRender() {
+        this.bindFilterControls();
+        setTimeout(() => this.initCharts(), 50);
+    },
+
+    bindFilterControls() {
+        ['report-date-from', 'report-date-to', 'report-tecnico', 'report-regiao', 'report-cliente'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => this.applyFilters());
+            }
+        });
+
+        const trigger = document.querySelector('[data-status-trigger="report-status"]');
+        if (trigger) {
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleStatusDropdown('report-status');
+            });
+        }
+
+        document.querySelectorAll('[data-status-group="report-status"]').forEach(input => {
+            input.addEventListener('change', () => this.applyFilters());
+            input.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        document.querySelectorAll('[data-status-dropdown="report-status"]').forEach(panel => {
+            panel.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        this.bindStatusDropdownClose();
+    },
+
+    getStatusOptions() {
+        return [
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovada', label: 'Aprovada' },
+            { value: 'rejeitada', label: 'Rejeitada' },
+            { value: 'em-transito', label: 'Rastreio' },
+            { value: 'entregue', label: 'Entregue' },
+            { value: 'finalizada', label: 'Finalizada' },
+            { value: 'historico-manual', label: 'Historico/Manual' }
+        ];
+    },
+
+    renderStatusMultiSelect(controlId) {
+        const selected = this.getSelectedStatusSummary();
+        const summaryText = selected.length > 0
+            ? `${selected.length} status selecionado(s)`
+            : 'Todos os status';
+
+        return `
+            <div class="status-filter" data-status-filter="${controlId}" role="group" aria-label="Filtro de status">
+                <button type="button" class="status-filter-trigger" data-status-trigger="${controlId}">
+                    <span class="status-filter-label">
+                        <i class="fas fa-filter"></i>
+                        <span class="status-filter-label-text">${Utils.escapeHtml(summaryText)}</span>
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="status-filter-dropdown" data-status-dropdown="${controlId}">
+                    <div class="status-filter-summary">
+                        ${selected.length > 0
+                            ? selected.map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                            : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
+                    </div>
+                    <div class="status-filter-options">
+                        ${this.getStatusOptions().map(option => `
+                            <label class="status-filter-option">
+                                <input type="checkbox" data-status-group="${controlId}" value="${option.value}" ${this.isStatusSelected(option.value) ? 'checked' : ''}>
+                                <span>${option.label}</span>
+                                ${Utils.renderStatusBadge(option.value)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    isStatusSelected(value) {
+        return Array.isArray(this.filters.status) && this.filters.status.includes(value);
+    },
+
+    getSelectedStatusValues(controlId = 'report-status') {
+        return Array.from(document.querySelectorAll(`[data-status-group="${controlId}"]:checked`)).map(option => option.value);
+    },
+
+    getSelectedStatusSummary() {
+        const selectedValues = Array.isArray(this.filters.status) ? this.filters.status : [];
+        return this.getStatusOptions().filter(option => selectedValues.includes(option.value));
+    },
+
+    toggleStatusDropdown(controlId = 'report-status') {
+        const filter = document.querySelector(`[data-status-filter="${controlId}"]`);
+        if (!filter) {
+            return;
+        }
+
+        const shouldOpen = !filter.classList.contains('open');
+        this.closeStatusDropdowns();
+        if (shouldOpen) {
+            filter.classList.add('open');
+        }
+    },
+
+    closeStatusDropdowns() {
+        document.querySelectorAll('.status-filter.open').forEach(filter => {
+            filter.classList.remove('open');
+        });
+    },
+
+    bindStatusDropdownClose() {
+        if (this._statusDropdownCloseBound) {
+            return;
+        }
+
+        document.addEventListener('click', () => this.closeStatusDropdowns());
+        this._statusDropdownCloseBound = true;
+    },
+
+    matchesDateRange(date) {
+        if (!date || isNaN(date)) {
+            return false;
+        }
+
+        let isValid = true;
+        if (this.filters.dateFrom) {
+            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
+            from.setHours(0, 0, 0, 0);
+            isValid = isValid && date.getTime() >= from.getTime();
+        }
+
+        if (this.filters.dateTo) {
+            const to = Utils.parseAsLocalDate(this.filters.dateTo);
+            to.setHours(23, 59, 59, 999);
+            isValid = isValid && date.getTime() <= to.getTime();
+        }
+
+        return isValid;
+    },
+
+    buildMonthlyAverageSummary(solicitations = []) {
+        const monthlyGroups = new Map();
+
+        solicitations.forEach(sol => {
+            const date = this.getSolicitationDate(sol);
+            if (!date || isNaN(date)) {
+                return;
+            }
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            monthlyGroups.set(key, (monthlyGroups.get(key) || 0) + 1);
+        });
+
+        const monthCount = monthlyGroups.size;
+        const total = Array.from(monthlyGroups.values()).reduce((sum, count) => sum + count, 0);
+
+        return {
+            monthCount,
+            averagePerMonth: monthCount > 0 ? total / monthCount : 0
+        };
+    },
+
     /**
      * Apply filters
      */
     applyFilters() {
         this.filters.dateFrom = document.getElementById('report-date-from')?.value || '';
         this.filters.dateTo = document.getElementById('report-date-to')?.value || '';
-        this.filters.status = document.getElementById('report-status')?.value || '';
+        this.filters.status = this.getSelectedStatusValues('report-status');
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
@@ -726,7 +886,7 @@ const Relatorios = {
         const reportContent = document.getElementById('report-content');
         if (reportContent) {
             reportContent.innerHTML = this.renderReportContent();
-            setTimeout(() => this.initCharts(), 50);
+            this.afterRender();
         }
     },
 
@@ -737,7 +897,7 @@ const Relatorios = {
         this.filters = {
             dateFrom: '',
             dateTo: '',
-            status: '',
+            status: [],
             tecnico: '',
             regiao: '',
             cliente: ''
@@ -746,34 +906,20 @@ const Relatorios = {
         const reportContent = document.getElementById('report-content');
         if (reportContent) {
             reportContent.innerHTML = this.renderReportContent();
-            setTimeout(() => this.initCharts(), 50);
+            this.afterRender();
         }
     },
     /**
      * Get filtered solicitations for the generic report
      */
     getFilteredSolicitations() {
+        const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : [];
         let solicitations = [...DataManager.getSolicitations()];
 
-        if (this.filters.dateFrom) {
-            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
-            solicitations = solicitations.filter(s => {
-                const date = this.getSolicitationDate(s);
-                return date && date >= from;
-            });
-        }
+        solicitations = solicitations.filter(s => this.matchesDateRange(this.getSolicitationDate(s)));
 
-        if (this.filters.dateTo) {
-            const to = Utils.parseAsLocalDate(this.filters.dateTo);
-            to.setHours(23, 59, 59, 999);
-            solicitations = solicitations.filter(s => {
-                const date = this.getSolicitationDate(s);
-                return date && date <= to;
-            });
-        }
-
-        if (this.filters.status) {
-            solicitations = solicitations.filter(s => s.status === this.filters.status);
+        if (selectedStatuses.length > 0) {
+            solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
         }
 
         if (this.filters.tecnico) {
@@ -787,24 +933,12 @@ const Relatorios = {
      * Get solicitations used in cost reports
      */
     getFilteredCostSolicitations() {
-        let solicitations = DataManager.getSolicitations().filter(s => this.isCostRelevantStatus(s.status));
+        const selectedStatuses = Array.isArray(this.filters.status) && this.filters.status.length > 0
+            ? this.filters.status
+            : this.costStatuses;
 
-        if (this.filters.dateFrom) {
-            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
-            solicitations = solicitations.filter(s => {
-                const date = this.getSolicitationDate(s);
-                return date && date >= from;
-            });
-        }
-
-        if (this.filters.dateTo) {
-            const to = Utils.parseAsLocalDate(this.filters.dateTo);
-            to.setHours(23, 59, 59, 999);
-            solicitations = solicitations.filter(s => {
-                const date = this.getSolicitationDate(s);
-                return date && date <= to;
-            });
-        }
+        let solicitations = DataManager.getSolicitations().filter(s => selectedStatuses.includes(s.status));
+        solicitations = solicitations.filter(s => this.matchesDateRange(this.getSolicitationDate(s)));
 
         if (this.filters.tecnico) {
             solicitations = solicitations.filter(s => s.tecnicoId === this.filters.tecnico);
@@ -1428,6 +1562,13 @@ const Relatorios = {
         `;
     }
 };
+
+
+
+
+
+
+
 
 
 
