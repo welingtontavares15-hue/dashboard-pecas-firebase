@@ -1240,3 +1240,365 @@ Equipe Diversey`;
     }
 };
 
+
+const AnalyticsHelper = {
+    COST_STATUSES: [''aprovada'', ''em-transito'', ''entregue'', ''finalizada'', ''historico-manual''],
+
+    getDefaultRangeDays() {
+        return DataManager.getSettings().statsRangeDays || 30;
+    },
+
+    getGlobalPeriodFilter() {
+        const settings = DataManager.getSettings();
+        const saved = settings.globalPeriodFilter || {};
+        return this.normalizePeriod(saved);
+    },
+
+    normalizePeriod(period = {}) {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        let rangeDays = Number(period.rangeDays) || this.getDefaultRangeDays();
+        let dateFrom = period.dateFrom || '';
+        let dateTo = period.dateTo || '';
+
+        if (!dateFrom || !dateTo) {
+            const end = new Date(today);
+            const start = new Date(today);
+            start.setHours(0, 0, 0, 0);
+            start.setDate(start.getDate() - Math.max(rangeDays - 1, 0));
+            dateFrom = Utils.getLocalDateString(start);
+            dateTo = Utils.getLocalDateString(end);
+        }
+
+        const from = Utils.parseAsLocalDate(dateFrom);
+        const to = Utils.parseAsLocalDate(dateTo);
+        from.setHours(0, 0, 0, 0);
+        to.setHours(23, 59, 59, 999);
+
+        const diffDays = Math.max(Math.round((to.getTime() - from.getTime()) / 86400000) + 1, 1);
+        const normalizedRange = period.rangeDays && diffDays === Number(period.rangeDays) ? Number(period.rangeDays) : diffDays;
+
+        return {
+            dateFrom: Utils.getLocalDateString(from),
+            dateTo: Utils.getLocalDateString(to),
+            rangeDays: normalizedRange,
+            from,
+            to,
+            isCustom: ![7, 30, 90].includes(normalizedRange)
+        };
+    },
+
+    saveGlobalPeriodFilter(period = {}) {
+        const normalized = this.normalizePeriod(period);
+        DataManager.saveSetting('globalPeriodFilter', {
+            dateFrom: normalized.dateFrom,
+            dateTo: normalized.dateTo,
+            rangeDays: normalized.rangeDays
+        });
+        DataManager.saveSetting('statsRangeDays', normalized.rangeDays);
+        return normalized;
+    },
+
+    setGlobalPeriodByDays(days) {
+        return this.saveGlobalPeriodFilter({ rangeDays: days });
+    },
+
+    getRangeLabel(period = this.getGlobalPeriodFilter()) {
+        const normalized = this.normalizePeriod(period);
+        if ([7, 30, 90].includes(normalized.rangeDays)) {
+            return `Últimos ${normalized.rangeDays} dias`;
+        }
+        return `${Utils.formatDate(normalized.dateFrom)} a ${Utils.formatDate(normalized.dateTo)}`;
+    },
+
+    getPreviousPeriod(period = this.getGlobalPeriodFilter()) {
+        const normalized = this.normalizePeriod(period);
+        const previousEnd = new Date(normalized.from);
+        previousEnd.setDate(previousEnd.getDate() - 1);
+        previousEnd.setHours(23, 59, 59, 999);
+        const previousStart = new Date(previousEnd);
+        previousStart.setDate(previousStart.getDate() - Math.max(normalized.rangeDays - 1, 0));
+        previousStart.setHours(0, 0, 0, 0);
+
+        return {
+            dateFrom: Utils.getLocalDateString(previousStart),
+            dateTo: Utils.getLocalDateString(previousEnd),
+            rangeDays: normalized.rangeDays,
+            from: previousStart,
+            to: previousEnd,
+            isCustom: normalized.isCustom
+        };
+    },
+
+    getSolicitationDate(solicitation) {
+        if (solicitation?.data) {
+            const parsed = Utils.parseAsLocalDate(solicitation.data);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+        if (solicitation?.createdAt) {
+            const parsed = Utils.parseAsLocalDate(solicitation.createdAt);
+            if (!isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+        return null;
+    },
+
+    getSolicitationClientName(solicitation) {
+        const client = String(solicitation?.cliente || solicitation?.clienteNome || '').trim();
+        return client || 'Nao informado';
+    },
+
+    getSolicitationRegion(solicitation) {
+        const technician = solicitation?.tecnicoId ? DataManager.getTechnicianById(solicitation.tecnicoId) : null;
+        return String(technician?.regiao || technician?.estado || solicitation?.regiao || '').trim() || 'Sem regiao';
+    },
+
+    formatMonthLabel(date) {
+        return new Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' }).format(date);
+    },
+
+    matchesPeriod(date, period = this.getGlobalPeriodFilter()) {
+        if (!date || isNaN(date)) {
+            return false;
+        }
+        const normalized = this.normalizePeriod(period);
+        return date.getTime() >= normalized.from.getTime() && date.getTime() <= normalized.to.getTime();
+    },
+
+    filterSolicitations(solicitations = [], options = {}) {
+        const period = this.normalizePeriod(options.period || this.getGlobalPeriodFilter());
+        const statuses = Array.isArray(options.statuses) ? options.statuses.filter(Boolean) : [];
+        const tecnico = options.tecnico || '';
+        const regiao = options.regiao || '';
+        const cliente = options.cliente || '';
+
+        return solicitations.filter((solicitation) => {
+            const date = this.getSolicitationDate(solicitation);
+            if (!this.matchesPeriod(date, period)) {
+                return false;
+            }
+            if (statuses.length > 0 && !statuses.includes(solicitation.status)) {
+                return false;
+            }
+            if (tecnico && solicitation.tecnicoId !== tecnico) {
+                return false;
+            }
+            if (regiao && this.getSolicitationRegion(solicitation) !== regiao) {
+                return false;
+            }
+            if (cliente && this.getSolicitationClientName(solicitation) !== cliente) {
+                return false;
+            }
+            return true;
+        });
+    },
+
+    buildOperationalAnalysis(solicitations = [], options = {}) {
+        const period = this.normalizePeriod(options.period || this.getGlobalPeriodFilter());
+        const filteredSolicitations = this.filterSolicitations(solicitations, {
+            period,
+            statuses: options.statuses,
+            tecnico: options.tecnico,
+            regiao: options.regiao,
+            cliente: options.cliente
+        });
+        const costSolicitations = filteredSolicitations.filter(sol => this.COST_STATUSES.includes(sol.status));
+        const previousPeriod = this.getPreviousPeriod(period);
+        const previousCostSolicitations = this.filterSolicitations(solicitations, {
+            period: previousPeriod,
+            statuses: Array.isArray(options.statuses) && options.statuses.length > 0 ? options.statuses : this.COST_STATUSES,
+            tecnico: options.tecnico,
+            regiao: options.regiao,
+            cliente: options.cliente
+        });
+
+        const technicianMap = new Map();
+        const pieceMap = new Map();
+        const regionMap = new Map();
+        const monthlyMap = new Map();
+        const statusMap = {};
+        let totalCost = 0;
+        let totalPieces = 0;
+
+        const ensureMonth = (date) => {
+            const monthDate = date || period.from;
+            const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyMap.has(key)) {
+                monthlyMap.set(key, {
+                    key,
+                    label: this.formatMonthLabel(monthDate),
+                    requestCount: 0,
+                    totalCost: 0,
+                    totalPieces: 0
+                });
+            }
+            return monthlyMap.get(key);
+        };
+
+        filteredSolicitations.forEach((solicitation) => {
+            const date = this.getSolicitationDate(solicitation) || period.from;
+            const monthEntry = ensureMonth(date);
+            monthEntry.requestCount += 1;
+            statusMap[solicitation.status] = (statusMap[solicitation.status] || 0) + 1;
+        });
+
+        costSolicitations.forEach((solicitation) => {
+            const date = this.getSolicitationDate(solicitation) || period.from;
+            const monthEntry = ensureMonth(date);
+            const technician = solicitation?.tecnicoId ? DataManager.getTechnicianById(solicitation.tecnicoId) : null;
+            const technicianName = String(solicitation.tecnicoNome || technician?.nome || 'Nao identificado').trim();
+            const region = this.getSolicitationRegion(solicitation);
+            const clientName = this.getSolicitationClientName(solicitation);
+            const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
+            let solicitationCost = 0;
+            let solicitationPieces = 0;
+
+            items.forEach((item) => {
+                const quantity = Number(item?.quantidade) || 0;
+                const unitValue = Number(item?.valorUnit) || 0;
+                const totalItem = Math.round(quantity * unitValue * 100) / 100;
+                const pieceKey = String(item?.codigo || item?.descricao || 'SEM-CODIGO').trim();
+                const currentPiece = pieceMap.get(pieceKey) || {
+                    codigo: item?.codigo || '-',
+                    descricao: item?.descricao || 'Peca sem descricao',
+                    quantidade: 0,
+                    totalCost: 0,
+                    averageUnitCost: 0
+                };
+                currentPiece.quantidade += quantity;
+                currentPiece.totalCost += totalItem;
+                pieceMap.set(pieceKey, currentPiece);
+                solicitationCost += totalItem;
+                solicitationPieces += quantity;
+                totalPieces += quantity;
+            });
+
+            if (solicitationCost === 0) {
+                solicitationCost = Number(solicitation.total) || 0;
+            }
+
+            const currentTech = technicianMap.get(technicianName) || {
+                nome: technicianName,
+                regiao: region,
+                calls: 0,
+                totalCost: 0,
+                totalPieces: 0,
+                clients: new Set()
+            };
+            currentTech.calls += 1;
+            currentTech.totalCost += solicitationCost;
+            currentTech.totalPieces += solicitationPieces;
+            currentTech.clients.add(clientName);
+            technicianMap.set(technicianName, currentTech);
+
+            const currentRegion = regionMap.get(region) || {
+                regiao: region,
+                requestCount: 0,
+                totalCost: 0,
+                totalPieces: 0
+            };
+            currentRegion.requestCount += 1;
+            currentRegion.totalCost += solicitationCost;
+            currentRegion.totalPieces += solicitationPieces;
+            regionMap.set(region, currentRegion);
+
+            monthEntry.totalCost += solicitationCost;
+            monthEntry.totalPieces += solicitationPieces;
+            solicitation._analysisCost = solicitationCost;
+            solicitation._analysisPieces = solicitationPieces;
+            totalCost += solicitationCost;
+        });
+
+        const previousTotalCost = previousCostSolicitations.reduce((sum, solicitation) => {
+            const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
+            const itemsCost = items.reduce((itemsSum, item) => itemsSum + ((Number(item?.quantidade) || 0) * (Number(item?.valorUnit) || 0)), 0);
+            return sum + (itemsCost || Number(solicitation.total) || 0);
+        }, 0);
+
+        const byTechnician = Array.from(technicianMap.values())
+            .map((tech) => ({
+                nome: tech.nome,
+                regiao: tech.regiao,
+                calls: tech.calls,
+                totalCost: tech.totalCost,
+                totalPieces: tech.totalPieces,
+                partsPerCall: tech.calls > 0 ? tech.totalPieces / tech.calls : 0,
+                costPerCall: tech.calls > 0 ? tech.totalCost / tech.calls : 0,
+                clientCount: tech.clients.size
+            }))
+            .sort((a, b) => (b.totalCost - a.totalCost) || (b.calls - a.calls) || a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        const efficiencyRanking = byTechnician
+            .filter((tech) => tech.calls > 0)
+            .slice()
+            .sort((a, b) => (a.costPerCall - b.costPerCall) || (b.calls - a.calls) || a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        const byPiece = Array.from(pieceMap.values())
+            .map((piece) => ({
+                ...piece,
+                averageUnitCost: piece.quantidade > 0 ? piece.totalCost / piece.quantidade : 0
+            }))
+            .sort((a, b) => (b.quantidade - a.quantidade) || (b.totalCost - a.totalCost));
+
+        const byRegion = Array.from(regionMap.values())
+            .map((region) => ({
+                ...region,
+                costPerRequest: region.requestCount > 0 ? region.totalCost / region.requestCount : 0
+            }))
+            .sort((a, b) => (b.totalCost - a.totalCost) || (b.requestCount - a.requestCount));
+
+        const byMonth = Array.from(monthlyMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+        const monthSpan = byMonth.length;
+        const averageCostPerSolicitation = costSolicitations.length > 0 ? totalCost / costSolicitations.length : 0;
+        const highCostThreshold = averageCostPerSolicitation * 1.3;
+        const highCostSolicitations = costSolicitations
+            .filter((solicitation) => solicitation._analysisCost > 0 && solicitation._analysisCost >= highCostThreshold)
+            .map((solicitation) => ({
+                ...solicitation,
+                analysisCost: solicitation._analysisCost,
+                analysisPieces: solicitation._analysisPieces,
+                region: this.getSolicitationRegion(solicitation),
+                costDeltaPct: averageCostPerSolicitation > 0 ? ((solicitation._analysisCost / averageCostPerSolicitation) - 1) * 100 : 0
+            }))
+            .sort((a, b) => (b.analysisCost - a.analysisCost));
+
+        return {
+            period,
+            periodLabel: this.getRangeLabel(period),
+            solicitations: filteredSolicitations.sort((a, b) => (this.getSolicitationDate(b)?.getTime() || 0) - (this.getSolicitationDate(a)?.getTime() || 0)),
+            costSolicitations: costSolicitations.sort((a, b) => (this.getSolicitationDate(b)?.getTime() || 0) - (this.getSolicitationDate(a)?.getTime() || 0)),
+            totalRequests: filteredSolicitations.length,
+            openCount: filteredSolicitations.filter(sol => !['rejeitada', 'finalizada', 'historico-manual'].includes(sol.status)).length,
+            pendingCount: filteredSolicitations.filter(sol => sol.status === 'pendente').length,
+            totalApproved: costSolicitations.length,
+            totalCost,
+            previousTotalCost,
+            totalPieces,
+            partsPerSolicitation: filteredSolicitations.length > 0 ? totalPieces / filteredSolicitations.length : 0,
+            costPerPiece: totalPieces > 0 ? totalCost / totalPieces : 0,
+            averageCostPerSolicitation,
+            costVariation: previousTotalCost > 0 ? ((totalCost - previousTotalCost) / previousTotalCost) * 100 : (totalCost > 0 ? 100 : 0),
+            uniqueTechCount: byTechnician.length,
+            avgCostPerTech: byTechnician.length > 0 ? totalCost / byTechnician.length : 0,
+            monthlyAverageRequests: monthSpan > 0 ? filteredSolicitations.length / monthSpan : 0,
+            monthSpan,
+            byStatus: statusMap,
+            byTechnician,
+            efficiencyRanking,
+            byPiece,
+            topPieces: byPiece.slice(0, 5),
+            byRegion,
+            byMonth,
+            latestMonth: byMonth[byMonth.length - 1] || null,
+            topByCalls: byTechnician.slice().sort((a, b) => (b.calls - a.calls) || (b.totalCost - a.totalCost))[0] || { nome: '-', calls: 0, totalCost: 0, costPerCall: 0 },
+            topByCost: byTechnician[0] || { nome: '-', calls: 0, totalCost: 0, costPerCall: 0 },
+            mostEfficient: efficiencyRanking[0] || { nome: '-', calls: 0, totalCost: 0, costPerCall: 0 },
+            highCostSolicitations,
+            highCostThreshold
+        };
+    }
+};

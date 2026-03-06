@@ -1535,10 +1535,7 @@ body.dark-mode .main-header {
     gap: 0.35rem;
 }
 
-.top-tech-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.top-tech-item {`r`n    display: flex;`r`n    align-items: flex-start;`r`n    justify-content: space-between;`r`n    gap: 1rem;`r`n    flex-wrap: wrap;
     padding: 0.5rem 0;
     border-bottom: 1px dashed var(--border-color);
 }
@@ -2601,7 +2598,7 @@ body.dark-mode .loading-overlay {
 }
 
 .kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .kpi-card {
@@ -2626,8 +2623,58 @@ body.dark-mode .loading-overlay {
     font-size: 1rem;
 }
 
-.kpi-content .kpi-value {
-    font-size: 2rem;
+.metric-card {
+    min-height: 110px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.metric-card .kpi-icon {
+    margin-bottom: 0.1rem;
+}
+
+.metric-card .kpi-content h4 {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.metric-card .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.metric-nowrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.report-kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.compact-table th,
+.compact-table td {
+    white-space: nowrap;
+}
+
+.cost-alert-row {
+    background: rgba(229, 57, 53, 0.06);
+}
+
+.dashboard-trend-wrapper {
+    height: 360px;
+}
+
+.filter-period-pill {
+    min-width: 180px;
+    justify-content: center;
 }
 
 .metric-list {
@@ -2822,3 +2869,33 @@ body.dark-mode .loading-overlay {
     }
 }
 
+
+
+
+/* ===== Metric Card Overrides ===== */
+.metric-card {
+    min-height: 110px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.metric-card .kpi-content h4 {
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.metric-card .kpi-content .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.metric-card .kpi-content .metric-nowrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
