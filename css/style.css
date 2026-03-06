@@ -2765,3 +2765,47 @@ body.dark-mode .loading-overlay {
     max-width: 360px;
     line-height: 1.6;
 }
+
+.dashboard-primary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+}
+
+.dashboard-primary-grid .kpi-card {
+    min-height: 156px;
+    align-items: flex-start;
+}
+
+.kpi-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.kpi-content h4 {
+    line-height: 1.35;
+}
+
+.kpi-content .kpi-value {
+    font-size: clamp(1.7rem, 1.35rem + 0.9vw, 2.35rem);
+    line-height: 1.08;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.kpi-content .kpi-change {
+    line-height: 1.45;
+    white-space: normal;
+}
+
+@media (max-width: 1400px) {
+    .dashboard-primary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-primary-grid {
+        grid-template-columns: 1fr;
+    }
+}
