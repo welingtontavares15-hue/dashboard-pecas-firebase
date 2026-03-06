@@ -1,0 +1,68 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "data": {
+      ".read": false,
+      ".write": false,
+      "diversey_sessions": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador'))",
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['username','role','expiresAt'])"
+        }
+      },
+      "diversey_settings": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now)",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')"
+      },
+      "diversey_pecas": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now)",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')"
+      },
+      "diversey_tecnicos": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor') || (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'tecnico'))",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')"
+      },
+      "diversey_fornecedores": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor'))",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')"
+      },
+      "diversey_users": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')"
+      },
+      "diversey_solicitacoes": {
+        ".indexOn": [
+          "tecnicoId",
+          "status",
+          "createdAt",
+          "numero"
+        ],
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor') || ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'tecnico') && query.orderByChild == 'tecnicoId' && query.equalTo == root.child('data/diversey_sessions/' + auth.uid + '/tecnicoId').val()))",
+        ".write": false,
+        "$id": {
+          ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor') || ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'tecnico') && data.child('tecnicoId').val() == root.child('data/diversey_sessions/' + auth.uid + '/tecnicoId').val()))",
+          ".write": "((auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador')) || ((auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor') && data.exists() && newData.child('tecnicoId').val() == data.child('tecnicoId').val() && newData.child('numero').val() == data.child('numero').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('itens').val() == data.child('itens').val() && newData.child('subtotal').val() == data.child('subtotal').val() && newData.child('frete').val() == data.child('frete').val() && newData.child('desconto').val() == data.child('desconto').val() && newData.child('total').val() == data.child('total').val() && (newData.child('status').val() == 'aprovada' || newData.child('status').val() == 'rejeitada') && newData.child('aprovacao/status').val() == newData.child('status').val()) || ((auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && (root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'tecnico') && newData.child('tecnicoId').val() == root.child('data/diversey_sessions/' + auth.uid + '/tecnicoId').val() && ((!data.exists() && (newData.child('status').val() == 'rascunho' || newData.child('status').val() == 'pendente')) || (data.exists() && (data.child('status').val() == 'rascunho' || data.child('status').val() == 'pendente') && (newData.child('status').val() == 'rascunho' || newData.child('status').val() == 'pendente'))))",
+          ".validate": "newData.hasChildren(['tecnicoId','status','createdAt','updatedAt','itens','total'])"
+        }
+      },
+      "diversey_export_log": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor')",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor')"
+      },
+      "diversey_export_files": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor')",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor')"
+      },
+      "diversey_recent_parts": {
+        ".read": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now)",
+        ".write": "(auth != null && root.child('data/diversey_sessions/' + auth.uid + '/expiresAt').val() > now) && ((root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'admin' || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'administrador') || root.child('data/diversey_sessions/' + auth.uid + '/role').val() == 'gestor')"
+      },
+      "$other": {
+        ".read": false,
+        ".write": false
+      }
+    }
+  }
+}
