@@ -921,7 +921,8 @@ const DataManager = {
         const baseUsersRaw = [
             { id: 'admin', username: 'admin', password: 'admin', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
             { id: 'gestor', username: 'gestor', passwordHash: gestorPasswordHash, name: 'Welington Tavares', role: 'gestor', email: 'gestor@diversey.com', updatedAt: baseTimestamp },
-            { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com', updatedAt: baseTimestamp }
+            { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com', updatedAt: baseTimestamp },
+            { id: 'fornecedor_ebst', username: 'fornecedor', password: 'fornecedor123', name: 'Fornecedor EBST', role: 'fornecedor', email: 'pedidos@ebstecnologica.com.br', fornecedorId: 'sup-ebst', updatedAt: baseTimestamp }
         ];
         const baseUsers = [];
         for (const user of baseUsersRaw) {
@@ -1177,11 +1178,19 @@ const DataManager = {
             role: candidate.role || 'gestor',
             email: candidate.email || '',
             tecnicoId: candidate.tecnicoId || null,
+            fornecedorId: candidate.fornecedorId || null,
             disabled: candidate.disabled === true ? true : (candidate.disabled === false ? false : undefined),
             updatedAt: Date.now()
         };
 
         const index = users.findIndex(u => u.id === normalizedUser.id);
+
+        if (!Object.prototype.hasOwnProperty.call(candidate, 'tecnicoId') && index >= 0) {
+            normalizedUser.tecnicoId = users[index].tecnicoId || null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(candidate, 'fornecedorId') && index >= 0) {
+            normalizedUser.fornecedorId = users[index].fornecedorId || null;
+        }
 
         try {
             if (candidate.passwordHash) {
@@ -1221,6 +1230,10 @@ const DataManager = {
 
     getGestorUsers() {
         return this.getUsers().filter(u => u.role === 'gestor');
+    },
+
+    getFornecedorUsers() {
+        return this.getUsers().filter(u => u.role === 'fornecedor');
     },
 
     /**
@@ -2433,6 +2446,8 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
 
 
 

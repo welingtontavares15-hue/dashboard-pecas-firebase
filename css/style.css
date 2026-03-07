@@ -5294,3 +5294,78 @@ body.dark-mode .status-filter-option:hover {
 
 
 
+/* ===== Portal do Fornecedor ===== */
+.supplier-flow-card {
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.supplier-flow-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--text-secondary);
+    display: grid;
+    gap: 0.35rem;
+}
+
+.supplier-filters-bar {
+    align-items: flex-end;
+}
+
+.supplier-parts-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.supplier-parts-summary small {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.supplier-tracking-input {
+    display: grid;
+    grid-template-columns: minmax(170px, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.supplier-tracking-input .form-control {
+    min-height: 34px;
+}
+
+.supplier-history-list {
+    display: grid;
+    gap: 0.7rem;
+    margin-top: 0.5rem;
+}
+
+.supplier-history-item {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+}
+
+.supplier-history-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.supplier-history-meta {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin-top: 0.2rem;
+}
+
+.supplier-history-note {
+    color: var(--text-secondary);
+    margin-top: 0.35rem;
+    font-size: 0.86rem;
+}
+
+@media (max-width: 860px) {
+    .supplier-tracking-input {
+        grid-template-columns: 1fr;
+    }
+}

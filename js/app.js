@@ -13,14 +13,16 @@ const App = {
         aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
         pecas: './js/pages/pecas.js?v=20260307h',
         relatorios: './js/pages/relatorios.js?v=20260307h',
+        fornecedor: './js/pages/fornecedor.js?v=20260307h',
         usuarios: './js/pages/usuarios.js?v=20260307h'
-        },
+    },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
         solicitacoes: ['js/pecas.js', 'js/solicitacoes.js'],
         aprovacoes: ['js/solicitacoes.js', 'js/aprovacoes.js'],
         pecas: ['js/pecas.js'],
         relatorios: ['js/relatorios.js'],
+        fornecedor: ['js/fornecedor.js'],
         usuarios: ['js/tecnicos.js', 'js/fornecedores.js', 'js/usuarios.js']
     },
     _lazyLoaded: {},
@@ -30,7 +32,13 @@ const App = {
      */
     getDefaultPage() {
         const role = Auth.getRole();
-        return role === 'tecnico' ? 'minhas-solicitacoes' : 'dashboard';
+        if (role === 'tecnico') {
+            return 'minhas-solicitacoes';
+        }
+        if (role === 'fornecedor') {
+            return 'fornecedor';
+        }
+        return 'dashboard';
     },
 
     /**
@@ -242,7 +250,8 @@ const App = {
         const sampleCredentials = [
             { name: 'Administrador', username: 'admin', role: 'administrador' },
             { name: 'Welington Tavares', username: 'gestor', role: 'gestor' },
-            { name: 'Técnico (recuperação)', username: 'tecnico', role: 'tecnico' }
+            { name: 'Técnico (recuperação)', username: 'tecnico', role: 'tecnico' },
+            { name: 'Fornecedor EBST', username: 'fornecedor', role: 'fornecedor' }
         ];
         
         tbody.innerHTML = sampleCredentials.map(cred => `
@@ -330,6 +339,9 @@ const App = {
         if (pageId === 'relatorios') {
             return 'relatorios';
         }
+        if (pageId === 'fornecedor') {
+            return 'fornecedor';
+        }
         if (pageId === 'tecnicos' || pageId === 'fornecedores' || pageId === 'usuarios') {
             return 'usuarios';
         }
@@ -343,6 +355,7 @@ const App = {
             aprovacoes: () => typeof Aprovacoes !== 'undefined',
             pecas: () => typeof Pecas !== 'undefined',
             relatorios: () => typeof Relatorios !== 'undefined',
+            fornecedor: () => typeof FornecedorPortal !== 'undefined',
             usuarios: () => typeof Tecnicos !== 'undefined' && typeof Fornecedores !== 'undefined' && typeof Usuarios !== 'undefined'
         };
         return checks[key] ? checks[key]() : true;
@@ -427,6 +440,7 @@ const App = {
             'aprovacoes': 'Aprovações',
             'tecnicos': 'Técnicos',
             'fornecedores': 'Fornecedores',
+            'fornecedor': 'Portal do Fornecedor',
             'pecas': 'Peças',
             'catalogo': 'Catálogo de Peças',
             'relatorios': 'Relatórios',
@@ -475,6 +489,10 @@ const App = {
 
                     case 'fornecedores':
                         Fornecedores.render();
+                        break;
+
+                    case 'fornecedor':
+                        FornecedorPortal.render();
                         break;
 
                     case 'pecas':
@@ -1328,6 +1346,11 @@ const App = {
                 Fornecedores.render();
             }
             break;
+        case 'fornecedor':
+            if (typeof FornecedorPortal !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                FornecedorPortal.render();
+            }
+            break;
         case 'configuracoes':
             if (shouldUpdate(DataManager?.KEYS?.SETTINGS, DataManager?.KEYS?.USERS)) {
                 this.renderConfiguracoes();
@@ -1667,7 +1690,7 @@ const App = {
                 <i class="fas fa-exclamation-triangle"></i>
                 <h4>Página não encontrada</h4>
                 <p>A página que você está procurando não existe.</p>
-                <button class="btn btn-primary" onclick="App.navigate('dashboard')">
+                <button class="btn btn-primary" onclick="App.navigate(App.getDefaultPage())">
                     <i class="fas fa-home"></i> Voltar ao Início
                 </button>
             </div>
@@ -1708,6 +1731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

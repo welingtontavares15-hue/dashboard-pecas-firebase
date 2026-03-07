@@ -1,4 +1,4 @@
-﻿/**
+﻿    /**
  * Authentication and RBAC Module
  * Handles login, logout, and role-based access control
  */
@@ -61,6 +61,17 @@ const Auth = {
             pecas: { view: true, create: false, edit: false, delete: false, import: false },
             relatorios: { view: false, export: false },
             configuracoes: { view: false, edit: false }
+        },
+        fornecedor: {
+            dashboard: false,
+            solicitacoes: { view: false, create: false, edit: false, delete: false, viewAll: false },
+            aprovacoes: { view: false, approve: false, reject: false, batch: false },
+            fornecedor: { view: true, tracking: true },
+            tecnicos: { view: false, create: false, edit: false, delete: false },
+            fornecedores: { view: false, create: false, edit: false, delete: false },
+            pecas: { view: false, create: false, edit: false, delete: false, import: false },
+            relatorios: { view: false, export: false },
+            configuracoes: { view: false, edit: false }
         }
     },
 
@@ -92,9 +103,12 @@ const Auth = {
             { id: 'catalogo', icon: 'fa-search', label: 'Catálogo de Peças', section: 'Consulta' },
             { id: 'ajuda', icon: 'fa-question-circle', label: 'Ajuda', section: 'Suporte' },
             { id: 'perfil', icon: 'fa-user-cog', label: 'Meu Perfil', section: 'Suporte' }
+        ],
+        fornecedor: [
+            { id: 'fornecedor', icon: 'fa-truck', label: 'Pedidos Aprovados', section: 'Principal' },
+            { id: 'perfil', icon: 'fa-user-cog', label: 'Meu Perfil', section: 'Suporte' }
         ]
     },
-
     /**
      * Normalize user object for session storage
      */
@@ -109,6 +123,7 @@ const Auth = {
             role: user.role,
             email: user.email,
             tecnicoId: user.tecnicoId,
+            fornecedorId: user.fornecedorId,
             expiresAt: Date.now() + this.SESSION_DURATION_MS
         };
     },
@@ -459,7 +474,8 @@ const Auth = {
         const labels = {
             administrador: 'Administrador',
             gestor: 'Gestor',
-            tecnico: 'Técnico'
+            tecnico: 'Técnico',
+            fornecedor: 'Fornecedor'
         };
         return labels[role] || role;
     },
@@ -557,19 +573,19 @@ const Auth = {
         }
     },
 
-    /**
+            /**
      * Check route access
      */
     canAccessRoute(routeId) {
         const role = this.getRole();
         const menuItems = this.menus[role] || [];
-        
+
         // Check if route is in user's menu
         const hasMenuItem = menuItems.some(item => item.id === routeId);
         if (hasMenuItem) {
             return true;
         }
-        
+
         // Special cases for technician
         if (role === 'tecnico') {
             if (routeId === 'solicitacoes' || routeId === 'minhas-solicitacoes') {
@@ -582,7 +598,11 @@ const Auth = {
                 return true;
             }
         }
-        
+
+        if (role === 'fornecedor') {
+            return routeId === 'fornecedor' || routeId === 'perfil';
+        }
+
         return false;
     },
 
@@ -596,6 +616,15 @@ const Auth = {
         return null;
     },
 
+    /**
+     * Get supplier ID for current user (if applicable)
+     */
+    getFornecedorId() {
+        if (this.currentUser?.role === 'fornecedor') {
+            return this.currentUser.fornecedorId || null;
+        }
+        return null;
+    },
     /**
      * Persist authentication attempt for diagnostics
      * Online-only mode: Logs only to console and structured Logger (no localStorage)
@@ -744,6 +773,15 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
+
+
+
+
+
+
+
+
 
 
 

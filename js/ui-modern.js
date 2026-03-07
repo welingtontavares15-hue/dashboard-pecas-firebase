@@ -233,20 +233,25 @@
                 { id: 'relatorios_historico', pageId: 'relatorios', label: 'Histórico', icon: 'fa-clock-rotate-left', reportTarget: 'historico', isSubItem: true }
             ] : [];
 
-            const groups = this.getRole() === 'tecnico'
+            const role = this.getRole();
+            const groups = role === 'tecnico'
                 ? [
                     { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('nova-solicitacao'), itemMap.get('minhas-solicitacoes')] },
                     { key: 'consulta', title: 'CONSULTA', items: [itemMap.get('catalogo')] },
                     { key: 'suporte', title: 'SUPORTE', items: [itemMap.get('ajuda'), itemMap.get('perfil')] }
                 ]
-                : [
-                    { key: 'visao-geral', title: 'VISÃO GERAL', items: [itemMap.get('dashboard')] },
-                    { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
-                    { key: 'custos', title: 'CUSTOS E ANÁLISES', items: reportShortcuts },
-                    { key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
-                    { key: 'configuracoes', title: 'CONFIGURAÇÕES', items: [itemMap.get('configuracoes')] }
-                ];
-
+                : (role === 'fornecedor'
+                    ? [
+                        { key: 'fornecedor', title: 'FORNECEDOR', items: [itemMap.get('fornecedor')] },
+                        { key: 'suporte', title: 'SUPORTE', items: [itemMap.get('perfil')] }
+                    ]
+                    : [
+                        { key: 'visao-geral', title: 'VISÃO GERAL', items: [itemMap.get('dashboard')] },
+                        { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
+                        { key: 'custos', title: 'CUSTOS E ANÁLISES', items: reportShortcuts },
+                        { key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
+                        { key: 'configuracoes', title: 'CONFIGURAÇÕES', items: [itemMap.get('configuracoes')] }
+                    ]);
             const buildEntry = (entry) => {
                 if (!entry) {
                     return '';
@@ -430,6 +435,7 @@
                 aprovacoes: 'Aprovações',
                 tecnicos: 'Técnicos',
                 fornecedores: 'Fornecedores',
+                fornecedor: 'Portal do Fornecedor',
                 pecas: 'Peças',
                 catalogo: 'Peças',
                 relatorios: 'Relatórios',
@@ -525,12 +531,52 @@
                 return;
             }
 
-            const pending = DataManager.getPendingSolicitations()
-                .slice()
-                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-                .slice(0, 8);
+            const role = (typeof Auth !== 'undefined' && typeof Auth.getRole === 'function') ? Auth.getRole() : null;
+            const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function') ? (Auth.getCurrentUser() || {}) : {};
+            const normalizeEmail = (value) => {
+                if (typeof DataManager.normalizeEmail === 'function') {
+                    return DataManager.normalizeEmail(value);
+                }
+                return String(value || '').trim().toLowerCase();
+            };
 
-            if (pending.length === 0) {
+            let notifications = [];
+
+            if (role === 'fornecedor') {
+                const allowedStatuses = ['aprovada', 'em-transito', 'entregue', 'finalizada', 'historico-manual'];
+                const currentSupplierId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : (currentUser.fornecedorId || null);
+                const currentEmail = normalizeEmail(currentUser.email);
+
+                notifications = DataManager.getSolicitations()
+                    .filter((sol) => {
+                        if (!allowedStatuses.includes(sol.status)) {
+                            return false;
+                        }
+                        if (!sol.fornecedorId) {
+                            return false;
+                        }
+                        if (currentSupplierId) {
+                            return sol.fornecedorId === currentSupplierId;
+                        }
+                        const supplier = DataManager.getSupplierById(sol.fornecedorId);
+                        return !!currentEmail && normalizeEmail(supplier?.email) === currentEmail;
+                    })
+                    .sort((a, b) => (b.trackingUpdatedAt || b.approvedAt || b.createdAt || 0) - (a.trackingUpdatedAt || a.approvedAt || a.createdAt || 0))
+                    .slice(0, 8);
+            } else if (role === 'tecnico') {
+                const tecnicoId = (typeof Auth.getTecnicoId === 'function') ? Auth.getTecnicoId() : null;
+                notifications = DataManager.getSolicitations()
+                    .filter((sol) => sol.tecnicoId === tecnicoId)
+                    .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+                    .slice(0, 8);
+            } else {
+                notifications = DataManager.getPendingSolicitations()
+                    .slice()
+                    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+                    .slice(0, 8);
+            }
+
+            if (notifications.length === 0) {
                 list.innerHTML = '<div class="notification-empty"><i class="fas fa-check-circle"></i><p>Sem alertas pendentes.</p></div>';
                 if (dot) {
                     dot.classList.add('hidden');
@@ -538,22 +584,22 @@
                 return;
             }
 
-            list.innerHTML = pending.map((item) => {
-                return '<button class="notification-item" type="button" data-id="' + item.id + '">'
+            list.innerHTML = notifications.map((item) => {
+                return '<button class="notification-item" type="button" data-id="' + item.id + '">' 
                     + '<div class="notification-item-title">Solicitação #' + item.numero + '</div>'
                     + '<div class="notification-item-meta">' + Utils.escapeHtml(item.tecnicoNome || 'Técnico') + ' • ' + Utils.formatDate(item.data || item.createdAt) + '</div>'
                     + '<div class="notification-item-status">' + Utils.renderStatusBadge(item.status) + '</div>'
                     + '</button>';
             }).join('');
 
+            const targetPage = role === 'fornecedor'
+                ? 'fornecedor'
+                : (Auth.hasPermission('aprovacoes', 'view') ? 'aprovacoes' : (role === 'tecnico' ? 'minhas-solicitacoes' : 'solicitacoes'));
+
             list.querySelectorAll('.notification-item').forEach((button) => {
                 button.addEventListener('click', () => {
                     this.toggleNotificationPanel(false);
-                    if (Auth.hasPermission('aprovacoes', 'view')) {
-                        this.navigate('aprovacoes');
-                    } else {
-                        this.navigate('solicitacoes');
-                    }
+                    this.navigate(targetPage);
                 });
             });
 
@@ -561,7 +607,6 @@
                 dot.classList.remove('hidden');
             }
         };
-
         App.toggleNotificationPanel = function (force) {
             const panel = document.getElementById('notification-panel');
             if (!panel) {
@@ -579,11 +624,24 @@
                 return;
             }
 
-            if (this.currentPage !== 'solicitacoes' && this.currentPage !== 'minhas-solicitacoes') {
-                this.navigate(Auth.getRole() === 'tecnico' ? 'minhas-solicitacoes' : 'solicitacoes');
+            const role = (typeof Auth !== 'undefined' && typeof Auth.getRole === 'function') ? Auth.getRole() : null;
+            const targetPage = role === 'tecnico'
+                ? 'minhas-solicitacoes'
+                : (role === 'fornecedor' ? 'fornecedor' : 'solicitacoes');
+
+            if (this.currentPage !== targetPage) {
+                this.navigate(targetPage);
             }
 
             setTimeout(() => {
+                if (role === 'fornecedor' && typeof FornecedorPortal !== 'undefined') {
+                    FornecedorPortal.filters.search = term;
+                    FornecedorPortal.currentPage = 1;
+                    FornecedorPortal.render();
+                    Utils.showToast('Busca aplicada no portal do fornecedor', 'info');
+                    return;
+                }
+
                 if (typeof Solicitacoes !== 'undefined') {
                     Solicitacoes.filters.search = term;
                     Solicitacoes.currentPage = 1;
@@ -592,7 +650,6 @@
                 Utils.showToast('Busca aplicada na lista de solicitações', 'info');
             }, 180);
         };
-
         App.initContentObserver = function () {
             if (this._contentObserverBound) {
                 return;
@@ -621,6 +678,9 @@
     patchAuth();
     patchApp();
 })();
+
+
+
 
 
 

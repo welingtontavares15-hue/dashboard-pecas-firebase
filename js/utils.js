@@ -313,6 +313,114 @@ Equipe Diversey`;
     },
 
     /**
+     * Default manager e-mail recipient for approval notifications.
+     */
+    getManagerNotificationEmail() {
+        return 'wbastostavares@solenis.com';
+    },
+
+    /**
+     * Build compact item summary for e-mail notifications.
+     */
+    buildItemsSummary(items = []) {
+        if (!Array.isArray(items) || items.length === 0) {
+            return 'Sem itens detalhados';
+        }
+        return items
+            .slice(0, 8)
+            .map((item) => `${Number(item?.quantidade) || 0}x ${item?.descricao || item?.codigo || 'Item'}`)
+            .join(' | ');
+    },
+
+    /**
+     * Send automatic manager notification e-mail when a technician submits a request.
+     * Uses FormSubmit AJAX endpoint to avoid backend/Firebase changes.
+     */
+    async sendSolicitationApprovalEmail({ solicitation, submittedBy, recipient } = {}) {
+        try {
+            const to = String(recipient || this.getManagerNotificationEmail()).trim().toLowerCase();
+            if (!to || !this.isValidEmail(to) || !solicitation) {
+                return false;
+            }
+
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                return false;
+            }
+
+            if (typeof fetch !== 'function') {
+                return false;
+            }
+
+            const number = solicitation.numero || '(sem número)';
+            const technician = solicitation.tecnicoNome || 'Técnico não identificado';
+            const client = solicitation.cliente || 'Não informado';
+            const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
+            const total = this.formatCurrency(Number(solicitation.total) || 0);
+            const statusLabel = this.getStatusInfo(solicitation.status || 'pendente').label;
+            const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
+            const sentAt = this.formatDate(Date.now(), true);
+            const sender = submittedBy || 'Sistema';
+
+            const subject = `Nova solicitação enviada para aprovação - ${number}`;
+            const message = [
+                'Nova solicitação enviada para aprovação.',
+                '',
+                `Número: ${number}`,
+                `Técnico: ${technician}`,
+                `Cliente: ${client}`,
+                `Data: ${requestDate}`,
+                `Total: ${total}`,
+                `Status: ${statusLabel}`,
+                `Itens: ${itemsLabel}`,
+                `Enviado por: ${sender}`,
+                `Enviado em: ${sentAt}`
+            ].join('\n');
+
+            const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(to)}`;
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    _subject: subject,
+                    _template: 'table',
+                    _captcha: 'false',
+                    numero_solicitacao: number,
+                    tecnico: technician,
+                    cliente: client,
+                    data_solicitacao: requestDate,
+                    total,
+                    status: statusLabel,
+                    itens: itemsLabel,
+                    enviado_por: sender,
+                    enviado_em: sentAt,
+                    mensagem: message
+                })
+            });
+
+            if (!response.ok) {
+                return false;
+            }
+
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (_error) {
+                return true;
+            }
+
+            if (payload && typeof payload.success !== 'undefined') {
+                return payload.success === true || payload.success === 'true';
+            }
+
+            return true;
+        } catch (_error) {
+            return false;
+        }
+    },
+    /**
      * Validate CNPJ format
      */
     isValidCNPJ(cnpj) {
@@ -1628,6 +1736,7 @@ const AnalyticsHelper = {
         };
     }
 };
+
 
 
 

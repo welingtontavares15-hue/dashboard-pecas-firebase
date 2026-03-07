@@ -375,7 +375,7 @@ const Solicitacoes = {
         const canEdit = Auth.hasPermission('solicitacoes', 'edit');
         const canDelete = Auth.hasPermission('solicitacoes', 'delete');
         const canApprove = Auth.hasPermission('aprovacoes', 'approve');
-        const canManageTracking = Auth.hasPermission('aprovacoes', 'approve');
+        const canManageTracking = Auth.getRole() === 'fornecedor';
         const isTecnico = Auth.getRole() === 'tecnico';
         const currentTecnicoId = Auth.getTecnicoId();
 
@@ -726,7 +726,7 @@ const Solicitacoes = {
         }
         
         const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
-        const canManageTracking = Auth.hasPermission('aprovacoes', 'approve');
+        const canManageTracking = Auth.getRole() === 'fornecedor';
         const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
         
         const content = `
@@ -871,8 +871,8 @@ const Solicitacoes = {
      * Open tracking modal for gestors/administrators
      */
     openTrackingModal(id) {
-        if (!Auth.hasPermission('aprovacoes', 'approve')) {
-            Utils.showToast('Você não tem permissão para registrar rastreio', 'error');
+        if (Auth.getRole() !== 'fornecedor') {
+            Utils.showToast('Somente o fornecedor pode registrar rastreio', 'error');
             return;
         }
 
@@ -931,6 +931,17 @@ const Solicitacoes = {
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
             Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+
+        if (Auth.getRole() !== 'fornecedor') {
+            Utils.showToast('Somente o fornecedor pode registrar rastreio', 'error');
+            return;
+        }
+
+        const supplierId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
+        if (supplierId && sol.fornecedorId !== supplierId) {
+            Utils.showToast('Você não tem acesso a esta solicitação', 'error');
             return;
         }
 
@@ -1286,19 +1297,19 @@ const Solicitacoes = {
         const dataInput = document.getElementById('sol-data').value;
         const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
         const cliente = (document.getElementById('sol-cliente')?.value || '').trim();
-        
+
         if (!tecnicoId) {
             Utils.showToast('Selecione um técnico', 'warning');
             return;
         }
-        
+
         const parsedDate = Utils.parseAsLocalDate(dataInput);
         if (!dataInput || isNaN(parsedDate.getTime())) {
             Utils.showToast('Informe a data', 'warning');
             return;
         }
         const normalizedDate = Utils.getLocalDateString(parsedDate);
-        
+
         if (this.currentSolicitation.itens.length === 0) {
             Utils.showToast('Adicione pelo menos um item antes de salvar', 'warning');
             return;
@@ -1331,15 +1342,20 @@ const Solicitacoes = {
             Utils.showToast('Desconto e frete não podem ser negativos', 'warning');
             return;
         }
+
         const total = parseFloat((subtotal - desconto + frete).toFixed(2));
         this.currentSolicitation.subtotal = parseFloat(subtotal.toFixed(2));
         this.currentSolicitation.total = total;
-        
-        // Update technician name
+
         const tech = DataManager.getTechnicianById(tecnicoId);
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
-        
+        const shouldSendManagerEmail = (
+            status === 'pendente' &&
+            Auth.getRole() === 'tecnico' &&
+            this.currentSolicitation?.status !== 'pendente'
+        );
+
         const solicitation = {
             ...this.currentSolicitation,
             tecnicoId,
@@ -1350,12 +1366,11 @@ const Solicitacoes = {
             status,
             createdBy: userName
         };
-        
-        // Add status history entry
+
         if (!solicitation.statusHistory) {
             solicitation.statusHistory = [];
         }
-        
+
         if (status !== this.currentSolicitation.status) {
             solicitation.statusHistory.push({
                 status,
@@ -1363,38 +1378,91 @@ const Solicitacoes = {
                 by: userName
             });
         }
-        
+
         const result = DataManager.saveSolicitation(solicitation);
-        
-        // Handle both boolean and object return types for backward compatibility
         const saved = result === true || (result && result.success !== false && !result.error);
-        
+
         if (!saved) {
-            const errorMsg = (result && result.error === 'conflict') 
+            const errorMsg = (result && result.error === 'conflict')
                 ? 'Conflito de versão. Recarregue a página e tente novamente.'
                 : 'Erro ao salvar solicitação';
             Utils.showToast(errorMsg, 'error');
             return;
         }
-        
+
         Utils.showToast(
-            status === 'pendente' 
-                ? 'Solicitação enviada para aprovação' 
-                : 'Rascunho salvo com sucesso', 
+            status === 'pendente'
+                ? 'Solicitação enviada para aprovação'
+                : 'Rascunho salvo com sucesso',
             'success'
         );
-        
+
         Utils.closeModal();
-        
-        // Refresh the list
+
         if (document.getElementById('sol-table-container')) {
             this.refreshTable();
         }
-        
-        // Update menu badge
+
         Auth.renderMenu(App.currentPage);
+
+        if (shouldSendManagerEmail && typeof Utils.sendSolicitationApprovalEmail === 'function') {
+            const persistedSolicitation = this.resolvePersistedSolicitation(solicitation) || solicitation;
+            const recipient = (typeof Utils.getManagerNotificationEmail === 'function')
+                ? Utils.getManagerNotificationEmail()
+                : 'wbastostavares@solenis.com';
+
+            Utils.sendSolicitationApprovalEmail({
+                solicitation: persistedSolicitation,
+                submittedBy: userName,
+                recipient
+            }).then((sent) => {
+                if (sent) {
+                    Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
+                } else {
+                    Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+                }
+            }).catch(() => {
+                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+            });
+        }
     },
 
+    resolvePersistedSolicitation(snapshot) {
+        if (!snapshot || typeof DataManager === 'undefined') {
+            return null;
+        }
+
+        if (snapshot.id) {
+            const byId = DataManager.getSolicitationById(snapshot.id);
+            if (byId) {
+                return byId;
+            }
+        }
+
+        const targetTotal = Number(snapshot.total) || 0;
+        const matches = DataManager.getSolicitations().filter((sol) => {
+            if (!sol) {
+                return false;
+            }
+            if (sol.tecnicoId !== snapshot.tecnicoId) {
+                return false;
+            }
+            if ((sol.data || '') !== (snapshot.data || '')) {
+                return false;
+            }
+            if ((sol.status || '') !== (snapshot.status || '')) {
+                return false;
+            }
+            const currentTotal = Number(sol.total) || 0;
+            return Math.abs(currentTotal - targetTotal) < 0.01;
+        });
+
+        if (!matches.length) {
+            return null;
+        }
+
+        return matches.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))[0];
+    },
     /**
      * Duplicate solicitation
      */
@@ -1549,6 +1617,9 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
 
 
 
