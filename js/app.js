@@ -7,23 +7,6 @@ const CHART_INIT_DELAY_MS = 100;
 
 const App = {
     currentPage: null,
-    lazyModules: {
-        dashboard: './js/lazy/dashboard.js',
-        solicitacoes: './js/lazy/solicitacoes.js',
-        aprovacoes: './js/lazy/aprovacoes.js',
-        pecas: './js/lazy/pecas.js',
-        relatorios: './js/lazy/relatorios.js',
-        usuarios: './js/lazy/usuarios.js'
-        },
-    fallbackScripts: {
-        dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
-        solicitacoes: ['js/pecas.js', 'js/solicitacoes.js'],
-        aprovacoes: ['js/solicitacoes.js', 'js/aprovacoes.js'],
-        pecas: ['js/pecas.js'],
-        relatorios: ['js/relatorios.js'],
-        usuarios: ['js/tecnicos.js', 'js/fornecedores.js', 'js/usuarios.js']
-    },
-    _lazyLoaded: {},
 
     /**
      * Get default landing page based on role
@@ -289,122 +272,30 @@ const App = {
                 }
             }
         });
-    },    /**
+    },
+
+    /**
      * Navigate to a page
      */
-    async navigate(pageId) {
+    navigate(pageId) {
         // Check access
         if (!Auth.canAccessRoute(pageId)) {
             Utils.showToast('Você não tem permissão para acessar esta página', 'error');
             return;
         }
-
+        
         this.currentPage = pageId;
-
+        
         // Update menu active state
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === pageId);
         });
-
+        
         // Update breadcrumb
         this.updateBreadcrumb(pageId);
-
+        
         // Render page content
-        await this.renderPage(pageId);
-    },    resolveLazyModuleKey(pageId) {
-        if (pageId === 'dashboard') {
-            return 'dashboard';
-        }
-        if (pageId === 'solicitacoes' || pageId === 'minhas-solicitacoes' || pageId === 'nova-solicitacao') {
-            return 'solicitacoes';
-        }
-        if (pageId === 'aprovacoes') {
-            return 'aprovacoes';
-        }
-        if (pageId === 'pecas' || pageId === 'catalogo') {
-            return 'pecas';
-        }
-        if (pageId === 'relatorios') {
-            return 'relatorios';
-        }
-        if (pageId === 'tecnicos' || pageId === 'fornecedores') {
-            return 'usuarios';
-        }
-        return null;
-    },
-
-    isLazyKeyReady(key) {
-        const checks = {
-            dashboard: () => typeof Dashboard !== 'undefined',
-            solicitacoes: () => typeof Solicitacoes !== 'undefined',
-            aprovacoes: () => typeof Aprovacoes !== 'undefined',
-            pecas: () => typeof Pecas !== 'undefined',
-            relatorios: () => typeof Relatorios !== 'undefined',
-            usuarios: () => typeof Tecnicos !== 'undefined' && typeof Fornecedores !== 'undefined'
-        };
-        return checks[key] ? checks[key]() : true;
-    },
-
-    async loadFallbackScripts(key) {
-        const scripts = this.fallbackScripts[key] || [];
-        for (const src of scripts) {
-            await new Promise((resolve, reject) => {
-                const existing = document.querySelector(`script[data-fallback-src="${src}"]`);
-                if (existing) {
-                    if (existing.dataset.loaded === 'true') {
-                        resolve();
-                        return;
-                    }
-                    existing.addEventListener('load', () => resolve(), { once: true });
-                    existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
-                    return;
-                }
-
-                const script = document.createElement('script');
-                script.src = src;
-                script.async = true;
-                script.dataset.fallbackSrc = src;
-                script.onload = () => {
-                    script.dataset.loaded = 'true';
-                    resolve();
-                };
-                script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
-                document.head.appendChild(script);
-            });
-        }
-    },
-
-    async ensurePageModule(pageId) {
-        const key = this.resolveLazyModuleKey(pageId);
-        if (!key) {
-            return;
-        }
-
-        if (this._lazyLoaded[key] || this.isLazyKeyReady(key)) {
-            this._lazyLoaded[key] = true;
-            return;
-        }
-
-        const modulePath = this.lazyModules[key];
-        if (!modulePath) {
-            return;
-        }
-
-        try {
-            const mod = await import(modulePath);
-            if (mod && typeof mod.ensureLoaded === 'function') {
-                await mod.ensureLoaded();
-            }
-        } catch (error) {
-            console.warn('Lazy load falhou, aplicando fallback clássico:', key, error);
-            await this.loadFallbackScripts(key);
-        }
-
-        if (!this.isLazyKeyReady(key)) {
-            await this.loadFallbackScripts(key);
-        }
-
-        this._lazyLoaded[key] = true;
+        this.renderPage(pageId);
     },
 
     /**
@@ -432,83 +323,72 @@ const App = {
         };
 
         breadcrumb.innerHTML = `<span>${labels[pageId] || pageId}</span>`;
-    },    /**
+    },
+
+    /**
      * Render page content
      */
-    async renderPage(pageId) {
+    renderPage(pageId) {
         Utils.showLoading();
-
-        try {
-            await this.ensurePageModule(pageId);
-
-            // Simulate async loading for UX
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    switch (pageId) {
-                    case 'dashboard':
-                        Dashboard.render();
-                        break;
-
-                    case 'solicitacoes':
-                    case 'minhas-solicitacoes':
-                        Solicitacoes.render();
-                        break;
-
-                    case 'nova-solicitacao':
-                        Solicitacoes.openForm();
-                        // Navigate to solicitations after modal closes
-                        Solicitacoes.render();
-                        break;
-
-                    case 'aprovacoes':
-                        Aprovacoes.render();
-                        break;
-
-                    case 'tecnicos':
-                        Tecnicos.render();
-                        break;
-
-                    case 'fornecedores':
-                        Fornecedores.render();
-                        break;
-
-                    case 'pecas':
-                    case 'catalogo':
-                        Pecas.render();
-                        break;
-
-                    case 'relatorios':
-                        Relatorios.render();
-                        setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
-                        break;
-
-                    case 'configuracoes':
-                        this.renderConfiguracoes();
-                        break;
-
-                    case 'ajuda':
-                        this.renderAjuda();
-                        break;
-
-                    case 'perfil':
-                        this.renderPerfil();
-                        break;
-
-                    default:
-                        this.renderNotFound();
-                    }
-
-                    resolve();
-                }, 100);
-            });
-        } catch (error) {
-            console.error('Erro ao carregar módulo da página', pageId, error);
-            Utils.showToast('Não foi possível carregar este módulo agora.', 'error');
-            this.renderNotFound();
-        } finally {
+        
+        // Simulate async loading for UX
+        setTimeout(() => {
+            switch (pageId) {
+            case 'dashboard':
+                Dashboard.render();
+                break;
+                    
+            case 'solicitacoes':
+            case 'minhas-solicitacoes':
+                Solicitacoes.render();
+                break;
+                    
+            case 'nova-solicitacao':
+                Solicitacoes.openForm();
+                // Navigate to solicitations after modal closes
+                Solicitacoes.render();
+                break;
+                    
+            case 'aprovacoes':
+                Aprovacoes.render();
+                break;
+                    
+            case 'tecnicos':
+                Tecnicos.render();
+                break;
+                    
+            case 'fornecedores':
+                Fornecedores.render();
+                break;
+                    
+            case 'pecas':
+            case 'catalogo':
+                Pecas.render();
+                break;
+                    
+            case 'relatorios':
+                Relatorios.render();
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+                break;
+                    
+            case 'configuracoes':
+                this.renderConfiguracoes();
+                break;
+                    
+            case 'ajuda':
+                this.renderAjuda();
+                break;
+                    
+            case 'perfil':
+                this.renderPerfil();
+                break;
+                    
+            default:
+                this.renderNotFound();
+            }
+            
             Utils.hideLoading();
-        }
-    }, 100);
+        }, 100);
     },
 
     /**
@@ -1583,15 +1463,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-
-
-
-
-
-
-
-
-
-
 
 

@@ -173,28 +173,9 @@ const Auth = {
      * Attempt login
      */
     async login(username, password) {
-        const rawInputUsername = (username || '').trim();
-        const rawNormalizedUsername = Utils.normalizeText(rawInputUsername);
-
-        const usernameAliasMap = {
-            adm: 'admin'
-        };
-
-        let inputUsername = usernameAliasMap[rawNormalizedUsername] || rawInputUsername;
-        if (rawNormalizedUsername === 'tecnico') {
-            const directTecnico = DataManager.getUserByUsername('tecnico');
-            if (directTecnico && directTecnico.disabled !== true) {
-                inputUsername = 'tecnico';
-            } else {
-                const tecnicoUser = (DataManager.getUsers() || []).find(u => u?.role === 'tecnico' && u?.disabled !== true);
-                if (tecnicoUser?.username) {
-                    inputUsername = tecnicoUser.username;
-                }
-            }
-        }
-
+        const inputUsername = (username || '').trim();
         const normalizedUsername = Utils.normalizeText(inputUsername);
-
+        
         // Rate limiting check - progressive lockout for security
         const rateLimitCheck = this.checkRateLimit(normalizedUsername);
         if (!rateLimitCheck.allowed) {
@@ -234,14 +215,6 @@ const Auth = {
                 console.warn('Failed to sync users before login:', e);
                 syncInfo.error = e?.message || 'sync_failed';
                 // Continue with local data if sync fails
-            }
-        }
-
-        if (typeof DataManager !== 'undefined' && typeof DataManager.ensureRecoveryUsers === 'function') {
-            try {
-                await DataManager.ensureRecoveryUsers();
-            } catch (e) {
-                console.warn('Failed to enforce recovery users before login:', e);
             }
         }
 
@@ -296,17 +269,11 @@ const Auth = {
         const canonicalUsername = user.username || inputUsername;
         let effectivePassword = password;
         const normalizedUsernameForAlias = Utils.normalizeText(canonicalUsername);
-        const normalizedPasswordInput = Utils.normalizeText(password || '');
         if (normalizedUsernameForAlias === ADMIN_USERNAME) {
+            const normalizedPasswordInput = Utils.normalizeText(password || '');
             if (ADMIN_PASSWORD_ALIASES.includes(normalizedPasswordInput)) {
                 effectivePassword = CANONICAL_ADMIN_PASSWORD;
             }
-        }
-        if (normalizedUsernameForAlias === 'gestor' && normalizedPasswordInput === 'gestor') {
-            effectivePassword = 'gestor123';
-        }
-        if (normalizedUsernameForAlias === 'tecnico' && normalizedPasswordInput === 'tecnico') {
-            effectivePassword = 'tecnico123';
         }
         const passwordHash = await this.hashPassword(effectivePassword, canonicalUsername);
         let storedHash = user.passwordHash || null;
@@ -722,11 +689,6 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
-
-
-
-
-
 
 
 
