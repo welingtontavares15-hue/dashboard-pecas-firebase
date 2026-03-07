@@ -569,6 +569,7 @@ const App = {
     toggleTheme() {
         const body = document.body;
         const isDark = body.classList.contains('dark-mode');
+        const nextTheme = isDark ? 'light' : 'dark';
         
         if (isDark) {
             body.classList.remove('dark-mode');
@@ -579,6 +580,9 @@ const App = {
             body.classList.add('dark-mode');
             DataManager.saveSetting('theme', 'dark');
         }
+
+        body.dataset.theme = nextTheme;
+        document.documentElement.setAttribute('data-theme', nextTheme);
         
         // Update icon
         const themeIcon = document.querySelector('#theme-toggle i');
@@ -605,6 +609,8 @@ const App = {
         
         body.classList.remove('light-mode', 'dark-mode');
         body.classList.add(`${theme}-mode`);
+        body.dataset.theme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
         
         // Update icon
         const themeIcon = document.querySelector('#theme-toggle i');
@@ -1599,6 +1605,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

@@ -151,8 +151,8 @@ const Relatorios = {
                 </div>
                 <div class="kpi-card metric-card">
                     <div class="kpi-content">
-                        <h4>Média mensal</h4>
-                        <div class="kpi-value">${Utils.formatNumber(monthlySummary.averagePerMonth, 2)}</div>
+                        <h4>Média mensal de custo</h4>
+                        <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}">${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}</div>
                         <div class="kpi-change">${Utils.formatNumber(monthlySummary.monthCount)} mês(es) no período</div>
                     </div>
                 </div>
@@ -217,21 +217,24 @@ const Relatorios = {
         `;
     },
 
-    /**
+        /**
      * Render cost dashboard report
-     */    renderCustosReport() {
+     */
+    renderCustosReport() {
         const analysis = this.buildCostAnalysis();
         const latestMonth = analysis.latestMonth;
-        const topTechnicians = analysis.byTechnician.slice(0, 8);
-        const topParts = analysis.byPiece.slice(0, 8);
-        const topRegions = analysis.byRegion.slice(0, 8);
+        const topTechnicians = analysis.byTechnician.slice(0, 8)
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
+        const topParts = analysis.byPiece.slice(0, 8)
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
+        const monthlySummary = this.buildMonthlyAverageSummary(analysis.solicitations || []);
 
         return `
             <div class="card">
                 <div class="card-header">
                     <div>
                         <h4>Relatório de Custos</h4>
-                        <p class="text-muted" style="margin: 0; font-size: 0.9rem;">Cálculos em memória, usando o mesmo período global do dashboard.</p>
+                        <p class="text-muted" style="margin: 0; font-size: 0.9rem;">Painel executivo para leitura rápida de custo, tendência e concentração por técnico.</p>
                     </div>
                     <button class="btn btn-outline" onclick="Relatorios.exportCustos()">
                         <i class="fas fa-file-excel"></i> Exportar Excel
@@ -240,8 +243,8 @@ const Relatorios = {
                 <div class="card-body">
                     ${this.renderCostFilters()}
                     ${analysis.totalCalls === 0 ? this.renderEmptyState(
-        'Sem custos no período',
-        'Não há solicitações elegíveis para montar o relatório de custos com os filtros atuais.'
+        'Sem dados no período selecionado.',
+        'Ajuste os filtros para visualizar o relatório de custos.'
     ) : `
                         <div class="kpi-grid mb-4 report-kpi-grid">
                             <div class="kpi-card metric-card">
@@ -265,23 +268,7 @@ const Relatorios = {
                                 <div class="kpi-content">
                                     <h4>Custo médio por técnico</h4>
                                     <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(analysis.avgCostPerTech)}">${Utils.formatCurrency(analysis.avgCostPerTech)}</div>
-                                    <div class="kpi-change">${Utils.formatNumber(analysis.uniqueTechCount)} técnico(s) ativos no período</div>
-                                </div>
-                            </div>
-                            <div class="kpi-card metric-card">
-                                <div class="kpi-icon warning"><i class="fas fa-screwdriver-wrench"></i></div>
-                                <div class="kpi-content">
-                                    <h4>Custo médio por peça</h4>
-                                    <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(analysis.costPerPiece)}">${Utils.formatCurrency(analysis.costPerPiece)}</div>
-                                    <div class="kpi-change">${Utils.formatNumber(analysis.totalItems)} peça(s) utilizadas</div>
-                                </div>
-                            </div>
-                            <div class="kpi-card metric-card">
-                                <div class="kpi-icon info"><i class="fas fa-boxes-stacked"></i></div>
-                                <div class="kpi-content">
-                                    <h4>Peças por solicitação</h4>
-                                    <div class="kpi-value">${Utils.formatNumber(analysis.partsPerAttendance, 2)}</div>
-                                    <div class="kpi-change">Consumo médio por solicitação</div>
+                                    <div class="kpi-change">${Utils.formatNumber(analysis.uniqueTechCount)} técnico(s) no período</div>
                                 </div>
                             </div>
                             <div class="kpi-card metric-card">
@@ -290,6 +277,14 @@ const Relatorios = {
                                     <h4>Custo do mês mais recente</h4>
                                     <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(latestMonth?.totalCost || 0)}">${Utils.formatCurrency(latestMonth?.totalCost || 0)}</div>
                                     <div class="kpi-change">${Utils.escapeHtml(latestMonth?.label || 'Sem dados mensais')}</div>
+                                </div>
+                            </div>
+                            <div class="kpi-card metric-card">
+                                <div class="kpi-icon info"><i class="fas fa-chart-line"></i></div>
+                                <div class="kpi-content">
+                                    <h4>Média mensal</h4>
+                                    <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}">${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}</div>
+                                    <div class="kpi-change">${Utils.formatNumber(monthlySummary.monthCount)} mês(es) no período</div>
                                 </div>
                             </div>
                         </div>
@@ -317,17 +312,22 @@ const Relatorios = {
                                             <tr>
                                                 <td>Custo médio por solicitação</td>
                                                 <td>${Utils.formatCurrency(analysis.costPerAttendance)}</td>
-                                                <td>Ajuda a medir eficiência financeira por solicitação.</td>
+                                                <td>Mede o custo médio por solicitação com material.</td>
                                             </tr>
                                             <tr>
                                                 <td>Custo médio por técnico</td>
                                                 <td>${Utils.formatCurrency(analysis.avgCostPerTech)}</td>
-                                                <td>Mostra a distribuição média de custo entre técnicos com solicitações.</td>
+                                                <td>Mostra a distribuição média de custo entre técnicos.</td>
                                             </tr>
                                             <tr>
-                                                <td>Custo médio por peça</td>
-                                                <td>${Utils.formatCurrency(analysis.costPerPiece)}</td>
-                                                <td>Monitora o valor médio consumido por peça utilizada.</td>
+                                                <td>Custo do mês mais recente</td>
+                                                <td>${Utils.formatCurrency(latestMonth?.totalCost || 0)}</td>
+                                                <td>${Utils.escapeHtml(latestMonth?.label || 'Sem dados mensais')}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Média mensal</td>
+                                                <td>${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}</td>
+                                                <td>Custo total do período dividido pela quantidade de meses filtrados.</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -337,7 +337,7 @@ const Relatorios = {
 
                         <div class="card mt-3">
                             <div class="card-header">
-                                <h4>Evolução e distribuição de custos</h4>
+                                <h4>Evolução e concentração de custos</h4>
                             </div>
                             <div class="card-body">
                                 <div class="charts-grid">
@@ -349,42 +349,9 @@ const Relatorios = {
                                     </div>
 
                                     <div class="chart-container">
-                                        <h4 class="mb-3">Custo por técnico</h4>
+                                        <h4 class="mb-3">Custo total por técnico</h4>
                                         <div class="chart-wrapper">
                                             <canvas id="costTechniciansChart"></canvas>
-                                        </div>
-                                    </div>
-
-                                    <div class="chart-container">
-                                        <h4 class="mb-3">Custo por região</h4>
-                                        <div class="chart-wrapper">
-                                            <canvas id="costRegionsChart"></canvas>
-                                        </div>
-                                    </div>
-
-                                    <div class="chart-container">
-                                        <h4 class="mb-3">Top regiões</h4>
-                                        <div class="table-container">
-                                            <table class="table compact-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Região</th>
-                                                        <th>Solicitações</th>
-                                                        <th>Custo total</th>
-                                                        <th>Custo por solicitação</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    ${topRegions.map(region => `
-                                                        <tr>
-                                                            <td><strong>${Utils.escapeHtml(region.regiao)}</strong></td>
-                                                            <td>${Utils.formatNumber(region.requestCount)}</td>
-                                                            <td>${Utils.formatCurrency(region.totalCost)}</td>
-                                                            <td>${Utils.formatCurrency(region.costPerRequest)}</td>
-                                                        </tr>
-                                                    `).join('')}
-                                                </tbody>
-                                            </table>
                                         </div>
                                     </div>
                                 </div>
@@ -393,30 +360,26 @@ const Relatorios = {
 
                         <div class="card mt-3">
                             <div class="card-header">
-                                <h4>Eficiência Técnica</h4>
+                                <h4>Ranking de técnicos</h4>
                             </div>
                             <div class="card-body">
                                 <div class="table-container">
                                     <table class="table compact-table">
                                         <thead>
                                             <tr>
+                                                <th>#</th>
                                                 <th>Técnico</th>
-                                                <th>Região</th>
                                                 <th>Solicitações</th>
-                                                <th>Peças utilizadas</th>
-                                                <th>Peças por solicitação</th>
                                                 <th>Custo total</th>
                                                 <th>Custo médio por solicitação</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${topTechnicians.map(tech => `
+                                            ${topTechnicians.map((tech, index) => `
                                                 <tr>
+                                                    <td><strong>${index + 1}</strong></td>
                                                     <td><strong>${Utils.escapeHtml(tech.nome)}</strong></td>
-                                                    <td>${Utils.escapeHtml(tech.regiao)}</td>
                                                     <td>${Utils.formatNumber(tech.calls)}</td>
-                                                    <td>${Utils.formatNumber(tech.totalPieces)}</td>
-                                                    <td>${Utils.formatNumber(tech.partsPerCall, 2)}</td>
                                                     <td>${Utils.formatCurrency(tech.totalCost)}</td>
                                                     <td>${Utils.formatCurrency(tech.costPerCall)}</td>
                                                 </tr>
@@ -429,19 +392,19 @@ const Relatorios = {
 
                         <div class="card mt-3">
                             <div class="card-header">
-                                <h4>Análise de Peças</h4>
+                                <h4>Custo por peça</h4>
                             </div>
                             <div class="card-body">
                                 <div class="charts-grid">
                                     <div class="chart-container">
-                                        <h4 class="mb-3">Ranking de peças por custo</h4>
+                                        <h4 class="mb-3">Ranking de peças por custo total</h4>
                                         <div class="chart-wrapper">
                                             <canvas id="costPartsChart"></canvas>
                                         </div>
                                     </div>
 
                                     <div class="chart-container">
-                                        <h4 class="mb-3">Peças mais utilizadas</h4>
+                                        <h4 class="mb-3">Peças com maior impacto financeiro</h4>
                                         <div class="table-container">
                                             <table class="table compact-table">
                                                 <thead>
@@ -455,7 +418,7 @@ const Relatorios = {
                                                 <tbody>
                                                     ${topParts.map(part => `
                                                         <tr>
-                                                            <td><strong>${Utils.escapeHtml(part.descricao)}</strong></td>
+                                                            <td><strong>${Utils.escapeHtml(part.codigo || part.descricao || '-')}</strong></td>
                                                             <td>${Utils.formatNumber(part.quantidade)}</td>
                                                             <td>${Utils.formatCurrency(part.totalCost)}</td>
                                                             <td>${Utils.formatCurrency(part.averageUnitCost)}</td>
@@ -479,7 +442,8 @@ const Relatorios = {
      */
     renderTecnicosReport() {
         const analysis = this.buildCostAnalysis();
-        const techData = analysis.byTechnician;
+        const techData = analysis.byTechnician.slice()
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
 
         return `
             <div class="card">
@@ -492,44 +456,38 @@ const Relatorios = {
                 <div class="card-body">
                     ${this.renderCostFilters()}
                     ${techData.length === 0 ? this.renderEmptyState(
-        'Nenhum técnico com custo',
-        'Não há dados suficientes para montar o ranking de técnicos com os filtros informados.'
+        'Sem dados no período selecionado.',
+        'Não há dados suficientes para montar o ranking de técnicos com os filtros aplicados.'
     ) : `
                         <div class="charts-grid">
                             <div class="chart-container">
-                                <h4 class="mb-3">ranking de técnicos</h4>
+                                <h4 class="mb-3">Custo total por técnico (maior para menor)</h4>
                                 <div class="chart-wrapper">
                                     <canvas id="costTechniciansDetailChart"></canvas>
                                 </div>
                             </div>
 
                             <div class="chart-container">
-                                <h4 class="mb-3">Tabela detalhada</h4>
+                                <h4 class="mb-3">Tabela executiva</h4>
                                 <div class="table-container">
                                     <table class="table">
                                         <thead>
                                             <tr>
+                                                <th>#</th>
                                                 <th>Técnico</th>
-                                                <th>Região</th>
                                                 <th>Solicitações</th>
-                                                <th>Peças utilizadas</th>
-                                                <th>Peças por solicitação</th>
-                                                <th>Custo peças</th>
-                                                <th>Custo por solicitação</th>
-                                                <th>Clientes</th>
+                                                <th>Custo total</th>
+                                                <th>Custo médio por solicitação</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${techData.map(tech => `
+                                            ${techData.map((tech, index) => `
                                                 <tr>
+                                                    <td><strong>${index + 1}</strong></td>
                                                     <td><strong>${Utils.escapeHtml(tech.nome)}</strong></td>
-                                                    <td>${Utils.escapeHtml(tech.regiao)}</td>
                                                     <td>${Utils.formatNumber(tech.calls)}</td>
-                                                    <td>${Utils.formatNumber(tech.totalPieces)}</td>
-                                                    <td>${Utils.formatNumber(tech.partsPerCall, 2)}</td>
                                                     <td>${Utils.formatCurrency(tech.totalCost)}</td>
                                                     <td>${Utils.formatCurrency(tech.costPerCall)}</td>
-                                                    <td>${Utils.formatNumber(tech.clientCount)}</td>
                                                 </tr>
                                             `).join('')}
                                         </tbody>
@@ -543,13 +501,12 @@ const Relatorios = {
 
         `;
     },
-
-    /**
+/**
      * Render part costs report
      */
     renderPecasReport() {
         const analysis = this.buildCostAnalysis();
-        const partsData = analysis.byPiece;
+        const partsData = analysis.byPiece.slice().sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
 
         return `
             <div class="card">
@@ -567,25 +524,25 @@ const Relatorios = {
     ) : `
                         <div class="charts-grid">
                             <div class="chart-container">
-                                <h4 class="mb-3">Ranking de peças por custo</h4>
+                                <h4 class="mb-3">Ranking de peças por custo total</h4>
                                 <div class="chart-wrapper">
                                     <canvas id="costPartsDetailChart"></canvas>
                                 </div>
                             </div>
 
                             <div class="chart-container">
-                                <h4 class="mb-3">Detalhamento</h4>
+                                <h4 class="mb-3">Detalhamento por custo total</h4>
                                 <div class="table-container">
                                     <table class="table">
                                         <thead>
                                             <tr>
                                                 <th>#</th>
                                                 <th>Código</th>
-                                                <th>Descricao</th>
+                                                <th>Descrição</th>
                                                 <th>Categoria</th>
                                                 <th>Quantidade</th>
-                                                <th>Custo Total</th>
-                                                <th>Custo Medio</th>
+                                                <th>Custo total</th>
+                                                <th>Custo médio</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -833,25 +790,26 @@ const Relatorios = {
 
         return isValid;
     },
-
     buildMonthlyAverageSummary(solicitations = []) {
-        const monthlyGroups = new Map();
+        const period = AnalyticsHelper.getGlobalPeriodFilter();
+        const fromRaw = this.filters.dateFrom || period?.dateFrom;
+        const toRaw = this.filters.dateTo || period?.dateTo;
+        const from = Utils.parseAsLocalDate(fromRaw);
+        const to = Utils.parseAsLocalDate(toRaw);
+        let monthCount = 1;
 
-        solicitations.forEach(sol => {
-            const date = this.getSolicitationDate(sol);
-            if (!date || isNaN(date)) {
-                return;
-            }
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            monthlyGroups.set(key, (monthlyGroups.get(key) || 0) + 1);
-        });
+        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+            const start = from.getTime() <= to.getTime() ? from : to;
+            const end = from.getTime() <= to.getTime() ? to : from;
+            monthCount = Math.max(((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth()) + 1, 1);
+        }
 
-        const monthCount = monthlyGroups.size;
-        const total = Array.from(monthlyGroups.values()).reduce((sum, count) => sum + count, 0);
+        const totalCost = solicitations.reduce((sum, sol) => sum + (Number(sol?.total) || 0), 0);
 
         return {
             monthCount,
-            averagePerMonth: monthCount > 0 ? total / monthCount : 0
+            totalCost,
+            averageMonthlyCost: monthCount > 0 ? totalCost / monthCount : 0
         };
     },
 
@@ -1113,16 +1071,15 @@ const Relatorios = {
             return;
         }
 
-        const data = analysis.byTechnician.map(tech => ({
-            Técnico: tech.nome,
-            Região: tech.regiao,
-            Solicitações: tech.calls,
-            TotalPeças: tech.totalPieces,
-            PeçasPorSolicitacao: tech.partsPerCall,
-            CustoPeças: tech.totalCost,
-            CustoPorSolicitacao: tech.costPerCall,
-            Clientes: tech.clientCount
-        }));
+        const data = analysis.byTechnician
+            .slice()
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0))
+            .map(tech => ({
+                Técnico: tech.nome,
+                Solicitações: tech.calls,
+                CustoTotal: tech.totalCost,
+                CustoMedioPorSolicitacao: tech.costPerCall
+            }));
 
         Utils.exportToExcel(data, 'relatorio_tecnicos_custos.xlsx', 'CustosTécnicos');
         Utils.showToast('Relatório exportado com sucesso', 'success');
@@ -1182,7 +1139,6 @@ const Relatorios = {
             'costMonthlyChart',
             'costPartsChart',
             'costTechniciansChart',
-            'costRegionsChart',
             'costTechniciansDetailChart',
             'costPartsDetailChart'
         ];
@@ -1197,10 +1153,19 @@ const Relatorios = {
         }
 
         const analysis = this.buildCostAnalysis();
+        const byTechnician = analysis.byTechnician
+            .slice()
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
+        const byPiece = analysis.byPiece
+            .slice()
+            .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
+        const byMonth = analysis.byMonth || [];
+
         const isDark = document.body.classList.contains('dark-mode');
         const textColor = isDark ? '#e4e6eb' : '#212529';
         const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
         const currencyTick = (value) => Utils.formatCurrency(Number(value) || 0);
+
         const createHorizontalBarChart = (id, labels, data, color, datasetLabel) => {
             const ctx = document.getElementById(id);
             if (!ctx || labels.length === 0) {
@@ -1215,7 +1180,8 @@ const Relatorios = {
                         label: datasetLabel,
                         data,
                         backgroundColor: color,
-                        borderRadius: 4
+                        borderRadius: 6,
+                        maxBarThickness: 30
                     }]
                 },
                 options: {
@@ -1245,15 +1211,64 @@ const Relatorios = {
             });
         };
 
+        const createVerticalBarChart = (id, labels, data, color, datasetLabel) => {
+            const ctx = document.getElementById(id);
+            if (!ctx || labels.length === 0) {
+                return;
+            }
+
+            this.charts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: datasetLabel,
+                        data,
+                        backgroundColor: color,
+                        borderRadius: 8,
+                        maxBarThickness: 42
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${datasetLabel}: ${Utils.formatCurrency(context.parsed.y || 0)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: textColor, callback: currencyTick },
+                            grid: { color: gridColor }
+                        },
+                        x: {
+                            ticks: {
+                                color: textColor,
+                                autoSkip: false,
+                                maxRotation: 40,
+                                minRotation: 30
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        };
+
         const monthlyCtx = document.getElementById('costMonthlyChart');
-        if (monthlyCtx && analysis.byMonth.length > 0) {
+        if (monthlyCtx && byMonth.length > 0) {
             this.charts.costMonthlyChart = new Chart(monthlyCtx, {
                 type: 'line',
                 data: {
-                    labels: analysis.byMonth.map(month => month.label),
+                    labels: byMonth.map(month => month.label),
                     datasets: [{
                         label: 'Custo mensal',
-                        data: analysis.byMonth.map(month => month.totalCost),
+                        data: byMonth.map(month => month.totalCost),
                         borderColor: '#0066b3',
                         backgroundColor: 'rgba(0, 102, 179, 0.12)',
                         fill: true,
@@ -1290,45 +1305,37 @@ const Relatorios = {
 
         createHorizontalBarChart(
             'costPartsChart',
-            analysis.byPiece.slice(0, 10).map(part => part.codigo),
-            analysis.byPiece.slice(0, 10).map(part => part.totalCost),
+            byPiece.slice(0, 10).map(part => part.codigo),
+            byPiece.slice(0, 10).map(part => part.totalCost),
             '#00a859',
             'Custo da peça'
         );
 
-        createHorizontalBarChart(
+        createVerticalBarChart(
             'costTechniciansChart',
-            analysis.byTechnician.slice(0, 10).map(tech => tech.nome),
-            analysis.byTechnician.slice(0, 10).map(tech => tech.totalCost),
+            byTechnician.slice(0, 10).map(tech => tech.nome),
+            byTechnician.slice(0, 10).map(tech => tech.totalCost),
             '#ff8a00',
             'Custo do técnico'
         );
 
-        createHorizontalBarChart(
-            'costRegionsChart',
-            analysis.byRegion.slice(0, 10).map(region => region.regiao),
-            analysis.byRegion.slice(0, 10).map(region => region.totalCost),
-            '#7a5af8',
-            'Custo da região'
-        );
-
-        createHorizontalBarChart(
+        createVerticalBarChart(
             'costTechniciansDetailChart',
-            analysis.byTechnician.slice(0, 12).map(tech => tech.nome),
-            analysis.byTechnician.slice(0, 12).map(tech => tech.totalCost),
+            byTechnician.slice(0, 12).map(tech => tech.nome),
+            byTechnician.slice(0, 12).map(tech => tech.totalCost),
             '#0066b3',
             'Custo do técnico'
         );
 
         createHorizontalBarChart(
             'costPartsDetailChart',
-            analysis.byPiece.slice(0, 12).map(part => part.codigo),
-            analysis.byPiece.slice(0, 12).map(part => part.totalCost),
+            byPiece.slice(0, 12).map(part => part.codigo),
+            byPiece.slice(0, 12).map(part => part.totalCost),
             '#00a859',
             'Custo da peça'
         );
     },
-    /**
+/**
      * Check whether a status should be included in financial cost reports
      */
     isCostRelevantStatus(status) {
@@ -1404,6 +1411,12 @@ const Relatorios = {
         `;
     }
 };
+
+
+
+
+
+
 
 
 
