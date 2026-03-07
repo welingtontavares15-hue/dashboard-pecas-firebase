@@ -522,6 +522,112 @@ const Solicitacoes = {
         };
     },
 
+    buildDecisionHistory(sol) {
+        const allSolicitations = DataManager.getSolicitations() || [];
+        const parseDate = (record) => Utils.parseAsLocalDate(record?.data || record?.createdAt || Date.now());
+        const isValidDate = (date) => date instanceof Date && !Number.isNaN(date.getTime());
+
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const tecnicoId = sol.tecnicoId;
+        const tecnicoMonth = allSolicitations.filter((item) => {
+            if (item.tecnicoId !== tecnicoId) {
+                return false;
+            }
+            const date = parseDate(item);
+            return isValidDate(date) && date >= monthStart && date <= monthEnd;
+        });
+
+        const tecnicoTotal = tecnicoMonth.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        const tecnicoTicket = tecnicoMonth.length > 0 ? tecnicoTotal / tecnicoMonth.length : 0;
+
+        const mainPiece = (sol.itens || [])[0] || null;
+        const pieceCode = mainPiece?.codigo || '';
+        const pieceSolicitations = pieceCode
+            ? allSolicitations.filter((item) => (item.itens || []).some((part) => String(part.codigo || '') === String(pieceCode)))
+            : [];
+
+        const pieceValues = pieceSolicitations.map((item) => {
+            const part = (item.itens || []).find((p) => String(p.codigo || '') === String(pieceCode));
+            return part ? ((Number(part.quantidade) || 0) * (Number(part.valorUnit) || 0)) : 0;
+        });
+        const pieceValueTotal = pieceValues.reduce((sum, value) => sum + value, 0);
+        const pieceAvg = pieceValues.length > 0 ? pieceValueTotal / pieceValues.length : 0;
+        const pieceLast = pieceSolicitations
+            .slice()
+            .sort((a, b) => parseDate(b).getTime() - parseDate(a).getTime())[0] || null;
+
+        const clienteName = String(sol.cliente || '').trim();
+        const clienteNorm = Utils.normalizeText(clienteName);
+        const clienteSolicitations = clienteNorm
+            ? allSolicitations.filter((item) => Utils.normalizeText(item.cliente || '') === clienteNorm)
+            : [];
+        const clienteTotal = clienteSolicitations.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        const clienteLast = clienteSolicitations
+            .slice()
+            .sort((a, b) => parseDate(b).getTime() - parseDate(a).getTime())[0] || null;
+
+        return {
+            tecnico: {
+                solicitacoesMes: tecnicoMonth.length,
+                custoTotal: tecnicoTotal,
+                ticketMedio: tecnicoTicket
+            },
+            peca: {
+                codigo: pieceCode,
+                descricao: mainPiece?.descricao || '',
+                solicitacoes: pieceSolicitations.length,
+                valorMedio: pieceAvg,
+                ultimaSolicitacao: pieceLast ? (pieceLast.data || pieceLast.createdAt) : null
+            },
+            cliente: {
+                nome: clienteName || 'Não informado',
+                totalSolicitacoes: clienteSolicitations.length,
+                custoAcumulado: clienteTotal,
+                ultimaSolicitacao: clienteLast ? (clienteLast.data || clienteLast.createdAt) : null
+            }
+        };
+    },
+
+    renderDecisionSidePanel(sol) {
+        const history = this.buildDecisionHistory(sol);
+
+        return `
+            <aside class="decision-side-panel">
+                <div class="decision-side-section">
+                    <h4><i class="fas fa-user-gear"></i> Histórico do técnico</h4>
+                    <div class="decision-side-list">
+                        <div><span>Solicitações no mês</span><strong>${Utils.formatNumber(history.tecnico.solicitacoesMes)}</strong></div>
+                        <div><span>Custo total</span><strong>${Utils.formatCurrency(history.tecnico.custoTotal)}</strong></div>
+                        <div><span>Ticket médio</span><strong>${Utils.formatCurrency(history.tecnico.ticketMedio)}</strong></div>
+                    </div>
+                </div>
+
+                <div class="decision-side-section">
+                    <h4><i class="fas fa-box"></i> Histórico da peça</h4>
+                    <p class="text-muted">${history.peca.codigo ? `${Utils.escapeHtml(history.peca.codigo)} - ${Utils.escapeHtml(history.peca.descricao || '')}` : 'Sem peça principal definida'}</p>
+                    <div class="decision-side-list">
+                        <div><span>Solicitações</span><strong>${Utils.formatNumber(history.peca.solicitacoes)}</strong></div>
+                        <div><span>Valor médio</span><strong>${Utils.formatCurrency(history.peca.valorMedio)}</strong></div>
+                        <div><span>Última solicitação</span><strong>${history.peca.ultimaSolicitacao ? Utils.formatDate(history.peca.ultimaSolicitacao) : '-'}</strong></div>
+                    </div>
+                </div>
+
+                <div class="decision-side-section">
+                    <h4><i class="fas fa-building"></i> Histórico do cliente</h4>
+                    <p class="text-muted">${Utils.escapeHtml(history.cliente.nome)}</p>
+                    <div class="decision-side-list">
+                        <div><span>Total de solicitações</span><strong>${Utils.formatNumber(history.cliente.totalSolicitacoes)}</strong></div>
+                        <div><span>Custo acumulado</span><strong>${Utils.formatCurrency(history.cliente.custoAcumulado)}</strong></div>
+                        <div><span>Última solicitação</span><strong>${history.cliente.ultimaSolicitacao ? Utils.formatDate(history.cliente.ultimaSolicitacao) : '-'}</strong></div>
+                    </div>
+                </div>
+            </aside>
+        `;
+    },
+
     /**
      * Get filtered solicitations
      */
@@ -651,6 +757,8 @@ const Solicitacoes = {
                     </div>
                 </div>
                 
+                ${this.renderDecisionSidePanel(sol)}
+
                 ${supplier ? `
                     <div class="form-group">
                         <label>Fornecedor</label>
@@ -745,6 +853,7 @@ const Solicitacoes = {
                     </div>
                 ` : ''}
                 
+                <div class="decision-panel-clear"></div>
                 ${this.renderTimeline(sol)}
             </div>
             <div class="modal-footer">
@@ -1440,6 +1549,7 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
 
 
 

@@ -8,12 +8,12 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/lazy/dashboard.js',
-        solicitacoes: './js/lazy/solicitacoes.js',
-        aprovacoes: './js/lazy/aprovacoes.js',
-        pecas: './js/lazy/pecas.js',
-        relatorios: './js/lazy/relatorios.js',
-        usuarios: './js/lazy/usuarios.js'
+        dashboard: './js/pages/dashboard.js?v=20260307e',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260307e',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260307e',
+        pecas: './js/pages/pecas.js?v=20260307e',
+        relatorios: './js/pages/relatorios.js?v=20260307e',
+        usuarios: './js/pages/usuarios.js?v=20260307e'
         },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1599,6 +1599,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+
+
 
 
 

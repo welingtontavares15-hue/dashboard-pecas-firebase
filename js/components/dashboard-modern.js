@@ -1,9 +1,7 @@
 ﻿import { renderKpiCard } from './kpi-card.js';
 import { renderFilterField } from './filters.js';
 import { renderDataTable } from './data-table.js';
-import { normalizePipelineStatus, badgeClassByPipelineStatus } from './badge-status.js';
-
-const PIPELINE = ['CRIADO', 'PENDENTE_APROVACAO', 'APROVADO', 'EM_COMPRA', 'ENVIADO', 'CONCLUIDO', 'REPROVADO'];
+import { normalizePipelineStatus, badgeClassByPipelineStatus } from './status-badge.js';
 
 function getDefaultFilters() {
     const period = AnalyticsHelper.getGlobalPeriodFilter();
@@ -48,34 +46,6 @@ function calcItemQty(items = []) {
     return items.reduce((sum, item) => sum + (Number(item.quantidade) || 0), 0);
 }
 
-function buildPipelineCount(solicitations = []) {
-    const count = {
-        CRIADO: 0,
-        PENDENTE_APROVACAO: 0,
-        APROVADO: 0,
-        EM_COMPRA: 0,
-        ENVIADO: 0,
-        CONCLUIDO: 0,
-        REPROVADO: 0
-    };
-
-    solicitations.forEach((sol) => {
-        count[normalizePipelineStatus(sol.status)] += 1;
-    });
-
-    return count;
-}
-
-function getMonthRange() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-        dateFrom: Utils.getLocalDateString(start),
-        dateTo: Utils.getLocalDateString(end)
-    };
-}
-
 function filterBaseSolicitations(filters) {
     const period = {
         dateFrom: filters.dateFrom,
@@ -93,133 +63,98 @@ function filterBaseSolicitations(filters) {
 
     if (filters.cliente) {
         const query = Utils.normalizeText(filters.cliente);
-        data = data.filter((sol) => Utils.normalizeText(sol.cliente || '').includes(query));
+        data = data.filter((sol) => Utils.normalizeText(sol.cliente || sol.clienteNome || '').includes(query));
     }
 
-    return data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-}
-
-function renderPipeline(count) {
-    return `
-        <div class="pipeline-board">
-            ${PIPELINE.map((step) => `
-                <div class="pipeline-stage">
-                    <div class="pipeline-stage-label">${step.replaceAll('_', ' ')}</div>
-                    <div class="pipeline-stage-count">${Utils.formatNumber(count[step] || 0)}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderAlerts(analysis, baseSolicitations, monthCost, monthBudget) {
-    const pending = baseSolicitations.filter((s) => normalizePipelineStatus(s.status) === 'PENDENTE_APROVACAO').length;
-    const topRequestedPiece = analysis.byPiece[0];
-    const aboveAverage = analysis.averageCostPerSolicitation > 0
-        ? analysis.costSolicitations.filter((sol) => (sol._analysisCost || Number(sol.total) || 0) > analysis.averageCostPerSolicitation).length
-        : 0;
-    const budgetExceeded = monthBudget > 0 && monthCost > monthBudget;
-
-    return `
-        <div class="alert-grid">
-            <div class="alert-card">
-                <h4><i class="fas fa-clock"></i> Solicitações aguardando aprovação</h4>
-                <p>${Utils.formatNumber(pending)} solicitações</p>
-            </div>
-            <div class="alert-card">
-                <h4><i class="fas fa-triangle-exclamation"></i> Custo acima da média</h4>
-                <p>${Utils.formatNumber(aboveAverage)} solicitações acima do ticket médio</p>
-            </div>
-            <div class="alert-card">
-                <h4><i class="fas fa-boxes-stacked"></i> Peças mais solicitadas</h4>
-                <p>${topRequestedPiece ? `${Utils.escapeHtml(topRequestedPiece.codigo)} • ${Utils.formatNumber(topRequestedPiece.quantidade)} un` : 'Sem dados no período'}</p>
-            </div>
-            <div class="alert-card ${budgetExceeded ? 'budget-alert-danger' : ''}">
-                <h4><i class="fas fa-wallet"></i> Orçamento mensal</h4>
-                <p>${monthBudget > 0 ? `${Utils.formatCurrency(monthCost)} de ${Utils.formatCurrency(monthBudget)}` : 'Orçamento não configurado'}</p>
-                ${budgetExceeded ? '<small class="text-danger">Orçamento mensal ultrapassado.</small>' : ''}
-            </div>
-        </div>
-    `;
-}
-
-function buildClientRanking(solicitations = []) {
-    const map = new Map();
-    solicitations.forEach((sol) => {
-        const client = String(sol.cliente || 'Não informado').trim() || 'Não informado';
-        const current = map.get(client) || { cliente: client, total: 0, solicitacoes: 0 };
-        current.total += Number(sol.total) || 0;
-        current.solicitacoes += 1;
-        map.set(client, current);
+    return data.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.data || 0).getTime();
+        const dateB = new Date(b.createdAt || b.data || 0).getTime();
+        return dateB - dateA;
     });
-
-    return Array.from(map.values()).sort((a, b) => (b.total - a.total) || (b.solicitacoes - a.solicitacoes)).slice(0, 8);
 }
 
-function renderRankings(analysis, solicitations) {
-    const topPieces = analysis.byPiece.slice(0, 5);
-    const topTechs = analysis.byTechnician.slice().sort((a, b) => (b.calls - a.calls)).slice(0, 5);
-    const topClients = buildClientRanking(solicitations);
+function buildAnalysis(filters) {
+    const statusList = filters.status ? getMappedStatuses(filters.status) : [];
 
-    const renderList = (items, formatter) => {
-        if (!items.length) {
-            return '<p class="text-muted">Sem dados no período.</p>';
+    return AnalyticsHelper.buildOperationalAnalysis(DataManager.getSolicitations().slice(), {
+        period: {
+            dateFrom: filters.dateFrom,
+            dateTo: filters.dateTo
+        },
+        statuses: statusList,
+        tecnico: filters.tecnico,
+        regiao: filters.estado,
+        cliente: filters.cliente
+    });
+}
+
+function getOpenSolicitationsCount(solicitations = []) {
+    const closedStatuses = new Set(['CONCLUIDO', 'REPROVADO']);
+    return solicitations.filter((sol) => !closedStatuses.has(normalizePipelineStatus(sol.status))).length;
+}
+
+function formatVariation(value) {
+    const number = Number(value) || 0;
+    if (number === 0) {
+        return 'Sem variação relevante no período';
+    }
+    const signal = number > 0 ? '↑' : '↓';
+    return `${signal} ${Utils.formatNumber(Math.abs(number), 1)}% vs período anterior`;
+}
+
+function getPartLabel(part) {
+    const description = String(part?.descricao || '').trim();
+    const code = String(part?.codigo || '').trim();
+    return description || code || 'Sem dados';
+}
+
+function getHighValueSolicitations(solicitations = []) {
+    return solicitations.slice().sort((a, b) => {
+        const totalDiff = (Number(b.total) || 0) - (Number(a.total) || 0);
+        if (totalDiff !== 0) {
+            return totalDiff;
         }
-        return `<div class="ranking-list">${items.map((item, idx) => `<div class="ranking-item"><span class="ranking-pos">${idx + 1}</span><div>${formatter(item)}</div></div>`).join('')}</div>`;
-    };
+        const dateA = new Date(a.createdAt || a.data || 0).getTime();
+        const dateB = new Date(b.createdAt || b.data || 0).getTime();
+        return dateB - dateA;
+    });
+}
 
+function renderCompactEmpty(message = 'Sem dados no período selecionado.') {
     return `
-        <div class="ranking-grid">
-            <div class="card compact-card">
-                <div class="card-header"><h4>Top peças solicitadas</h4></div>
-                <div class="card-body">${renderList(topPieces, (item) => `<strong>${Utils.escapeHtml(item.codigo)}</strong><div class="text-muted">${Utils.formatNumber(item.quantidade)} un</div>`)}</div>
-            </div>
-            <div class="card compact-card">
-                <div class="card-header"><h4>Top técnicos solicitantes</h4></div>
-                <div class="card-body">${renderList(topTechs, (item) => `<strong>${Utils.escapeHtml(item.nome)}</strong><div class="text-muted">${Utils.formatNumber(item.calls)} solicitações</div>`)}</div>
-            </div>
-            <div class="card compact-card">
-                <div class="card-header"><h4>Clientes com maior consumo</h4></div>
-                <div class="card-body">${renderList(topClients, (item) => `<strong>${Utils.escapeHtml(item.cliente)}</strong><div class="text-muted">${Utils.formatCurrency(item.total)}</div>`)}</div>
-            </div>
+        <div class="empty-state compact-empty-state">
+            <i class="fas fa-chart-line"></i>
+            <p>${Utils.escapeHtml(message)}</p>
         </div>
     `;
 }
 
-function renderConsumptionForecast(analysis, filters) {
-    const start = Utils.parseAsLocalDate(filters.dateFrom);
-    const end = Utils.parseAsLocalDate(filters.dateTo);
-    const diffDays = Math.max(Math.round((end.getTime() - start.getTime()) / 86400000) + 1, 1);
-
-    const projected = analysis.byPiece.slice(0, 8).map((piece) => {
-        const daily = (Number(piece.quantidade) || 0) / diffDays;
-        return {
-            codigo: piece.codigo,
-            descricao: piece.descricao,
-            projectedQty: Math.max(Math.round(daily * 30), 0)
-        };
-    }).sort((a, b) => b.projectedQty - a.projectedQty);
-
-    if (!projected.length) {
-        return '<p class="text-muted">Sem dados suficientes para previsão.</p>';
+function renderTopTechniciansTable(items = []) {
+    if (!items.length) {
+        return renderCompactEmpty('Sem dados suficientes para exibir o ranking.');
     }
 
     return `
-        <div class="table-container">
-            <table class="table compact-table">
+        <div class="table-container dashboard-compact-table">
+            <table class="table">
                 <thead>
                     <tr>
-                        <th>Peça</th>
-                        <th>Descrição</th>
-                        <th>Previsão 30 dias</th>
+                        <th>Técnico</th>
+                        <th>Solicitações</th>
+                        <th>Custo total</th>
+                        <th>Custo médio</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${projected.map((item) => `
+                    ${items.map((tech, index) => `
                         <tr>
-                            <td><strong>${Utils.escapeHtml(item.codigo)}</strong></td>
-                            <td>${Utils.escapeHtml(item.descricao || '-')}</td>
-                            <td>${Utils.formatNumber(item.projectedQty)} un</td>
+                            <td>
+                                <strong>${index + 1}. ${Utils.escapeHtml(tech.nome || 'Sem dados')}</strong>
+                                <div class="helper-text">${Utils.escapeHtml(tech.regiao || 'Sem região')}</div>
+                            </td>
+                            <td>${Utils.formatNumber(tech.calls)}</td>
+                            <td>${Utils.formatCurrency(tech.totalCost || 0)}</td>
+                            <td>${Utils.formatCurrency(tech.costPerCall || 0)}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -228,170 +163,238 @@ function renderConsumptionForecast(analysis, filters) {
     `;
 }
 
-function renderOperationalRows(solicitations) {
-    const canEdit = Auth.hasPermission('solicitacoes', 'edit');
-    const canApprove = Auth.hasPermission('aprovacoes', 'approve');
+function renderExecutiveSummary(analysis, topTechnician, topPart) {
+    const monthlyAverage = (analysis.byMonth || []).length > 0 ? (analysis.totalCost || 0) / analysis.byMonth.length : 0;
+    const deviations = analysis.highCostSolicitations || [];
 
-    return solicitations.slice(0, 30).map((sol) => {
-        const qty = calcItemQty(sol.itens || []);
+    return `
+        <div class="dashboard-executive-panel">
+            <div class="dashboard-executive-grid">
+                <div class="dashboard-summary-item primary">
+                    <span>Total gasto</span>
+                    <strong>${Utils.formatCurrency(analysis.totalCost || 0)}</strong>
+                    <small>Custo acumulado no período</small>
+                </div>
+                <div class="dashboard-summary-item primary">
+                    <span>Ticket médio</span>
+                    <strong>${Utils.formatCurrency(analysis.averageCostPerSolicitation || 0)}</strong>
+                    <small>Custo médio por solicitação</small>
+                </div>
+                <div class="dashboard-summary-item primary">
+                    <span>Técnico com maior custo</span>
+                    <strong>${Utils.escapeHtml(topTechnician?.nome || 'Sem dados')}</strong>
+                    <small>${topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : 'Sem dados no período selecionado.'}</small>
+                </div>
+                <div class="dashboard-summary-item primary">
+                    <span>Peça com maior custo</span>
+                    <strong>${Utils.escapeHtml(getPartLabel(topPart))}</strong>
+                    <small>${topPart ? Utils.formatCurrency(topPart.totalCost || 0) : 'Sem dados no período selecionado.'}</small>
+                </div>
+            </div>
+            <div class="dashboard-highlights-list">
+                <div class="dashboard-highlight-item">
+                    <span>Maior volume no período</span>
+                    <strong>${Utils.escapeHtml(analysis.topByCalls?.nome || 'Sem dados')}</strong>
+                    <small>${analysis.topByCalls?.calls ? `${Utils.formatNumber(analysis.topByCalls.calls)} solicitação(ões)` : 'Sem dados no período selecionado.'}</small>
+                </div>
+                <div class="dashboard-highlight-item">
+                    <span>Maior custo no período</span>
+                    <strong>${Utils.escapeHtml(analysis.topByCost?.nome || 'Sem dados')}</strong>
+                    <small>${analysis.topByCost?.totalCost ? Utils.formatCurrency(analysis.topByCost.totalCost) : 'Sem dados no período selecionado.'}</small>
+                </div>
+                <div class="dashboard-highlight-item">
+                    <span>Média de custo mensal</span>
+                    <strong>${Utils.formatCurrency(monthlyAverage)}</strong>
+                    <small>${(analysis.byMonth || []).length > 0 ? `${Utils.formatNumber(analysis.byMonth.length)} mês(es) analisados` : 'Sem dados no período selecionado.'}</small>
+                </div>
+                <div class="dashboard-highlight-item ${deviations.length > 0 ? 'warning' : ''}">
+                    <span>Desvio de custo</span>
+                    <strong>${Utils.formatNumber(deviations.length)}</strong>
+                    <small>${deviations.length > 0 ? 'Solicitações acima de 30% da média.' : 'Nenhum desvio de custo identificado.'}</small>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderTopPartsTable(parts = []) {
+    if (!parts.length) {
+        return renderCompactEmpty('Sem dados no período selecionado.');
+    }
+
+    return `
+        <div class="table-container dashboard-compact-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Peça</th>
+                        <th>Quantidade</th>
+                        <th>Custo total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${parts.map((part, index) => `
+                        <tr>
+                            <td>
+                                <strong>${index + 1}. ${Utils.escapeHtml(getPartLabel(part))}</strong>
+                                <div class="helper-text">${Utils.escapeHtml(part.codigo || '')}</div>
+                            </td>
+                            <td>${Utils.formatNumber(part.quantidade || 0)}</td>
+                            <td>${Utils.formatCurrency(part.totalCost || 0)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderHistoryRows(solicitations = []) {
+    return solicitations.slice(0, 10).map((sol) => {
         const piece = (sol.itens || [])[0];
         const pipelineStatus = normalizePipelineStatus(sol.status);
         const badgeClass = badgeClassByPipelineStatus(pipelineStatus);
 
         return `
             <tr>
-                <td><strong>#${sol.numero}</strong></td>
                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-                <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
-                <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
-                <td title="${Utils.escapeHtml((piece && piece.descricao) || '-')}">${Utils.escapeHtml((piece && piece.codigo) || '-')}</td>
-                <td>${Utils.formatNumber(qty)}</td>
+                <td><strong>#${sol.numero}</strong></td>
+                <td>${Utils.escapeHtml(sol.cliente || sol.clienteNome || 'Não informado')}</td>
+                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
+                <td>
+                    <strong>${Utils.escapeHtml(getPartLabel(piece))}</strong>
+                    <div class="helper-text">${Utils.escapeHtml(piece?.codigo || '')}</div>
+                </td>
                 <td>${Utils.formatCurrency(sol.total || 0)}</td>
                 <td><span class="status-badge ${badgeClass}">${pipelineStatus.replaceAll('_', ' ')}</span></td>
                 <td>
-                    <div class="actions">
-                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar"><i class="fas fa-eye"></i></button>
-                        ${canEdit ? `<button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar"><i class="fas fa-edit"></i></button>` : ''}
-                        ${canApprove && sol.status === 'pendente' ? `<button class="btn btn-sm btn-success" onclick="Aprovacoes.openApproveModal('${sol.id}')" title="Aprovar"><i class="fas fa-check"></i></button>` : ''}
-                        ${canApprove && sol.status === 'pendente' ? `<button class="btn btn-sm btn-danger" onclick="Aprovacoes.openRejectModal('${sol.id}')" title="Reprovar"><i class="fas fa-times"></i></button>` : ''}
-                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-function chartDestroy(ref) {
-    Object.values(ref).forEach((chart) => {
+function destroyCharts(collection) {
+    Object.values(collection || {}).forEach((chart) => {
         if (chart && typeof chart.destroy === 'function') {
             chart.destroy();
         }
     });
 }
 
+function replaceChartWithFallback(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.parentElement) {
+        return;
+    }
+    canvas.parentElement.innerHTML = `<div class="chart-fallback">${Utils.escapeHtml(message)}</div>`;
+}
+
 function initDashboardCharts(dashboard, analysis) {
+    dashboard._uiCharts = dashboard._uiCharts || {};
+    destroyCharts(dashboard._uiCharts);
+
     if (typeof Chart === 'undefined') {
+        replaceChartWithFallback('dashboardMonthlyCostChart', 'Gráfico indisponível no momento');
         return;
     }
 
-    dashboard._saasCharts = dashboard._saasCharts || {};
-    chartDestroy(dashboard._saasCharts);
+    const monthlyCanvas = document.getElementById('dashboardMonthlyCostChart');
+    const byMonth = Array.isArray(analysis.byMonth) ? analysis.byMonth : [];
 
-    const solicitacoesByMonth = document.getElementById('saasSolicitacoesMesChart');
-    const topPecas = document.getElementById('saasTopPecasChart');
-    const topTecnicos = document.getElementById('saasTopTecnicosChart');
-
-    const common = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } }
-    };
-
-    if (solicitacoesByMonth) {
-        dashboard._saasCharts.solicitacoesByMonth = new Chart(solicitacoesByMonth, {
-            type: 'line',
-            data: {
-                labels: analysis.byMonth.map((m) => m.label),
-                datasets: [{
-                    data: analysis.byMonth.map((m) => m.requestCount),
-                    borderColor: '#2563EB',
-                    backgroundColor: 'rgba(37,99,235,0.15)',
-                    fill: true,
-                    tension: 0.25
-                }]
-            },
-            options: common
-        });
-    }
-
-    if (topPecas) {
-        dashboard._saasCharts.topPecas = new Chart(topPecas, {
+    if (monthlyCanvas && byMonth.some((item) => Number(item.totalCost) > 0)) {
+        dashboard._uiCharts.monthly = new Chart(monthlyCanvas, {
             type: 'bar',
             data: {
-                labels: analysis.byPiece.slice(0, 8).map((p) => p.codigo),
+                labels: byMonth.map((item) => item.label),
                 datasets: [{
-                    data: analysis.byPiece.slice(0, 8).map((p) => p.quantidade),
-                    backgroundColor: 'rgba(22,163,74,0.65)',
-                    borderRadius: 6
-                }]
-            },
-            options: common
-        });
-    }
-
-    if (topTecnicos) {
-        const ranking = analysis.byTechnician.slice().sort((a, b) => (b.calls - a.calls)).slice(0, 8);
-        dashboard._saasCharts.topTecnicos = new Chart(topTecnicos, {
-            type: 'bar',
-            data: {
-                labels: ranking.map((t) => t.nome),
-                datasets: [{
-                    data: ranking.map((t) => t.calls),
-                    backgroundColor: 'rgba(245,158,11,0.75)',
-                    borderRadius: 6
+                    data: byMonth.map((item) => Number(item.totalCost) || 0),
+                    backgroundColor: 'rgba(37, 99, 235, 0.82)',
+                    borderRadius: 8,
+                    maxBarThickness: 44
                 }]
             },
             options: {
-                ...common,
-                indexAxis: 'y'
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => Utils.formatCurrency(Number(value) || 0)
+                        },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.18)'
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
             }
         });
+    } else {
+        replaceChartWithFallback('dashboardMonthlyCostChart', 'Sem dados no período selecionado.');
     }
 }
 
 export function applyDashboardModernization() {
-    if (typeof window.Dashboard === 'undefined' || window.Dashboard.__saasModernized) {
+    if (typeof window.Dashboard === 'undefined' || window.Dashboard.__visualRefined) {
         return;
     }
 
-    window.Dashboard.__saasModernized = true;
+    window.Dashboard.__visualRefined = true;
     window.Dashboard.saasFilters = getDefaultFilters();
 
-    window.Dashboard.render = function renderSaaSDashboard() {
+    window.Dashboard.render = function renderExecutiveDashboard() {
         const content = document.getElementById('content-area');
         if (!content) {
+            return;
+        }
+
+        if (Auth.getRole() === 'tecnico') {
+            content.innerHTML = `
+                <div class="page-container">
+                    <div class="empty-state compact-empty-state">
+                        <i class="fas fa-lock"></i>
+                        <h4>Dashboard restrito</h4>
+                        <p>Seu perfil possui acesso somente às suas solicitações.</p>
+                    </div>
+                </div>
+            `;
             return;
         }
 
         const filters = this.saasFilters || getDefaultFilters();
         this.saasFilters = filters;
 
-        const base = filterBaseSolicitations(filters);
-        const analysis = AnalyticsHelper.buildOperationalAnalysis(base.slice(), {
-            period: { dateFrom: filters.dateFrom, dateTo: filters.dateTo }
-        });
-
-        const monthRange = getMonthRange();
-        const monthData = AnalyticsHelper.filterSolicitations(base.slice(), {
-            period: monthRange
-        });
-        const monthCost = monthData.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
-        const approvedMonth = monthData.filter((s) => normalizePipelineStatus(s.status) === 'APROVADO').length;
-        const ticket = analysis.averageCostPerSolicitation || 0;
-        const settings = DataManager.getSettings();
-        const monthBudget = Number(settings.orcamentoMensalPecas || 0);
-
-        const totalPieces = analysis.totalPieces || 0;
-        const avgCostPiece = totalPieces > 0 ? (analysis.totalCost / totalPieces) : 0;
-        const avgCostTech = (analysis.uniqueTechCount || 0) > 0 ? (analysis.totalCost / analysis.uniqueTechCount) : 0;
-
-        const statuses = buildPipelineCount(base);
+        const solicitations = filterBaseSolicitations(filters);
+        const highValueSolicitations = getHighValueSolicitations(solicitations);
+        const analysis = buildAnalysis(filters);
         const technicians = DataManager.getTechnicians().filter((t) => t.ativo !== false);
         const regions = Array.from(new Set(technicians.map((t) => (t.regiao || t.estado || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+        const openCount = getOpenSolicitationsCount(solicitations);
+        const topTechnicians = (analysis.byTechnician || []).slice(0, 5);
+        const topTechnician = topTechnicians[0] || null;
+        const topParts = (analysis.byPiece || []).slice().sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0)).slice(0, 5);
+        const topPart = topParts[0] || null;
 
         content.innerHTML = `
-            <div class="page-container">
-                <div class="page-header">
-                    <h2><i class="fas fa-chart-pie"></i> Dashboard Operacional</h2>
-                    <p class="text-muted">Painel objetivo para gestão de solicitações, custos e aprovação.</p>
+            <div class="page-container dashboard-refined-shell dashboard-cost-shell">
+                <div class="page-header dashboard-header-compact">
+                    <div>
+                        <h2><i class="fas fa-sack-dollar"></i> Painel de Custos de Peças</h2>
+                        <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
+                    </div>
                 </div>
 
-                <div class="page-actions">
-                    <button class="btn btn-outline" onclick="Dashboard.resetSaasFilters()"><i class="fas fa-rotate-left"></i> Limpar filtros</button>
-                    <button class="btn btn-primary" onclick="App.navigate('solicitacoes')"><i class="fas fa-list"></i> Ir para operação</button>
-                </div>
-
-                <div class="page-filters dashboard-filters-grid">
+                <div class="page-filters dashboard-filters-grid dashboard-filters-compact">
                     ${renderFilterField('Período', `
                         <select id="saas-period" class="form-control">
                             <option value="7" ${filters.periodPreset === '7' ? 'selected' : ''}>Últimos 7 dias</option>
@@ -405,73 +408,106 @@ export function applyDashboardModernization() {
                     ${renderFilterField('Estado', `
                         <select id="saas-estado" class="form-control">
                             <option value="">Todos</option>
-                            ${regions.map((r) => `<option value="${Utils.escapeHtml(r)}" ${filters.estado === r ? 'selected' : ''}>${Utils.escapeHtml(r)}</option>`).join('')}
+                            ${regions.map((region) => `<option value="${Utils.escapeHtml(region)}" ${filters.estado === region ? 'selected' : ''}>${Utils.escapeHtml(region)}</option>`).join('')}
                         </select>
                     `)}
                     ${renderFilterField('Cliente', `<input id="saas-cliente" class="form-control" placeholder="Nome do cliente" value="${Utils.escapeHtml(filters.cliente)}">`)}
                     ${renderFilterField('Técnico', `
                         <select id="saas-tecnico" class="form-control">
                             <option value="">Todos</option>
-                            ${technicians.map((t) => `<option value="${t.id}" ${filters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>`).join('')}
+                            ${technicians.map((technician) => `<option value="${technician.id}" ${filters.tecnico === technician.id ? 'selected' : ''}>${Utils.escapeHtml(technician.nome)}</option>`).join('')}
                         </select>
                     `)}
                     ${renderFilterField('Status', `
                         <select id="saas-status" class="form-control">
-                            ${getStatusOptions().map((s) => `<option value="${s.value}" ${filters.status === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+                            ${getStatusOptions().map((status) => `<option value="${status.value}" ${filters.status === status.value ? 'selected' : ''}>${status.label}</option>`).join('')}
                         </select>
                     `)}
                 </div>
 
                 <div class="page-kpis">
-                    <div class="kpi-grid">
-                        ${renderKpiCard({ title: 'Solicitações pendentes', value: Utils.formatNumber(statuses.PENDENTE_APROVACAO), subtitle: 'Fila de aprovação', icon: 'fa-clock', tone: 'warning' })}
-                        ${renderKpiCard({ title: 'Aprovadas no mês', value: Utils.formatNumber(approvedMonth), subtitle: 'Mês corrente', icon: 'fa-check', tone: 'success' })}
-                        ${renderKpiCard({ title: 'Solicitações no período', value: Utils.formatNumber(base.length), subtitle: `${Utils.formatDate(filters.dateFrom)} a ${Utils.formatDate(filters.dateTo)}`, icon: 'fa-calendar', tone: 'info' })}
-                        ${renderKpiCard({ title: 'Custo total do mês', value: Utils.formatCurrency(monthCost), subtitle: 'Solicitações do mês', icon: 'fa-money-bill-wave', tone: 'primary' })}
-                        ${renderKpiCard({ title: 'Ticket médio', value: Utils.formatCurrency(ticket), subtitle: 'Por solicitação', icon: 'fa-receipt', tone: 'info' })}
-                    </div>
-                    <div class="kpi-grid secondary-kpi-grid">
-                        ${renderKpiCard({ title: 'Custo médio por peça', value: Utils.formatCurrency(avgCostPiece), icon: 'fa-boxes-stacked', tone: 'warning' })}
-                        ${renderKpiCard({ title: 'Custo médio por técnico', value: Utils.formatCurrency(avgCostTech), icon: 'fa-user-gear', tone: 'success' })}
+                    <div class="kpi-grid dashboard-kpi-grid">
+                        ${renderKpiCard({ title: 'Solicitações abertas', value: Utils.formatNumber(openCount), subtitle: 'Em andamento no filtro atual', icon: 'fa-folder-open', tone: 'warning' })}
+                        ${renderKpiCard({ title: 'Solicitações no período', value: Utils.formatNumber(solicitations.length), subtitle: `${Utils.formatDate(filters.dateFrom)} a ${Utils.formatDate(filters.dateTo)}`, icon: 'fa-clipboard-list', tone: 'info' })}
+                        ${renderKpiCard({ title: 'Custo total de peças', value: Utils.formatCurrency(analysis.totalCost || 0), subtitle: formatVariation(analysis.costVariation), icon: 'fa-sack-dollar', tone: 'primary' })}
+                        ${renderKpiCard({ title: 'Custo médio por solicitação', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicitação(ões) com custo`, icon: 'fa-receipt', tone: 'success' })}
+                        ${renderKpiCard({ title: 'Custo médio por técnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} técnico(s) com custo`, icon: 'fa-user-gear', tone: 'info' })}
                     </div>
                 </div>
 
-                <div class="page-content">
-                    <div class="card">
-                        <div class="card-header"><h4><i class="fas fa-timeline"></i> Pipeline de solicitações</h4></div>
-                        <div class="card-body">${renderPipeline(statuses)}</div>
-                    </div>
+                <div class="page-content dashboard-content-stack">
+                    <section class="dashboard-insight-grid dashboard-cost-overview-grid">
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header dashboard-panel-header">
+                                <div>
+                                    <h4>Top 5 técnicos com maior custo</h4>
+                                    <p class="text-muted">Solicitações, custo total e custo médio por técnico.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${renderTopTechniciansTable(topTechnicians)}
+                            </div>
+                        </article>
 
-                    <div class="charts-grid saas-charts-grid">
-                        <div class="chart-container"><h4>Solicitações por mês</h4><div class="chart-wrapper"><canvas id="saasSolicitacoesMesChart"></canvas></div></div>
-                        <div class="chart-container"><h4>Top peças solicitadas</h4><div class="chart-wrapper"><canvas id="saasTopPecasChart"></canvas></div></div>
-                        <div class="chart-container"><h4>Técnicos com mais solicitações</h4><div class="chart-wrapper"><canvas id="saasTopTecnicosChart"></canvas></div></div>
-                    </div>
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header dashboard-panel-header">
+                                <div>
+                                    <h4>Resumo executivo do período</h4>
+                                    <p class="text-muted">Leitura financeira objetiva das solicitações.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${renderExecutiveSummary(analysis, topTechnician, topPart)}
+                            </div>
+                        </article>
+                    </section>
 
-                    <div class="card mt-3">
-                        <div class="card-header"><h4><i class="fas fa-bell"></i> Alertas operacionais</h4></div>
-                        <div class="card-body">${renderAlerts(analysis, base, monthCost, monthBudget)}</div>
-                    </div>
+                    <section class="dashboard-insight-grid dashboard-cost-detail-grid">
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header dashboard-panel-header">
+                                <div>
+                                    <h4>Top 5 peças com maior custo</h4>
+                                    <p class="text-muted">Nome da peça, quantidade e custo total.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${renderTopPartsTable(topParts)}
+                            </div>
+                        </article>
 
-                    <div class="card mt-3">
-                        <div class="card-header"><h4><i class="fas fa-ranking-star"></i> Rankings automáticos</h4></div>
-                        <div class="card-body">${renderRankings(analysis, base)}</div>
-                    </div>
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header dashboard-panel-header">
+                                <div>
+                                    <h4>Histórico recente de maior valor</h4>
+                                    <p class="text-muted">Solicitações com maior valor no período filtrado.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${highValueSolicitations.length === 0
+        ? renderCompactEmpty('Nenhuma solicitação encontrada no período.')
+        : renderDataTable({
+            headers: ['Data', 'Número', 'Cliente', 'Técnico', 'Peça', 'Valor', 'Status', 'Ações'],
+            rows: renderHistoryRows(highValueSolicitations)
+        })}
+                            </div>
+                        </article>
+                    </section>
 
-                    <div class="card mt-3">
-                        <div class="card-header"><h4><i class="fas fa-wand-magic-sparkles"></i> Previsão de consumo de peças (30 dias)</h4></div>
-                        <div class="card-body">${renderConsumptionForecast(analysis, filters)}</div>
-                    </div>
-
-                    <div class="card mt-3">
-                        <div class="card-header"><h4><i class="fas fa-table"></i> Tabela operacional</h4></div>
-                        <div class="card-body">
-                            ${renderDataTable({
-                                headers: ['Número', 'Data', 'Cliente', 'Técnico', 'Peça', 'Quantidade', 'Valor', 'Status', 'Ações'],
-                                rows: renderOperationalRows(base)
-                            })}
+                    <section class="card dashboard-panel-card dashboard-monthly-card">
+                        <div class="card-header dashboard-panel-header">
+                            <div>
+                                <h4>Custo total por mês</h4>
+                                <p class="text-muted">Comparativo mensal do gasto com peças.</p>
+                            </div>
                         </div>
-                    </div>
+                        <div class="card-body">
+                            <div class="chart-container dashboard-chart-card dashboard-monthly-chart-card">
+                                <div class="chart-wrapper compact-chart-wrapper dashboard-monthly-chart-wrapper">
+                                    <canvas id="dashboardMonthlyCostChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         `;
@@ -513,9 +549,9 @@ export function applyDashboardModernization() {
         };
 
         ['saas-period', 'saas-date-from', 'saas-date-to', 'saas-estado', 'saas-tecnico', 'saas-status'].forEach((id) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('change', apply);
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', apply);
             }
         });
 
@@ -536,7 +572,6 @@ export function applyDashboardModernization() {
         this.render();
     };
 }
-
 
 
 

@@ -20,9 +20,10 @@ export function badgeClassByPipelineStatus(pipelineStatus) {
         PENDENTE_APROVACAO: 'status-pendente-aprovacao',
         APROVADO: 'status-aprovado',
         EM_COMPRA: 'status-em-compra',
-        ENVIADO: 'status-concluido',
+        ENVIADO: 'status-enviado',
         CONCLUIDO: 'status-concluido',
         REPROVADO: 'status-reprovado'
     };
     return cls[pipelineStatus] || 'status-criado';
 }
+

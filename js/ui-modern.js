@@ -4,7 +4,8 @@
         pendente_aprovacao: { label: 'Pendente aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
         aprovado: { label: 'Aprovado', icon: 'fa-check', css: 'status-aprovado' },
         reprovado: { label: 'Reprovado', icon: 'fa-times', css: 'status-reprovado' },
-        em_compra: { label: 'Em compra', icon: 'fa-truck', css: 'status-em-compra' },
+        em_compra: { label: 'Em compra', icon: 'fa-cart-shopping', css: 'status-em-compra' },
+        enviado: { label: 'Enviado', icon: 'fa-truck-fast', css: 'status-enviado' },
         concluido: { label: 'Concluído', icon: 'fa-check-double', css: 'status-concluido' }
     };
 
@@ -22,7 +23,7 @@
         em_transito: 'em_compra',
         'em-transito': 'em_compra',
         em_compra: 'em_compra',
-        entregue: 'concluido',
+        entregue: 'enviado',
         finalizada: 'concluido',
         concluido: 'concluido',
         'historico-manual': 'concluido'
@@ -207,48 +208,100 @@
             }
 
             const items = this.getMenuItems();
-            const groupOrder = ['Dashboard', 'Solicitações', 'Aprovações', 'Peças', 'Relatórios', 'Usuários', 'Configurações'];
-            const groups = {
-                Dashboard: [],
-                'Solicitações': [],
-                'Aprovações': [],
-                'Peças': [],
-                'Relatórios': [],
-                'Usuários': [],
-                'Configurações': []
+            const itemMap = new Map(items.map((item) => [item.id, item]));
+            const pendingCount = DataManager.getPendingSolicitations().length;
+            const reportAliases = {
+                custos: 'visao-geral',
+                solicitacoes: 'historico',
+                pecas: 'pecas',
+                tecnicos: 'tecnicos',
+                meses: 'meses',
+                historico: 'historico'
+            };
+            const currentReportRaw = activeId === 'relatorios'
+                ? ((window.Relatorios && window.Relatorios.currentReport) || window.__reportTarget || 'visao-geral')
+                : '';
+            const currentReport = reportAliases[String(currentReportRaw || '').toLowerCase()] || currentReportRaw || 'visao-geral';
+
+            this._menuGroupsCollapsed = this._menuGroupsCollapsed || {};
+
+            const reportShortcuts = itemMap.has('relatorios') ? [
+                { id: 'relatorios', pageId: 'relatorios', label: 'Relatórios', icon: 'fa-file-alt', reportTarget: 'visao-geral' },
+                { id: 'relatorios_pecas', pageId: 'relatorios', label: 'Custo por Peça', icon: 'fa-box-open', reportTarget: 'pecas', isSubItem: true },
+                { id: 'relatorios_tecnicos', pageId: 'relatorios', label: 'Custo por Técnico', icon: 'fa-user-gear', reportTarget: 'tecnicos', isSubItem: true },
+                { id: 'relatorios_meses', pageId: 'relatorios', label: 'Custo por Mês', icon: 'fa-chart-line', reportTarget: 'meses', isSubItem: true },
+                { id: 'relatorios_historico', pageId: 'relatorios', label: 'Histórico', icon: 'fa-clock-rotate-left', reportTarget: 'historico', isSubItem: true }
+            ] : [];
+
+            const groups = this.getRole() === 'tecnico'
+                ? [
+                    { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('nova-solicitacao'), itemMap.get('minhas-solicitacoes')] },
+                    { key: 'consulta', title: 'CONSULTA', items: [itemMap.get('catalogo')] },
+                    { key: 'suporte', title: 'SUPORTE', items: [itemMap.get('ajuda'), itemMap.get('perfil')] }
+                ]
+                : [
+                    { key: 'visao-geral', title: 'VISÃO GERAL', items: [itemMap.get('dashboard')] },
+                    { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
+                    { key: 'custos', title: 'CUSTOS E ANÁLISES', items: reportShortcuts },
+                    { key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
+                    { key: 'configuracoes', title: 'CONFIGURAÇÕES', items: [itemMap.get('configuracoes')] }
+                ];
+
+            const buildEntry = (entry) => {
+                if (!entry) {
+                    return '';
+                }
+
+                const pageId = entry.pageId || entry.id;
+                const reportTarget = entry.reportTarget || '';
+                const badgeCount = entry.badge ? pendingCount : 0;
+                const isReportMain = pageId === 'relatorios' && (!reportTarget || reportTarget === 'visao-geral');
+                const isActive = reportTarget
+                    ? (activeId === 'relatorios' && currentReport === reportTarget)
+                    : (isReportMain ? (activeId === 'relatorios' && (!currentReport || currentReport === 'visao-geral')) : pageId === activeId);
+                const reportSeed = reportTarget || (pageId === 'relatorios' ? 'visao-geral' : '');
+                const className = 'nav-item ' + (entry.isSubItem ? 'nav-item-sub ' : '') + (isActive ? 'active' : '');
+                const onclickAttr = ` onclick="window.__reportTarget='${reportSeed}'"`;
+                const dataReport = reportTarget ? ` data-report-target="${reportTarget}"` : '';
+
+                return `<a class="${className}" data-page="${pageId}"${dataReport}${onclickAttr}>`
+                    + `<i class="fas ${entry.icon}"></i>`
+                    + `<span>${entry.label}</span>`
+                    + ((entry.badge && badgeCount > 0) ? `<span class="nav-badge">${badgeCount}</span>` : '')
+                    + '</a>';
             };
 
-            const pickGroup = (id) => {
-                if (id === 'dashboard') { return 'Dashboard'; }
-                if (id === 'solicitacoes' || id === 'minhas-solicitacoes' || id === 'nova-solicitacao') { return 'Solicitações'; }
-                if (id === 'aprovacoes') { return 'Aprovações'; }
-                if (id === 'pecas' || id === 'catalogo') { return 'Peças'; }
-                if (id === 'relatorios') { return 'Relatórios'; }
-                if (id === 'configuracoes') { return 'Configurações'; }
-                return 'Usuários';
-            };
+            nav.innerHTML = groups
+                .map((group) => {
+                    const entries = (group.items || []).filter(Boolean);
+                    if (entries.length === 0) {
+                        return '';
+                    }
+                    const collapsed = this._menuGroupsCollapsed[group.key] === true;
+                    return `<section class="nav-group ${collapsed ? 'collapsed' : ''}" data-nav-group="${group.key}">`
+                        + `<button type="button" class="nav-group-toggle" data-group-toggle="${group.key}">`
+                        + `<span>${group.title}</span><i class="fas fa-chevron-down"></i>`
+                        + '</button>'
+                        + `<div class="nav-group-items">${entries.map(buildEntry).join('')}</div>`
+                        + '</section>';
+                })
+                .join('');
 
-            items.forEach((item) => {
-                groups[pickGroup(item.id)].push(item);
+            nav.querySelectorAll('[data-group-toggle]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const key = button.getAttribute('data-group-toggle');
+                    const container = nav.querySelector(`[data-nav-group="${key}"]`);
+                    if (!container) {
+                        return;
+                    }
+                    const collapsed = !container.classList.contains('collapsed');
+                    container.classList.toggle('collapsed', collapsed);
+                    this._menuGroupsCollapsed[key] = collapsed;
+                });
             });
 
-            nav.innerHTML = groupOrder
-                .filter((name) => groups[name].length > 0)
-                .map((name) => {
-                    const sectionItems = groups[name];
-                    return '<div class="nav-section"><div class="nav-section-title">' + name + '</div>' + sectionItems.map((item) => {
-                        const isActive = item.id === activeId;
-                        const badgeCount = item.badge ? DataManager.getPendingSolicitations().length : 0;
-                        return '<a class="nav-item ' + (isActive ? 'active' : '') + '" data-page="' + item.id + '">'
-                            + '<i class="fas ' + item.icon + '"></i>'
-                            + '<span>' + item.label + '</span>'
-                            + ((item.badge && badgeCount > 0) ? '<span class="nav-badge">' + badgeCount + '</span>' : '')
-                            + '</a>';
-                    }).join('') + '</div>';
-                }).join('');
-
             const pendingBadge = document.getElementById('pending-badge');
-            const pendingCount = DataManager.getPendingSolicitations().length;
             if (pendingBadge) {
                 if (this.hasPermission('aprovacoes', 'view') && pendingCount > 0) {
                     pendingBadge.classList.remove('hidden');
@@ -341,6 +394,9 @@
             await originalRenderPage(pageId);
             this.applyPageScaffold();
             this.renderNotificationPanel();
+            if (typeof Auth !== 'undefined' && typeof Auth.renderMenu === 'function') {
+                Auth.renderMenu(pageId);
+            }
             if (typeof Utils !== 'undefined' && typeof Utils.enhanceTables === 'function') {
                 Utils.enhanceTables(document.getElementById('content-area'));
             }
@@ -351,6 +407,9 @@
             setTimeout(() => {
                 this.applyPageScaffold();
                 this.renderNotificationPanel();
+                if (typeof Auth !== 'undefined' && typeof Auth.renderMenu === 'function') {
+                    Auth.renderMenu(this.currentPage);
+                }
                 if (typeof Utils !== 'undefined' && typeof Utils.enhanceTables === 'function') {
                     Utils.enhanceTables(document.getElementById('content-area'));
                 }
@@ -562,4 +621,9 @@
     patchAuth();
     patchApp();
 })();
+
+
+
+
+
 
