@@ -11,7 +11,8 @@ const ADMIN_PASSWORD_ALIASES = [CANONICAL_ADMIN_PASSWORD, 'adim'];
 const Auth = {
     // Current user
     currentUser: null,
-    SESSION_DURATION_MS: 1000 * 60 * 60 * 8,
+    SESSION_KEY: 'diversey_current_user',
+    SESSION_DURATION_MS: 1000 * 60 * 60 * 24 * 30,
     // Auth logging disabled - online-only mode does not persist logs locally
     AUTH_LOG_KEY: null,
     AUTH_LOG_LIMIT: 100,
@@ -112,6 +113,36 @@ const Auth = {
         };
     },
 
+    getStoredSession() {
+        try {
+            return localStorage.getItem(this.SESSION_KEY) || sessionStorage.getItem(this.SESSION_KEY);
+        } catch (_e) {
+            return null;
+        }
+    },
+
+    persistSession(sessionUser = this.currentUser) {
+        if (!sessionUser) {
+            return;
+        }
+        const payload = JSON.stringify(sessionUser);
+        try {
+            localStorage.setItem(this.SESSION_KEY, payload);
+            sessionStorage.setItem(this.SESSION_KEY, payload);
+        } catch (_e) {
+            sessionStorage.setItem(this.SESSION_KEY, payload);
+        }
+    },
+
+    clearSession() {
+        try {
+            localStorage.removeItem(this.SESSION_KEY);
+        } catch (_e) {
+            // ignore
+        }
+        sessionStorage.removeItem(this.SESSION_KEY);
+    },
+
     /**
      * Hash password using shared util
      */
@@ -121,18 +152,17 @@ const Auth = {
 
     /**
      * Initialize auth
-     * Online-only mode: Session is stored in sessionStorage (temporary).
-     * On page reload, session is validated against cloud data.
+     * Session is stored with persistence (localStorage + sessionStorage).
+     * On page reload, session is validated against cloud data and renewed.
      */
     init() {
-        // Check for saved session in sessionStorage (temporary, clears on browser close)
-        const savedUser = sessionStorage.getItem('diversey_current_user');
+        const savedUser = this.getStoredSession();
         if (savedUser) {
             try {
                 const sessionUser = JSON.parse(savedUser);
                 if (!sessionUser || typeof sessionUser.username !== 'string' || !sessionUser.id) {
                     console.warn('Sessão removida: dados de sessão inválidos');
-                    sessionStorage.removeItem('diversey_current_user');
+                    this.clearSession();
                     return false;
                 }
 
@@ -140,30 +170,30 @@ const Auth = {
 
                 if (!latestUser) {
                     console.warn('Sessão removida: usuário não encontrado na base');
-                    sessionStorage.removeItem('diversey_current_user');
+                    this.clearSession();
                     return false;
                 }
 
                 // Check session expiration
                 if (sessionUser.expiresAt && sessionUser.expiresAt < Date.now()) {
                     console.warn('Sessão expirada');
-                    sessionStorage.removeItem('diversey_current_user');
+                    this.clearSession();
                     return false;
                 }
 
                 if (latestUser.disabled) {
                     console.warn('Sessão removida: usuário inativo');
-                    sessionStorage.removeItem('diversey_current_user');
+                    this.clearSession();
                     return false;
                 }
 
                 // Always refresh session with latest profile/role data and renew expiration
                 this.currentUser = { ...this.buildSessionUser(latestUser) };
-                sessionStorage.setItem('diversey_current_user', JSON.stringify(this.currentUser));
+                this.persistSession(this.currentUser);
                 return true;
             } catch (e) {
                 console.error('Erro ao restaurar sessão do usuário', e);
-                sessionStorage.removeItem('diversey_current_user');
+                this.clearSession();
             }
         }
         return false;
@@ -237,13 +267,7 @@ const Auth = {
             }
         }
 
-        if (typeof DataManager !== 'undefined' && typeof DataManager.ensureRecoveryUsers === 'function') {
-            try {
-                await DataManager.ensureRecoveryUsers();
-            } catch (e) {
-                console.warn('Failed to enforce recovery users before login:', e);
-            }
-        }
+
 
         const user = DataManager.getUserByUsername(inputUsername);
         
@@ -376,8 +400,7 @@ const Auth = {
         // Don't store password in session
         this.currentUser = this.buildSessionUser(user);
         
-        // Online-only mode: Use sessionStorage instead of localStorage
-        sessionStorage.setItem('diversey_current_user', JSON.stringify(this.currentUser));
+        this.persistSession(this.currentUser);
         
         // Clear rate limit on successful login
         this.clearRateLimit(normalizedUsername);
@@ -401,8 +424,7 @@ const Auth = {
      */
     logout() {
         this.currentUser = null;
-        // Online-only mode: Clear sessionStorage instead of localStorage
-        sessionStorage.removeItem('diversey_current_user');
+        this.clearSession();
     },
 
     /**
@@ -722,6 +744,15 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
+
+
+
+
+
+
+
+
 
 
 

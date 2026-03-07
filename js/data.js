@@ -439,7 +439,8 @@ const DataManager = {
 
                 // Keep current session aligned with latest user data (e.g., gestor updates)
                 if (typeof Auth !== 'undefined' && Auth.currentUser && Array.isArray(users)) {
-                    const latestUser = users.find(u => u.username === Auth.currentUser.username);
+                    const currentUsername = this.normalizeUsername(Auth.currentUser.username);
+                    const latestUser = users.find(u => this.normalizeUsername(u.username) === currentUsername);
                     if (!latestUser || latestUser.disabled) {
                         Auth.logout();
                         if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
@@ -447,7 +448,11 @@ const DataManager = {
                         }
                     } else {
                         Auth.currentUser = Auth.buildSessionUser(latestUser);
-                        sessionStorage.setItem('diversey_current_user', JSON.stringify(Auth.currentUser));
+                        if (typeof Auth.persistSession === 'function') {
+                            Auth.persistSession(Auth.currentUser);
+                        } else {
+                            sessionStorage.setItem('diversey_current_user', JSON.stringify(Auth.currentUser));
+                        }
                         if (typeof App !== 'undefined' && App.currentPage) {
                             Auth.renderMenu(App.currentPage);
                         }
@@ -471,13 +476,10 @@ const DataManager = {
      * Check if system is online (for online-only mode blocking)
      */
     isOnline() {
-        // Use centralized RTDB connection state from FirebaseInit
-        const cloudReady = typeof CloudStorage !== 'undefined' ? CloudStorage.cloudReady === true : true;
-        return this._isOnline &&
-            this.cloudInitialized &&
-            cloudReady &&
-            typeof FirebaseInit !== 'undefined' &&
-            FirebaseInit.isRTDBConnected();
+        if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+            this._isOnline = navigator.onLine;
+        }
+        return this._isOnline !== false;
     },
     
     /**
@@ -749,6 +751,9 @@ const DataManager = {
                 });
             } else {
                 console.warn('[ONLINE-ONLY] Cloud not available for save operation');
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Serviço de dados indisponível no momento. Tente novamente em instantes.', 'error');
+                }
                 return false;
             }
             
@@ -966,33 +971,26 @@ const DataManager = {
         return Utils.normalizeText(username || '');
     },
 
+    normalizeEmail(email) {
+        return String(email || '').trim().toLowerCase();
+    },
+
     getGestorPassword() {
         const key = 'diversey_gestor_recovery_password';
-        const generateSecurePassword = () => {
-            try {
-                const array = new Uint8Array(16);
-                const cryptoObj = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
-                if (cryptoObj?.getRandomValues) {
-                    cryptoObj.getRandomValues(array);
-                    return btoa(String.fromCharCode(...array)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 18);
-                }
-            } catch (_e) {
-                // ignore and fallback
-            }
-            return `Gestor#${Utils.generateId().replace(/[^a-zA-Z0-9]/g, '').slice(0, 18)}`;
-        };
+        const fallback = 'gestor123';
 
         try {
-            const stored = sessionStorage.getItem(key);
+            const stored = localStorage.getItem(key) || sessionStorage.getItem(key);
             if (stored && stored.trim()) {
                 return stored.trim();
             }
-            const generated = generateSecurePassword();
-            sessionStorage.setItem(key, generated);
-            return generated;
+            localStorage.setItem(key, fallback);
+            sessionStorage.setItem(key, fallback);
         } catch (_e) {
-            return generateSecurePassword();
+            // fallback direto
         }
+
+        return fallback;
     },
 
     getUsers() {
@@ -1010,6 +1008,38 @@ const DataManager = {
         const target = this.normalizeUsername(username);
         const users = this.getUsers();
         return users.find(u => this.normalizeUsername(u.username) === target);
+    },
+
+    findUserConflicts(user, users = this.getUsers()) {
+        const normalizedUsername = this.normalizeUsername(user?.username);
+        const normalizedEmail = this.normalizeEmail(user?.email);
+        const currentId = user?.id || null;
+
+        let duplicateUsernameUser = null;
+        let duplicateEmailUser = null;
+
+        for (const current of users || []) {
+            if (!current || current.id === currentId) {
+                continue;
+            }
+
+            if (!duplicateUsernameUser && normalizedUsername && this.normalizeUsername(current.username) === normalizedUsername) {
+                duplicateUsernameUser = current;
+            }
+
+            if (!duplicateEmailUser && normalizedEmail) {
+                const currentEmail = this.normalizeEmail(current.email);
+                if (currentEmail && currentEmail === normalizedEmail) {
+                    duplicateEmailUser = current;
+                }
+            }
+
+            if (duplicateUsernameUser && duplicateEmailUser) {
+                break;
+            }
+        }
+
+        return { duplicateUsernameUser, duplicateEmailUser };
     },
 
     async _persistUsersToCloud(users) {
@@ -1048,6 +1078,51 @@ const DataManager = {
         return saved;
     },
 
+    async resetUserPasswordById(userId, newPassword) {
+        const password = String(newPassword || '').trim();
+        if (!userId || password.length < 4) {
+            return { success: false, error: 'Informe uma nova senha com pelo menos 4 caracteres.' };
+        }
+
+        const users = this.getUsers();
+        const index = users.findIndex(u => u.id === userId);
+        if (index < 0) {
+            return { success: false, error: 'Usuário não encontrado.' };
+        }
+
+        const targetUser = users[index];
+        try {
+            users[index] = {
+                ...targetUser,
+                passwordHash: await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${targetUser.username}`),
+                updatedAt: Date.now()
+            };
+            delete users[index].password;
+        } catch (error) {
+            console.error('Erro ao gerar hash da nova senha', error);
+            return { success: false, error: 'Não foi possível redefinir a senha com segurança.' };
+        }
+
+        const saved = await this._persistUsersToCloud(users);
+        if (!saved) {
+            return { success: false, error: 'Não foi possível salvar a nova senha na nuvem. Tente novamente.' };
+        }
+
+        this._sessionCache[this.KEYS.USERS] = users;
+
+        if (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function') {
+            const currentUser = Auth.getCurrentUser();
+            if (currentUser?.id === users[index].id) {
+                Auth.currentUser = Auth.buildSessionUser(users[index]);
+                if (typeof Auth.persistSession === 'function') {
+                    Auth.persistSession(Auth.currentUser);
+                }
+            }
+        }
+
+        return { success: true, user: users[index] };
+    },
+
     /**
      * Create or update user (used for adding gestores)
      */
@@ -1077,28 +1152,44 @@ const DataManager = {
         }
 
         const users = this.getUsers();
-        const normalizedUsername = this.normalizeUsername(user.username);
-        const duplicate = users.find(u => this.normalizeUsername(u.username) === normalizedUsername && u.id !== user.id);
-        if (duplicate) {
-            return { success: false, error: 'Nome de usuário já cadastrado' };
+        const candidate = {
+            ...user,
+            username: String(user.username || '').trim(),
+            email: this.normalizeEmail(user.email)
+        };
+
+        if (!candidate.username) {
+            return { success: false, error: 'Usuário inválido' };
+        }
+
+        const { duplicateUsernameUser, duplicateEmailUser } = this.findUserConflicts(candidate, users);
+        if (duplicateUsernameUser) {
+            return { success: false, errorCode: 'duplicate_username', error: 'Nome de usuário já cadastrado' };
+        }
+        if (duplicateEmailUser) {
+            return { success: false, errorCode: 'duplicate_email', error: 'E-mail já cadastrado' };
         }
 
         const normalizedUser = {
-            id: user.id || Utils.generateId(),
-            username: String(user.username).trim(),
-            name: user.name || user.username,
-            role: user.role || 'gestor',
-            email: user.email || '',
-            tecnicoId: user.tecnicoId || null,
-            disabled: user.disabled === true ? true : (user.disabled === false ? false : undefined),
-            updatedAt: Date.now() // Add timestamp for merge conflict resolution
+            id: candidate.id || Utils.generateId(),
+            username: candidate.username,
+            name: candidate.name || candidate.username,
+            role: candidate.role || 'gestor',
+            email: candidate.email || '',
+            tecnicoId: candidate.tecnicoId || null,
+            disabled: candidate.disabled === true ? true : (candidate.disabled === false ? false : undefined),
+            updatedAt: Date.now()
         };
 
+        const index = users.findIndex(u => u.id === normalizedUser.id);
+
         try {
-            if (user.passwordHash) {
-                normalizedUser.passwordHash = user.passwordHash;
-            } else if (user.password) {
-                normalizedUser.passwordHash = await Utils.hashSHA256(user.password, `${Utils.PASSWORD_SALT}:${normalizedUser.username}`);
+            if (candidate.passwordHash) {
+                normalizedUser.passwordHash = candidate.passwordHash;
+            } else if (candidate.password) {
+                normalizedUser.passwordHash = await Utils.hashSHA256(candidate.password, `${Utils.PASSWORD_SALT}:${normalizedUser.username}`);
+            } else if (index >= 0) {
+                normalizedUser.passwordHash = users[index].passwordHash;
             }
         } catch (e) {
             console.error('Erro ao gerar hash de senha', e);
@@ -1109,10 +1200,10 @@ const DataManager = {
             return { success: false, error: 'Senha é obrigatória' };
         }
 
-        const index = users.findIndex(u => u.id === normalizedUser.id);
         if (normalizedUser.disabled === undefined && index >= 0) {
             normalizedUser.disabled = users[index].disabled;
         }
+
         if (index >= 0) {
             users[index] = { ...users[index], ...normalizedUser };
         } else {
@@ -1121,7 +1212,7 @@ const DataManager = {
 
         const saved = await this._persistUsersToCloud(users);
         if (!saved) {
-            return { success: false, error: 'Não foi possível salvar o gestor na nuvem. Verifique sua conexão e tente novamente.' };
+            return { success: false, error: 'Não foi possível salvar o usuário na nuvem. Tente novamente.' };
         }
 
         this._sessionCache[this.KEYS.USERS] = users;
@@ -1186,8 +1277,9 @@ const DataManager = {
             const normalized = this.normalizeUsername(username);
             const hash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
             let current = users.find(u => this.normalizeUsername(u.username) === normalized);
+
             if (!current) {
-                current = {
+                users.push({
                     id,
                     username,
                     name,
@@ -1197,24 +1289,51 @@ const DataManager = {
                     disabled: false,
                     passwordHash: hash,
                     updatedAt: now
-                };
-                users.push(current);
+                });
                 updated = true;
                 return;
             }
 
-            current.username = username;
-            current.name = name;
-            current.role = role;
-            current.email = email;
-            current.disabled = false;
-            current.passwordHash = hash;
-            current.updatedAt = now;
-            if (tecnicoId) {
-                current.tecnicoId = tecnicoId;
+            let changed = false;
+
+            if (!current.id) {
+                current.id = id;
+                changed = true;
             }
-            delete current.password;
-            updated = true;
+            if (!current.username) {
+                current.username = username;
+                changed = true;
+            }
+            if (!current.name) {
+                current.name = name;
+                changed = true;
+            }
+            if (!current.role) {
+                current.role = role;
+                changed = true;
+            }
+            if (!current.email) {
+                current.email = email;
+                changed = true;
+            }
+            if (tecnicoId && !current.tecnicoId) {
+                current.tecnicoId = tecnicoId;
+                changed = true;
+            }
+            if (!current.passwordHash) {
+                current.passwordHash = hash;
+                changed = true;
+            }
+            if (typeof current.disabled !== 'boolean') {
+                current.disabled = false;
+                changed = true;
+            }
+
+            if (changed) {
+                current.updatedAt = now;
+                delete current.password;
+                updated = true;
+            }
         };
 
         const firstTechnician = technicians.find(t => t.ativo !== false) || technicians[0] || null;
@@ -1249,12 +1368,10 @@ const DataManager = {
 
         if (updated) {
             this._sessionCache[this.KEYS.USERS] = users;
-            this.saveData(this.KEYS.USERS, users);
-            if (this.cloudInitialized) {
-                await this._persistUsersToCloud(users);
-            }
+            await this._persistUsersToCloud(users);
         }
     },
+
     getDefaultTechnicians() {
         const buildUsername = (name) => {
             const normalized = Utils.normalizeText(name)
@@ -1313,6 +1430,35 @@ const DataManager = {
     deleteTechnician(id) {
         const technicians = this.getTechnicians().filter(t => t.id !== id);
         return this.saveData(this.KEYS.TECHNICIANS, technicians);
+    },
+
+    async deleteTechnicianAndUser(technicianId) {
+        if (!technicianId) {
+            return { success: false, error: 'Técnico inválido.' };
+        }
+
+        const technicians = this.getTechnicians();
+        const target = technicians.find(t => t.id === technicianId);
+        if (!target) {
+            return { success: false, error: 'Técnico não encontrado.' };
+        }
+
+        const nextTechnicians = technicians.filter(t => t.id !== technicianId);
+        const users = this.getUsers();
+        const normalizedUsername = this.normalizeUsername(target.username);
+        const nextUsers = users.filter(u => u.tecnicoId !== technicianId && !(u.role === 'tecnico' && this.normalizeUsername(u.username) === normalizedUsername));
+
+        if (!this.saveData(this.KEYS.TECHNICIANS, nextTechnicians)) {
+            return { success: false, error: 'Não foi possível remover o técnico da base.' };
+        }
+
+        const savedUsers = await this._persistUsersToCloud(nextUsers);
+        if (!savedUsers) {
+            return { success: false, error: 'Não foi possível remover o usuário de autenticação.' };
+        }
+
+        this._sessionCache[this.KEYS.USERS] = nextUsers;
+        return { success: true };
     },
 
     // ===== SUPPLIERS =====
@@ -2287,6 +2433,17 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
+
+
+
+
+
+
+
+
 
 
 

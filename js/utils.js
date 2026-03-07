@@ -425,27 +425,45 @@ Equipe Diversey`;
      * Show toast notification
      */
     showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
+        if (!message) {
+            return;
+        }
+
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
         const icons = {
             success: 'fa-check-circle',
             error: 'fa-times-circle',
             warning: 'fa-exclamation-triangle',
             info: 'fa-info-circle'
         };
-        
+
+        const toastType = icons[type] ? type : 'info';
+        const toast = document.createElement('div');
+        toast.className = `toast ${toastType}`;
+        toast.setAttribute('role', 'alert');
+
         toast.innerHTML = `
-            <i class="fas ${icons[type]} toast-icon"></i>
+            <i class="fas ${icons[toastType]} toast-icon"></i>
             <span class="toast-message">${Utils.escapeHtml(message)}</span>
             <button class="toast-close" onclick="this.parentElement.remove()">
                 <i class="fas fa-times"></i>
             </button>
         `;
-        
+
         container.appendChild(toast);
-        
+
+        const maxVisible = 4;
+        while (container.children.length > maxVisible) {
+            container.firstElementChild?.remove();
+        }
+
         // Auto remove after 5 seconds
         setTimeout(() => {
             if (toast.parentElement) {
@@ -1610,6 +1628,7 @@ const AnalyticsHelper = {
         };
     }
 };
+
 
 
 

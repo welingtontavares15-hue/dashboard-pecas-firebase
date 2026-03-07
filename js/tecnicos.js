@@ -146,6 +146,9 @@ const Tecnicos = {
                                                 <button class="btn btn-sm btn-outline" onclick="Tecnicos.openForm('${tech.id}')" title="Editar">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
+                                                <button class="btn btn-sm btn-outline" onclick="Tecnicos.resetPassword('${tech.id}')" title="Resetar senha">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
                                             ` : ''}
                                             ${canDelete ? `
                                                 <button class="btn btn-sm btn-danger" onclick="Tecnicos.confirmDelete('${tech.id}')" title="Excluir">
@@ -344,7 +347,7 @@ const Tecnicos = {
         const regiao = document.getElementById('tech-regiao').value;
         const ativo = document.getElementById('tech-ativo').checked;
         const notifyByEmail = document.getElementById('tech-notify-email')?.checked;
-        
+
         // Address fields
         const endereco = document.getElementById('tech-endereco').value.trim();
         const numero = document.getElementById('tech-numero').value.trim();
@@ -353,48 +356,55 @@ const Tecnicos = {
         const cidade = document.getElementById('tech-cidade').value.trim();
         const estado = document.getElementById('tech-estado').value;
         const cep = document.getElementById('tech-cep').value.trim();
-        
+
         // Credentials
         const username = document.getElementById('tech-username').value.trim();
         const password = document.getElementById('tech-password').value;
-        
+
         // Validation
         if (!nome || !email) {
             Utils.showToast('Preencha todos os campos obrigatórios', 'warning');
             return;
         }
-        
+
         if (!Utils.isValidEmail(email)) {
-            Utils.showToast('Email inválido', 'warning');
+            Utils.showToast('E-mail inválido', 'warning');
             return;
         }
-        
+
         if (!endereco || !bairro || !cidade || !estado || !cep) {
             Utils.showToast('Preencha o endereço completo para envio de materiais', 'warning');
             return;
         }
-        
+
         if (!username) {
             Utils.showToast('Informe um nome de usuário para login', 'warning');
             return;
         }
-        
+
         if (!id && !password) {
             Utils.showToast('Informe uma senha para o técnico', 'warning');
             return;
         }
-        
-        // Check if username already exists (for new technician or changed username)
+
+        const normalizedEmail = (typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(email)
+            : email.toLowerCase();
+        const normalizedUsername = (typeof DataManager.normalizeUsername === 'function')
+            ? DataManager.normalizeUsername(username)
+            : Utils.normalizeText(username);
+
         const existingTech = id ? DataManager.getTechnicianById(id) : null;
-        if (!existingTech || existingTech.username !== username) {
-            const users = DataManager.getUsers();
-            const existingUser = users.find(u => u.username === username);
-            if (existingUser) {
-                Utils.showToast('Este nome de usuário já está em uso', 'warning');
-                return;
-            }
+        const previousUsername = existingTech?.username || '';
+        const previousNormalizedUsername = (typeof DataManager.normalizeUsername === 'function')
+            ? DataManager.normalizeUsername(previousUsername)
+            : Utils.normalizeText(previousUsername);
+
+        if (existingTech && previousNormalizedUsername !== normalizedUsername && !password) {
+            Utils.showToast('Ao alterar o usuário, informe uma nova senha para manter o acesso válido.', 'warning');
+            return;
         }
-        
+
         // Format and validate CEP
         const cleanCep = cep.replace(/[^\d]/g, '');
         let formattedCep = cleanCep;
@@ -404,11 +414,33 @@ const Tecnicos = {
             Utils.showToast('CEP deve ter 8 dígitos', 'warning');
             return;
         }
-        
+
+        const users = DataManager.getUsers();
+        const linkedUser = users.find(u =>
+            (id && u.tecnicoId === id) ||
+            (existingTech && u.role === 'tecnico' && ((typeof DataManager.normalizeUsername === 'function')
+                ? DataManager.normalizeUsername(u.username) === previousNormalizedUsername
+                : Utils.normalizeText(u.username) === previousNormalizedUsername))
+        );
+
+        const conflicts = (typeof DataManager.findUserConflicts === 'function')
+            ? DataManager.findUserConflicts({ id: linkedUser?.id || null, username, email: normalizedEmail }, users)
+            : { duplicateUsernameUser: null, duplicateEmailUser: null };
+
+        if (conflicts.duplicateUsernameUser) {
+            Utils.showToast('Nome de usuário já cadastrado. Escolha outro usuário.', 'warning');
+            return;
+        }
+
+        if (conflicts.duplicateEmailUser) {
+            Utils.showToast('E-mail já cadastrado. Use outro e-mail.', 'warning');
+            return;
+        }
+
         const technician = {
-            id: id || null,
+            id: id || Utils.generateId(),
             nome,
-            email,
+            email: normalizedEmail,
             telefone: telefone ? Utils.formatPhone(telefone) : '',
             regiao,
             endereco,
@@ -421,16 +453,15 @@ const Tecnicos = {
             username,
             ativo
         };
-        
-        // Save technician
-        DataManager.saveTechnician(technician);
-        
-        // Get the saved technician to get the ID (in case it was new)
-        const savedTech = DataManager.getTechnicians().find(t => t.username === username);
-        
+
         // Create or update user credentials
-        const users = DataManager.getUsers();
-        const existingUserIndex = users.findIndex(u => u.tecnicoId === savedTech.id);
+        const existingUserIndex = users.findIndex(u =>
+            u.tecnicoId === technician.id ||
+            (u.role === 'tecnico' && ((typeof DataManager.normalizeUsername === 'function')
+                ? DataManager.normalizeUsername(u.username) === previousNormalizedUsername
+                : Utils.normalizeText(u.username) === previousNormalizedUsername))
+        );
+
         let passwordHash = existingUserIndex >= 0 ? users[existingUserIndex].passwordHash : null;
         if (password) {
             try {
@@ -441,39 +472,48 @@ const Tecnicos = {
                 return;
             }
         }
+
         if (!passwordHash) {
             const message = password ? 'Não foi possível proteger a senha informada' : 'Informe uma senha válida para o técnico';
             Utils.showToast(message, 'warning');
             return;
         }
-        
-        if (existingUserIndex >= 0) {
-            // Update existing user
-            users[existingUserIndex].username = username;
-            users[existingUserIndex].name = nome;
-            users[existingUserIndex].email = email;
-            users[existingUserIndex].passwordHash = passwordHash;
-            users[existingUserIndex].disabled = technician.ativo === false;
-            delete users[existingUserIndex].password;
-        } else {
-            // Create new user
-            users.push({
-                id: 'user_' + savedTech.id,
-                username: username,
-                passwordHash,
-                name: nome,
-                role: 'tecnico',
-                email: email,
-                tecnicoId: savedTech.id,
-                disabled: technician.ativo === false
-            });
+
+        const existingUser = existingUserIndex >= 0 ? users[existingUserIndex] : null;
+
+        const techSaved = DataManager.saveTechnician(technician);
+        if (!techSaved) {
+            Utils.showToast('Não foi possível salvar os dados do técnico', 'error');
+            return;
         }
-        
-        DataManager.saveData(DataManager.KEYS.USERS, users);
-        
+
+        const userResult = await DataManager.saveUser({
+            id: existingUser?.id || (`user_${technician.id}`),
+            username,
+            passwordHash,
+            name: nome,
+            role: 'tecnico',
+            email: normalizedEmail,
+            tecnicoId: technician.id,
+            disabled: technician.ativo === false
+        });
+
+        if (!userResult.success) {
+            if (userResult.errorCode === 'duplicate_username') {
+                Utils.showToast('Nome de usuário já cadastrado. Escolha outro usuário.', 'warning');
+                return;
+            }
+            if (userResult.errorCode === 'duplicate_email') {
+                Utils.showToast('E-mail já cadastrado. Use outro e-mail.', 'warning');
+                return;
+            }
+            Utils.showToast(userResult.error || 'Não foi possível salvar as credenciais de acesso do técnico', 'error');
+            return;
+        }
+
         if (password && notifyByEmail) {
             const sent = Utils.sendCredentialsEmail({
-                to: email,
+                to: normalizedEmail,
                 username,
                 password,
                 name: nome
@@ -496,34 +536,101 @@ const Tecnicos = {
         if (!tech) {
             return;
         }
-        
+
         // Check if technician has solicitations
         const solicitations = DataManager.getSolicitationsByTechnician(id);
-        
+
         if (solicitations.length > 0) {
             Utils.showToast(`Este técnico possui ${solicitations.length} solicitação(ões) e não pode ser excluído`, 'error');
             return;
         }
-        
+
         const confirmed = await Utils.confirm(
-            `Deseja realmente excluir o técnico "${tech.nome}"?`,
+            `Deseja realmente excluir o técnico "${tech.nome}"? Esta ação remove o técnico da interface, base e autenticação.`,
             'Excluir Técnico'
         );
-        
-        if (confirmed) {
-            // Soft delete: mark inactive and disable login
-            tech.ativo = false;
-            DataManager.saveTechnician(tech);
 
-            const users = DataManager.getUsers();
-            const updatedUsers = users.map(u => u.tecnicoId === id ? { ...u, disabled: true } : u);
-            DataManager.saveData(DataManager.KEYS.USERS, updatedUsers);
-            
-            Utils.showToast('Técnico inativado com sucesso', 'success');
-            this.refreshTable();
+        if (!confirmed) {
+            return;
         }
+
+        const result = await DataManager.deleteTechnicianAndUser(id);
+        if (!result?.success) {
+            Utils.showToast(result?.error || 'Não foi possível excluir o técnico', 'error');
+            return;
+        }
+
+        Utils.showToast('Técnico excluído com sucesso', 'success');
+        this.refreshTable();
+    },
+
+    async resetPassword(id) {
+        const tech = DataManager.getTechnicianById(id);
+        if (!tech) {
+            Utils.showToast('Técnico não encontrado', 'warning');
+            return;
+        }
+
+        const users = DataManager.getUsers();
+        const normalizedUsername = (typeof DataManager.normalizeUsername === 'function')
+            ? DataManager.normalizeUsername(tech.username)
+            : Utils.normalizeText(tech.username);
+
+        const user = users.find(u =>
+            u.tecnicoId === id ||
+            (u.role === 'tecnico' && ((typeof DataManager.normalizeUsername === 'function')
+                ? DataManager.normalizeUsername(u.username) === normalizedUsername
+                : Utils.normalizeText(u.username) === normalizedUsername))
+        );
+
+        if (!user) {
+            Utils.showToast('Usuário de acesso do técnico não encontrado', 'warning');
+            return;
+        }
+
+        const suggested = `Tecnico@${Math.floor(1000 + Math.random() * 9000)}`;
+        const newPassword = await Utils.prompt(
+            `Informe a nova senha para ${tech.nome}:`,
+            'Resetar Senha do Técnico',
+            suggested
+        );
+
+        if (newPassword === null) {
+            return;
+        }
+
+        const sanitizedPassword = String(newPassword || '').trim();
+        if (sanitizedPassword.length < 4) {
+            Utils.showToast('A nova senha deve ter pelo menos 4 caracteres', 'warning');
+            return;
+        }
+
+        const result = await DataManager.resetUserPasswordById(user.id, sanitizedPassword);
+        if (!result.success) {
+            Utils.showToast(result.error || 'Não foi possível resetar a senha do técnico', 'error');
+            return;
+        }
+
+        if (tech.email) {
+            const sent = Utils.sendCredentialsEmail({
+                to: tech.email,
+                username: user.username,
+                password: sanitizedPassword,
+                name: tech.nome
+            });
+            if (sent) {
+                Utils.showToast('Senha redefinida. E-mail preparado para envio.', 'info');
+            }
+        }
+
+        Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
     }
 };
+
+
+
+
+
 
 
 

@@ -534,7 +534,12 @@ const App = {
             result = await Auth.login(username, password);
         } catch (error) {
             console.error('Erro de autenticação', error);
-            errorDiv.textContent = 'Erro ao autenticar. Tente novamente.';
+            const online = (typeof DataManager !== 'undefined' && typeof DataManager.isOnline === 'function')
+                ? DataManager.isOnline()
+                : (typeof navigator === 'undefined' || navigator.onLine !== false);
+            errorDiv.textContent = online
+                ? 'Erro ao autenticar. Tente novamente.'
+                : 'Sem conexão com a internet. Tente novamente quando reconectar.';
             errorDiv.classList.remove('hidden');
             return;
         }
@@ -792,7 +797,7 @@ const App = {
                                         <th>Nome</th>
                                         <th>Usuário</th>
                                         <th>Email</th>
-                                        <th style="width: 120px;">Ações</th>
+                                        <th style="width: 260px;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -807,9 +812,14 @@ const App = {
                                                 <td><code>${Utils.escapeHtml(g.username || '-')}</code></td>
                                                 <td>${Utils.escapeHtml(g.email || '-')}</td>
                                                 <td>
-                                                    <button class="btn btn-danger btn-sm delete-gestor-btn" data-gestor-id="${Utils.escapeHtml(g.id)}">
-                                                        <i class="fas fa-trash-alt"></i> Excluir
-                                                    </button>
+                                                    <div class="actions" style="justify-content: flex-end; gap: 0.4rem;">
+                                                        <button class="btn btn-sm btn-outline reset-gestor-password-btn" data-gestor-id="${Utils.escapeHtml(g.id)}" title="Resetar senha">
+                                                            <i class="fas fa-key"></i> Resetar Senha
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm delete-gestor-btn" data-gestor-id="${Utils.escapeHtml(g.id)}" title="Excluir gestor">
+                                                            <i class="fas fa-trash-alt"></i> Excluir
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         `).join('');
@@ -852,9 +862,15 @@ const App = {
         const gestoresTable = document.getElementById('gestores-table');
         if (gestoresTable) {
             gestoresTable.addEventListener('click', (event) => {
-                const btn = event.target.closest('.delete-gestor-btn');
-                if (btn?.dataset?.gestorId) {
-                    this.handleDeleteGestor(btn.dataset.gestorId);
+                const resetBtn = event.target.closest('.reset-gestor-password-btn');
+                if (resetBtn?.dataset?.gestorId) {
+                    this.handleResetGestorPassword(resetBtn.dataset.gestorId);
+                    return;
+                }
+
+                const deleteBtn = event.target.closest('.delete-gestor-btn');
+                if (deleteBtn?.dataset?.gestorId) {
+                    this.handleDeleteGestor(deleteBtn.dataset.gestorId);
                 }
             });
         }
@@ -897,24 +913,50 @@ const App = {
         }
 
         const name = document.getElementById('gestor-name')?.value.trim();
-        const username = document.getElementById('gestor-username')?.value.trim();
-        const password = document.getElementById('gestor-password')?.value;
-        const email = document.getElementById('gestor-email')?.value.trim();
+        const usernameInput = document.getElementById('gestor-username');
+        const passwordInput = document.getElementById('gestor-password');
         const emailInput = document.getElementById('gestor-email');
+
+        const username = usernameInput?.value.trim() || '';
+        const password = passwordInput?.value || '';
+        const email = (typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(emailInput?.value)
+            : (emailInput?.value || '').trim().toLowerCase();
 
         if (emailInput && !emailInput.checkValidity()) {
             emailInput.reportValidity();
             return;
         }
 
-        if (!name || !username || !password) {
+        if (!name || !username || !email || !password) {
             Utils.showToast('Informe nome, usuário, e-mail e senha do gestor', 'warning');
+            return;
+        }
+
+        if (password.trim().length < 4) {
+            Utils.showToast('A senha deve ter pelo menos 4 caracteres', 'warning');
+            return;
+        }
+
+        const conflicts = (typeof DataManager.findUserConflicts === 'function')
+            ? DataManager.findUserConflicts({ username, email })
+            : { duplicateUsernameUser: null, duplicateEmailUser: null };
+
+        if (conflicts.duplicateUsernameUser) {
+            Utils.showToast('Nome de usuário já cadastrado. Escolha outro usuário.', 'warning');
+            usernameInput?.focus();
+            return;
+        }
+
+        if (conflicts.duplicateEmailUser) {
+            Utils.showToast('E-mail já cadastrado. Use outro e-mail.', 'warning');
+            emailInput?.focus();
             return;
         }
 
         let passwordHash;
         try {
-            passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
+            passwordHash = await Auth.hashPassword(password, username);
         } catch (error) {
             console.error('Erro ao gerar hash da senha do gestor', error);
             Utils.showToast('Não foi possível gerar a senha com segurança', 'error');
@@ -930,6 +972,17 @@ const App = {
         });
 
         if (!result.success) {
+            if (result.errorCode === 'duplicate_username') {
+                Utils.showToast('Nome de usuário já cadastrado. Escolha outro usuário.', 'warning');
+                usernameInput?.focus();
+                return;
+            }
+            if (result.errorCode === 'duplicate_email') {
+                Utils.showToast('E-mail já cadastrado. Use outro e-mail.', 'warning');
+                emailInput?.focus();
+                return;
+            }
+
             Utils.showToast(result.error || 'Erro ao salvar gestor', 'error');
             return;
         }
@@ -940,6 +993,56 @@ const App = {
             form.reset();
         }
         this.refreshGestorView();
+    },
+
+    async handleResetGestorPassword(gestorId) {
+        if (Auth.getRole() !== 'administrador') {
+            Utils.showToast('Apenas administradores podem resetar senha de gestores', 'error');
+            return;
+        }
+
+        const gestor = DataManager.getUserById(gestorId);
+        if (!gestor || gestor.role !== 'gestor') {
+            Utils.showToast('Gestor não encontrado', 'warning');
+            return;
+        }
+
+        const suggested = `Gestor@${Math.floor(1000 + Math.random() * 9000)}`;
+        const newPassword = await Utils.prompt(
+            `Informe a nova senha para ${gestor.name || gestor.username}:`,
+            'Resetar Senha do Gestor',
+            suggested
+        );
+
+        if (newPassword === null) {
+            return;
+        }
+
+        const sanitizedPassword = String(newPassword || '').trim();
+        if (sanitizedPassword.length < 4) {
+            Utils.showToast('A nova senha deve ter pelo menos 4 caracteres', 'warning');
+            return;
+        }
+
+        const result = await DataManager.resetUserPasswordById(gestor.id, sanitizedPassword);
+        if (!result.success) {
+            Utils.showToast(result.error || 'Não foi possível resetar a senha do gestor', 'error');
+            return;
+        }
+
+        if (gestor.email) {
+            const sent = Utils.sendCredentialsEmail({
+                to: gestor.email,
+                username: gestor.username,
+                password: sanitizedPassword,
+                name: gestor.name
+            });
+            if (sent) {
+                Utils.showToast('Senha redefinida. E-mail preparado para envio.', 'info');
+            }
+        }
+
+        Utils.showToast('Senha do gestor redefinida com sucesso', 'success');
     },
 
     async handleDeleteGestor(gestorId) {
@@ -1605,6 +1708,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+
+
+
+
 
 
 
