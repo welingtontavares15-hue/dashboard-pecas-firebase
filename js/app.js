@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Main Application Controller
  * Orchestrates the entire application
  */
@@ -8,12 +8,12 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260307e',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260307e',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260307e',
-        pecas: './js/pages/pecas.js?v=20260307e',
-        relatorios: './js/pages/relatorios.js?v=20260307e',
-        usuarios: './js/pages/usuarios.js?v=20260307e'
+        dashboard: './js/pages/dashboard.js?v=20260307g',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260307g',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260307g',
+        pecas: './js/pages/pecas.js?v=20260307g',
+        relatorios: './js/pages/relatorios.js?v=20260307g',
+        usuarios: './js/pages/usuarios.js?v=20260307g'
         },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1599,6 +1599,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

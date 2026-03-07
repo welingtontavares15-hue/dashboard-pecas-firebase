@@ -1,5 +1,5 @@
 ﻿import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyReportsModernization } from '../components/reports-modern.js?v=20260307e';
+import { applyReportsModernization } from '../components/reports-modern.js?v=20260307f';
 
 let ready = false;
 
@@ -19,5 +19,6 @@ export function render() {
         window.Relatorios.render();
     }
 }
+
 
 

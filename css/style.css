@@ -4053,26 +4053,51 @@ body {
 
 /* ===== Dashboard Cost Focus ===== */
 .dashboard-cost-shell .dashboard-kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .dashboard-cost-overview-grid,
 .dashboard-cost-detail-grid {
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
 .dashboard-cost-shell .compact-empty-state {
-    min-height: 88px;
+    min-height: 84px;
 }
 
-.dashboard-cost-shell .dashboard-ranking-list,
+.dashboard-executive-panel {
+    display: grid;
+    gap: 14px;
+}
+
+.dashboard-executive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.dashboard-summary-item.primary {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 1));
+}
+
+.dashboard-summary-item.primary strong {
+    font-size: 17px;
+}
+
+.dashboard-highlights-head {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 2px 0;
+}
+
 .dashboard-highlights-list {
     display: grid;
     gap: 10px;
-}
-
-.dashboard-highlights-list {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .dashboard-highlight-item {
@@ -4115,14 +4140,12 @@ body {
     background: transparent;
 }
 
-.dashboard-monthly-chart-wrapper {
-    min-height: 320px;
+.dashboard-monthly-card {
+    order: 4;
 }
 
-@media (max-width: 768px) {
-    .dashboard-highlights-list {
-        grid-template-columns: 1fr;
-    }
+.dashboard-monthly-chart-wrapper {
+    min-height: 340px;
 }
 
 /* ===== Login Info Card ===== */
@@ -4148,57 +4171,117 @@ body {
     color: var(--text-secondary);
 }
 
-/* ===== Dashboard Cost Executive Overrides ===== */
-.dashboard-cost-shell .dashboard-kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.dashboard-cost-overview-grid,
-.dashboard-cost-detail-grid {
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-}
-
-.dashboard-cost-shell .compact-empty-state {
-    min-height: 84px;
-}
-
-.dashboard-executive-panel {
-    display: grid;
-    gap: 14px;
-}
-
-.dashboard-executive-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
-
-.dashboard-summary-item.primary {
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255, 255, 255, 1));
-}
-
-.dashboard-summary-item.primary strong {
-    font-size: 17px;
-}
-
-.dashboard-highlights-list {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-}
-
-.dashboard-monthly-card {
-    order: 4;
-}
-
-.dashboard-monthly-chart-wrapper {
-    min-height: 340px;
-}
-
 @media (max-width: 768px) {
     .dashboard-cost-overview-grid,
     .dashboard-cost-detail-grid,
     .dashboard-executive-grid,
     .dashboard-highlights-list {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Dashboard Cost Focus - Executive Refresh ===== */
+.dashboard-cost-shell .dashboard-kpi-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.dashboard-cost-shell .dashboard-cost-overview-grid,
+.dashboard-cost-shell .dashboard-cost-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.dashboard-cost-shell .dashboard-panel-card .card-body {
+    padding-top: 12px;
+}
+
+.dashboard-cost-shell .compact-empty-state {
+    min-height: 72px;
+    padding: 1.1rem 1rem;
+}
+
+.dashboard-cost-shell .dashboard-monthly-chart-wrapper {
+    min-height: 390px;
+}
+
+.dashboard-flow-head {
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.dashboard-flow-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}
+
+.dashboard-flow-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: var(--radius-md);
+    background: #ffffff;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.dashboard-flow-index {
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.dashboard-history-status .status-badge {
+    white-space: normal;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    border-radius: 10px;
+    padding: 0.35rem 0.55rem;
+}
+
+@media (max-width: 1440px) {
+    .dashboard-cost-shell .dashboard-kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1100px) {
+    .dashboard-cost-shell .dashboard-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-cost-shell .dashboard-cost-overview-grid,
+    .dashboard-cost-shell .dashboard-cost-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-cost-shell .dashboard-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-cost-shell .dashboard-monthly-chart-wrapper {
+        min-height: 320px;
     }
 }
