@@ -87,7 +87,7 @@ const Tecnicos = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-users"></i>
-                    <h4>Você ainda não possui técnicos cadastrados</h4>
+                    <h4>${this.searchQuery ? 'Nenhum técnico encontrado' : 'Nenhum técnico cadastrado'}</h4>
                     <p>${this.searchQuery ? 'Tente outro termo para localizar um técnico já cadastrado.' : 'Cadastre a equipe técnica para acompanhar chamados, custos e desempenho operacional.'}</p>
                     ${Auth.hasPermission('tecnicos', 'create') ? `
                         <button class="btn btn-primary" onclick="Tecnicos.openForm()">
@@ -524,6 +524,7 @@ const Tecnicos = {
         }
     }
 };
+
 
 
 

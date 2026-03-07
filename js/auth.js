@@ -66,7 +66,7 @@ const Auth = {
     // Menu items by role
     menus: {
         administrador: [
-            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Operação' },
+            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Visão Geral', section: 'Operação' },
             { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
             { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
@@ -76,7 +76,7 @@ const Auth = {
             { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
         ],
         gestor: [
-            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard', section: 'Operação' },
+            { id: 'dashboard', icon: 'fa-chart-pie', label: 'Visão Geral', section: 'Operação' },
             { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
             { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
             { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
@@ -722,6 +722,7 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
 
 
 

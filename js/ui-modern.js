@@ -1,12 +1,12 @@
 ﻿(function () {
     const STATUS_TOKENS = {
-        criado: { label: 'Criado', icon: 'fa-circle', css: 'status-criado' },
-        pendente_aprovacao: { label: 'Pendente aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
-        aprovado: { label: 'Aprovado', icon: 'fa-check', css: 'status-aprovado' },
-        reprovado: { label: 'Reprovado', icon: 'fa-times', css: 'status-reprovado' },
-        em_compra: { label: 'Em compra', icon: 'fa-cart-shopping', css: 'status-em-compra' },
-        enviado: { label: 'Enviado', icon: 'fa-truck-fast', css: 'status-enviado' },
-        concluido: { label: 'Concluído', icon: 'fa-check-double', css: 'status-concluido' }
+        criado: { label: 'Aberta (técnico)', icon: 'fa-circle', css: 'status-criado' },
+        pendente_aprovacao: { label: 'Em avaliação (gestor)', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
+        aprovado: { label: 'Aprovada (enviada ao fornecedor)', icon: 'fa-check', css: 'status-aprovado' },
+        reprovado: { label: 'Rejeitada (devolvida ao técnico)', icon: 'fa-times', css: 'status-reprovado' },
+        em_compra: { label: 'Rastreio registrado', icon: 'fa-cart-shopping', css: 'status-em-compra' },
+        enviado: { label: 'Entregue ao técnico', icon: 'fa-truck-fast', css: 'status-enviado' },
+        concluido: { label: 'Finalizada', icon: 'fa-check-double', css: 'status-concluido' }
     };
 
     const STATUS_ALIAS = {
@@ -423,13 +423,13 @@
             }
 
             const labels = {
-                dashboard: 'Dashboard',
+                dashboard: 'Visão Geral',
                 solicitacoes: 'Solicitações',
                 'minhas-solicitacoes': 'Minhas Solicitações',
                 'nova-solicitacao': 'Nova Solicitação',
                 aprovacoes: 'Aprovações',
-                tecnicos: 'Usuários',
-                fornecedores: 'Usuários',
+                tecnicos: 'Técnicos',
+                fornecedores: 'Fornecedores',
                 pecas: 'Peças',
                 catalogo: 'Peças',
                 relatorios: 'Relatórios',
@@ -621,6 +621,9 @@
     patchAuth();
     patchApp();
 })();
+
+
+
 
 
 

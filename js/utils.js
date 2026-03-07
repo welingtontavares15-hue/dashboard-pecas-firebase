@@ -1151,15 +1151,23 @@ Equipe Diversey`;
      */
     getStatusInfo(status) {
         const statuses = {
-            rascunho: { label: 'Rascunho', icon: 'fa-edit', class: 'status-rascunho' },
-            enviada: { label: 'Enviada', icon: 'fa-paper-plane', class: 'status-enviada' },
-            pendente: { label: 'Pendente', icon: 'fa-clock', class: 'status-pendente' },
-            aprovada: { label: 'Aprovada', icon: 'fa-check', class: 'status-aprovada' },
-            rejeitada: { label: 'Rejeitada', icon: 'fa-times', class: 'status-rejeitada' },
-            'em-transito': { label: 'Rastreio', icon: 'fa-truck', class: 'status-em-transito' },
-            entregue: { label: 'Entregue', icon: 'fa-box', class: 'status-entregue' },
-            finalizada: { label: 'Finalizada', icon: 'fa-flag-checkered', class: 'status-finalizada' },
-            'historico-manual': { label: 'Histórico/Manual', icon: 'fa-archive', class: 'status-historico-manual' }
+            rascunho: { label: 'Aberta (técnico)', icon: 'fa-edit', class: 'status-rascunho' },
+            enviada: { label: 'Aberta (técnico)', icon: 'fa-paper-plane', class: 'status-enviada' },
+            criado: { label: 'Aberta (técnico)', icon: 'fa-circle', class: 'status-criado' },
+            pendente: { label: 'Em avaliação (gestor)', icon: 'fa-clock', class: 'status-pendente-aprovacao' },
+            pendente_aprovacao: { label: 'Em avaliação (gestor)', icon: 'fa-clock', class: 'status-pendente-aprovacao' },
+            aprovada: { label: 'Aprovada (enviada ao fornecedor)', icon: 'fa-check', class: 'status-aprovado' },
+            aprovado: { label: 'Aprovada (enviada ao fornecedor)', icon: 'fa-check', class: 'status-aprovado' },
+            rejeitada: { label: 'Rejeitada (devolvida ao técnico)', icon: 'fa-times', class: 'status-reprovado' },
+            reprovado: { label: 'Rejeitada (devolvida ao técnico)', icon: 'fa-times', class: 'status-reprovado' },
+            'em-transito': { label: 'Rastreio registrado', icon: 'fa-truck', class: 'status-em-compra' },
+            em_transito: { label: 'Rastreio registrado', icon: 'fa-truck', class: 'status-em-compra' },
+            em_compra: { label: 'Rastreio registrado', icon: 'fa-truck', class: 'status-em-compra' },
+            entregue: { label: 'Entregue ao técnico', icon: 'fa-box', class: 'status-enviado' },
+            enviado: { label: 'Entregue ao técnico', icon: 'fa-box', class: 'status-enviado' },
+            finalizada: { label: 'Finalizada', icon: 'fa-flag-checkered', class: 'status-concluido' },
+            concluido: { label: 'Finalizada', icon: 'fa-check-double', class: 'status-concluido' },
+            'historico-manual': { label: 'Finalizada (histórico)', icon: 'fa-archive', class: 'status-concluido' }
         };
         return statuses[status] || { label: status, icon: 'fa-question', class: '' };
     },
@@ -1602,4 +1610,6 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
 

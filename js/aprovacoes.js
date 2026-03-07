@@ -170,7 +170,7 @@ const Aprovacoes = {
                                     ` : ''}
                                     <td><strong>#${sol.numero}</strong></td>
                                     <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
-                                    <td>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</td>
+                                    <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                                     <td>${Utils.escapeHtml(this.getSolicitationRegion(sol))}</td>
                                     <td>${this.renderPriorityBadge(priority)}</td>
                                     <td>${Utils.formatCurrency(sol.total)}</td>
@@ -246,7 +246,7 @@ const Aprovacoes = {
 
     getSolicitationRegion(sol) {
         const technician = sol?.tecnicoId ? DataManager.getTechnicianById(sol.tecnicoId) : null;
-        return (technician?.regiao || technician?.estado || '').trim() || 'Sem regiao';
+        return (technician?.regiao || technician?.estado || '').trim() || 'Sem região';
     },
 
     getSolicitationPriority(sol) {
@@ -837,6 +837,7 @@ const Aprovacoes = {
         Auth.renderMenu(App.currentPage);
     }
 };
+
 
 
 

@@ -164,14 +164,14 @@ const Solicitacoes = {
 
     getStatusOptions() {
         return [
-            { value: 'rascunho', label: 'Rascunho' },
-            { value: 'pendente', label: 'Pendente' },
-            { value: 'aprovada', label: 'Aprovada' },
-            { value: 'rejeitada', label: 'Rejeitada' },
-            { value: 'em-transito', label: 'Rastreio' },
-            { value: 'entregue', label: 'Entregue' },
+            { value: 'rascunho', label: 'Aberta (técnico)' },
+            { value: 'pendente', label: 'Em avaliação (gestor)' },
+            { value: 'aprovada', label: 'Aprovada (enviada ao fornecedor)' },
+            { value: 'rejeitada', label: 'Rejeitada (devolvida ao técnico)' },
+            { value: 'em-transito', label: 'Rastreio registrado' },
+            { value: 'entregue', label: 'Entregue ao técnico' },
             { value: 'finalizada', label: 'Finalizada' },
-            { value: 'historico-manual', label: 'Histórico/Manual' }
+            { value: 'historico-manual', label: 'Finalizada (histórico)' }
         ];
     },
 
@@ -246,13 +246,13 @@ const Solicitacoes = {
 
     getTimelineStatusLabel(status) {
         const map = {
-            rascunho: 'Solicitação criada',
-            pendente: 'Solicitação aguardando aprovação',
-            aprovada: 'Solicitação aprovada',
-            rejeitada: 'Solicitação reprovada',
-            'em-transito': 'Compra e envio registrados',
-            entregue: 'Solicitação enviada/entregue',
-            finalizada: 'Solicitação concluída',
+            rascunho: 'Técnico abriu a solicitação',
+            pendente: 'Gestor recebeu para avaliação',
+            aprovada: 'Gestor aprovou e enviou ao fornecedor (PDF)',
+            rejeitada: 'Gestor rejeitou e retornou ao técnico',
+            'em-transito': 'Fornecedor respondeu e rastreio foi registrado',
+            entregue: 'Material entregue ao técnico',
+            finalizada: 'Solicitação finalizada',
             'historico-manual': 'Solicitação concluída (histórico)'
         };
         const key = String(status || '').trim();
@@ -313,7 +313,7 @@ const Solicitacoes = {
             return "";
         }
         return `
-            <h4 class="mt-4 mb-2">Timeline da solicitação</h4>
+            <h4 class="mt-4 mb-2">Histórico do fluxo da solicitação</h4>
             <div class="timeline">
                 ${events.map((event) => `
                     <div class="timeline-item">
@@ -1549,6 +1549,8 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
 
 
 

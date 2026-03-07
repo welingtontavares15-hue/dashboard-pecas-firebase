@@ -491,7 +491,7 @@ const DataManager = {
      * Show offline error message
      */
     showOfflineError(operation = 'operação') {
-        const message = `Sem conexão: ${operation} bloqueada. Reconecte Ã  internet para continuar.`;
+        const message = `Sem conexão: ${operation} bloqueada. Reconecte à internet para continuar.`;
         if (typeof Utils !== 'undefined' && Utils.showToast) {
             Utils.showToast(message, 'error');
         }
@@ -715,7 +715,7 @@ const DataManager = {
         if (this.isWriteBlocked()) {
             console.warn('[ONLINE-ONLY] Write blocked - no connection');
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Sem conexão: não foi possível salvar. Reconecte Ã  internet.', 'error');
+                Utils.showToast('Sem conexão: não foi possível salvar. Reconecte à internet.', 'error');
             }
             return false;
         }
@@ -1397,7 +1397,7 @@ const DataManager = {
         } catch (e) {
             const errorMessage = e?.message || e?.name || 'Parts catalog synchronization failed';
             console.warn(
-                `Error reviewing official parts catalog (version ${storedVersion || 'unknown'} â†’ ${this.PARTS_VERSION}): ${errorMessage}`,
+                `Error reviewing official parts catalog (version ${storedVersion || 'unknown'} -> ${this.PARTS_VERSION}): ${errorMessage}`,
                 e
             );
         }
@@ -2280,13 +2280,15 @@ const DataManager = {
             totalPendingValue,
             topTechniciansByValue,
             rangeDays: effectiveRange,
-            rangeLabel: `Ãšltimos ${effectiveRange} dias`
+            rangeLabel: `Últimos ${effectiveRange} dias`
         };
     }
 };
 
 // Initialize data on load
 DataManager.init();
+
+
 
 
 

@@ -137,7 +137,7 @@ const Pecas = {
                 return `
                     <div class="empty-state">
                         <i class="fas fa-sync-alt fa-spin"></i>
-                        <h4>Sincronizandoâ€¦</h4>
+                        <h4>Sincronizando...</h4>
                         <p>${syncing ? 'Buscando catálogo de peças na nuvem.' : 'Iniciando sincronização automática das peças.'}</p>
                     </div>
                 `;
@@ -728,4 +728,5 @@ const Pecas = {
         }
     }
 };
+
 

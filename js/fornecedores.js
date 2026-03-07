@@ -87,7 +87,7 @@ const Fornecedores = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-truck"></i>
-                    <h4>Você ainda não possui fornecedores</h4>
+                    <h4>${this.searchQuery ? 'Nenhum fornecedor encontrado' : 'Nenhum fornecedor cadastrado'}</h4>
                     <p>${this.searchQuery ? 'Tente outro termo para localizar um fornecedor cadastrado.' : 'Cadastre o primeiro fornecedor para organizar compras, peças e histórico de abastecimento.'}</p>
                     ${Auth.hasPermission('fornecedores', 'create') ? `
                         <button class="btn btn-primary" onclick="Fornecedores.openForm()">
@@ -316,6 +316,7 @@ const Fornecedores = {
         }
     }
 };
+
 
 
 

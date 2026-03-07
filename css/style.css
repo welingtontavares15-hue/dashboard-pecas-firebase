@@ -4320,3 +4320,83 @@ body {
         grid-template-columns: 1fr;
     }
 }
+/* ===== Frontend Consistency Tune-up (2026-03-07) ===== */
+.breadcrumb span:last-child {
+    font-weight: 600;
+}
+
+.filters-bar {
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.filter-group {
+    min-width: 170px;
+}
+
+.filter-group .form-control,
+.filter-group select {
+    min-height: 38px;
+}
+
+.table td,
+.table th {
+    vertical-align: middle;
+}
+
+.table td .helper-text {
+    margin-top: 0.2rem;
+    line-height: 1.3;
+}
+
+.status-badge {
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.2;
+    white-space: normal;
+    max-width: 100%;
+}
+
+.status-filter-option .status-badge {
+    text-align: right;
+    justify-content: flex-end;
+    max-width: 62%;
+}
+
+.table td .status-badge {
+    max-width: 260px;
+}
+
+.report-filters-modern .report-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.report-filters-modern .report-filter-actions .btn {
+    min-width: 140px;
+}
+
+@media (max-width: 900px) {
+    .filters-bar .btn {
+        width: 100%;
+    }
+
+    .table td .status-badge {
+        max-width: 180px;
+    }
+}
+
+@media (max-width: 640px) {
+    .status-filter-option {
+        align-items: flex-start;
+    }
+
+    .status-filter-option .status-badge {
+        margin-left: 0;
+        margin-top: 4px;
+        max-width: 100%;
+        justify-content: flex-start;
+        text-align: left;
+    }
+}

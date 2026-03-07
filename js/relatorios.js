@@ -727,13 +727,13 @@ const Relatorios = {
 
     getStatusOptions() {
         return [
-            { value: 'pendente', label: 'Pendente' },
-            { value: 'aprovada', label: 'Aprovada' },
-            { value: 'rejeitada', label: 'Rejeitada' },
-            { value: 'em-transito', label: 'Rastreio' },
-            { value: 'entregue', label: 'Entregue' },
+            { value: 'pendente', label: 'Em avaliação (gestor)' },
+            { value: 'aprovada', label: 'Aprovada (enviada ao fornecedor)' },
+            { value: 'rejeitada', label: 'Rejeitada (devolvida ao técnico)' },
+            { value: 'em-transito', label: 'Rastreio registrado' },
+            { value: 'entregue', label: 'Entregue ao técnico' },
             { value: 'finalizada', label: 'Finalizada' },
-            { value: 'historico-manual', label: 'Histórico/Manual' }
+            { value: 'historico-manual', label: 'Finalizada (histórico)' }
         ];
     },
 
@@ -1404,6 +1404,7 @@ const Relatorios = {
         `;
     }
 };
+
 
 
 

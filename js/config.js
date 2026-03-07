@@ -20,7 +20,7 @@ const APP_CONFIG = {
     /**
      * Current environment: 'development' | 'staging' | 'production'
      * 
-     * âš ï¸ PRODUCTION REQUIREMENT:
+     * IMPORTANT PRODUCTION REQUIREMENT:
      * Set this to 'production' before deploying to production.
      * When set to 'production', the credentials panel on the login screen
      * will be completely blocked, regardless of feature flags.
@@ -126,4 +126,7 @@ const APP_CONFIG = {
 // Freeze configuration to prevent accidental modification
 Object.freeze(APP_CONFIG.features);
 Object.freeze(APP_CONFIG);
+
+
+
 

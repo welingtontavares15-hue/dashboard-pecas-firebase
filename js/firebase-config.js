@@ -1,6 +1,6 @@
 ﻿// js/firebase-config.js
 // Configure aqui o Firebase Web SDK (é seguro manter esses valores no client).
-// NÃƒO coloque serviceAccountKey.json no repositório.
+// NÃO coloque serviceAccountKey.json no repositório.
 //
 // Como obter: Firebase Console > Project settings > Your apps (Web app) > Firebase SDK snippet (Config)
 
@@ -13,4 +13,6 @@ window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
     messagingSenderId: 'SENDER_ID',
     appId: 'APP_ID'
 };
+
+
 
