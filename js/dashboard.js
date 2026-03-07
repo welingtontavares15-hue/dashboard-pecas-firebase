@@ -669,13 +669,11 @@
 
     getRecentStatusOptions() {
         return [
-            { value: 'pendente', label: 'Pendente' },
-            { value: 'aprovada', label: 'Aprovada' },
-            { value: 'rejeitada', label: 'Rejeitada' },
-            { value: 'em-transito', label: 'Rastreio' },
-            { value: 'entregue', label: 'Entregue' },
-            { value: 'finalizada', label: 'Finalizada' },
-            { value: 'historico-manual', label: 'Histórico/Manual' }
+            { value: 'pendente', label: 'Em aprovação' },
+            { value: 'rejeitada', label: 'Rejeitado' },
+            { value: 'aprovada', label: 'Aprovado / aguardando envio' },
+            { value: 'em-transito', label: 'Em trânsito' },
+            { value: 'finalizada', label: 'Finalizada' }
         ];
     },
 
@@ -910,6 +908,8 @@ setRange(days) {
         }
     }
 };
+
+
 
 
 

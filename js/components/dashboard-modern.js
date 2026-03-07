@@ -22,20 +22,18 @@ const FLOW_STEPS = [
     'A solicita\u00e7\u00e3o \u00e9 finalizada.'
 ];
 
-const FLOW_STATUSES = ['CRIADO', 'PENDENTE_APROVACAO', 'APROVADO', 'EM_COMPRA', 'ENVIADO', 'CONCLUIDO', 'REPROVADO'];
+const FLOW_STATUSES = ['PENDENTE_APROVACAO', 'APROVADO', 'EM_COMPRA', 'CONCLUIDO', 'REPROVADO'];
 
 function getPipelineStatusLabel(status) {
     const labels = {
-        CRIADO: 'Aberta pelo t\u00e9cnico',
-        PENDENTE_APROVACAO: 'Em avalia\u00e7\u00e3o do gestor',
-        APROVADO: 'Aprovada e enviada ao fornecedor (PDF)',
-        EM_COMPRA: 'Fornecedor respondeu / rastreio registrado',
-        ENVIADO: 'Material entregue ao t\u00e9cnico',
+        PENDENTE_APROVACAO: 'Em aprovação',
+        APROVADO: 'Aprovado / aguardando envio',
+        EM_COMPRA: 'Em trânsito',
         CONCLUIDO: 'Finalizada',
-        REPROVADO: 'Rejeitada e devolvida ao t\u00e9cnico'
+        REPROVADO: 'Rejeitado'
     };
 
-    return labels[status] || labels.CRIADO;
+    return labels[status] || labels.PENDENTE_APROVACAO;
 }
 
 function getDefaultFilters() {
@@ -64,12 +62,10 @@ function getStatusOptions() {
 
 function getMappedStatuses(pipelineStatus) {
     const map = {
-        CRIADO: ['rascunho', 'enviada'],
-        PENDENTE_APROVACAO: ['pendente'],
+        PENDENTE_APROVACAO: ['pendente', 'rascunho', 'enviada'],
         APROVADO: ['aprovada'],
         EM_COMPRA: ['em-transito'],
-        ENVIADO: ['entregue'],
-        CONCLUIDO: ['finalizada', 'historico-manual'],
+        CONCLUIDO: ['finalizada', 'entregue', 'historico-manual'],
         REPROVADO: ['rejeitada']
     };
 
@@ -463,3 +459,5 @@ export function applyDashboardModernization() {
         this.render();
     };
 }
+
+

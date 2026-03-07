@@ -164,14 +164,11 @@ const Solicitacoes = {
 
     getStatusOptions() {
         return [
-            { value: 'rascunho', label: 'Aberta (técnico)' },
-            { value: 'pendente', label: 'Em avaliação (gestor)' },
-            { value: 'aprovada', label: 'Aprovada (enviada ao fornecedor)' },
-            { value: 'rejeitada', label: 'Rejeitada (devolvida ao técnico)' },
-            { value: 'em-transito', label: 'Rastreio registrado' },
-            { value: 'entregue', label: 'Entregue ao técnico' },
-            { value: 'finalizada', label: 'Finalizada' },
-            { value: 'historico-manual', label: 'Finalizada (histórico)' }
+            { value: 'pendente', label: 'Em aprovação' },
+            { value: 'rejeitada', label: 'Rejeitado' },
+            { value: 'aprovada', label: 'Aprovado / aguardando envio' },
+            { value: 'em-transito', label: 'Em trânsito' },
+            { value: 'finalizada', label: 'Finalizada' }
         ];
     },
 
@@ -247,13 +244,13 @@ const Solicitacoes = {
     getTimelineStatusLabel(status) {
         const map = {
             rascunho: 'Técnico abriu a solicitação',
-            pendente: 'Gestor recebeu para avaliação',
-            aprovada: 'Gestor aprovou e enviou ao fornecedor (PDF)',
+            pendente: 'Solicitação em aprovação com o gestor',
+            aprovada: 'Gestor aprovou. Aguardando envio do fornecedor',
             rejeitada: 'Gestor rejeitou e retornou ao técnico',
-            'em-transito': 'Fornecedor respondeu e rastreio foi registrado',
-            entregue: 'Material entregue ao técnico',
+            'em-transito': 'Fornecedor informou rastreio. Pedido em trânsito',
+            entregue: 'Técnico confirmou entrega',
             finalizada: 'Solicitação finalizada',
-            'historico-manual': 'Solicitação concluída (histórico)'
+            'historico-manual': 'Solicitação finalizada'
         };
         const key = String(status || '').trim();
         if (map[key]) {
@@ -273,7 +270,7 @@ const Solicitacoes = {
                 }
                 let label = "Atualização da solicitação";
                 if (event.event === "created") {
-                    label = "Solicitação criada";
+                    label = "Técnico abriu a solicitação";
                 } else if (event.event === "status_changed") {
                     label = this.getTimelineStatusLabel(event.to || sol.status);
                 }
@@ -297,7 +294,7 @@ const Solicitacoes = {
 
         if (events.length === 0) {
             events.push({
-                label: "Solicitação criada",
+                label: "Técnico abriu a solicitação",
                 by: sol.createdBy || sol.tecnicoNome || "Sistema",
                 at: sol.createdAt || Date.now()
             });
@@ -414,7 +411,7 @@ const Solicitacoes = {
                                         <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        ${canEdit && (sol.status === 'rascunho' || sol.status === 'pendente') ? `
+                                        ${canEdit && sol.status === 'pendente' ? `
                                             <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -633,12 +630,35 @@ const Solicitacoes = {
      */
     getFilteredSolicitations() {
         let solicitations = DataManager.getSolicitations();
+        const role = Auth.getRole();
 
-        if (Auth.getRole() === 'tecnico') {
+        if (role === 'tecnico') {
             const tecnicoId = Auth.getTecnicoId();
             solicitations = solicitations.filter(s => s.tecnicoId === tecnicoId);
         }
 
+        if (role === 'fornecedor') {
+            const fornecedorId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
+            const currentUser = Auth.getCurrentUser() || {};
+            const normalizeEmail = (value) => {
+                if (typeof DataManager.normalizeEmail === 'function') {
+                    return DataManager.normalizeEmail(value);
+                }
+                return String(value || '').trim().toLowerCase();
+            };
+            const currentEmail = normalizeEmail(currentUser.email);
+            solicitations = solicitations.filter((sol) => {
+                const inSupplierFlow = sol.status === 'aprovada' || sol.status === 'em-transito';
+                if (!inSupplierFlow || !sol.fornecedorId) {
+                    return false;
+                }
+                if (fornecedorId) {
+                    return sol.fornecedorId === fornecedorId;
+                }
+                const supplier = DataManager.getSupplierById(sol.fornecedorId);
+                return !!currentEmail && normalizeEmail(supplier?.email) === currentEmail;
+            });
+        }
         const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : (this.filters.status ? [this.filters.status] : []);
         if (selectedStatuses.length > 0) {
             solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
@@ -724,11 +744,81 @@ const Solicitacoes = {
             Utils.showToast('Solicitação não encontrada', 'error');
             return;
         }
-        
+
+        const isTecnicoOwner = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
         const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
         const canManageTracking = Auth.getRole() === 'fornecedor';
         const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
-        
+
+        if (isTecnicoOwner) {
+            const content = `
+                <div class="modal-header">
+                    <h3>Solicitação #${sol.numero}</h3>
+                    <button class="modal-close" onclick="Utils.closeModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número da solicitação</label>
+                            <p><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></p>
+                        </div>
+                        <div class="form-group">
+                            <label>Data</label>
+                            <p><strong>${Utils.formatDate(sol.data)}</strong></p>
+                        </div>
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <p><strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong></p>
+                        </div>
+                        <div class="form-group">
+                            <label>Status atual</label>
+                            <p>${Utils.renderStatusBadge(sol.status)}</p>
+                        </div>
+                    </div>
+
+                    <h4 class="mt-4 mb-2">Itens solicitados</h4>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Peça</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(sol.itens || []).map(item => `
+                                    <tr>
+                                        <td>${Utils.escapeHtml(item.descricao || item.codigo || '-')}</td>
+                                        <td>${Utils.formatNumber(Number(item.quantidade) || 0)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label>Rastreio</label>
+                        <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio do fornecedor'}</strong></p>
+                    </div>
+
+                    ${this.renderTimeline(sol)}
+                </div>
+                <div class="modal-footer">
+                    ${canConfirmDelivery && sol.status === 'em-transito' ? `
+                        <button class="btn btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')">
+                            <i class="fas fa-check-circle"></i> Confirmar Entrega
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
+                </div>
+            `;
+
+            Utils.showModal(content, { size: 'md' });
+            return;
+        }
+
         const content = `
             <div class="modal-header">
                 <h3>Solicitação #${sol.numero}</h3>
@@ -756,7 +846,7 @@ const Solicitacoes = {
                         <p><strong>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</strong></p>
                     </div>
                 </div>
-                
+
                 ${this.renderDecisionSidePanel(sol)}
 
                 ${supplier ? `
@@ -765,7 +855,7 @@ const Solicitacoes = {
                         <p><strong>${Utils.escapeHtml(supplier.nome)}</strong></p>
                     </div>
                 ` : ''}
-                
+
                 <div class="form-group">
                     <label>Código de Rastreio</label>
                     <div class="tracking-box">
@@ -791,14 +881,14 @@ const Solicitacoes = {
                         </div>
                     </div>
                 </div>
-                
+
                 ${sol.rejectionReason ? `
                     <div class="form-group">
                         <label>Motivo da Rejeição</label>
                         <p class="text-danger"><strong>${Utils.escapeHtml(sol.rejectionReason)}</strong></p>
                     </div>
                 ` : ''}
-                
+
                 <!-- Items -->
                 <h4 class="mt-4 mb-2">Itens</h4>
                 <div class="table-container">
@@ -825,7 +915,7 @@ const Solicitacoes = {
                         </tbody>
                     </table>
                 </div>
-                
+
                 <!-- Totals -->
                 <div class="totals-section">
                     <div class="total-row">
@@ -845,14 +935,14 @@ const Solicitacoes = {
                         <span>${Utils.formatCurrency(sol.total)}</span>
                     </div>
                 </div>
-                
+
                 ${sol.observacoes ? `
                     <div class="form-group mt-3">
                         <label>Observações</label>
                         <p>${Utils.escapeHtml(sol.observacoes)}</p>
                     </div>
                 ` : ''}
-                
+
                 <div class="decision-panel-clear"></div>
                 ${this.renderTimeline(sol)}
             </div>
@@ -863,7 +953,7 @@ const Solicitacoes = {
                 <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
             </div>
         `;
-        
+
         Utils.showModal(content, { size: 'lg' });
     },
 
@@ -1032,7 +1122,7 @@ const Solicitacoes = {
             desconto: 0,
             frete: 0,
             total: 0,
-            status: 'rascunho'
+            status: 'pendente'
         };
         
         const technicians = DataManager.getTechnicians();
@@ -1131,9 +1221,6 @@ const Solicitacoes = {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
-                <button class="btn btn-secondary" onclick="Solicitacoes.saveSolicitation('rascunho')">
-                    <i class="fas fa-save"></i> Salvar Rascunho
-                </button>
                 <button class="btn btn-primary" onclick="Solicitacoes.saveSolicitation('pendente')">
                     <i class="fas fa-paper-plane"></i> Enviar para Aprovação
                 </button>
@@ -1295,7 +1382,7 @@ const Solicitacoes = {
     /**
      * Save solicitation
      */
-    saveSolicitation(status = 'rascunho') {
+    saveSolicitation(status = 'pendente') {
         const tecnicoId = document.getElementById('sol-tecnico').value;
         const dataInput = document.getElementById('sol-data').value;
         const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
@@ -1353,10 +1440,11 @@ const Solicitacoes = {
         const tech = DataManager.getTechnicianById(tecnicoId);
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
+        const isNewSolicitation = !this.currentSolicitation?.id;
         const shouldSendManagerEmail = (
             status === 'pendente' &&
             Auth.getRole() === 'tecnico' &&
-            this.currentSolicitation?.status !== 'pendente'
+            (isNewSolicitation || this.currentSolicitation?.status !== 'pendente')
         );
 
         const solicitation = {
@@ -1393,12 +1481,7 @@ const Solicitacoes = {
             return;
         }
 
-        Utils.showToast(
-            status === 'pendente'
-                ? 'Solicitação enviada para aprovação'
-                : 'Rascunho salvo com sucesso',
-            'success'
-        );
+        Utils.showToast('Solicitação enviada para aprovação', 'success');
 
         Utils.closeModal();
 
@@ -1490,7 +1573,7 @@ const Solicitacoes = {
             desconto: sol.desconto,
             frete: sol.frete,
             total: sol.total,
-            status: 'rascunho'
+            status: 'pendente'
         };
         
         // Open the form with duplicated data
@@ -1620,6 +1703,18 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

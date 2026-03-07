@@ -1,17 +1,17 @@
 ﻿export function normalizePipelineStatus(status) {
     const key = String(status || '').trim().toLowerCase();
     const map = {
-        rascunho: 'CRIADO',
-        enviada: 'CRIADO',
+        rascunho: 'PENDENTE_APROVACAO',
+        enviada: 'PENDENTE_APROVACAO',
         pendente: 'PENDENTE_APROVACAO',
         aprovada: 'APROVADO',
         rejeitada: 'REPROVADO',
         'em-transito': 'EM_COMPRA',
-        entregue: 'ENVIADO',
+        entregue: 'CONCLUIDO',
         finalizada: 'CONCLUIDO',
         'historico-manual': 'CONCLUIDO'
     };
-    return map[key] || 'CRIADO';
+    return map[key] || 'PENDENTE_APROVACAO';
 }
 
 export function badgeClassByPipelineStatus(pipelineStatus) {
@@ -26,4 +26,5 @@ export function badgeClassByPipelineStatus(pipelineStatus) {
     };
     return cls[pipelineStatus] || 'status-criado';
 }
+
 

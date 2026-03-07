@@ -1,11 +1,9 @@
 ﻿export { normalizePipelineStatus, badgeClassByPipelineStatus } from './badge-status.js';
 
 export const PIPELINE_STATUSES = [
-    'CRIADO',
     'PENDENTE_APROVACAO',
     'APROVADO',
     'EM_COMPRA',
-    'ENVIADO',
     'CONCLUIDO',
     'REPROVADO'
 ];
@@ -22,3 +20,4 @@ export function getStatusToneByPipelineStatus(status) {
     };
     return toneMap[status] || 'neutral';
 }
+

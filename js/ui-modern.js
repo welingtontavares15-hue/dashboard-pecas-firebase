@@ -1,19 +1,19 @@
 ﻿(function () {
     const STATUS_TOKENS = {
-        criado: { label: 'Aberta (técnico)', icon: 'fa-circle', css: 'status-criado' },
-        pendente_aprovacao: { label: 'Em avaliação (gestor)', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
-        aprovado: { label: 'Aprovada (enviada ao fornecedor)', icon: 'fa-check', css: 'status-aprovado' },
-        reprovado: { label: 'Rejeitada (devolvida ao técnico)', icon: 'fa-times', css: 'status-reprovado' },
-        em_compra: { label: 'Rastreio registrado', icon: 'fa-cart-shopping', css: 'status-em-compra' },
-        enviado: { label: 'Entregue ao técnico', icon: 'fa-truck-fast', css: 'status-enviado' },
+        criado: { label: 'Em aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
+        pendente_aprovacao: { label: 'Em aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
+        aprovado: { label: 'Aprovado / aguardando envio', icon: 'fa-check', css: 'status-aprovado' },
+        reprovado: { label: 'Rejeitado', icon: 'fa-times', css: 'status-reprovado' },
+        em_compra: { label: 'Em trânsito', icon: 'fa-cart-shopping', css: 'status-em-compra' },
+        enviado: { label: 'Finalizada', icon: 'fa-truck-fast', css: 'status-concluido' },
         concluido: { label: 'Finalizada', icon: 'fa-check-double', css: 'status-concluido' }
     };
 
     const STATUS_ALIAS = {
-        rascunho: 'criado',
-        criada: 'criado',
-        criado: 'criado',
-        enviada: 'criado',
+        rascunho: 'pendente_aprovacao',
+        criada: 'pendente_aprovacao',
+        criado: 'pendente_aprovacao',
+        enviada: 'pendente_aprovacao',
         pendente: 'pendente_aprovacao',
         pendente_aprovacao: 'pendente_aprovacao',
         aprovada: 'aprovado',
@@ -23,7 +23,7 @@
         em_transito: 'em_compra',
         'em-transito': 'em_compra',
         em_compra: 'em_compra',
-        entregue: 'enviado',
+        entregue: 'concluido',
         finalizada: 'concluido',
         concluido: 'concluido',
         'historico-manual': 'concluido'
@@ -31,7 +31,7 @@
 
     function normalizeStatus(status) {
         const raw = String(status || '').trim().toLowerCase().replace(/\s+/g, '_');
-        return STATUS_ALIAS[raw] || 'criado';
+        return STATUS_ALIAS[raw] || 'pendente_aprovacao';
     }
 
     function debounce(fn, wait) {
@@ -543,7 +543,7 @@
             let notifications = [];
 
             if (role === 'fornecedor') {
-                const allowedStatuses = ['aprovada', 'em-transito', 'entregue', 'finalizada', 'historico-manual'];
+                const allowedStatuses = ['aprovada', 'em-transito'];
                 const currentSupplierId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : (currentUser.fornecedorId || null);
                 const currentEmail = normalizeEmail(currentUser.email);
 
@@ -678,6 +678,7 @@
     patchAuth();
     patchApp();
 })();
+
 
 
 

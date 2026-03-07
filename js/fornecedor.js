@@ -3,7 +3,7 @@
  * Exibe apenas solicitações aprovadas e em fluxo de envio do fornecedor.
  */
 
-const FORNECEDOR_VISIBLE_STATUSES = ['aprovada', 'em-transito', 'entregue', 'finalizada', 'historico-manual'];
+const FORNECEDOR_VISIBLE_STATUSES = ['aprovada', 'em-transito'];
 
 const FornecedorPortal = {
     currentPage: 1,
@@ -45,7 +45,7 @@ const FornecedorPortal = {
                         <li>Fornecedor recebe somente solicitações aprovadas</li>
                         <li>Fornecedor separa o material e informa rastreio</li>
                         <li>Pedido retorna ao técnico para recebimento</li>
-                        <li>Técnico marca como entregue</li>
+                        <li>Técnico confirma o recebimento</li>
                         <li>Solicitação é finalizada</li>
                     </ol>
                 </div>
@@ -64,11 +64,8 @@ const FornecedorPortal = {
                     <label>Status:</label>
                     <select id="supplier-portal-status" class="form-control">
                         <option value="">Todos</option>
-                        <option value="aprovada" ${this.filters.status === 'aprovada' ? 'selected' : ''}>Aprovada</option>
-                        <option value="em-transito" ${this.filters.status === 'em-transito' ? 'selected' : ''}>Rastreio registrado</option>
-                        <option value="entregue" ${this.filters.status === 'entregue' ? 'selected' : ''}>Entregue ao técnico</option>
-                        <option value="finalizada" ${this.filters.status === 'finalizada' ? 'selected' : ''}>Finalizada</option>
-                        <option value="historico-manual" ${this.filters.status === 'historico-manual' ? 'selected' : ''}>Finalizada (histórico)</option>
+                        <option value="aprovada" ${this.filters.status === 'aprovada' ? 'selected' : ''}>Aprovado / aguardando envio</option>
+                        <option value="em-transito" ${this.filters.status === 'em-transito' ? 'selected' : ''}>Em trânsito</option>
                     </select>
                 </div>
                 <button class="btn btn-outline" onclick="FornecedorPortal.clearFilters()">
@@ -209,15 +206,12 @@ const FornecedorPortal = {
     getShippingSituation(sol) {
         const status = sol?.status;
         if (status === 'aprovada') {
-            return 'Aguardando separação e envio';
+            return 'Aguardando envio do fornecedor';
         }
         if (status === 'em-transito') {
             return sol?.trackingCode
-                ? 'Despachado com rastreio informado'
+                ? 'Pedido em trânsito com rastreio informado'
                 : 'Rastreio pendente de preenchimento';
-        }
-        if (status === 'entregue') {
-            return 'Recebido pelo técnico';
         }
         return 'Fluxo concluído';
     },
@@ -254,8 +248,8 @@ const FornecedorPortal = {
             return `
                 <div class="empty-state">
                     <i class="fas fa-box-open"></i>
-                    <h4>Sem pedidos aprovados para este fornecedor</h4>
-                    <p>Pedidos rejeitados ou pendentes de aprovação não são exibidos neste perfil.</p>
+                    <h4>Sem pedidos no fluxo do fornecedor</h4>
+                    <p>Este perfil exibe somente solicitações aprovadas e em trânsito.</p>
                 </div>
             `;
         }
@@ -270,7 +264,7 @@ const FornecedorPortal = {
 
         return `
             <div class="table-info">
-                Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} pedidos aprovados
+                Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} pedidos no fluxo do fornecedor
             </div>
             <div class="table-container">
                 <table class="table">
@@ -361,7 +355,7 @@ const FornecedorPortal = {
         }
 
         if (!this.canEditTracking(sol, scope)) {
-            Utils.showToast('O rastreio só pode ser informado após aprovação e antes da finalização', 'warning');
+            Utils.showToast('O rastreio só pode ser informado em solicitações aprovadas ou em trânsito', 'warning');
             return;
         }
 
@@ -402,13 +396,13 @@ const FornecedorPortal = {
     getTimelineStatusLabel(status) {
         const map = {
             rascunho: 'Técnico abriu a solicitação',
-            pendente: 'Gestor recebeu para avaliação',
-            aprovada: 'Gestor aprovou e enviou ao fornecedor (PDF)',
+            pendente: 'Solicitação em aprovação com o gestor',
+            aprovada: 'Gestor aprovou. Aguardando envio do fornecedor',
             rejeitada: 'Gestor rejeitou e retornou ao técnico',
-            'em-transito': 'Fornecedor informou o rastreio',
-            entregue: 'Técnico confirmou recebimento',
+            'em-transito': 'Fornecedor informou rastreio. Pedido em trânsito',
+            entregue: 'Técnico confirmou entrega',
             finalizada: 'Solicitação finalizada',
-            'historico-manual': 'Solicitação concluída (histórico)'
+            'historico-manual': 'Solicitação finalizada'
         };
         return map[String(status || '').trim()] || 'Atualização de status';
     },
@@ -467,7 +461,7 @@ const FornecedorPortal = {
         }
 
         const scope = this.getSupplierScope();
-        if (!this.belongsToCurrentSupplier(sol, scope)) {
+        if (!FORNECEDOR_VISIBLE_STATUSES.includes(sol.status) || !this.belongsToCurrentSupplier(sol, scope)) {
             Utils.showToast('Você não tem acesso a este histórico', 'error');
             return;
         }
@@ -511,4 +505,8 @@ const FornecedorPortal = {
         Utils.showModal(content, { size: 'md' });
     }
 };
+
+
+
+
 

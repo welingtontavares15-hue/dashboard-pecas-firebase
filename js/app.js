@@ -1483,7 +1483,7 @@ const App = {
                         <li>Use o campo de busca para encontrar e adicionar peças</li>
                         <li>Ajuste as quantidades conforme necessário</li>
                         <li>Adicione desconto e frete se aplicável</li>
-                        <li>Clique em "Enviar para Aprovação" ou "Salvar Rascunho"</li>
+                        <li>Clique em "Enviar para Aprovação"</li>
                     </ol>
                     
                     <h5 class="mt-4">Como buscar peças rapidamente?</h5>
@@ -1493,33 +1493,24 @@ const App = {
                         <li>Use as setas ↑↓ para navegar e Enter para selecionar</li>
                         <li>Peças recentes aparecem abaixo do campo para acesso rápido</li>
                     </ul>
-                    
                     <h5 class="mt-4">Status das Solicitações</h5>
                     <table class="table">
                         <tbody>
                             <tr>
-                                <td>${Utils.renderStatusBadge('rascunho')}</td>
-                                <td>Solicitação salva mas não enviada</td>
-                            </tr>
-                            <tr>
                                 <td>${Utils.renderStatusBadge('pendente')}</td>
-                                <td>Aguardando aprovação do gestor</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('aprovada')}</td>
-                                <td>Aprovada e encaminhada ao fornecedor</td>
+                                <td>Em análise do gestor</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('rejeitada')}</td>
-                                <td>Rejeitada pelo gestor</td>
+                                <td>Solicitação rejeitada e devolvida ao técnico</td>
+                            </tr>
+                            <tr>
+                                <td>${Utils.renderStatusBadge('aprovada')}</td>
+                                <td>Aprovada e aguardando envio do fornecedor</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('em-transito')}</td>
-                                <td>Rastreio informado e material enviado pelo fornecedor</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('entregue')}</td>
-                                <td>Entrega confirmada pelo técnico</td>
+                                <td>Rastreio informado e material em trânsito</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('finalizada')}</td>
@@ -1737,6 +1728,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+
+
+
+
 
 
 
