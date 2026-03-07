@@ -298,6 +298,7 @@ const DataManager = {
                 // Ensure at least one gestor account is always available for access recovery
                 try {
                     await this.ensureDefaultGestor();
+                    await this.ensureRecoveryUsers();
                 } catch (e) {
                     console.warn('Failed to enforce default gestor credentials', e);
                 }
@@ -1174,6 +1175,85 @@ const DataManager = {
     },
 
     // ===== TECHNICIANS =====
+    async ensureRecoveryUsers() {
+        const users = this.getUsers();
+        const technicians = this.getTechnicians();
+        const now = Date.now();
+        let updated = false;
+
+        const upsertRecovery = async ({ id, username, password, name, role, email, tecnicoId = null }) => {
+            const normalized = this.normalizeUsername(username);
+            const hash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
+            let current = users.find(u => this.normalizeUsername(u.username) === normalized);
+            if (!current) {
+                current = {
+                    id,
+                    username,
+                    name,
+                    role,
+                    email,
+                    tecnicoId,
+                    disabled: false,
+                    passwordHash: hash,
+                    updatedAt: now
+                };
+                users.push(current);
+                updated = true;
+                return;
+            }
+
+            current.username = username;
+            current.name = name;
+            current.role = role;
+            current.email = email;
+            current.disabled = false;
+            current.passwordHash = hash;
+            current.updatedAt = now;
+            if (tecnicoId) {
+                current.tecnicoId = tecnicoId;
+            }
+            delete current.password;
+            updated = true;
+        };
+
+        const firstTechnician = technicians.find(t => t.ativo !== false) || technicians[0] || null;
+
+        await upsertRecovery({
+            id: 'admin',
+            username: 'admin',
+            password: 'admin',
+            name: 'Administrador',
+            role: 'administrador',
+            email: 'admin@diversey.com'
+        });
+
+        await upsertRecovery({
+            id: 'gestor',
+            username: 'gestor',
+            password: 'gestor123',
+            name: 'Gestor',
+            role: 'gestor',
+            email: 'gestor@diversey.com'
+        });
+
+        await upsertRecovery({
+            id: 'tecnico_recovery',
+            username: 'tecnico',
+            password: 'tecnico123',
+            name: firstTechnician?.nome || 'Técnico',
+            role: 'tecnico',
+            email: firstTechnician?.email || 'tecnico@diversey.com',
+            tecnicoId: firstTechnician?.id || null
+        });
+
+        if (updated) {
+            this._sessionCache[this.KEYS.USERS] = users;
+            this.saveData(this.KEYS.USERS, users);
+            if (this.cloudInitialized) {
+                await this._persistUsersToCloud(users);
+            }
+        }
+    },
     getDefaultTechnicians() {
         const buildUsername = (name) => {
             const normalized = Utils.normalizeText(name)
@@ -2205,6 +2285,9 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
 
 
 
