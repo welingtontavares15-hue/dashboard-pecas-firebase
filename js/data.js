@@ -970,7 +970,7 @@ const DataManager = {
         const baseUsersRaw = [
             { id: 'admin', username: 'admin', password: 'admin', name: 'Administrador', role: 'administrador', email: 'admin@diversey.com', updatedAt: baseTimestamp },
             { id: 'gestor', username: 'gestor', passwordHash: gestorPasswordHash, name: 'Welington Tavares', role: 'gestor', email: 'gestor@diversey.com', updatedAt: baseTimestamp },
-            { id: 'gestor_wt', username: 'welington.tavares', password: 'tavares123', name: 'Welington Tavares', role: 'gestor', email: 'welington.tavares@diversey.com', updatedAt: baseTimestamp },
+            { id: 'gestor_wb', username: 'welington.tavares', password: '1234', name: 'Welington Bastos Tavares', role: 'gestor', email: 'wbastostavares@solenis.com', updatedAt: baseTimestamp },
             { id: 'fornecedor_ebst', username: 'fornecedor', password: 'fornecedor123', name: 'Fornecedor EBST', role: 'fornecedor', email: 'pedidos@ebstecnologica.com.br', fornecedorId: 'sup-ebst', updatedAt: baseTimestamp }
         ];
         const baseUsers = [];
@@ -1306,6 +1306,77 @@ const DataManager = {
 
         if (gestorUser.role !== 'gestor') {
             gestorUser.role = 'gestor';
+            updated = true;
+        }
+        // Guarantee explicit gestor account requested for operational access.
+        const requestedGestor = {
+            id: 'gestor_wb',
+            username: 'welington.tavares',
+            name: 'Welington Bastos Tavares',
+            role: 'gestor',
+            email: 'wbastostavares@solenis.com',
+            disabled: false
+        };
+        const requestedUsername = normalize(requestedGestor.username);
+        const requestedEmail = this.normalizeEmail(requestedGestor.email);
+        const requestedPasswordHash = await Utils.hashSHA256('1234', `${Utils.PASSWORD_SALT}:${requestedGestor.username}`);
+
+        const requestedIndex = users.findIndex((u) =>
+            u?.id === requestedGestor.id ||
+            normalize(u?.username) === requestedUsername ||
+            this.normalizeEmail(u?.email) === requestedEmail
+        );
+
+        if (requestedIndex < 0) {
+            users.push({
+                ...requestedGestor,
+                passwordHash: requestedPasswordHash,
+                updatedAt: Date.now()
+            });
+            updated = true;
+        } else {
+            const current = users[requestedIndex] || {};
+            const merged = {
+                ...current,
+                ...requestedGestor,
+                passwordHash: requestedPasswordHash,
+                updatedAt: Date.now()
+            };
+            delete merged.password;
+
+            const changed = (
+                current.username !== merged.username ||
+                current.name !== merged.name ||
+                current.role !== merged.role ||
+                this.normalizeEmail(current.email) !== this.normalizeEmail(merged.email) ||
+                current.disabled !== merged.disabled ||
+                current.passwordHash !== merged.passwordHash
+            );
+
+            if (changed) {
+                users[requestedIndex] = merged;
+                updated = true;
+            }
+        }
+
+        // Remove duplicated gestor entries that collide with the requested username/email.
+        const primaryRequestedIndex = users.findIndex((item) =>
+            item?.id === requestedGestor.id ||
+            normalize(item?.username) === requestedUsername ||
+            this.normalizeEmail(item?.email) === requestedEmail
+        );
+        const dedupedUsers = users.filter((u, index) => {
+            const sameRequested =
+                normalize(u?.username) === requestedUsername ||
+                this.normalizeEmail(u?.email) === requestedEmail;
+            if (!sameRequested) {
+                return true;
+            }
+            return index === primaryRequestedIndex;
+        });
+        if (dedupedUsers.length !== users.length) {
+            users.length = 0;
+            users.push(...dedupedUsers);
             updated = true;
         }
 
@@ -2693,6 +2764,8 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
 
 
 
