@@ -6,7 +6,7 @@
     <title>Dashboard de Solicitações de Peças - Diversey</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
@@ -130,6 +130,10 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <div class="global-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
+                    </div>
                     <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
                         <i class="fas fa-sync-alt"></i>
                     </button>
@@ -137,8 +141,30 @@
                         <i class="fas fa-bell"></i>
                         <span id="pending-count">0</span>
                     </div>
+                    <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
+                        <i class="fas fa-bell"></i>
+                        <span id="header-notification-dot" class="alert-dot hidden"></span>
+                    </button>
+                    <div class="header-profile">
+                        <div class="header-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="header-profile-meta">
+                            <span id="header-user-name">Usuário</span>
+                            <small id="header-user-role">Perfil</small>
+                        </div>
+                    </div>
                 </div>
             </header>
+            <div id="notification-panel" class="notification-panel hidden">
+                <div class="notification-panel-header">
+                    <h4>Notificações</h4>
+                    <button id="notification-panel-close" class="btn-icon" aria-label="Fechar notificações">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="notification-list" class="notification-list"></div>
+            </div>
 
             <!-- Content Area -->
             <div id="content-area" class="content-area">
@@ -176,14 +202,18 @@
     <script src="js/storage.js"></script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/pecas.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/solicitacoes.js"></script>
-    <script src="js/aprovacoes.js"></script>
-    <script src="js/tecnicos.js"></script>
-    <script src="js/fornecedores.js"></script>
-    <script src="js/relatorios.js"></script>
+    <script src="js/audit-log.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/ui-modern.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 

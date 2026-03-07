@@ -244,6 +244,92 @@ const Solicitacoes = {
         this._statusDropdownCloseBound = true;
     },
 
+    getTimelineStatusLabel(status) {
+        const map = {
+            rascunho: 'Solicitação criada',
+            pendente: 'Solicitação aguardando aprovação',
+            aprovada: 'Solicitação aprovada',
+            rejeitada: 'Solicitação reprovada',
+            'em-transito': 'Compra e envio registrados',
+            entregue: 'Solicitação enviada/entregue',
+            finalizada: 'Solicitação concluída',
+            'historico-manual': 'Solicitação concluída (histórico)'
+        };
+        const key = String(status || '').trim();
+        if (map[key]) {
+            return map[key];
+        }
+        const info = Utils.getStatusInfo(status);
+        return info?.label || "Atualização da solicitação";
+    },
+
+    buildTimelineEvents(sol) {
+        const events = [];
+
+        if (Array.isArray(sol.timeline) && sol.timeline.length > 0) {
+            sol.timeline.forEach((event) => {
+                if (!event) {
+                    return;
+                }
+                let label = "Atualização da solicitação";
+                if (event.event === "created") {
+                    label = "Solicitação criada";
+                } else if (event.event === "status_changed") {
+                    label = this.getTimelineStatusLabel(event.to || sol.status);
+                }
+                events.push({
+                    label,
+                    by: event.by || "Sistema",
+                    at: event.at || sol.createdAt || Date.now()
+                });
+            });
+        }
+
+        if (events.length === 0 && Array.isArray(sol.statusHistory) && sol.statusHistory.length > 0) {
+            sol.statusHistory.forEach((statusEvent) => {
+                events.push({
+                    label: this.getTimelineStatusLabel(statusEvent.status),
+                    by: statusEvent.by || "Sistema",
+                    at: statusEvent.at || sol.createdAt || Date.now()
+                });
+            });
+        }
+
+        if (events.length === 0) {
+            events.push({
+                label: "Solicitação criada",
+                by: sol.createdBy || sol.tecnicoNome || "Sistema",
+                at: sol.createdAt || Date.now()
+            });
+        }
+
+        events.sort((a, b) => (a.at || 0) - (b.at || 0));
+        return events;
+    },
+
+    renderTimeline(sol) {
+        const events = this.buildTimelineEvents(sol);
+        if (!events.length) {
+            return "";
+        }
+        return `
+            <h4 class="mt-4 mb-2">Timeline da solicitação</h4>
+            <div class="timeline">
+                ${events.map((event) => `
+                    <div class="timeline-item">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <strong>${Utils.escapeHtml(event.label)}</strong>
+                            por ${Utils.escapeHtml(event.by)}
+                            <div class="timeline-date">${Utils.formatDate(event.at, true)}</div>
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    },
+
+
     hasActiveFilters() {
         return !!(
             this.filters.search ||
@@ -659,22 +745,7 @@ const Solicitacoes = {
                     </div>
                 ` : ''}
                 
-                <!-- Status History -->
-                ${(sol.statusHistory && sol.statusHistory.length > 0) ? `
-                    <h4 class="mt-4 mb-2">Histórico</h4>
-                    <div class="timeline">
-                        ${sol.statusHistory.map(h => `
-                            <div class="timeline-item">
-                                <div class="timeline-marker"></div>
-                                <div class="timeline-content">
-                                    <strong>${Utils.getStatusInfo(h.status).label}</strong>
-                                    por ${Utils.escapeHtml(h.by)}
-                                    <div class="timeline-date">${Utils.formatDate(h.at, true)}</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
+                ${this.renderTimeline(sol)}
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}'); Utils.closeModal();">
@@ -1369,6 +1440,7 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
 
 
 
