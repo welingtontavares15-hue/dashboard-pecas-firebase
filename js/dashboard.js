@@ -1,0 +1,940 @@
+﻿const Dashboard = {
+    // Number of pending approvals to show in the dashboard preview
+    approvalsPreviewLimit: 5,
+    rangeDays: null,
+    MAX_NAV_RETRY: 20,
+    NAV_RETRY_INTERVAL_MS: 75,
+    charts: {},
+    recentFilters: {
+        search: '',
+        status: [],
+        tecnico: '',
+        dateFrom: '',
+        dateTo: ''
+    },
+    chartWarningShown: false,
+
+    /**
+     * Render dashboard
+     */
+    render() {
+        const pending = DataManager.getPendingSolicitations();
+        const currentRange = this.getRangeDays();
+        const content = document.getElementById('content-area');
+        const dashboardData = this.buildDashboardMetrics(DataManager.getSolicitations(), currentRange);
+
+        content.innerHTML = `
+            <div class="page-header">
+                <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
+                <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
+                <div class="kpi-controls">
+                    <span class="text-muted">Período global:</span>
+                    ${[7, 30, 90].map(days => `
+                        <button class="btn btn-sm ${currentRange === days ? 'btn-primary' : 'btn-outline'}"
+                                onclick="Dashboard.setRange(${days})">
+                            ${days}d
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="kpi-grid dashboard-primary-grid">
+                ${this.renderPrimaryKpis(dashboardData)}
+            </div>
+            <div class="insight-grid">
+                <div class="card compact-card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-gauge-high"></i> Ranking de eficiência técnica</h4>
+                    </div>
+                    <div class="card-body">
+                        ${this.renderTopTechnicians(dashboardData.efficiencyRanking, dashboardData.rangeLabel)}
+                    </div>
+                </div>
+                <div class="card compact-card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-box-open"></i> Top 5 peças utilizadas</h4>
+                    </div>
+                    <div class="card-body">
+                        ${this.renderTopPieces(dashboardData.topPieces)}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3 compact-card"> 
+                <div class="card-header">
+                    <div>
+                        <h4><i class="fas fa-triangle-exclamation"></i> Alertas de custo elevado</h4>
+                        <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Solicitações acima de 30% do custo médio do período.</p>
+                    </div>
+                </div>
+                <div class="card-body">
+                    ${this.renderHighCostAlerts(dashboardData)}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h4><i class="fas fa-check-double"></i> Aprovações de Solicitações</h4>
+                    <button class="btn btn-sm btn-outline" onclick="App.navigate('aprovacoes')">
+                        Gerenciar Aprovações <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    ${this.renderApprovalsPreview(pending)}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h4><i class="fas fa-history"></i> Solicitações Recentes</h4>
+                        <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Busca rápida, filtros e ações diretas.</p>
+                    </div>
+                    <details class="filter-panel compact" open>
+                        <summary class="filter-panel-toggle">Filtros</summary>
+                        <div class="dashboard-filters filter-panel-body">
+                            <div class="search-box">
+                                <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente ou técnico..." value="${Utils.escapeHtml(this.recentFilters.search)}">
+                                <button class="btn btn-primary" onclick="Dashboard.applyRecentFilters()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div class="status-filter" data-status-filter="recent-status" role="group" aria-label="Filtro rápido de status">
+                                <button type="button" class="status-filter-trigger" data-status-trigger="recent-status">
+                                    <span class="status-filter-label">
+                                        <i class="fas fa-filter"></i>
+                                        <span class="status-filter-label-text">${this.getRecentSelectedStatusSummary().length > 0 ? `${this.getRecentSelectedStatusSummary().length} status selecionado(s)` : 'Todos os status'}</span>
+                                    </span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="status-filter-dropdown" data-status-dropdown="recent-status">
+                                    <div class="status-filter-summary">
+                                        ${this.getRecentSelectedStatusSummary().length > 0
+                                            ? this.getRecentSelectedStatusSummary().map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                                            : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
+                                    </div>
+                                    <div class="status-filter-options">
+                                        ${this.getRecentStatusOptions().map(option => `
+                                            <label class="status-filter-option">
+                                                <input type="checkbox" data-status-group="recent-status" value="${option.value}" ${Array.isArray(this.recentFilters.status) && this.recentFilters.status.includes(option.value) ? 'checked' : ''}>
+                                                <span>${option.label}</span>
+                                                ${Utils.renderStatusBadge(option.value)}
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            <select id="recent-tecnico" class="form-control">
+                                <option value="">Técnico</option>
+                                ${DataManager.getTechnicians().map(t => `
+                                    <option value="${t.id}" ${this.recentFilters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
+                                `).join('')}
+                            </select>
+                            <input type="date" id="recent-date-from" class="form-control" value="${this.recentFilters.dateFrom}">
+                            <input type="date" id="recent-date-to" class="form-control" value="${this.recentFilters.dateTo}">
+                            <button class="btn btn-outline btn-sm" id="recent-clear" title="Limpar filtros">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </details>
+                </div>
+                <div class="card-body">
+                    <div id="recent-table-container">
+                        ${this.renderRecentTable()}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.bindRecentFilters();
+        setTimeout(() => this.initCharts(dashboardData), 50);
+    },
+    renderPrimaryKpis(dashboardData) {
+        const cards = [
+            {
+                title: 'Solicitações abertas',
+                value: Utils.formatNumber(dashboardData.openCount),
+                change: `${Utils.formatNumber(dashboardData.pendingCount)} pendentes de aprovação`,
+                icon: 'fa-inbox',
+                tone: 'warning',
+                target: 'pendentes'
+            },
+            {
+                title: 'Solicitações no período',
+                value: Utils.formatNumber(dashboardData.totalRequests),
+                change: dashboardData.rangeLabel,
+                icon: 'fa-calendar-days',
+                tone: 'info',
+                target: 'solicitacoes'
+            },
+            {
+                title: 'Custo total de peças',
+                value: Utils.formatCurrency(dashboardData.totalCost),
+                change: `${Utils.formatNumber(dashboardData.totalApproved)} solicitações com custo`,
+                icon: 'fa-money-bill-wave',
+                tone: 'success',
+                target: 'relatorios',
+                nowrap: true
+            },
+            {
+                title: 'Custo médio por solicitação',
+                value: Utils.formatCurrency(dashboardData.averageTicket),
+                change: dashboardData.costVariation >= 0 ? 'Acima do período anterior' : 'Abaixo do período anterior',
+                icon: 'fa-receipt',
+                tone: 'primary',
+                target: 'relatorios',
+                nowrap: true,
+                changeClass: dashboardData.costVariation >= 0 ? 'negative' : 'positive'
+            },
+            {
+                title: 'Custo médio por técnico',
+                value: Utils.formatCurrency(dashboardData.avgCostPerTech),
+                change: `${Utils.formatNumber(dashboardData.uniqueTechCount)} técnico(s) com solicitações`,
+                icon: 'fa-user-gear',
+                tone: 'info',
+                target: 'relatorios',
+                nowrap: true
+            },
+        ];
+
+        return cards.map(card => `
+            <div class="kpi-card metric-card clickable" role="button" tabindex="0" onclick="Dashboard.handleCardClick('${card.target}')" onkeydown="Dashboard.handleCardKey(event, '${card.target}')" title="${card.title}">
+                <div class="kpi-icon ${card.tone}">
+                    <i class="fas ${card.icon}"></i>
+                </div>
+                <div class="kpi-content">
+                    <h4>${card.title}</h4>
+                    <div class="kpi-value ${card.nowrap ? 'metric-nowrap' : ''}" ${card.nowrap ? `title="${card.value}"` : ''}>${card.value}</div>
+                    <div class="kpi-change ${card.changeClass || ''}">${card.change}</div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    buildDashboardMetrics(solicitations = [], rangeDays = 30) {
+        const analysis = AnalyticsHelper.buildOperationalAnalysis(solicitations, {
+            period: AnalyticsHelper.getGlobalPeriodFilter()
+        });
+
+        const slaSamples = analysis.costSolicitations
+            .map(sol => {
+                const createdAt = Utils.parseAsLocalDate(sol.createdAt || sol.data);
+                const completedAt = Utils.parseAsLocalDate(sol.approvedAt || sol.updatedAt || sol.data);
+                if (isNaN(createdAt) || isNaN(completedAt)) {
+                    return null;
+                }
+                return Math.max((completedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60), 0);
+            })
+            .filter(value => value !== null);
+        const slaAverageHours = slaSamples.length > 0
+            ? slaSamples.reduce((sum, value) => sum + value, 0) / slaSamples.length
+            : 0;
+
+        return {
+            ...analysis,
+            averageTicket: analysis.averageCostPerSolicitation,
+            currentMonthCost: analysis.totalCost,
+            currentMonthCalls: analysis.totalApproved,
+            currentMonthRequests: analysis.totalRequests,
+            approvedThisMonth: analysis.totalApproved,
+            rangeLabel: analysis.periodLabel,
+            slaAverageHours,
+            slaBaseCount: slaSamples.length,
+            topTechniciansByCost: analysis.byTechnician.slice(0, 5)
+        };
+    },
+
+    /**
+     * Render approvals preview
+     */    renderApprovalsPreview(pendingSolicitations = []) {
+        const pending = [...pendingSolicitations]
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+            .slice(0, this.approvalsPreviewLimit);
+        const totalPending = pendingSolicitations.length;
+        const slaHours = (DataManager.getSettings().slaHours || 24);
+        const lastActivity = DataManager.getSolicitations()
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+        
+        if (pending.length === 0) {
+            return `
+                <div class="empty-state compact">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <h4>Sem pendências</h4>
+                        <p class="text-muted" style="margin: 0;">Tudo aprovado dentro do SLA.</p>
+                    </div>
+                </div>
+                ${lastActivity ? `
+                    <div class="last-activity">
+                        <i class="fas fa-history"></i>
+                        <div>
+                            <div class="recent-meta">
+                                <strong>#${lastActivity.numero}</strong> • ${Utils.escapeHtml(lastActivity.tecnicoNome || 'Técnico')}
+                            </div>
+                            <div class="recent-tags">
+                                <span class="tag-soft info"><i class="fas fa-calendar"></i> ${Utils.formatDate(lastActivity.data || lastActivity.createdAt)}</span>
+                                <span class="tag-soft"><i class="fas fa-box-open"></i> ${(lastActivity.itens || []).length} itens</span>
+                                ${Utils.renderStatusBadge(lastActivity.status)}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+        
+        return `
+            <div class="table-info">
+                Exibindo ${pending.length} de ${totalPending} solicitações pendentes
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Técnico</th>
+                            <th>Data</th>
+                            <th>Total</th>
+                            <th>Tempo aguardando</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pending.map(sol => {
+        const referenceDate = sol.createdAt || (sol.data ? Utils.parseAsLocalDate(sol.data).getTime() : null) || Date.now();
+        const waitingHours = Utils.getHoursDiff(referenceDate, Date.now());
+        const isOverSLA = waitingHours > slaHours;
+        return `
+                                <tr class="${isOverSLA ? 'sla-alert' : ''}">
+                                    <td><strong>#${sol.numero}</strong></td>
+                                    <td>${Utils.escapeHtml(sol.tecnicoNome)}</td>
+                                    <td>${Utils.formatDate(sol.data)}</td>
+                                    <td>${Utils.formatCurrency(sol.total)}</td>
+                                    <td>
+                                        <span class="${isOverSLA ? 'text-danger' : 'text-warning'}">
+                                            ${Utils.formatDuration(waitingHours)}
+                                            ${isOverSLA ? ' (SLA excedido)' : ''}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    renderTopTechnicians(topTechs = [], rangeLabel = 'Últimos 30 dias') {
+        if (!topTechs || topTechs.length === 0) {
+            return `
+                <div class="empty-state compact">
+                    <i class="fas fa-users"></i>
+                    <div>
+                        <h4>Sem dados suficientes</h4>
+                        <p class="text-muted" style="margin: 0;">As solicitações aparecerão aqui assim que forem criadas.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="top-tech-list">
+                ${topTechs.slice(0, 5).map(t => `
+                    <div class="top-tech-item top-tech-item-rich">
+                        <div>
+                            <strong>${Utils.escapeHtml(t.nome || t.name)}</strong>
+                            <div class="meta">${Utils.formatNumber(t.calls || t.count || 0)} solicitações em ${Utils.escapeHtml(rangeLabel)}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div><strong>${Utils.formatCurrency(t.costPerCall || 0)}</strong></div>
+                            <div class="meta">Custo médio por solicitação</div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    /**
+     * Render recent solicitations table     */
+    renderOperationalHighlights(dashboardData) {
+        return `
+            <div class="metric-list">
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Maior volume de solicitações</span>
+                    <strong>${Utils.escapeHtml(dashboardData.topByCalls.nome)}</strong>
+                    <span class="metric-list-meta">${Utils.formatNumber(dashboardData.topByCalls.calls)} solicitações em ${Utils.escapeHtml(dashboardData.rangeLabel)}</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Maior custo total</span>
+                    <strong>${Utils.escapeHtml(dashboardData.topByCost.nome)}</strong>
+                    <span class="metric-list-meta">${Utils.formatCurrency(dashboardData.topByCost.totalCost)} no período</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Melhor eficiência</span>
+                    <strong>${Utils.escapeHtml(dashboardData.mostEfficient.nome)}</strong>
+                    <span class="metric-list-meta">${Utils.formatCurrency(dashboardData.mostEfficient.costPerCall)} por solicitação</span>
+                </div>
+                <div class="metric-list-item">
+                    <span class="metric-list-label">Média mensal do período</span>
+                    <strong>${Utils.formatNumber(dashboardData.monthlyAverageRequests, 1)}</strong>
+                    <span class="metric-list-meta">${Utils.formatNumber(dashboardData.monthSpan)} mês(es) cobertos</span>
+                </div>
+            </div>
+        `;
+    },
+
+    renderTopPieces(topPieces = []) {
+        if (!topPieces.length) {
+            return '<p class="text-muted">Sem peças utilizadas no período.</p>';
+        }
+
+        return `
+            <div class="table-container">
+                <table class="table compact-table">
+                    <thead>
+                        <tr>
+                            <th>Peça</th>
+                            <th>Quantidade</th>
+                            <th>Custo total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topPieces.map(piece => `
+                            <tr>
+                                <td><strong>${Utils.escapeHtml(piece.descricao)}</strong></td>
+                                <td>${Utils.formatNumber(piece.quantidade)}</td>
+                                <td>${Utils.formatCurrency(piece.totalCost)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    renderRegionRanking(regions = []) {
+        if (!regions.length) {
+            return '<p class="text-muted">Sem regiões com solicitações no período.</p>';
+        }
+
+        return `
+            <div class="table-container">
+                <table class="table compact-table">
+                    <thead>
+                        <tr>
+                            <th>Região</th>
+                            <th>Solicitações</th>
+                            <th>Custo total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${regions.slice(0, 8).map(region => `
+                            <tr>
+                                <td><strong>${Utils.escapeHtml(region.regiao)}</strong></td>
+                                <td>${Utils.formatNumber(region.requestCount)}</td>
+                                <td>${Utils.formatCurrency(region.totalCost)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    renderHighCostAlerts(dashboardData) {
+        if (!dashboardData.highCostSolicitations.length) {
+            return `
+                <div class="empty-state compact">
+                    <i class="fas fa-circle-check"></i>
+                    <div>
+                        <h4>Nenhum alerta crítico</h4>
+                        <p class="text-muted" style="margin: 0;">Nenhuma solicitação ultrapassou 30% da média do período.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="table-container">
+                <table class="table compact-table">
+                    <thead>
+                        <tr>
+                            <th>Solicitação</th>
+                            <th>Técnico</th>
+                            <th>Região</th>
+                            <th>Custo</th>
+                            <th>Alerta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${dashboardData.highCostSolicitations.slice(0, 8).map(sol => `
+                            <tr class="cost-alert-row">
+                                <td><strong>#${sol.numero}</strong></td>
+                                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não identificado')}</td>
+                                <td>${Utils.escapeHtml(sol.region)}</td>
+                                <td>${Utils.formatCurrency(sol.analysisCost)}</td>
+                                <td><span class="tag-soft danger"><i class="fas fa-triangle-exclamation"></i> +${Utils.formatNumber(sol.costDeltaPct, 1)}%</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    renderRecentTable() {
+        const solicitations = this.getFilteredRecentSolicitations();
+        const slaHours = DataManager.getSettings().slaHours || 24;
+        const visible = solicitations.slice(0, 8);
+        const dashboardData = this.buildDashboardMetrics(DataManager.getSolicitations(), this.getRangeDays());
+        const highCostIds = new Set(dashboardData.highCostSolicitations.map(sol => sol.id));
+
+        if (visible.length === 0) {
+            return `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h4>Sem solicitações recentes</h4>
+                    <p>${this.hasActiveRecentFilters() ? 'Revise os filtros para exibir as solicitações do período desejado.' : 'As solicitações mais recentes aparecerão aqui assim que a operação começar a registrar solicitações.'}</p>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="table-info">
+                Exibindo ${visible.length} de ${solicitations.length} registros filtrados
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Solicitação</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${visible.map(sol => {
+        const referenceDate = sol.createdAt || (sol.data ? Utils.parseAsLocalDate(sol.data).getTime() : null) || Date.now();
+        const waitingHours = Utils.getHoursDiff(referenceDate, Date.now());
+        const slaAlert = sol.status === 'pendente' && waitingHours > slaHours;
+        const costAlert = highCostIds.has(sol.id);
+        const obsPreview = sol.observacoes ? Utils.escapeHtml(sol.observacoes).slice(0, 60) : '';
+        return `
+                                <tr class="${slaAlert || costAlert ? 'sla-alert' : ''}">
+                                    <td>
+                                        <div class="recent-title">#${sol.numero}</div>
+                                        <div class="recent-meta">
+                                            <i class="fas fa-user"></i> ${Utils.escapeHtml(sol.tecnicoNome)}
+                                            <span class="separator">•</span>
+                                            <i class="fas fa-calendar-alt"></i> ${Utils.formatDate(sol.data || sol.createdAt)}
+                                        </div>
+                                        <div class="recent-tags">
+                                            <span class="tag-soft"><i class="fas fa-box-open"></i> ${(sol.itens || []).length} itens</span>
+                                            ${sol.status === 'pendente' ? `<span class="tag-soft warning"><i class="fas fa-clock"></i> ${Utils.formatDuration(waitingHours)}</span>` : ''}
+                                            ${slaAlert ? '<span class="tag-soft danger"><i class="fas fa-bolt"></i> SLA</span>' : ''}
+                                            ${costAlert ? '<span class="tag-soft danger"><i class="fas fa-triangle-exclamation"></i> Solicitação com custo elevado</span>' : ''}
+                                            ${obsPreview ? `<span class="tag-soft info"><i class="fas fa-tag"></i> ${obsPreview}${sol.observacoes.length > 60 ? '...' : ''}</span>` : ''}
+                                        </div>
+                                    </td>
+                                    <td>${Utils.formatCurrency(sol.total)}</td>
+                                    <td>${Utils.renderStatusBadge(sol.status)}</td>
+                                    <td>
+                                        <div class="actions actions-stretch">
+                                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            ${sol.status === 'pendente' && Auth.hasPermission('aprovacoes', 'approve') ? `
+                                                <button class="btn btn-sm btn-success" onclick="Aprovacoes.openApproveModal('${sol.id}')" title="Aprovar">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger" onclick="Aprovacoes.openRejectModal('${sol.id}')" title="Rejeitar">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    getFilteredRecentSolicitations() {
+        const globalPeriod = AnalyticsHelper.getGlobalPeriodFilter();
+        const { search, status, tecnico, dateFrom, dateTo } = this.recentFilters;
+        const selectedStatuses = Array.isArray(status) ? status : (status ? [status] : []);
+        let solicitations = AnalyticsHelper.filterSolicitations(DataManager.getSolicitations().slice(), {
+            period: {
+                dateFrom: dateFrom || globalPeriod.dateFrom,
+                dateTo: dateTo || globalPeriod.dateTo,
+                rangeDays: globalPeriod.rangeDays
+            },
+            statuses: selectedStatuses,
+            tecnico
+        }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        if (search) {
+            solicitations = solicitations.filter(s => 
+                Utils.matchesSearch(s.numero, search) || Utils.matchesSearch(s.tecnicoNome, search) || Utils.matchesSearch(s.cliente, search)
+            );
+        }
+
+        return solicitations;
+    },
+
+    bindRecentFilters() {
+        const searchInput = document.getElementById('recent-search');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    this.applyRecentFilters();
+                }
+            });
+        }
+
+        ['recent-tecnico', 'recent-date-from', 'recent-date-to'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => this.applyRecentFilters());
+            }
+        });
+
+        const trigger = document.querySelector('[data-status-trigger="recent-status"]');
+        if (trigger) {
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleRecentStatusDropdown();
+            });
+        }
+
+        document.querySelectorAll('[data-status-group="recent-status"]').forEach(input => {
+            input.addEventListener('change', () => this.applyRecentFilters());
+            input.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        document.querySelectorAll('[data-status-dropdown="recent-status"]').forEach(panel => {
+            panel.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        this.bindRecentStatusDropdownClose();
+
+        const clearBtn = document.getElementById('recent-clear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.clearRecentFilters();
+            });
+        }
+    },
+
+    applyRecentFilters() {
+        this.recentFilters.search = document.getElementById('recent-search')?.value || '';
+        this.recentFilters.status = Array.from(document.querySelectorAll('[data-status-group="recent-status"]:checked')).map(option => option.value);
+        this.recentFilters.tecnico = document.getElementById('recent-tecnico')?.value || '';
+        this.recentFilters.dateFrom = document.getElementById('recent-date-from')?.value || '';
+        this.recentFilters.dateTo = document.getElementById('recent-date-to')?.value || '';
+        this.refreshRecentTable();
+    },
+
+    clearRecentFilters() {
+        this.recentFilters = { search: '', status: [], tecnico: '', dateFrom: '', dateTo: '' };
+        if (document.getElementById('recent-search')) {
+            document.getElementById('recent-search').value = '';
+        }
+        document.querySelectorAll('[data-status-group="recent-status"]').forEach(option => {
+            option.checked = false;
+        });
+        if (document.getElementById('recent-tecnico')) {
+            document.getElementById('recent-tecnico').value = '';
+        }
+        if (document.getElementById('recent-date-from')) {
+            document.getElementById('recent-date-from').value = '';
+        }
+        if (document.getElementById('recent-date-to')) {
+            document.getElementById('recent-date-to').value = '';
+        }
+        this.refreshRecentTable();
+    },
+
+    refreshRecentTable() {
+        const container = document.getElementById('recent-table-container');
+        if (container) {
+            container.innerHTML = this.renderRecentTable();
+        }
+    },
+
+    getRecentStatusOptions() {
+        return [
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovada', label: 'Aprovada' },
+            { value: 'rejeitada', label: 'Rejeitada' },
+            { value: 'em-transito', label: 'Rastreio' },
+            { value: 'entregue', label: 'Entregue' },
+            { value: 'finalizada', label: 'Finalizada' },
+            { value: 'historico-manual', label: 'Histórico/Manual' }
+        ];
+    },
+
+    getRecentSelectedStatusSummary() {
+        const selectedValues = Array.isArray(this.recentFilters.status) ? this.recentFilters.status : [];
+        return this.getRecentStatusOptions().filter(option => selectedValues.includes(option.value));
+    },
+
+    toggleRecentStatusDropdown() {
+        const filter = document.querySelector('[data-status-filter="recent-status"]');
+        if (!filter) {
+            return;
+        }
+
+        const shouldOpen = !filter.classList.contains('open');
+        this.closeRecentStatusDropdowns();
+        if (shouldOpen) {
+            filter.classList.add('open');
+        }
+    },
+
+    closeRecentStatusDropdowns() {
+        document.querySelectorAll('[data-status-filter="recent-status"].open').forEach(filter => {
+            filter.classList.remove('open');
+        });
+    },
+
+    bindRecentStatusDropdownClose() {
+        if (this._recentStatusDropdownCloseBound) {
+            return;
+        }
+
+        document.addEventListener('click', () => this.closeRecentStatusDropdowns());
+        this._recentStatusDropdownCloseBound = true;
+    },
+
+    hasActiveRecentFilters() {
+        return !!(
+            this.recentFilters.search ||
+            this.recentFilters.tecnico ||
+            this.recentFilters.dateFrom ||
+            this.recentFilters.dateTo ||
+            (Array.isArray(this.recentFilters.status) && this.recentFilters.status.length > 0)
+        );
+    },
+
+    /**
+     * Initialize Chart.js charts
+     */
+    initCharts(stats) {
+        const canvas = document.getElementById('dashboardTrendChart');
+        if (!canvas) {
+            return;
+        }
+
+        if (typeof Chart === 'undefined') {
+            if (canvas.parentElement) {
+                canvas.parentElement.innerHTML = '<div class="chart-fallback">Gráfico indisponível (biblioteca não carregada).</div>';
+            }
+            return;
+        }
+
+        Object.values(this.charts).forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        this.charts = {};
+
+        const isDark = document.body.classList.contains('dark-mode');
+        const textColor = isDark ? '#e4e6eb' : '#212529';
+        const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+
+        this.charts.dashboardTrendChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: stats.byMonth.map(month => month.label),
+                datasets: [
+                    {
+                        label: 'Custo de peças',
+                        data: stats.byMonth.map(month => month.totalCost),
+                        borderColor: '#0066cc',
+                        backgroundColor: 'rgba(0, 102, 204, 0.12)',
+                        yAxisID: 'y',
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'Solicitações',
+                        data: stats.byMonth.map(month => month.requestCount),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        yAxisID: 'y1',
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Peças utilizadas',
+                        data: stats.byMonth.map(month => month.totalPieces),
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                        yAxisID: 'y1',
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: textColor }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        ticks: {
+                            color: textColor,
+                            callback: (value) => Utils.formatCurrency(Number(value) || 0)
+                        },
+                        grid: { color: gridColor }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        ticks: { color: textColor },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        ticks: { color: textColor },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    },
+
+    /**
+     * Refresh dashboard data
+     */
+    refresh() {
+        this.render();
+    },
+
+setRange(days) {
+        this.rangeDays = days;
+        AnalyticsHelper.setGlobalPeriodByDays(days);
+        this.render();
+    },
+
+    getRangeDays() {
+        const period = AnalyticsHelper.getGlobalPeriodFilter();
+        this.rangeDays = period.rangeDays;
+        return this.rangeDays;
+    },
+
+    handleCardClick(target) {
+        if (target === 'pendentes') {
+            App.navigate('solicitacoes');
+            let navRetry = 0;
+            const applyFilterAfterNav = () => {
+                if (App.currentPage === 'solicitacoes') {
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['pendente']);
+                    }
+                } else if (navRetry < this.MAX_NAV_RETRY) {
+                    navRetry += 1;
+                    setTimeout(applyFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+                } else {
+                    console.warn('Não foi possível aplicar filtro de pendentes após navegar para Solicitações.');
+                }
+            };
+            setTimeout(applyFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+            return;
+        }
+        if (target === 'solicitacoes') {
+            App.navigate('solicitacoes');
+            return;
+        }
+        if (target === 'solicitacoes-rejeitadas') {
+            App.navigate('solicitacoes');
+            let navRetry = 0;
+            const applyRejectedFilterAfterNav = () => {
+                if (App.currentPage === 'solicitacoes') {
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['rejeitada']);
+                    }
+                } else if (navRetry < this.MAX_NAV_RETRY) {
+                    navRetry += 1;
+                    setTimeout(applyRejectedFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+                }
+            };
+            setTimeout(applyRejectedFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+            return;
+        }
+        if (target === 'solicitacoes-finalizadas') {
+            App.navigate('solicitacoes');
+            let navRetry = 0;
+            const applyFinalizedFilterAfterNav = () => {
+                if (App.currentPage === 'solicitacoes') {
+                    if (typeof Solicitacoes !== 'undefined') {
+                        Solicitacoes.setStatusFilter(['finalizada']);
+                    }
+                } else if (navRetry < this.MAX_NAV_RETRY) {
+                    navRetry += 1;
+                    setTimeout(applyFinalizedFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+                }
+            };
+            setTimeout(applyFinalizedFilterAfterNav, this.NAV_RETRY_INTERVAL_MS);
+            return;
+        }
+        if (target === 'aprovacoes') {
+            App.navigate('aprovacoes');
+            return;
+        }
+        if (target === 'relatorios') {
+            App.navigate('relatorios');
+            return;
+        }
+        App.navigate('dashboard');
+    },
+
+    handleCardKey(event, target) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.handleCardClick(target);
+        }
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
