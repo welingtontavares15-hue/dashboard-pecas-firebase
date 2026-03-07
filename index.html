@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Solicitações de Peças - Diversey</title>
+    <title>Dashboard de SolicitaÃ§Ãµes de PeÃ§as - Diversey</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260307g">
+    <link rel="stylesheet" href="css/style.css?v=20260307h">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
@@ -24,12 +24,12 @@
                 <i class="fas fa-tools"></i>
                 <h1>Diversey</h1>
                 <div class="login-slogan">A Solenis Company</div>
-                <p>Dashboard de Solicitações de Peças</p>
+                <p>Dashboard de SolicitaÃ§Ãµes de PeÃ§as</p>
             </div>
             <form id="login-form" class="login-form">
                 <div class="form-group">
-                    <label for="login-username">Usuário</label>
-                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
+                    <label for="login-username">UsuÃ¡rio</label>
+                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuÃ¡rio" required autocomplete="username" autocapitalize="none" spellcheck="false">
                 </div>
                 <div class="form-group">
                     <label for="login-password">Senha</label>
@@ -47,13 +47,13 @@
             </form>
             <div class="login-info-card">
                 <h3>Bem-vindo ao portal</h3>
-                <p>Para acessar o sistema, utilize suas credenciais ou solicite liberação ao administrador.</p>
+                <p>Para acessar o sistema, utilize suas credenciais ou solicite liberaÃ§Ã£o ao administrador.</p>
             </div>
             <div id="login-credentials" class="credentials-panel hidden">
                 <div class="credentials-header">
                     <div>
-                        <h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3>
-                        <p>Use um dos usuários abaixo para acessar imediatamente.</p>
+                        <h3><i class="fas fa-user-lock"></i> Credenciais disponÃ­veis</h3>
+                        <p>Use um dos usuÃ¡rios abaixo para acessar imediatamente.</p>
                     </div>
                     <span class="badge-info"><i class="fas fa-shield-alt"></i> RBAC ativo</span>
                 </div>
@@ -62,7 +62,7 @@
                         <thead>
                             <tr>
                                 <th>Nome</th>
-                                <th>Usuário</th>
+                                <th>UsuÃ¡rio</th>
                                 <th>Perfil</th>
                             </tr>
                         </thead>
@@ -95,7 +95,7 @@
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="user-details">
-                        <span id="user-name">Usuário</span>
+                        <span id="user-name">UsuÃ¡rio</span>
                         <span id="user-role" class="user-role">Perfil</span>
                     </div>
                 </div>
@@ -120,7 +120,7 @@
                         <button id="mobile-menu-btn" class="btn-icon" aria-label="Abrir menu">
                             <i class="fas fa-bars"></i>
                         </button>
-                        <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para início">
+                        <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para inÃ­cio">
                             <i class="fas fa-home"></i>
                         </button>
                     </div>
@@ -131,7 +131,7 @@
                 <div class="header-actions">
                     <div class="global-search">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
+                        <input type="text" id="global-search-input" class="form-control" placeholder="Buscar nÃºmero, cliente, peÃ§a ou tÃ©cnico.">
                     </div>
                     <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
                         <i class="fas fa-sync-alt"></i>
@@ -140,7 +140,7 @@
                         <i class="fas fa-bell"></i>
                         <span id="pending-count">0</span>
                     </div>
-                    <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
+                    <button id="notifications-toggle" class="btn-icon" title="NotificaÃ§Ãµes" aria-label="Abrir notificaÃ§Ãµes">
                         <i class="fas fa-bell"></i>
                         <span id="header-notification-dot" class="alert-dot hidden"></span>
                     </button>
@@ -149,7 +149,7 @@
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="header-profile-meta">
-                            <span id="header-user-name">Usuário</span>
+                            <span id="header-user-name">UsuÃ¡rio</span>
                             <small id="header-user-role">Perfil</small>
                         </div>
                     </div>
@@ -157,8 +157,8 @@
             </header>
             <div id="notification-panel" class="notification-panel hidden">
                 <div class="notification-panel-header">
-                    <h4>Notificações</h4>
-                    <button id="notification-panel-close" class="btn-icon" aria-label="Fechar notificações">
+                    <h4>NotificaÃ§Ãµes</h4>
+                    <button id="notification-panel-close" class="btn-icon" aria-label="Fechar notificaÃ§Ãµes">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -202,8 +202,8 @@
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20260307g"></script>
-    <script src="js/ui-modern.js?v=20260307g"></script>
+    <script src="js/app.js?v=20260307h"></script>
+    <script src="js/ui-modern.js?v=20260307h"></script>
 </body>
 </html>
 

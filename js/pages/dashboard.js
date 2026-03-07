@@ -11,7 +11,7 @@ export async function ensureLoaded() {
     await ensureClassicScript(new URL('../aprovacoes.js', import.meta.url).href, 'Aprovacoes');
     await ensureClassicScript(new URL('../dashboard.js', import.meta.url).href, 'Dashboard');
 
-    const patch = await import(new URL('../components/dashboard-modern.js?v=20260307g', import.meta.url).href);
+    const patch = await import(new URL('../components/dashboard-modern.js?v=20260307h', import.meta.url).href);
     if (patch && typeof patch.applyDashboardModernization === 'function') {
         patch.applyDashboardModernization();
     }

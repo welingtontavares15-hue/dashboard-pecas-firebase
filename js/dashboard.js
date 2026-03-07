@@ -25,8 +25,8 @@
 
         content.innerHTML = `
             <div class="page-header">
-                <h2><i class="fas fa-clipboard-check"></i> Painel de Solicitações</h2>
-                <p class="text-muted">Acompanhe operação, custo e performance da equipe em um único painel.</p>
+                <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
+                <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
                 <div class="kpi-controls">
                     <span class="text-muted">Período global:</span>
                     ${[7, 30, 90].map(days => `
@@ -41,7 +41,6 @@
             <div class="kpi-grid dashboard-primary-grid">
                 ${this.renderPrimaryKpis(dashboardData)}
             </div>
-
             <div class="insight-grid">
                 <div class="card compact-card">
                     <div class="card-header">
@@ -53,48 +52,15 @@
                 </div>
                 <div class="card compact-card">
                     <div class="card-header">
-                        <h4><i class="fas fa-wave-square"></i> Destaques operacionais</h4>
-                    </div>
-                    <div class="card-body">
-                        ${this.renderOperationalHighlights(dashboardData)}
-                    </div>
-                </div>
-            </div>
-
-            <div class="insight-grid">
-                <div class="card compact-card">
-                    <div class="card-header">
                         <h4><i class="fas fa-box-open"></i> Top 5 peças utilizadas</h4>
                     </div>
                     <div class="card-body">
                         ${this.renderTopPieces(dashboardData.topPieces)}
                     </div>
                 </div>
-                <div class="card compact-card">
-                    <div class="card-header">
-                        <h4><i class="fas fa-map-location-dot"></i> Custo por região</h4>
-                    </div>
-                    <div class="card-body">
-                        ${this.renderRegionRanking(dashboardData.byRegion)}
-                    </div>
-                </div>
             </div>
 
-            <div class="card compact-card">
-                <div class="card-header">
-                    <div>
-                        <h4><i class="fas fa-chart-line"></i> Evolução mensal</h4>
-                        <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Custo de peças, solicitações e peças utilizadas por mês.</p>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="chart-wrapper dashboard-trend-wrapper">
-                        <canvas id="dashboardTrendChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mt-3 compact-card">
+            <div class="card mt-3 compact-card"> 
                 <div class="card-header">
                     <div>
                         <h4><i class="fas fa-triangle-exclamation"></i> Alertas de custo elevado</h4>
@@ -229,31 +195,6 @@
                 target: 'relatorios',
                 nowrap: true
             },
-            {
-                title: 'Custo médio por peça',
-                value: Utils.formatCurrency(dashboardData.costPerPiece),
-                change: `${Utils.formatNumber(dashboardData.totalPieces)} peça(s) utilizadas`,
-                icon: 'fa-screwdriver-wrench',
-                tone: 'warning',
-                target: 'relatorios',
-                nowrap: true
-            },
-            {
-                title: 'Peças por solicitação',
-                value: Utils.formatNumber(dashboardData.partsPerSolicitation, 2),
-                change: 'Consumo médio por solicitação',
-                icon: 'fa-boxes-stacked',
-                tone: 'success',
-                target: 'relatorios'
-            },
-            {
-                title: 'SLA médio',
-                value: Utils.formatDuration(dashboardData.slaAverageHours),
-                change: `${Utils.formatNumber(dashboardData.slaBaseCount)} solicitação(ões) analisadas`,
-                icon: 'fa-stopwatch',
-                tone: 'info',
-                target: 'aprovacoes'
-            }
         ];
 
         return cards.map(card => `
@@ -969,6 +910,9 @@ setRange(days) {
         }
     }
 };
+
+
+
 
 
 

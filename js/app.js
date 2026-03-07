@@ -8,12 +8,12 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260307g',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260307g',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260307g',
-        pecas: './js/pages/pecas.js?v=20260307g',
-        relatorios: './js/pages/relatorios.js?v=20260307g',
-        usuarios: './js/pages/usuarios.js?v=20260307g'
+        dashboard: './js/pages/dashboard.js?v=20260307h',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260307h',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
+        pecas: './js/pages/pecas.js?v=20260307h',
+        relatorios: './js/pages/relatorios.js?v=20260307h',
+        usuarios: './js/pages/usuarios.js?v=20260307h'
         },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -242,7 +242,7 @@ const App = {
         const sampleCredentials = [
             { name: 'Administrador', username: 'admin', role: 'administrador' },
             { name: 'Welington Tavares', username: 'gestor', role: 'gestor' },
-            { name: 'Técnico (recuperação)', username: 'tecnico', role: 'tecnico' }
+            { name: 'TÃ©cnico (recuperaÃ§Ã£o)', username: 'tecnico', role: 'tecnico' }
         ];
         
         tbody.innerHTML = sampleCredentials.map(cred => `
@@ -297,7 +297,7 @@ const App = {
     async navigate(pageId) {
         // Check access
         if (!Auth.canAccessRoute(pageId)) {
-            Utils.showToast('Você não tem permissão para acessar esta página', 'error');
+            Utils.showToast('VocÃª nÃ£o tem permissÃ£o para acessar esta pÃ¡gina', 'error');
             return;
         }
 
@@ -400,7 +400,7 @@ const App = {
                 await mod.ensureLoaded();
             }
         } catch (error) {
-            console.warn('Lazy load falhou, aplicando fallback clássico:', key, error);
+            console.warn('Lazy load falhou, aplicando fallback clÃ¡ssico:', key, error);
             await this.loadFallbackScripts(key);
         }
 
@@ -421,16 +421,16 @@ const App = {
         }
         const labels = {
             'dashboard': 'Dashboard',
-            'solicitacoes': 'Solicitações',
-            'minhas-solicitacoes': 'Minhas Solicitações',
-            'nova-solicitacao': 'Nova Solicitação',
-            'aprovacoes': 'Aprovações',
-            'tecnicos': 'Técnicos',
+            'solicitacoes': 'SolicitaÃ§Ãµes',
+            'minhas-solicitacoes': 'Minhas SolicitaÃ§Ãµes',
+            'nova-solicitacao': 'Nova SolicitaÃ§Ã£o',
+            'aprovacoes': 'AprovaÃ§Ãµes',
+            'tecnicos': 'TÃ©cnicos',
             'fornecedores': 'Fornecedores',
-            'pecas': 'Peças',
-            'catalogo': 'Catálogo de Peças',
-            'relatorios': 'Relatórios',
-            'configuracoes': 'Configurações',
+            'pecas': 'PeÃ§as',
+            'catalogo': 'CatÃ¡logo de PeÃ§as',
+            'relatorios': 'RelatÃ³rios',
+            'configuracoes': 'ConfiguraÃ§Ãµes',
             'ajuda': 'Ajuda',
             'perfil': 'Meu Perfil'
         };
@@ -507,8 +507,8 @@ const App = {
                 }, 100);
             });
         } catch (error) {
-            console.error('Erro ao carregar módulo da página', pageId, error);
-            Utils.showToast('Não foi possível carregar este módulo agora.', 'error');
+            console.error('Erro ao carregar mÃ³dulo da pÃ¡gina', pageId, error);
+            Utils.showToast('NÃ£o foi possÃ­vel carregar este mÃ³dulo agora.', 'error');
             this.renderNotFound();
         } finally {
             Utils.hideLoading();
@@ -524,7 +524,7 @@ const App = {
         const errorDiv = document.getElementById('login-error');
         
         if (!username || !password) {
-            errorDiv.textContent = 'Preencha usuário e senha';
+            errorDiv.textContent = 'Preencha usuÃ¡rio e senha';
             errorDiv.classList.remove('hidden');
             return;
         }
@@ -533,7 +533,7 @@ const App = {
         try {
             result = await Auth.login(username, password);
         } catch (error) {
-            console.error('Erro de autenticação', error);
+            console.error('Erro de autenticaÃ§Ã£o', error);
             errorDiv.textContent = 'Erro ao autenticar. Tente novamente.';
             errorDiv.classList.remove('hidden');
             return;
@@ -558,7 +558,7 @@ const App = {
         
         if (confirmed) {
             Auth.logout();
-            Utils.showToast('Sessão encerrada', 'info');
+            Utils.showToast('SessÃ£o encerrada', 'info');
             this.showLogin();
         }
     },
@@ -650,17 +650,17 @@ const App = {
         const cloudReady = (firebaseUser && syncStarted) || DataManager.isCloudReady();
         const isConnecting = (!cloudReady) && DataManager.isCloudConnecting();
         const isCloudAvailable = cloudReady || DataManager.isCloudAvailable();
-        const cloudStatusLabel = cloudReady ? 'Sincronização em nuvem: ATIVA' : (isConnecting ? 'Conectando à nuvem...' : 'Armazenamento Local');
+        const cloudStatusLabel = cloudReady ? 'SincronizaÃ§Ã£o em nuvem: ATIVA' : (isConnecting ? 'Conectando Ã  nuvem...' : 'Armazenamento Local');
         const cloudStatusDesc = cloudReady
             ? `Dados sincronizados automaticamente via Firebase${syncStatus ? ` (status: ${syncStatus})` : ''}.`
             : (isConnecting
-                ? 'Aguardando autenticação e conexão segura com a nuvem.'
-                : 'Os dados estão sendo salvos apenas neste dispositivo. A sincronização em nuvem não está disponível.');
+                ? 'Aguardando autenticaÃ§Ã£o e conexÃ£o segura com a nuvem.'
+                : 'Os dados estÃ£o sendo salvos apenas neste dispositivo. A sincronizaÃ§Ã£o em nuvem nÃ£o estÃ¡ disponÃ­vel.');
         const canManageGestores = Auth.getRole() === 'administrador';
         
         content.innerHTML = `
             <div class="page-header">
-                <h2><i class="fas fa-cog"></i> Configurações</h2>
+                <h2><i class="fas fa-cog"></i> ConfiguraÃ§Ãµes</h2>
             </div>
             
             <!-- Cloud Storage Status -->
@@ -681,20 +681,20 @@ const App = {
             
             <div class="card">
                 <div class="card-header">
-                    <h4>Parâmetros do Sistema</h4>
+                    <h4>ParÃ¢metros do Sistema</h4>
                 </div>
                 <div class="card-body">
                     <form id="settings-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="sla-hours">SLA de Aprovação (horas)</label>
+                                <label for="sla-hours">SLA de AprovaÃ§Ã£o (horas)</label>
                                 <input type="number" id="sla-hours" class="form-control" 
                                        value="${settings.slaHours || 24}" min="1" max="168"
                                        ${!canEdit ? 'disabled' : ''}>
-                                <small class="text-muted">Tempo máximo esperado para aprovar uma solicitação</small>
+                                <small class="text-muted">Tempo mÃ¡ximo esperado para aprovar uma solicitaÃ§Ã£o</small>
                             </div>
                             <div class="form-group">
-                                <label for="items-per-page">Itens por Página</label>
+                                <label for="items-per-page">Itens por PÃ¡gina</label>
                                 <select id="items-per-page" class="form-control" ${!canEdit ? 'disabled' : ''}>
                                     <option value="10" ${settings.itemsPerPage === 10 ? 'selected' : ''}>10</option>
                                     <option value="20" ${settings.itemsPerPage === 20 ? 'selected' : ''}>20</option>
@@ -705,7 +705,7 @@ const App = {
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="stats-range">Período padrão dos KPIs</label>
+                                <label for="stats-range">PerÃ­odo padrÃ£o dos KPIs</label>
                                 <select id="stats-range" class="form-control" ${!canEdit ? 'disabled' : ''}>
                                     <option value="7" ${settings.statsRangeDays === 7 ? 'selected' : ''}>7 dias</option>
                                     <option value="30" ${settings.statsRangeDays === 30 ? 'selected' : ''}>30 dias</option>
@@ -719,16 +719,16 @@ const App = {
                                     <option value="onedrive" ${settings.sheetIntegration?.provider === 'onedrive' ? 'selected' : ''}>Excel / OneDrive</option>
                                     <option value="google" ${settings.sheetIntegration?.provider === 'google' ? 'selected' : ''}>Google Sheets</option>
                                 </select>
-                                <small class="text-muted">Usado para auditoria automática de aprovações.</small>
+                                <small class="text-muted">Usado para auditoria automÃ¡tica de aprovaÃ§Ãµes.</small>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="orcamento-mensal-pecas">Orçamento mensal de peças (R$)</label>
+                                <label for="orcamento-mensal-pecas">OrÃ§amento mensal de peÃ§as (R$)</label>
                                 <input type="number" id="orcamento-mensal-pecas" class="form-control"
                                        value="${Number(settings.orcamentoMensalPecas || 0)}" min="0" step="0.01"
                                        ${!canEdit ? 'disabled' : ''}>
-                                <small class="text-muted">Use 0 para desabilitar o alerta de orçamento mensal.</small>
+                                <small class="text-muted">Use 0 para desabilitar o alerta de orÃ§amento mensal.</small>
                             </div>
                         </div>
                         <div class="form-group">
@@ -740,7 +740,7 @@ const App = {
                         
                         ${canEdit ? `
                             <button type="button" class="btn btn-primary" onclick="App.saveSettings()">
-                                <i class="fas fa-save"></i> Salvar Configurações
+                                <i class="fas fa-save"></i> Salvar ConfiguraÃ§Ãµes
                             </button>
                         ` : ''}
                     </form>
@@ -766,7 +766,7 @@ const App = {
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="gestor-username">Usuário *</label>
+                                    <label for="gestor-username">UsuÃ¡rio *</label>
                                     <input type="text" id="gestor-username" class="form-control" placeholder="login do gestor" required>
                                 </div>
                                 <div class="form-group">
@@ -784,9 +784,9 @@ const App = {
                                 <thead>
                                     <tr>
                                         <th>Nome</th>
-                                        <th>Usuário</th>
+                                        <th>UsuÃ¡rio</th>
                                         <th>Email</th>
-                                        <th style="width: 120px;">Ações</th>
+                                        <th style="width: 120px;">AÃ§Ãµes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -817,13 +817,13 @@ const App = {
 
             <div class="card mt-3">
                 <div class="card-header">
-                    <h4>Sincronização de Dados</h4>
+                    <h4>SincronizaÃ§Ã£o de Dados</h4>
                 </div>
                 <div class="card-body">
                     <p class="text-muted">
                         ${isCloudAvailable 
-        ? 'Os dados são armazenados na nuvem e sincronizados automaticamente entre todos os dispositivos. Pedidos feitos em um dispositivo móvel serão visíveis em qualquer outro dispositivo.' 
-        : 'Este sistema está configurado para usar armazenamento local. Para habilitar a sincronização entre dispositivos, é necessário configurar o Firebase.'}
+        ? 'Os dados sÃ£o armazenados na nuvem e sincronizados automaticamente entre todos os dispositivos. Pedidos feitos em um dispositivo mÃ³vel serÃ£o visÃ­veis em qualquer outro dispositivo.' 
+        : 'Este sistema estÃ¡ configurado para usar armazenamento local. Para habilitar a sincronizaÃ§Ã£o entre dispositivos, Ã© necessÃ¡rio configurar o Firebase.'}
                     </p>
                     
                     <div class="btn-group">
@@ -878,7 +878,7 @@ const App = {
             OneDriveIntegration.clearCache();
         }
         
-        Utils.showToast('Configurações salvas com sucesso', 'success');
+        Utils.showToast('ConfiguraÃ§Ãµes salvas com sucesso', 'success');
     },
 
     /**
@@ -902,7 +902,7 @@ const App = {
         }
 
         if (!name || !username || !password) {
-            Utils.showToast('Informe nome, usuário, e-mail e senha do gestor', 'warning');
+            Utils.showToast('Informe nome, usuÃ¡rio, e-mail e senha do gestor', 'warning');
             return;
         }
 
@@ -911,7 +911,7 @@ const App = {
             passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
         } catch (error) {
             console.error('Erro ao gerar hash da senha do gestor', error);
-            Utils.showToast('Não foi possível gerar a senha com segurança', 'error');
+            Utils.showToast('NÃ£o foi possÃ­vel gerar a senha com seguranÃ§a', 'error');
             return;
         }
 
@@ -944,13 +944,13 @@ const App = {
 
         const gestor = DataManager.getUserById(gestorId);
         if (!gestor || gestor.role !== 'gestor') {
-            Utils.showToast('Gestor não encontrado', 'warning');
+            Utils.showToast('Gestor nÃ£o encontrado', 'warning');
             return;
         }
 
         const currentUser = Auth.getCurrentUser();
         if (currentUser?.id === gestorId) {
-            Utils.showToast('Você não pode excluir seu próprio usuário', 'warning');
+            Utils.showToast('VocÃª nÃ£o pode excluir seu prÃ³prio usuÃ¡rio', 'warning');
             return;
         }
 
@@ -964,11 +964,11 @@ const App = {
 
         const success = await DataManager.deleteUserById(gestorId);
         if (!success) {
-            Utils.showToast('Não foi possível excluir o gestor', 'error');
+            Utils.showToast('NÃ£o foi possÃ­vel excluir o gestor', 'error');
             return;
         }
 
-        Utils.showToast('Gestor excluído com sucesso', 'success');
+        Utils.showToast('Gestor excluÃ­do com sucesso', 'success');
         this.refreshGestorView();
     },
 
@@ -990,9 +990,9 @@ const App = {
             critical: '#ef4444'
         };
         const statusLabels = {
-            healthy: 'Saudável',
+            healthy: 'SaudÃ¡vel',
             degraded: 'Degradado',
-            critical: 'Crítico'
+            critical: 'CrÃ­tico'
         };
         const statusIcons = {
             healthy: 'fa-check-circle',
@@ -1027,7 +1027,7 @@ const App = {
         return `
             <div class="card mt-3">
                 <div class="card-header">
-                    <h4><i class="fas fa-heartbeat"></i> Saúde do Sistema</h4>
+                    <h4><i class="fas fa-heartbeat"></i> SaÃºde do Sistema</h4>
                 </div>
                 <div class="card-body">
                     <div class="health-status" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: ${statusColor}15; border-radius: 8px; border-left: 4px solid ${statusColor};">
@@ -1035,7 +1035,7 @@ const App = {
                         <div>
                             <strong style="color: ${statusColor};">${statusLabel}</strong>
                             <p class="mb-0" style="font-size: 0.875rem;">
-                                ${health.errorsLastHour} erros na última hora | ${health.errorsLastDay} nas últimas 24h
+                                ${health.errorsLastHour} erros na Ãºltima hora | ${health.errorsLastDay} nas Ãºltimas 24h
                             </p>
                         </div>
                     </div>
@@ -1048,8 +1048,8 @@ const App = {
                                     <th>Categoria</th>
                                     <th>Total</th>
                                     <th>Erros</th>
-                                    <th>Última Hora</th>
-                                    <th>Últimas 24h</th>
+                                    <th>Ãšltima Hora</th>
+                                    <th>Ãšltimas 24h</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1065,7 +1065,7 @@ const App = {
                                 <tr>
                                     <th>Data/Hora</th>
                                     <th>Request ID</th>
-                                    <th>Nível</th>
+                                    <th>NÃ­vel</th>
                                     <th>Categoria</th>
                                     <th>Mensagem</th>
                                 </tr>
@@ -1094,7 +1094,7 @@ const App = {
      */
     refreshHealthPanel() {
         this.renderConfiguracoes();
-        Utils.showToast('Dados de saúde atualizados', 'info');
+        Utils.showToast('Dados de saÃºde atualizados', 'info');
     },
 
     /**
@@ -1107,7 +1107,7 @@ const App = {
         }
 
         const confirmed = await Utils.confirm(
-            'Deseja limpar todos os logs do sistema? Esta ação não pode ser desfeita.',
+            'Deseja limpar todos os logs do sistema? Esta aÃ§Ã£o nÃ£o pode ser desfeita.',
             'Limpar Logs'
         );
 
@@ -1137,7 +1137,7 @@ const App = {
             return;
         }
         const confirmed = await Utils.confirm(
-            'Isso irá resetar todos os dados para os valores padrão oficiais. Continuar?',
+            'Isso irÃ¡ resetar todos os dados para os valores padrÃ£o oficiais. Continuar?',
             'Resetar Dados'
         );
         
@@ -1270,7 +1270,7 @@ const App = {
             } else {
                 emitSyncStatus('error');
                 if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
-                    Utils.showToast('Sincronização em nuvem não disponível', 'warning');
+                    Utils.showToast('SincronizaÃ§Ã£o em nuvem nÃ£o disponÃ­vel', 'warning');
                 }
             }
 
@@ -1296,7 +1296,7 @@ const App = {
             return;
         }
         const confirmed = await Utils.confirm(
-            'Isso irá APAGAR TODOS OS DADOS permanentemente. Esta ação não pode ser desfeita. Continuar?',
+            'Isso irÃ¡ APAGAR TODOS OS DADOS permanentemente. Esta aÃ§Ã£o nÃ£o pode ser desfeita. Continuar?',
             'Limpar Dados'
         );
         
@@ -1305,7 +1305,7 @@ const App = {
         }
 
         const confirmedAgain = await Utils.confirm(
-            'Confirme novamente para remover todos os dados. Esta ação é irreversível.',
+            'Confirme novamente para remover todos os dados. Esta aÃ§Ã£o Ã© irreversÃ­vel.',
             'Confirmar Limpeza'
         );
         if (!confirmedAgain) {
@@ -1335,37 +1335,37 @@ const App = {
             
             <div class="card">
                 <div class="card-header">
-                    <h4>Guia Rápido</h4>
+                    <h4>Guia RÃ¡pido</h4>
                 </div>
                 <div class="card-body">
-                    <h5>Como criar uma solicitação?</h5>
+                    <h5>Como criar uma solicitaÃ§Ã£o?</h5>
                     <ol>
-                        <li>Clique em "Nova Solicitação" no menu</li>
-                        <li>Selecione a data e, se aplicável, o técnico</li>
-                        <li>Use o campo de busca para encontrar e adicionar peças</li>
-                        <li>Ajuste as quantidades conforme necessário</li>
-                        <li>Adicione desconto e frete se aplicável</li>
-                        <li>Clique em "Enviar para Aprovação" ou "Salvar Rascunho"</li>
+                        <li>Clique em "Nova SolicitaÃ§Ã£o" no menu</li>
+                        <li>Selecione a data e, se aplicÃ¡vel, o tÃ©cnico</li>
+                        <li>Use o campo de busca para encontrar e adicionar peÃ§as</li>
+                        <li>Ajuste as quantidades conforme necessÃ¡rio</li>
+                        <li>Adicione desconto e frete se aplicÃ¡vel</li>
+                        <li>Clique em "Enviar para AprovaÃ§Ã£o" ou "Salvar Rascunho"</li>
                     </ol>
                     
-                    <h5 class="mt-4">Como buscar peças rapidamente?</h5>
+                    <h5 class="mt-4">Como buscar peÃ§as rapidamente?</h5>
                     <ul>
-                        <li>Digite o código ou parte da descrição no campo de busca</li>
+                        <li>Digite o cÃ³digo ou parte da descriÃ§Ã£o no campo de busca</li>
                         <li>O sistema busca por prefixo primeiro (mais relevante)</li>
-                        <li>Use as setas ↑↓ para navegar e Enter para selecionar</li>
-                        <li>Peças recentes aparecem abaixo do campo para acesso rápido</li>
+                        <li>Use as setas â†‘â†“ para navegar e Enter para selecionar</li>
+                        <li>PeÃ§as recentes aparecem abaixo do campo para acesso rÃ¡pido</li>
                     </ul>
                     
-                    <h5 class="mt-4">Status das Solicitações</h5>
+                    <h5 class="mt-4">Status das SolicitaÃ§Ãµes</h5>
                     <table class="table">
                         <tbody>
                             <tr>
                                 <td>${Utils.renderStatusBadge('rascunho')}</td>
-                                <td>Solicitação salva mas não enviada</td>
+                                <td>SolicitaÃ§Ã£o salva mas nÃ£o enviada</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('pendente')}</td>
-                                <td>Aguardando aprovação do gestor</td>
+                                <td>Aguardando aprovaÃ§Ã£o do gestor</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('aprovada')}</td>
@@ -1381,11 +1381,11 @@ const App = {
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('entregue')}</td>
-                                <td>Entrega confirmada pelo técnico</td>
+                                <td>Entrega confirmada pelo tÃ©cnico</td>
                             </tr>
                             <tr>
                                 <td>${Utils.renderStatusBadge('finalizada')}</td>
-                                <td>Solicitação concluída</td>
+                                <td>SolicitaÃ§Ã£o concluÃ­da</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1397,7 +1397,7 @@ const App = {
                     <h4>Contato</h4>
                 </div>
                 <div class="card-body">
-                    <p>Para suporte técnico, entre em contato:</p>
+                    <p>Para suporte tÃ©cnico, entre em contato:</p>
                     <p>
                         Welington Tavares<br>
                         <i class="fas fa-envelope"></i> <a href="mailto:wbastostavares@solenis.com">wbastostavares@solenis.com</a><br>
@@ -1415,7 +1415,7 @@ const App = {
         const content = document.getElementById('content-area');
         const user = Auth.getCurrentUser();
         if (!user) {
-            Utils.showToast('Sessão expirada. Faça login novamente.', 'warning');
+            Utils.showToast('SessÃ£o expirada. FaÃ§a login novamente.', 'warning');
             this.showLogin();
             return;
         }
@@ -1440,7 +1440,7 @@ const App = {
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Usuário</label>
+                            <label>UsuÃ¡rio</label>
                             <p><strong>${Utils.escapeHtml(user.username)}</strong></p>
                         </div>
                         <div class="form-group">
@@ -1494,7 +1494,7 @@ const App = {
         }
         
         if (newPass !== confirm) {
-            Utils.showToast('As senhas não conferem', 'error');
+            Utils.showToast('As senhas nÃ£o conferem', 'error');
             return;
         }
         
@@ -1506,14 +1506,14 @@ const App = {
         // Verify current password
         const user = Auth.getCurrentUser();
         if (!user) {
-            Utils.showToast('Sessão expirada. Faça login novamente.', 'error');
+            Utils.showToast('SessÃ£o expirada. FaÃ§a login novamente.', 'error');
             return;
         }
         const users = DataManager.getUsers();
         const dbUser = users.find(u => u.id === user.id);
         
         if (!dbUser) {
-            Utils.showToast('Usuário não encontrado', 'error');
+            Utils.showToast('UsuÃ¡rio nÃ£o encontrado', 'error');
             return;
         }
 
@@ -1556,10 +1556,10 @@ const App = {
         content.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle"></i>
-                <h4>Página não encontrada</h4>
-                <p>A página que você está procurando não existe.</p>
+                <h4>PÃ¡gina nÃ£o encontrada</h4>
+                <p>A pÃ¡gina que vocÃª estÃ¡ procurando nÃ£o existe.</p>
                 <button class="btn btn-primary" onclick="App.navigate('dashboard')">
-                    <i class="fas fa-home"></i> Voltar ao Início
+                    <i class="fas fa-home"></i> Voltar ao InÃ­cio
                 </button>
             </div>
         `;
@@ -1574,7 +1574,7 @@ window.addEventListener('firebase-ready', async () => {
         const mod = await import(APP_FIREBASE_SYNC_MODULE_PATH);
         await mod.startFirebaseSync();
     } catch (error) {
-        console.warn('Falha ao iniciar sincronização com Firebase', error);
+        console.warn('Falha ao iniciar sincronizaÃ§Ã£o com Firebase', error);
     }
 });
 
@@ -1595,7 +1595,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Application initialization error:', error);
         // Show error message to user
         if (typeof Utils !== 'undefined' && Utils.showToast) {
-            Utils.showToast('Erro ao inicializar aplicação', 'error');
+            Utils.showToast('Erro ao inicializar aplicaÃ§Ã£o', 'error');
         }
     }
 });
