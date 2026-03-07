@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Firebase Healthcheck</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body { padding: 20px; }
+    .hc-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .hc-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .hc-log { background:#0b1020; color:#e5e7eb; border-radius:12px; padding:12px; height: 280px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; font-size:12px; }
+    .ok { background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.35); }
+    .warn { background: rgba(245,158,11,.15); color:#f59e0b; border: 1px solid rgba(245,158,11,.35); }
+    .bad { background: rgba(239,68,68,.15); color:#ef4444; border: 1px solid rgba(239,68,68,.35); }
+    .muted { opacity:.8; }
+    .kbd { font-family: ui-monospace, monospace; padding:2px 6px; border-radius:6px; background: rgba(255,255,255,.06); }
+  </style>
+
+  <!-- Firebase SDK v9 modules (same approach as index.html) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getDatabase, ref, set, get, onValue, off, remove } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+
+    window.firebaseModules = {
+      initializeApp, getDatabase, ref, set, get, onValue, off, remove,
+      getAuth, signInAnonymously, onAuthStateChanged
+    };
+  </script>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/firebase-config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/logger.js"></script>
+  <script src="../js/firebase-init.js"></script>
+</head>
+<body>
+  <div class="card" style="padding:16px;">
+    <div class="hc-row">
+      <div>
+        <h1 class="h1" style="margin:0;">Firebase Healthcheck</h1>
+        <div class="muted">Testa <span class="kbd">Auth Anônimo</span> + <span class="kbd">Realtime Database</span> (read/write).</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span id="pillStatus" class="pill warn">⏳ aguardando</span>
+        <button id="btnRun" class="btn primary">Rodar testes</button>
+      </div>
+    </div>
+
+    <hr class="sep"/>
+
+    <div class="hc-grid">
+      <div class="card" style="padding:12px;">
+        <div class="small muted">Config atual</div>
+        <div class="mono" id="cfgOut"></div>
+      </div>
+
+      <div class="hc-log" id="log"></div>
+
+      <div class="small muted">
+        Se falhar com "invalid api key" ou "project not found", configure <span class="kbd">js/firebase-config.js</span>.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const logEl = document.getElementById('log');
+      const pill = document.getElementById('pillStatus');
+      const btn = document.getElementById('btnRun');
+      const cfgOut = document.getElementById('cfgOut');
+
+      function setPill(kind, text) {
+        pill.className = 'pill ' + kind;
+        pill.textContent = text;
+      }
+      function log(msg, kind='info') {
+        const line = document.createElement('div');
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        if (kind === 'ok') line.style.color = '#22c55e';
+        if (kind === 'warn') line.style.color = '#f59e0b';
+        if (kind === 'bad') line.style.color = '#ef4444';
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+        console[kind === 'bad' ? 'error' : 'log'](msg);
+      }
+
+      function safeCfg(cfg) {
+        if (!cfg) return '(vazio)';
+        const copy = { ...cfg };
+        // apiKey não é "segredo", mas ainda assim não precisa exibir completo aqui
+        if (copy.apiKey && typeof copy.apiKey === 'string') {
+          copy.apiKey = copy.apiKey.slice(0, 6) + '…' + copy.apiKey.slice(-4);
+        }
+        return JSON.stringify(copy, null, 2);
+      }
+
+      async function run() {
+        setPill('warn', '⏳ testando');
+        logEl.innerHTML = '';
+        try {
+          const cfg = window.FIREBASE_CONFIG;
+          cfgOut.textContent = safeCfg(cfg);
+
+          log('Iniciando FirebaseInit.init()…');
+          const okInit = await FirebaseInit.init();
+          if (!okInit) throw new Error('Falha no init()');
+
+          log('Autenticando (signInAnonymously)…');
+          const okAuth = await FirebaseInit.authenticate();
+          if (!okAuth) throw new Error('Falha no authenticate()');
+
+          const uid = FirebaseInit.auth && FirebaseInit.auth.currentUser ? FirebaseInit.auth.currentUser.uid : null;
+          if (!uid) throw new Error('Sem UID após auth');
+
+          log(`Auth OK (uid=${uid})`, 'ok');
+
+          // RTDB read/write test
+          const { getDatabase, ref, set, get, remove } = window.firebaseModules;
+          const db = FirebaseInit.database || getDatabase(FirebaseInit.app);
+          const path = `/data/diversey_healthcheck/${uid}`;
+          const r = ref(db, path);
+          const payload = { ok: true, at: new Date().toISOString(), client: 'web' };
+
+          log('Testando write no RTDB…');
+          await set(r, payload);
+          log('Write OK', 'ok');
+
+          log('Testando read no RTDB…');
+          const snap = await get(r);
+          if (!snap.exists()) throw new Error('Read falhou (snapshot vazio)');
+          log('Read OK', 'ok');
+
+          // cleanup
+          log('Limpando chave de teste…');
+          await remove(r);
+          log('Cleanup OK', 'ok');
+
+          setPill('ok', '✅ tudo OK');
+          log('Healthcheck finalizado com sucesso.', 'ok');
+        } catch (e) {
+          setPill('bad', '❌ falhou');
+          log(`Erro: ${e && e.message ? e.message : String(e)}`, 'bad');
+          log('Dica: verifique Auth Anônimo ativo e Rules nível 1 (auth != null).', 'warn');
+        }
+      }
+
+      btn.addEventListener('click', run);
+      // auto-run
+      run();
+    })();
+  </script>
+</body>
+</html>

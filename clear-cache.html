@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Limpar Cache</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body style="padding:20px;">
+  <div class="card" style="padding:16px;max-width:760px;margin:0 auto;">
+    <h1 class="h1" style="margin:0;">Limpar cache do app</h1>
+    <p class="muted">Remove caches do Service Worker, desregistra SW e recarrega.</p>
+    <button id="btn" class="btn primary">Limpar agora</button>
+    <div id="out" class="small muted" style="margin-top:12px;"></div>
+  </div>
+
+  <script>
+    async function clearAll() {
+      const out = document.getElementById('out');
+      out.textContent = 'Limpando…';
+      try {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        out.textContent = 'OK. Recarregando…';
+        setTimeout(() => location.href = './', 700);
+      } catch (e) {
+        out.textContent = 'Erro: ' + (e && e.message ? e.message : String(e));
+      }
+    }
+    document.getElementById('btn').addEventListener('click', clearAll);
+  </script>
+</body>
+</html>

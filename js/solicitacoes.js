@@ -1,0 +1,1381 @@
+﻿/**
+ * Solicitações (Solicitations) Module
+ * Handles CRUD operations for parts requests
+ */
+
+const Solicitacoes = {
+    currentPage: 1,
+    itemsPerPage: 10,
+    filters: {
+        status: [],
+        tecnico: '',
+        dateFrom: '',
+        dateTo: '',
+        search: ''
+    },
+
+    // Current solicitation being edited
+    currentSolicitation: null,
+    autocompleteInstance: null,
+
+    /**
+     * Render solicitations list
+     */
+    render() {
+        const content = document.getElementById('content-area');
+        const canCreate = Auth.hasPermission('solicitacoes', 'create');
+        const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
+        const isTecnico = Auth.getRole() === 'tecnico';
+        const canExport = !!(window && window.XLSX);
+        const exportAttrs = canExport ? '' : 'disabled aria-disabled="true"';
+        const exportTitle = canExport ? '' : 'title="Exportação indisponível: biblioteca XLSX não carregada"';
+
+        content.innerHTML = `
+            <div class="page-header">
+                <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
+                <div class="page-actions">
+                    ${canCreate ? `
+                        <button class="btn btn-success" onclick="Solicitacoes.openForm()">
+                            <i class="fas fa-plus"></i> Nova Solicitação
+                        </button>
+                    ` : ''}
+                    ${(canManageBackup || canExport) ? `
+                        <details class="action-menu">
+                            <summary class="btn btn-outline">
+                                <i class="fas fa-ellipsis-v"></i> Mais ações
+                            </summary>
+                            <div class="action-menu-dropdown">
+                                ${canManageBackup ? `
+                                    <button class="action-menu-item" onclick="Solicitacoes.downloadBackup()">
+                                        <i class="fas fa-database"></i> Backup
+                                    </button>
+                                    <button class="action-menu-item" onclick="Solicitacoes.triggerRestoreBackup()">
+                                        <i class="fas fa-upload"></i> Restaurar
+                                    </button>
+                                ` : ''}
+                                ${canExport ? `
+                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()">
+                                        <i class="fas fa-file-excel"></i> Exportar
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </details>
+                    ` : ''}
+                </div>
+            </div>
+            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
+            <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
+
+            <details class="filter-panel" open>
+                <summary class="filter-panel-toggle">Filtros</summary>
+                <div class="filters-bar filter-panel-body">
+                    <div class="search-box">
+                        <input type="text" id="sol-search" class="form-control"
+                               placeholder="Buscar por número, cliente, técnico ou peça..."
+                               value="${Utils.escapeHtml(this.filters.search)}">
+                        <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        ${this.renderStatusFilter('sol-status-filter')}
+                    </div>
+                    ${!isTecnico ? `
+                        <div class="filter-group">
+                            <label>Técnico:</label>
+                            <select id="sol-tecnico-filter" class="form-control">
+                                <option value="">Todos</option>
+                                ${DataManager.getTechnicians().map(t =>
+        `<option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
+                                        ${Utils.escapeHtml(t.nome)}
+                                    </option>`
+    ).join('')}
+                            </select>
+                        </div>
+                    ` : ''}
+                    <div class="filter-group">
+                        <label>De:</label>
+                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Até:</label>
+                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
+                    <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
+                        <i class="fas fa-times"></i> Limpar
+                    </button>
+                </div>
+            </details>
+
+            <div id="sol-summary-container">
+                ${this.renderSummaryCards()}
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div id="sol-table-container">
+                        ${this.renderTable()}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('sol-search').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.applyFilters();
+            }
+        });
+
+        ['sol-date-from', 'sol-date-to'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => this.applyFilters());
+            }
+        });
+
+        const statusTrigger = document.querySelector('[data-status-trigger="sol-status-filter"]');
+        if (statusTrigger) {
+            statusTrigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleStatusDropdown('sol-status-filter');
+            });
+        }
+
+        document.querySelectorAll('[data-status-group="sol-status-filter"]').forEach(input => {
+            input.addEventListener('change', () => this.applyFilters());
+            input.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        document.querySelectorAll('[data-status-dropdown="sol-status-filter"]').forEach(panel => {
+            panel.addEventListener('click', (event) => event.stopPropagation());
+        });
+
+        this.bindStatusDropdownClose();
+
+        if (!isTecnico) {
+            const tecnicoFilter = document.getElementById('sol-tecnico-filter');
+            if (tecnicoFilter) {
+                tecnicoFilter.addEventListener('change', () => this.applyFilters());
+            }
+        }
+    },
+
+    getStatusOptions() {
+        return [
+            { value: 'rascunho', label: 'Rascunho' },
+            { value: 'pendente', label: 'Pendente' },
+            { value: 'aprovada', label: 'Aprovada' },
+            { value: 'rejeitada', label: 'Rejeitada' },
+            { value: 'em-transito', label: 'Rastreio' },
+            { value: 'entregue', label: 'Entregue' },
+            { value: 'finalizada', label: 'Finalizada' },
+            { value: 'historico-manual', label: 'Histórico/Manual' }
+        ];
+    },
+
+    renderStatusFilter(controlId) {
+        const selected = this.getSelectedStatusSummary();
+        const summaryText = selected.length > 0 ? `${selected.length} status selecionado(s)` : 'Todos os status';
+        return `
+            <div class="status-filter" data-status-filter="${controlId}" role="group" aria-label="Filtro de status">
+                <button type="button" class="status-filter-trigger" data-status-trigger="${controlId}">
+                    <span class="status-filter-label">
+                        <i class="fas fa-filter"></i>
+                        <span class="status-filter-label-text">${Utils.escapeHtml(summaryText)}</span>
+                    </span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="status-filter-dropdown" data-status-dropdown="${controlId}">
+                    <div class="status-filter-summary">
+                        ${selected.length > 0
+                            ? selected.map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                            : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
+                    </div>
+                    <div class="status-filter-options">
+                        ${this.getStatusOptions().map(option => `
+                            <label class="status-filter-option">
+                                <input type="checkbox" data-status-group="${controlId}" value="${option.value}" ${Array.isArray(this.filters.status) && this.filters.status.includes(option.value) ? 'checked' : ''}>
+                                <span>${option.label}</span>
+                                ${Utils.renderStatusBadge(option.value)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    getSelectedStatusValues(controlId = 'sol-status-filter') {
+        return Array.from(document.querySelectorAll(`[data-status-group="${controlId}"]:checked`)).map(option => option.value);
+    },
+
+    getSelectedStatusSummary() {
+        const selectedValues = Array.isArray(this.filters.status) ? this.filters.status : [];
+        return this.getStatusOptions().filter(option => selectedValues.includes(option.value));
+    },
+
+    toggleStatusDropdown(controlId = 'sol-status-filter') {
+        const filter = document.querySelector(`[data-status-filter="${controlId}"]`);
+        if (!filter) {
+            return;
+        }
+
+        const shouldOpen = !filter.classList.contains('open');
+        this.closeStatusDropdowns();
+        if (shouldOpen) {
+            filter.classList.add('open');
+        }
+    },
+
+    closeStatusDropdowns() {
+        document.querySelectorAll('[data-status-filter].open').forEach(filter => {
+            filter.classList.remove('open');
+        });
+    },
+
+    bindStatusDropdownClose() {
+        if (this._statusDropdownCloseBound) {
+            return;
+        }
+
+        document.addEventListener('click', () => this.closeStatusDropdowns());
+        this._statusDropdownCloseBound = true;
+    },
+
+    hasActiveFilters() {
+        return !!(
+            this.filters.search ||
+            this.filters.tecnico ||
+            this.filters.dateFrom ||
+            this.filters.dateTo ||
+            (Array.isArray(this.filters.status) && this.filters.status.length > 0)
+        );
+    },
+
+    setStatusFilter(statuses = []) {
+        this.filters.status = Array.isArray(statuses) ? statuses : (statuses ? [statuses] : []);
+        this.currentPage = 1;
+        this.render();
+    },
+
+    /**
+     * Render solicitations table
+     */    renderTable() {
+        const solicitations = this.getFilteredSolicitations();
+
+        const total = solicitations.length;
+        const totalPages = Math.max(Math.ceil(total / this.itemsPerPage), 1);
+        this.currentPage = Math.min(this.currentPage, totalPages);
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const paginated = solicitations.slice(start, start + this.itemsPerPage);
+
+        if (solicitations.length === 0) {
+            return `
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h4>Nenhuma solicitação encontrada</h4>
+                    <p>${this.hasActiveFilters() ? 'Tente ajustar os filtros.' : 'Crie sua primeira solicitação.'}</p>
+                    ${Auth.hasPermission('solicitacoes', 'create') ? `
+                        <button class="btn btn-primary" onclick="Solicitacoes.openForm()">
+                            <i class="fas fa-plus"></i> Nova Solicitação
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        const canEdit = Auth.hasPermission('solicitacoes', 'edit');
+        const canDelete = Auth.hasPermission('solicitacoes', 'delete');
+        const canApprove = Auth.hasPermission('aprovacoes', 'approve');
+        const canManageTracking = Auth.hasPermission('aprovacoes', 'approve');
+        const isTecnico = Auth.getRole() === 'tecnico';
+        const currentTecnicoId = Auth.getTecnicoId();
+
+        return `
+            <div class="table-info">
+                Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} solicitações
+            </div>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nº</th>
+                            <th>Técnico</th>
+                            <th>Cliente</th>
+                            <th>Peça</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paginated.map(sol => {
+        const pieceSummary = this.getPieceSummary(sol.itens || []);
+        return `
+                            <tr>
+                                <td><strong>#${sol.numero}</strong></td>
+                                <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
+                                <td>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</td>
+                                <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
+                                <td>${Utils.formatCurrency(sol.total)}</td>
+                                <td>${Utils.renderStatusBadge(sol.status)}</td>
+                                <td>${Utils.formatDate(sol.data)}</td>
+                                <td>
+                                    <div class="actions">
+                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        ${canEdit && (sol.status === 'rascunho' || sol.status === 'pendente') ? `
+                                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        ${canManageTracking && (sol.status === 'aprovada' || sol.status === 'em-transito') ? `
+                                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openTrackingModal('${sol.id}')" title="${sol.trackingCode ? 'Atualizar rastreio' : 'Registrar rastreio'}">
+                                                <i class="fas fa-truck"></i>
+                                            </button>
+                                        ` : ''}
+                                        ${canApprove && sol.status === 'pendente' ? `
+                                            <button class="btn btn-sm btn-success" onclick="Aprovacoes.openApproveModal('${sol.id}')" title="Aprovar">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        ` : ''}
+                                        ${isTecnico && sol.tecnicoId === currentTecnicoId && sol.status === 'em-transito' ? `
+                                            <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar entrega">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}')" title="PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </button>
+                                        ${canDelete && sol.status === 'rascunho' ? `
+                                            <button class="btn btn-sm btn-danger" onclick="Solicitacoes.confirmDelete('${sol.id}')" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+    }).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ${Utils.renderPagination(this.currentPage, totalPages, (page) => {
+        this.currentPage = page;
+        this.refreshTable();
+    })}
+        `;
+    },
+
+    renderSummaryCards() {
+        const solicitations = this.getFilteredSolicitations();
+        const totalValue = solicitations.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0);
+        const totalParts = solicitations.reduce((sum, sol) => {
+            return sum + (sol.itens || []).reduce((itemSum, item) => itemSum + (Number(item.quantidade) || 0), 0);
+        }, 0);
+        const uniqueClients = new Set(solicitations.map(sol => (sol.cliente || '').trim()).filter(Boolean)).size;
+        const avgValue = solicitations.length > 0 ? totalValue / solicitations.length : 0;
+
+        return `
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-icon info"><i class="fas fa-list"></i></div>
+                    <div class="kpi-content">
+                        <h4>Total de solicitações</h4>
+                        <div class="kpi-value">${Utils.formatNumber(solicitations.length)}</div>
+                        <div class="kpi-change">Base filtrada atual</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon success"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="kpi-content">
+                        <h4>Valor total solicitado</h4>
+                        <div class="kpi-value">${Utils.formatCurrency(totalValue)}</div>
+                        <div class="kpi-change">Soma das solicitações filtradas</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon warning"><i class="fas fa-boxes"></i></div>
+                    <div class="kpi-content">
+                        <h4>Total de peças usadas</h4>
+                        <div class="kpi-value">${Utils.formatNumber(totalParts)}</div>
+                        <div class="kpi-change">Quantidade consolidada de itens</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon primary"><i class="fas fa-users"></i></div>
+                    <div class="kpi-content">
+                        <h4>Ticket médio</h4>
+                        <div class="kpi-value">${Utils.formatCurrency(avgValue)}</div>
+                        <div class="kpi-change">${Utils.formatNumber(uniqueClients)} clientes na seleção</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    getPieceSummary(items = []) {
+        const labels = items
+            .map(item => item?.descricao || item?.codigo || '')
+            .filter(Boolean);
+
+        if (labels.length === 0) {
+            return { short: 'Sem peça', full: 'Sem peça informada' };
+        }
+
+        return {
+            short: labels.length > 1 ? `${labels[0]} +${labels.length - 1}` : labels[0],
+            full: labels.join(', ')
+        };
+    },
+
+    /**
+     * Get filtered solicitations
+     */
+    getFilteredSolicitations() {
+        let solicitations = DataManager.getSolicitations();
+
+        if (Auth.getRole() === 'tecnico') {
+            const tecnicoId = Auth.getTecnicoId();
+            solicitations = solicitations.filter(s => s.tecnicoId === tecnicoId);
+        }
+
+        const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : (this.filters.status ? [this.filters.status] : []);
+        if (selectedStatuses.length > 0) {
+            solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
+        }
+        if (this.filters.tecnico) {
+            solicitations = solicitations.filter(s => s.tecnicoId === this.filters.tecnico);
+        }
+
+        if (this.filters.search) {
+            const search = this.filters.search;
+            solicitations = solicitations.filter(s => {
+                const itemText = (s.itens || []).map(item => `${item.codigo || ''} ${item.descricao || ''}`).join(' ');
+                return (
+                    Utils.matchesSearch(s.numero, search) ||
+                    Utils.matchesSearch(s.cliente, search) ||
+                    Utils.matchesSearch(s.tecnicoNome, search) ||
+                    Utils.matchesSearch(itemText, search)
+                );
+            });
+        }
+
+        if (this.filters.dateFrom) {
+            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
+            solicitations = solicitations.filter(s => Utils.parseAsLocalDate(s.data) >= from);
+        }
+
+        if (this.filters.dateTo) {
+            const to = Utils.parseAsLocalDate(this.filters.dateTo);
+            to.setHours(23, 59, 59, 999);
+            solicitations = solicitations.filter(s => Utils.parseAsLocalDate(s.data) <= to);
+        }
+
+        return solicitations.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    },
+
+    /**
+     * Apply filters
+     */
+    applyFilters() {
+        this.filters.search = document.getElementById('sol-search').value;
+        this.filters.status = this.getSelectedStatusValues('sol-status-filter');
+        this.filters.dateFrom = document.getElementById('sol-date-from').value;
+        this.filters.dateTo = document.getElementById('sol-date-to').value;
+        
+        const tecnicoFilter = document.getElementById('sol-tecnico-filter');
+        if (tecnicoFilter) {
+            this.filters.tecnico = tecnicoFilter.value;
+        }
+        
+        this.currentPage = 1;
+        this.refreshTable();
+    },
+
+    /**
+     * Clear filters
+     */
+    clearFilters() {
+        this.filters = { status: [], tecnico: '', dateFrom: '', dateTo: '', search: '' };
+        this.currentPage = 1;
+        this.render();
+    },
+
+    /**
+     * Refresh table
+     */
+    refreshTable() {
+        const summaryContainer = document.getElementById('sol-summary-container');
+        if (summaryContainer) {
+            summaryContainer.innerHTML = this.renderSummaryCards();
+        }
+        const container = document.getElementById('sol-table-container');
+        if (container) {
+            container.innerHTML = this.renderTable();
+        }
+    },
+
+    /**
+     * View solicitation details
+     */
+    viewDetails(id) {
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+        
+        const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
+        const canManageTracking = Auth.hasPermission('aprovacoes', 'approve');
+        const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
+        
+        const content = `
+            <div class="modal-header">
+                <h3>Solicitação #${sol.numero}</h3>
+                <button class="modal-close" onclick="Utils.closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Info Grid -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Técnico</label>
+                        <p><strong>${Utils.escapeHtml(sol.tecnicoNome)}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Data</label>
+                        <p><strong>${Utils.formatDate(sol.data)}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <p>${Utils.renderStatusBadge(sol.status)}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <p><strong>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</strong></p>
+                    </div>
+                </div>
+                
+                ${supplier ? `
+                    <div class="form-group">
+                        <label>Fornecedor</label>
+                        <p><strong>${Utils.escapeHtml(supplier.nome)}</strong></p>
+                    </div>
+                ` : ''}
+                
+                <div class="form-group">
+                    <label>Código de Rastreio</label>
+                    <div class="tracking-box">
+                        <div>
+                            <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando código do fornecedor'}</strong></p>
+                            ${sol.trackingUpdatedAt ? `
+                                <p class="text-muted" style="font-size: 0.85rem;">
+                                    Atualizado em ${Utils.formatDate(sol.trackingUpdatedAt, true)}${sol.trackingBy ? ` por ${Utils.escapeHtml(sol.trackingBy)}` : ''}
+                                </p>
+                            ` : ''}
+                        </div>
+                        <div class="tracking-actions">
+                            ${canManageTracking && (sol.status === 'aprovada' || sol.status === 'em-transito') ? `
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openTrackingModal('${sol.id}')">
+                                    <i class="fas fa-truck"></i> ${sol.trackingCode ? 'Atualizar' : 'Registrar'} Rastreio
+                                </button>
+                            ` : ''}
+                            ${canConfirmDelivery && sol.status === 'em-transito' ? `
+                                <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}');">
+                                    <i class="fas fa-check-circle"></i> Confirmar Entrega
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                ${sol.rejectionReason ? `
+                    <div class="form-group">
+                        <label>Motivo da Rejeição</label>
+                        <p class="text-danger"><strong>${Utils.escapeHtml(sol.rejectionReason)}</strong></p>
+                    </div>
+                ` : ''}
+                
+                <!-- Items -->
+                <h4 class="mt-4 mb-2">Itens</h4>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Qtd</th>
+                                <th>Valor Unit.</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(sol.itens || []).map(item => `
+                                <tr>
+                                    <td><strong>${Utils.escapeHtml(item.codigo)}</strong></td>
+                                    <td>${Utils.escapeHtml(item.descricao)}</td>
+                                    <td>${item.quantidade}</td>
+                                    <td>${Utils.formatCurrency(item.valorUnit)}</td>
+                                    <td>${Utils.formatCurrency(item.quantidade * item.valorUnit)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Totals -->
+                <div class="totals-section">
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span>${Utils.formatCurrency(sol.subtotal)}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Desconto:</span>
+                        <span>- ${Utils.formatCurrency(sol.desconto)}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Frete:</span>
+                        <span>+ ${Utils.formatCurrency(sol.frete)}</span>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span>Total:</span>
+                        <span>${Utils.formatCurrency(sol.total)}</span>
+                    </div>
+                </div>
+                
+                ${sol.observacoes ? `
+                    <div class="form-group mt-3">
+                        <label>Observações</label>
+                        <p>${Utils.escapeHtml(sol.observacoes)}</p>
+                    </div>
+                ` : ''}
+                
+                <!-- Status History -->
+                ${(sol.statusHistory && sol.statusHistory.length > 0) ? `
+                    <h4 class="mt-4 mb-2">Histórico</h4>
+                    <div class="timeline">
+                        ${sol.statusHistory.map(h => `
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <strong>${Utils.getStatusInfo(h.status).label}</strong>
+                                    por ${Utils.escapeHtml(h.by)}
+                                    <div class="timeline-date">${Utils.formatDate(h.at, true)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}'); Utils.closeModal();">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+                <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
+            </div>
+        `;
+        
+        Utils.showModal(content, { size: 'lg' });
+    },
+
+    /**
+     * Open tracking modal for gestors/administrators
+     */
+    openTrackingModal(id) {
+        if (!Auth.hasPermission('aprovacoes', 'approve')) {
+            Utils.showToast('Você não tem permissão para registrar rastreio', 'error');
+            return;
+        }
+
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+
+        if (!['aprovada', 'em-transito'].includes(sol.status)) {
+            Utils.showToast('O rastreio só pode ser informado após a aprovação', 'warning');
+            return;
+        }
+
+        const content = `
+            <div class="modal-header">
+                <h3>Rastreio da Solicitação #${sol.numero}</h3>
+                <button class="modal-close" onclick="Utils.closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="tracking-code">Código de Rastreio *</label>
+                    <input type="text" id="tracking-code" class="form-control" 
+                           placeholder="Informe o código enviado pelo fornecedor"
+                           value="${Utils.escapeHtml(sol.trackingCode || '')}" required>
+                </div>
+                <input type="hidden" id="tracking-id" value="${sol.id}">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="Solicitacoes.saveTracking()">
+                    <i class="fas fa-truck"></i> Salvar Rastreio
+                </button>
+            </div>
+        `;
+
+        Utils.showModal(content);
+    },
+
+    /**
+     * Save tracking code and move solicitation to transit status
+     */
+    saveTracking() {
+        const id = document.getElementById('tracking-id').value;
+        const codeInput = document.getElementById('tracking-code');
+        const trackingCode = codeInput.value.trim();
+
+        if (!trackingCode) {
+            Utils.showToast('Informe o código de rastreio', 'warning');
+            codeInput.focus();
+            return;
+        }
+
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+
+        const currentUser = Auth.getCurrentUser();
+        const userName = currentUser?.name || 'Sistema';
+
+        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
+            trackingCode,
+            trackingUpdatedAt: Date.now(),
+            trackingBy: userName,
+            by: userName
+        });
+
+        if (success) {
+            Utils.showToast('Rastreio salvo com sucesso', 'success');
+            Utils.closeModal();
+            this.refreshTable();
+            Auth.renderMenu(App.currentPage);
+        } else {
+            Utils.showToast('Erro ao salvar rastreio', 'error');
+        }
+    },
+
+    /**
+     * Confirm delivery by technician
+     */
+    async confirmDelivery(id) {
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+
+        if (!(Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId())) {
+            Utils.showToast('Apenas o técnico responsável pode confirmar a entrega', 'warning');
+            return;
+        }
+
+        if (sol.status !== 'em-transito') {
+            Utils.showToast('Confirme a entrega somente após o envio pelo fornecedor', 'warning');
+            return;
+        }
+
+        const confirmed = await Utils.confirm('Confirmar que o material foi entregue?', 'Confirmar Entrega');
+        if (!confirmed) {
+            return;
+        }
+
+        const currentUser = Auth.getCurrentUser();
+        const userName = currentUser?.name || 'Sistema';
+
+        const success = DataManager.updateSolicitationStatus(id, 'entregue', {
+            deliveredAt: Date.now(),
+            deliveredBy: userName,
+            by: userName
+        });
+
+        if (success) {
+            Utils.showToast('Entrega confirmada', 'success');
+            Utils.closeModal();
+            this.refreshTable();
+            Auth.renderMenu(App.currentPage);
+        } else {
+            Utils.showToast('Não foi possível atualizar o status', 'error');
+        }
+    },
+
+    /**
+     * Open solicitation form
+     */
+    openForm(id = null) {
+        const sol = id ? DataManager.getSolicitationById(id) : null;
+        const isEdit = !!sol;
+        
+        // Store current solicitation for editing
+        this.currentSolicitation = sol ? { ...sol, itens: [...(sol.itens || [])] } : {
+            id: null,
+            tecnicoId: Auth.getTecnicoId() || '',
+            tecnicoNome: '',
+            data: Utils.getLocalDateString(),
+            cliente: '',
+            observacoes: '',
+            itens: [],
+            subtotal: 0,
+            desconto: 0,
+            frete: 0,
+            total: 0,
+            status: 'rascunho'
+        };
+        
+        const technicians = DataManager.getTechnicians();
+        const isTecnico = Auth.getRole() === 'tecnico';
+        
+        // If technician, set their info
+        if (isTecnico && !isEdit) {
+            const tech = technicians.find(t => t.id === this.currentSolicitation.tecnicoId);
+            if (tech) {
+                this.currentSolicitation.tecnicoNome = tech.nome;
+            }
+        }
+        
+        const content = `
+            <div class="modal-header">
+                <h3>${isEdit ? 'Editar Solicitação #' + sol.numero : 'Nova Solicitação'}</h3>
+                <button class="modal-close" onclick="Utils.closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="sol-form">
+                    <div class="form-row">
+                        ${!isTecnico ? `
+                            <div class="form-group">
+                                <label for="sol-tecnico">Técnico *</label>
+                                <select id="sol-tecnico" class="form-control" required onchange="Solicitacoes.updateTecnicoName()">
+                                    <option value="">Selecione...</option>
+                                    ${technicians.filter(t => t.ativo !== false).map(t => 
+        `<option value="${t.id}" ${this.currentSolicitation.tecnicoId === t.id ? 'selected' : ''}>
+                                            ${Utils.escapeHtml(t.nome)}
+                                        </option>`
+    ).join('')}
+                                </select>
+                            </div>
+                        ` : `
+                            <input type="hidden" id="sol-tecnico" value="${this.currentSolicitation.tecnicoId}">
+                            <div class="form-group">
+                                <label>Técnico</label>
+                                <p><strong>${Utils.escapeHtml(this.currentSolicitation.tecnicoNome || Auth.getCurrentUser()?.name || 'Não identificado')}</strong></p>
+                            </div>
+                        `}
+                        <div class="form-group">
+                            <label for="sol-data">Data *</label>
+                            <input type="date" id="sol-data" class="form-control" 
+                                   value="${this.currentSolicitation.data}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sol-cliente">Cliente</label>
+                            <input type="text" id="sol-cliente" class="form-control"
+                                   value="${Utils.escapeHtml(this.currentSolicitation.cliente || '')}"
+                                   placeholder="Cliente / unidade">
+                        </div>
+                    </div>
+                    
+                    <!-- Parts Selection with Auto-complete -->
+                    <div class="form-group">
+                        <label>Adicionar Peça</label>
+                        <div id="parts-autocomplete"></div>
+                    </div>
+                    
+                    <!-- Items List -->
+                    <div class="form-group">
+                        <label>Itens da Solicitação</label>
+                        <div id="items-list" class="items-list">
+                            ${this.renderItemsList()}
+                        </div>
+                    </div>
+                    
+                    <!-- Totals -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="sol-desconto">Desconto (R$)</label>
+                            <input type="number" id="sol-desconto" class="form-control" 
+                                   step="0.01" min="0" value="${this.currentSolicitation.desconto}"
+                                   onchange="Solicitacoes.recalculateTotals()">
+                        </div>
+                        <div class="form-group">
+                            <label for="sol-frete">Frete (R$)</label>
+                            <input type="number" id="sol-frete" class="form-control" 
+                                   step="0.01" min="0" value="${this.currentSolicitation.frete}"
+                                   onchange="Solicitacoes.recalculateTotals()">
+                        </div>
+                    </div>
+                    
+                    <div id="totals-display" class="totals-section">
+                        ${this.renderTotalsDisplay()}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sol-observacoes">Observações</label>
+                        <textarea id="sol-observacoes" class="form-control" rows="3"
+                                  placeholder="Observações adicionais...">${Utils.escapeHtml(this.currentSolicitation.observacoes || '')}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
+                <button class="btn btn-secondary" onclick="Solicitacoes.saveSolicitation('rascunho')">
+                    <i class="fas fa-save"></i> Salvar Rascunho
+                </button>
+                <button class="btn btn-primary" onclick="Solicitacoes.saveSolicitation('pendente')">
+                    <i class="fas fa-paper-plane"></i> Enviar para Aprovação
+                </button>
+            </div>
+        `;
+        
+        Utils.showModal(content, { size: 'lg' });
+        
+        // Initialize auto-complete
+        setTimeout(() => {
+            this.autocompleteInstance = Pecas.createAutocomplete('parts-autocomplete', {
+                tecnicoId: this.currentSolicitation.tecnicoId,
+                onSelect: (part) => this.addItem(part)
+            });
+        }, 100);
+    },
+
+    /**
+     * Update technician name when selection changes
+     */
+    updateTecnicoName() {
+        const select = document.getElementById('sol-tecnico');
+        const option = select.options[select.selectedIndex];
+        if (option && option.value) {
+            this.currentSolicitation.tecnicoId = option.value;
+            this.currentSolicitation.tecnicoNome = option.text;
+        }
+    },
+
+    /**
+     * Add item to solicitation
+     */
+    addItem(part) {
+        // Check if already exists
+        const existing = this.currentSolicitation.itens.find(i => i.codigo === part.codigo);
+        
+        if (existing) {
+            existing.quantidade++;
+        } else {
+            this.currentSolicitation.itens.unshift({
+                codigo: part.codigo,
+                descricao: part.descricao,
+                quantidade: 1,
+                valorUnit: part.valor
+            });
+        }
+        
+        this.refreshItemsList();
+        this.recalculateTotals();
+        
+        // Clear and focus autocomplete
+        if (this.autocompleteInstance) {
+            this.autocompleteInstance.clear();
+            this.autocompleteInstance.focus();
+        }
+    },
+
+    /**
+     * Update item quantity
+     */
+    updateItemQuantity(index, qty) {
+        const quantity = parseInt(qty);
+        if (quantity > 0) {
+            this.currentSolicitation.itens[index].quantidade = quantity;
+        } else {
+            this.currentSolicitation.itens.splice(index, 1);
+        }
+        this.refreshItemsList();
+        this.recalculateTotals();
+    },
+
+    /**
+     * Remove item
+     */
+    removeItem(index) {
+        this.currentSolicitation.itens.splice(index, 1);
+        this.refreshItemsList();
+        this.recalculateTotals();
+    },
+
+    /**
+     * Render items list
+     */
+    renderItemsList() {
+        if (this.currentSolicitation.itens.length === 0) {
+            return '<p class="text-muted">Nenhum item adicionado. Use o campo acima para buscar e adicionar peças.</p>';
+        }
+        
+        return this.currentSolicitation.itens.map((item, idx) => `
+            <div class="item-row">
+                <span class="item-code">${Utils.escapeHtml(item.codigo)}</span>
+                <span class="item-desc">${Utils.escapeHtml(item.descricao)}</span>
+                <input type="number" class="form-control item-qty" value="${item.quantidade}" 
+                       min="1" onchange="Solicitacoes.updateItemQuantity(${idx}, this.value)">
+                <span class="item-price">${Utils.formatCurrency(item.valorUnit)}</span>
+                <span class="item-total">${Utils.formatCurrency(item.quantidade * item.valorUnit)}</span>
+                <button class="btn-icon" onclick="Solicitacoes.removeItem(${idx})" title="Remover">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    },
+
+    /**
+     * Refresh items list display
+     */
+    refreshItemsList() {
+        const container = document.getElementById('items-list');
+        if (container) {
+            container.innerHTML = this.renderItemsList();
+        }
+    },
+
+    /**
+     * Recalculate totals
+     */
+    recalculateTotals() {
+        const desconto = parseFloat(document.getElementById('sol-desconto')?.value) || 0;
+        const frete = parseFloat(document.getElementById('sol-frete')?.value) || 0;
+        
+        const subtotal = this.currentSolicitation.itens.reduce((sum, item) => 
+            sum + (item.quantidade * item.valorUnit), 0);
+        
+        this.currentSolicitation.subtotal = parseFloat(subtotal.toFixed(2));
+        this.currentSolicitation.desconto = desconto;
+        this.currentSolicitation.frete = frete;
+        this.currentSolicitation.total = parseFloat((subtotal - desconto + frete).toFixed(2));
+        
+        const display = document.getElementById('totals-display');
+        if (display) {
+            display.innerHTML = this.renderTotalsDisplay();
+        }
+    },
+
+    /**
+     * Render totals display
+     */
+    renderTotalsDisplay() {
+        return `
+            <div class="total-row">
+                <span>Subtotal:</span>
+                <span>${Utils.formatCurrency(this.currentSolicitation.subtotal)}</span>
+            </div>
+            <div class="total-row">
+                <span>Desconto:</span>
+                <span>- ${Utils.formatCurrency(this.currentSolicitation.desconto)}</span>
+            </div>
+            <div class="total-row">
+                <span>Frete:</span>
+                <span>+ ${Utils.formatCurrency(this.currentSolicitation.frete)}</span>
+            </div>
+            <div class="total-row grand-total">
+                <span>Total:</span>
+                <span>${Utils.formatCurrency(this.currentSolicitation.total)}</span>
+            </div>
+        `;
+    },
+
+    /**
+     * Save solicitation
+     */
+    saveSolicitation(status = 'rascunho') {
+        const tecnicoId = document.getElementById('sol-tecnico').value;
+        const dataInput = document.getElementById('sol-data').value;
+        const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
+        const cliente = (document.getElementById('sol-cliente')?.value || '').trim();
+        
+        if (!tecnicoId) {
+            Utils.showToast('Selecione um técnico', 'warning');
+            return;
+        }
+        
+        const parsedDate = Utils.parseAsLocalDate(dataInput);
+        if (!dataInput || isNaN(parsedDate.getTime())) {
+            Utils.showToast('Informe a data', 'warning');
+            return;
+        }
+        const normalizedDate = Utils.getLocalDateString(parsedDate);
+        
+        if (this.currentSolicitation.itens.length === 0) {
+            Utils.showToast('Adicione pelo menos um item antes de salvar', 'warning');
+            return;
+        }
+
+        let invalidItem = false;
+        const validatedItems = [];
+        for (const item of this.currentSolicitation.itens) {
+            const qty = parseFloat(item?.quantidade);
+            const unit = parseFloat(item?.valorUnit);
+            if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(unit) || unit <= 0) {
+                invalidItem = true;
+                break;
+            }
+            validatedItems.push({ qty, unit });
+        }
+        if (invalidItem) {
+            Utils.showToast('Itens precisam de quantidade (>0) e valor válido', 'warning');
+            return;
+        }
+
+        const subtotal = validatedItems.reduce((sum, { qty, unit }) => sum + (qty * unit), 0);
+        const desconto = parseFloat(this.currentSolicitation.desconto);
+        const frete = parseFloat(this.currentSolicitation.frete);
+        if (!Number.isFinite(desconto) || !Number.isFinite(frete)) {
+            Utils.showToast('Valores de desconto e frete precisam ser numéricos', 'warning');
+            return;
+        }
+        if (desconto < 0 || frete < 0) {
+            Utils.showToast('Desconto e frete não podem ser negativos', 'warning');
+            return;
+        }
+        const total = parseFloat((subtotal - desconto + frete).toFixed(2));
+        this.currentSolicitation.subtotal = parseFloat(subtotal.toFixed(2));
+        this.currentSolicitation.total = total;
+        
+        // Update technician name
+        const tech = DataManager.getTechnicianById(tecnicoId);
+        const currentUser = Auth.getCurrentUser();
+        const userName = currentUser?.name || 'Sistema';
+        
+        const solicitation = {
+            ...this.currentSolicitation,
+            tecnicoId,
+            tecnicoNome: tech?.nome || this.currentSolicitation.tecnicoNome,
+            data: normalizedDate,
+            cliente,
+            observacoes,
+            status,
+            createdBy: userName
+        };
+        
+        // Add status history entry
+        if (!solicitation.statusHistory) {
+            solicitation.statusHistory = [];
+        }
+        
+        if (status !== this.currentSolicitation.status) {
+            solicitation.statusHistory.push({
+                status,
+                at: Date.now(),
+                by: userName
+            });
+        }
+        
+        const result = DataManager.saveSolicitation(solicitation);
+        
+        // Handle both boolean and object return types for backward compatibility
+        const saved = result === true || (result && result.success !== false && !result.error);
+        
+        if (!saved) {
+            const errorMsg = (result && result.error === 'conflict') 
+                ? 'Conflito de versão. Recarregue a página e tente novamente.'
+                : 'Erro ao salvar solicitação';
+            Utils.showToast(errorMsg, 'error');
+            return;
+        }
+        
+        Utils.showToast(
+            status === 'pendente' 
+                ? 'Solicitação enviada para aprovação' 
+                : 'Rascunho salvo com sucesso', 
+            'success'
+        );
+        
+        Utils.closeModal();
+        
+        // Refresh the list
+        if (document.getElementById('sol-table-container')) {
+            this.refreshTable();
+        }
+        
+        // Update menu badge
+        Auth.renderMenu(App.currentPage);
+    },
+
+    /**
+     * Duplicate solicitation
+     */
+    duplicate(id) {
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            return;
+        }
+        
+        const currentUser = Auth.getCurrentUser();
+        
+        // Create a copy without ID and with reset status
+        this.currentSolicitation = {
+            id: null,
+            tecnicoId: Auth.getRole() === 'tecnico' ? Auth.getTecnicoId() : sol.tecnicoId,
+            tecnicoNome: Auth.getRole() === 'tecnico' ? (currentUser?.name || 'Não identificado') : sol.tecnicoNome,
+            data: Utils.getLocalDateString(),
+            cliente: sol.cliente || '',
+            observacoes: sol.observacoes,
+            itens: sol.itens.map(item => ({ ...item })),
+            subtotal: sol.subtotal,
+            desconto: sol.desconto,
+            frete: sol.frete,
+            total: sol.total,
+            status: 'rascunho'
+        };
+        
+        // Open the form with duplicated data
+        this.openForm();
+        
+        Utils.showToast('Solicitação duplicada. Faça as alterações necessárias.', 'info');
+    },
+
+    downloadBackup() {
+        const result = DataManager.createSolicitationsBackup({ download: true, reason: 'manual-ui' });
+        if (result?.success) {
+            Utils.showToast(`Backup gerado com ${result.count} solicitações`, 'success');
+        } else {
+            Utils.showToast('Não foi possível gerar o backup', 'error');
+        }
+    },
+
+    triggerRestoreBackup() {
+        const input = document.getElementById('sol-backup-file');
+        if (input) {
+            input.value = '';
+            input.click();
+        }
+    },
+
+    handleRestoreBackup(event) {
+        const file = event?.target?.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            try {
+                const payload = JSON.parse(reader.result);
+                const confirmed = await Utils.confirm(
+                    'Deseja restaurar este backup e mesclar as solicitações ao histórico atual?',
+                    'Restaurar Backup'
+                );
+
+                if (!confirmed) {
+                    return;
+                }
+
+                const result = DataManager.restoreSolicitationsBackup(payload);
+                if (result?.success) {
+                    Utils.showToast(`${result.restoredCount} solicitações restauradas`, 'success');
+                    this.currentPage = 1;
+                    this.render();
+                } else {
+                    Utils.showToast(result?.message || 'Não foi possível restaurar o backup', 'error');
+                }
+            } catch (_error) {
+                Utils.showToast('Arquivo de backup inválido', 'error');
+            }
+        };
+        reader.readAsText(file);
+    },
+
+    /**
+     * Download PDF
+     */    downloadPDF(id) {
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+        
+        Utils.generatePDF(sol);
+        Utils.showToast('PDF gerado com sucesso', 'success');
+    },
+
+    /**
+     * Confirm delete
+     */
+    async confirmDelete(id) {
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            return;
+        }
+        
+        const confirmed = await Utils.confirm(
+            `Deseja realmente excluir a solicitação #${sol.numero}?`,
+            'Excluir Solicitação'
+        );
+        
+        if (confirmed) {
+            DataManager.deleteSolicitation(id);
+            Utils.showToast('Solicitação excluída com sucesso', 'success');
+            this.refreshTable();
+            Auth.renderMenu(App.currentPage);
+        }
+    },
+
+    /**
+     * Export list
+     */
+    exportList() {
+        if (!window.XLSX) {
+            Utils.showToast('Exportação indisponível: biblioteca XLSX não carregada', 'warning');
+            return;
+        }
+        const solicitations = this.getFilteredSolicitations();
+
+        if (solicitations.length === 0) {
+            Utils.showToast('Não há dados para exportar', 'warning');
+            return;
+        }
+
+        const data = solicitations.map(sol => ({
+            Numero: sol.numero,
+            Tecnico: sol.tecnicoNome,
+            Cliente: sol.cliente || 'Nao informado',
+            Peca: this.getPieceSummary(sol.itens || []).full,
+            Data: Utils.formatDate(sol.data),
+            QtdItens: (sol.itens || []).length,
+            Subtotal: sol.subtotal,
+            Desconto: sol.desconto,
+            Frete: sol.frete,
+            Total: sol.total,
+            Rastreio: sol.trackingCode || '',
+            Status: Utils.getStatusInfo(sol.status).label,
+            Observacoes: sol.observacoes || ''
+        }));
+
+        Utils.exportToExcel(data, 'solicitacoes.xlsx', 'Solicitações');
+        Utils.showToast('Lista exportada com sucesso', 'success');
+    }
+};
+
+
+
+
+
+
+
+
+
+

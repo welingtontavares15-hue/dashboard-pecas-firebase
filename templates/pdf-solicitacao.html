@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 18mm 20mm 18mm;
+        }
+
+        :root {
+            --brand: #1CBB87;
+            --border: #D0D7DE;
+            --muted: #5B6573;
+            --header: #F3F5F7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #ffffff;
+            color: #1f2933;
+            line-height: 1.4;
+        }
+
+        .page {
+            position: relative;
+            min-height: calc(100vh - 1px);
+        }
+
+        .header {
+            margin-bottom: 14px;
+        }
+
+        .logo {
+            color: var(--brand);
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .tagline {
+            color: var(--brand);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .title {
+            margin: 12px 0 6px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2933;
+        }
+
+        .divider {
+            height: 3px;
+            width: 100%;
+            background: var(--brand);
+            border-radius: 2px;
+            margin-top: 8px;
+        }
+
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+
+        .data-grid td {
+            width: 50%;
+            border: 1px solid var(--border);
+            padding: 8px 10px 10px;
+            vertical-align: top;
+        }
+
+        .label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1f2933;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+
+        .table-wrapper {
+            margin-top: 18px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .items-table thead th {
+            background: var(--header);
+            font-size: 11px;
+            font-weight: 700;
+            color: #1f2933;
+            padding: 8px 10px;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        .items-table tbody td {
+            border: 1px solid var(--border);
+            font-size: 11px;
+            padding: 8px 10px;
+            color: #1f2933;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .items-table tbody td.qty {
+            text-align: center;
+        }
+
+        .items-table tbody td.money {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .items-table tbody tr:nth-child(odd) {
+            background: #fcfcfd;
+        }
+
+        .summary {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .summary-box {
+            width: 240px;
+            background: var(--header);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .summary-row .label {
+            margin: 0;
+            font-size: 11px;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--muted);
+        }
+
+        .summary-row .value {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .summary-row.total {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .approval {
+            margin-top: 26px;
+            font-size: 11px;
+            color: #1f2933;
+        }
+
+        .signatures {
+            margin-top: 18px;
+            display: flex;
+            gap: 28px;
+            justify-content: space-between;
+        }
+
+        .signature {
+            flex: 1;
+            text-align: center;
+        }
+
+        .signature .line {
+            border-bottom: 1px solid #000;
+            margin: 0 auto 8px;
+            height: 22px;
+            width: 100%;
+        }
+
+        .signature .label {
+            margin: 0;
+            font-size: 11px;
+            text-transform: none;
+            letter-spacing: 0;
+            color: #1f2933;
+        }
+
+        .footer-info {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            text-align: right;
+            font-size: 10px;
+            color: #4b5563;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="header">
+            <div class="logo">Diversey</div>
+            <div class="tagline">A Solenis Company</div>
+            <div class="title">Solicitação de Peças e Componentes</div>
+            <div class="divider"></div>
+        </header>
+
+        <table class="data-grid">
+            <tr>
+                <td>
+                    <span class="label">Número</span>
+                    <span class="value" id="numero"></span>
+                </td>
+                <td>
+                    <span class="label">Técnico</span>
+                    <span class="value" id="tecnico"></span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="label">Data</span>
+                    <span class="value" id="data"></span>
+                </td>
+                <td>
+                    <span class="label">Endereço</span>
+                    <span class="value" id="endereco"></span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="label">Envio</span>
+                    <span class="value" id="envio"></span>
+                </td>
+                <td>
+                    <span class="label">Cidade / UF</span>
+                    <span class="value" id="cidade"></span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="label">CEP</span>
+                    <span class="value" id="cep"></span>
+                </td>
+                <td>
+                    <span class="label">Complemento</span>
+                    <span class="value" id="complemento"></span>
+                </td>
+            </tr>
+        </table>
+
+        <section class="table-wrapper">
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 16%;">Código</th>
+                        <th style="width: 18%;">ID Máquina</th>
+                        <th style="width: 10%;">Qtd</th>
+                        <th style="width: 32%;">Descrição</th>
+                        <th style="width: 12%;">Valor Unit.</th>
+                        <th style="width: 12%;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="items-body"></tbody>
+            </table>
+        </section>
+
+        <div class="summary">
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span class="label">Subtotal</span>
+                    <span class="value" id="subtotal"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Desconto (R$)</span>
+                    <span class="value" id="desconto"></span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Frete (R$)</span>
+                    <span class="value" id="frete"></span>
+                </div>
+                <div class="summary-row total">
+                    <span class="label">TOTAL</span>
+                    <span class="value" id="total"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="approval">
+            <div id="fluxo-aprovacao"></div>
+            <div class="signatures">
+                <div class="signature">
+                    <div class="line"></div>
+                    <div class="label" id="solicitante-label"></div>
+                </div>
+                <div class="signature">
+                    <div class="line"></div>
+                    <div class="label" id="recebido-label"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-info">
+            <div id="generated-at"></div>
+            <div id="page-indicator">Página 1/1</div>
+        </div>
+    </main>
+
+    <script>
+        (function (encodedData) {
+            const decoded = encodedData ? atob(encodedData) : null;
+            const data = decoded ? JSON.parse(decoded) : {};
+            const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            const CURRENCY_EPSILON = 0.009; // tolera arredondamentos de centavos nas somas
+            const formatCurrency = (value) => currency.format(Number.isFinite(value) ? value : Number(value) || 0);
+            const formatDate = (value) => {
+                if (!value) {
+                    return '';
+                }
+                const parsed = new Date(value);
+                const timestamp = parsed.getTime();
+                if (Number.isFinite(timestamp)) {
+                    return parsed.toLocaleDateString('pt-BR');
+                }
+                if (typeof value === 'string') {
+                    const parts = value.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                }
+                return value;
+            };
+
+            const fill = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = text || '';
+                }
+            };
+
+            fill('numero', data.numero);
+            fill('tecnico', data.tecnico);
+            fill('data', formatDate(data.data));
+            fill('endereco', data.endereco);
+            fill('envio', data.envio);
+            fill('cidade', data.cidadeUf);
+            fill('cep', data.cep);
+            fill('complemento', data.complemento || '');
+
+            const itemsBody = document.getElementById('items-body');
+            const items = Array.isArray(data.itens) ? data.itens : [];
+            let subtotal = Number.isFinite(Number(data.subtotalItens)) ? Number(data.subtotalItens) : 0;
+            let computedSubtotal = 0;
+
+            if (items.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 6;
+                cell.style.textAlign = 'center';
+                cell.textContent = 'Nenhum item informado.';
+                row.appendChild(cell);
+                itemsBody.appendChild(row);
+            } else {
+                items.forEach((item) => {
+                    const tr = document.createElement('tr');
+                    const qtd = Number(item.qtd ?? item.quantidade ?? 0);
+                    const unit = Number(item.valorUnit ?? 0);
+                    const subtotalItem = qtd * unit;
+                    computedSubtotal += subtotalItem;
+
+                    const columns = [
+                        item.codigo || '-',
+                        item.idMaquina || '-',
+                        { value: qtd, cls: 'qty' },
+                        item.descricao || '-',
+                        { value: formatCurrency(unit), cls: 'money' },
+                        { value: formatCurrency(subtotalItem), cls: 'money' }
+                    ];
+
+                    columns.forEach((col) => {
+                        const td = document.createElement('td');
+                        if (typeof col === 'object' && col !== null) {
+                            td.textContent = col.value;
+                            if (col.cls) {
+                                td.classList.add(col.cls);
+                            }
+                        } else {
+                            td.textContent = col;
+                        }
+                        tr.appendChild(td);
+                    });
+
+                    itemsBody.appendChild(tr);
+                });
+            }
+
+            if (!Number.isFinite(subtotal) || Math.abs(subtotal - computedSubtotal) > CURRENCY_EPSILON) {
+                subtotal = computedSubtotal;
+            }
+
+            const desconto = Number.isFinite(Number(data.desconto)) ? Number(data.desconto) : 0;
+            const frete = Number.isFinite(Number(data.frete)) ? Number(data.frete) : 0;
+            const total = Number.isFinite(Number(data.total)) ? Number(data.total) : subtotal - desconto + frete;
+
+            fill('subtotal', formatCurrency(subtotal));
+            fill('desconto', formatCurrency(desconto));
+            fill('frete', formatCurrency(frete));
+            fill('total', formatCurrency(total));
+
+            document.getElementById('fluxo-aprovacao').textContent = data.fluxoAprovacao ? `Fluxo de aprovação: ${data.fluxoAprovacao}` : 'Fluxo de aprovação:';
+            fill('solicitante-label', data.solicitanteLabel || 'Solicitante');
+            fill('recebido-label', data.recebidoPorLabel || 'Recebido por');
+
+            if (data.generatedAtFormatted) {
+                fill('generated-at', data.generatedAtFormatted);
+            } else {
+                const stamp = data.generatedAt ? new Date(data.generatedAt) : new Date();
+                fill('generated-at', `Gerado em: ${stamp.toLocaleDateString('pt-BR')}, ${stamp.toLocaleTimeString('pt-BR')}`);
+            }
+        })(__SOLICITACAO_DATA__);
+    </script>
+</body>
+</html>
