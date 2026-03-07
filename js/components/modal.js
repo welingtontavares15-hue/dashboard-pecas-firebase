@@ -1,3 +1,0 @@
-﻿export function renderModalFrame({ header = '', body = '', footer = '' }) {
-    return `<div class="modal-header">${header}</div><div class="modal-body">${body}</div><div class="modal-footer">${footer}</div>`;
-}
