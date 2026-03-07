@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Solicitações de Peças - Diversey</title>
+    <title>Portal Executivo de Solicitação de Peças | Diversey</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=20260307h">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
@@ -21,10 +21,10 @@
     <div id="login-screen" class="login-container">
         <div class="login-card">
             <div class="login-logo">
-                <i class="fas fa-tools"></i>
+                <div class="brand-emblem" aria-hidden="true"><span>D</span></div>
                 <h1>Diversey</h1>
-                <div class="login-slogan">A Solenis Company</div>
-                <p>Dashboard de Solicitações de Peças</p>
+                <div class="login-slogan">Portal Executivo de Peças</div>
+                <p>A Solenis Company</p>
             </div>
             <form id="login-form" class="login-form">
                 <div class="form-group">
@@ -79,10 +79,13 @@
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <i class="fas fa-tools"></i>
-                    <span>Diversey</span>
+                    <div class="brand-emblem sidebar-brand" aria-hidden="true"><span>D</span></div>
+                    <div class="logo-meta">
+                        <span class="logo-title">Diversey</span>
+                        <small class="logo-subtitle">Painel Executivo</small>
+                    </div>
                 </div>
-                <button id="sidebar-toggle" class="sidebar-toggle">
+                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Recolher menu lateral">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
@@ -129,28 +132,32 @@
                     </div>
                 </div>
                 <div class="header-actions">
-                    <div class="global-search">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
-                    </div>
-                    <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                    <div id="pending-badge" class="notification-badge hidden">
-                        <i class="fas fa-bell"></i>
-                        <span id="pending-count">0</span>
-                    </div>
-                    <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
-                        <i class="fas fa-bell"></i>
-                        <span id="header-notification-dot" class="alert-dot hidden"></span>
-                    </button>
-                    <div class="header-profile">
-                        <div class="header-avatar">
-                            <i class="fas fa-user"></i>
+                    <div class="header-search-zone">
+                        <div class="global-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
                         </div>
-                        <div class="header-profile-meta">
-                            <span id="header-user-name">Usuário</span>
-                            <small id="header-user-role">Perfil</small>
+                    </div>
+                    <div class="header-controls">
+                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <div id="pending-badge" class="notification-badge hidden" title="Itens pendentes">
+                            <i class="fas fa-bell"></i>
+                            <span id="pending-count">0</span>
+                        </div>
+                        <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
+                            <i class="fas fa-bell"></i>
+                            <span id="header-notification-dot" class="alert-dot hidden"></span>
+                        </button>
+                        <div class="header-profile">
+                            <div class="header-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="header-profile-meta">
+                                <span id="header-user-name">Usuário</span>
+                                <small id="header-user-role">Perfil</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -206,6 +213,17 @@
     <script src="js/ui-modern.js?v=20260307h"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
 
