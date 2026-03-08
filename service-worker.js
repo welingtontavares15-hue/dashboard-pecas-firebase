@@ -1,6 +1,6 @@
-// Cache version incremented to force refresh of cached assets after code changes
+﻿// Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -41,6 +41,7 @@ const PRECACHE = {
   solicitacoes: [
     './js/solicitacoes.js',
     './js/aprovacoes.js',
+    './js/fornecedor.js',
     './js/auth.js',
     './js/tecnicos.js'
   ],
@@ -120,3 +121,5 @@ async function notifyClientsUpdated() {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
   clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED', version: CACHE_VERSION }));
 }
+
+

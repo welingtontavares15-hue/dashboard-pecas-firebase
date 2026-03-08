@@ -1006,7 +1006,11 @@ Equipe Diversey`;
         const brandTagline = 'A Solenis Company';
         const { preview } = options || {};
         const technician = DataManager.getTechnicianById(solicitation.tecnicoId);
+        const supplier = solicitation.fornecedorId ? DataManager.getSupplierById(solicitation.fornecedorId) : null;
         const statusLabel = (Utils.getStatusInfo(solicitation.status)?.label || solicitation.status || '').toUpperCase();
+        const clientLabel = solicitation.cliente || 'Não informado';
+        const trackingLabel = solicitation.trackingCode || 'Aguardando rastreio';
+        const supplierLabel = supplier?.nome || 'Não definido';
         const formatMoney = (value) => Utils.formatCurrency(Number(value) || 0);
         const FALLBACK_TECHNICIAN_NAME = 'tecnico';
         const technicianName = solicitation.tecnicoNome || technician?.nome || FALLBACK_TECHNICIAN_NAME;
@@ -1151,6 +1155,39 @@ Equipe Diversey`;
         doc.text(criadoPorLines, margin + 4 + 24, row3Y);
         
         y += summaryBoxHeight + 4;
+
+        drawSectionTitle('Dados operacionais');
+        const clientLines = wrapText(clientLabel, contentWidth - 30);
+        const trackingLines = wrapText(trackingLabel, contentWidth - 30);
+        const supplierLines = wrapText(supplierLabel, contentWidth - 34);
+        const rowsHeight = [clientLines, trackingLines, supplierLines].reduce((acc, lines) => {
+            const lineCount = Math.max(lines.length, 1);
+            return acc + (lineCount * lineHeight) + 2;
+        }, 0);
+        const operationalBoxHeight = rowsHeight + 8;
+
+        ensureSpace(operationalBoxHeight + 10);
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(232, 236, 241);
+        doc.roundedRect(margin, y - 3, contentWidth, operationalBoxHeight, 2, 2, 'S');
+        doc.setFontSize(FONT_SIZE.SUMMARY);
+        doc.setTextColor(64, 70, 79);
+
+        let operationalY = y + 3;
+        const drawOperationalRow = (label, lines, labelOffset = 0) => {
+            const safeLines = (Array.isArray(lines) && lines.length > 0) ? lines : ['-'];
+            doc.setFont(undefined, 'bold');
+            doc.text(label, margin + 4 + labelOffset, operationalY);
+            doc.setFont(undefined, 'normal');
+            doc.text(safeLines, margin + 24 + labelOffset, operationalY);
+            operationalY += (Math.max(safeLines.length, 1) * lineHeight) + 2;
+        };
+
+        drawOperationalRow('Cliente:', clientLines);
+        drawOperationalRow('Rastreio:', trackingLines);
+        drawOperationalRow('Fornecedor:', supplierLines);
+
+        y += operationalBoxHeight + 4;
         
         // Technician or solicitation address (fallback always visible)
         const solicitationAddress = {
@@ -1883,6 +1920,8 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
 
 
 

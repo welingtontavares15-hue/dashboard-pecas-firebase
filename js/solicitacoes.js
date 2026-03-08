@@ -248,7 +248,7 @@ const Solicitacoes = {
             aprovada: 'Gestor aprovou. Aguardando envio do fornecedor',
             rejeitada: 'Gestor rejeitou e retornou ao técnico',
             'em-transito': 'Fornecedor informou rastreio. Pedido em trânsito',
-            entregue: 'Técnico confirmou entrega',
+            entregue: 'Técnico confirmou recebimento. Solicitação finalizada',
             finalizada: 'Solicitação finalizada',
             'historico-manual': 'Solicitação finalizada'
         };
@@ -345,7 +345,8 @@ const Solicitacoes = {
 
     /**
      * Render solicitations table
-     */    renderTable() {
+     */
+    renderTable() {
         const solicitations = this.getFilteredSolicitations();
 
         const total = solicitations.length;
@@ -376,6 +377,127 @@ const Solicitacoes = {
         const isTecnico = Auth.getRole() === 'tecnico';
         const currentTecnicoId = Auth.getTecnicoId();
 
+        const tableHeaders = isTecnico
+            ? `
+                <tr>
+                    <th>Nº</th>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Itens/Peças</th>
+                    <th>Quantidade</th>
+                    <th>Status</th>
+                    <th>Rastreio</th>
+                    <th>Ações</th>
+                </tr>
+            `
+            : `
+                <tr>
+                    <th>Nº</th>
+                    <th>Técnico</th>
+                    <th>Cliente</th>
+                    <th>Peça</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                </tr>
+            `;
+
+        const rows = paginated.map(sol => {
+            const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+                ? DataManager.normalizeWorkflowStatus(sol.status)
+                : String(sol.status || '').trim();
+            const pieceSummary = this.getPieceSummary(sol.itens || []);
+            const itemQuantity = this.getItemsQuantity(sol.itens || []);
+
+            if (isTecnico) {
+                return `
+                    <tr>
+                        <td><strong>#${sol.numero}</strong></td>
+                        <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
+                        <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
+                        <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
+                        <td>${Utils.formatNumber(itemQuantity)}</td>
+                        <td>${Utils.renderStatusBadge(normalizedStatus)}</td>
+                        <td>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : '-'}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${canEdit && normalizedStatus === 'pendente' ? `
+                                    <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                ${sol.tecnicoId === currentTecnicoId && normalizedStatus === 'em-transito' ? `
+                                    <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar recebimento">
+                                        <i class="fas fa-check-circle"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}')" title="PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return `
+                <tr>
+                    <td><strong>#${sol.numero}</strong></td>
+                    <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
+                    <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
+                    <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
+                    <td>${Utils.formatCurrency(sol.total)}</td>
+                    <td>${Utils.renderStatusBadge(normalizedStatus)}</td>
+                    <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            ${canEdit && normalizedStatus === 'pendente' ? `
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            ${canManageTracking && (normalizedStatus === 'aprovada' || normalizedStatus === 'em-transito') ? `
+                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openTrackingModal('${sol.id}')" title="${sol.trackingCode ? 'Atualizar rastreio' : 'Registrar rastreio'}">
+                                    <i class="fas fa-truck"></i>
+                                </button>
+                            ` : ''}
+                            ${canApprove && normalizedStatus === 'pendente' ? `
+                                <button class="btn btn-sm btn-success" onclick="Aprovacoes.openApproveModal('${sol.id}')" title="Aprovar">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                            ${isTecnico && sol.tecnicoId === currentTecnicoId && normalizedStatus === 'em-transito' ? `
+                                <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar entrega">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}')" title="PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                            ${canDelete && normalizedStatus === 'rascunho' ? `
+                                <button class="btn btn-sm btn-danger" onclick="Solicitacoes.confirmDelete('${sol.id}')" title="Excluir">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
         return `
             <div class="table-info">
                 Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} solicitações
@@ -383,70 +505,10 @@ const Solicitacoes = {
             <div class="table-container">
                 <table class="table">
                     <thead>
-                        <tr>
-                            <th>Nº</th>
-                            <th>Técnico</th>
-                            <th>Cliente</th>
-                            <th>Peça</th>
-                            <th>Valor</th>
-                            <th>Status</th>
-                            <th>Data</th>
-                            <th>Ações</th>
-                        </tr>
+                        ${tableHeaders}
                     </thead>
                     <tbody>
-                        ${paginated.map(sol => {
-        const pieceSummary = this.getPieceSummary(sol.itens || []);
-        return `
-                            <tr>
-                                <td><strong>#${sol.numero}</strong></td>
-                                <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
-                                <td>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</td>
-                                <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
-                                <td>${Utils.formatCurrency(sol.total)}</td>
-                                <td>${Utils.renderStatusBadge(sol.status)}</td>
-                                <td>${Utils.formatDate(sol.data)}</td>
-                                <td>
-                                    <div class="actions">
-                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        ${canEdit && sol.status === 'pendente' ? `
-                                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                        ${canManageTracking && (sol.status === 'aprovada' || sol.status === 'em-transito') ? `
-                                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openTrackingModal('${sol.id}')" title="${sol.trackingCode ? 'Atualizar rastreio' : 'Registrar rastreio'}">
-                                                <i class="fas fa-truck"></i>
-                                            </button>
-                                        ` : ''}
-                                        ${canApprove && sol.status === 'pendente' ? `
-                                            <button class="btn btn-sm btn-success" onclick="Aprovacoes.openApproveModal('${sol.id}')" title="Aprovar">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        ` : ''}
-                                        ${isTecnico && sol.tecnicoId === currentTecnicoId && sol.status === 'em-transito' ? `
-                                            <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar entrega">
-                                                <i class="fas fa-check-circle"></i>
-                                            </button>
-                                        ` : ''}
-                                        <button class="btn btn-sm btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}')" title="PDF">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </button>
-                                        ${canDelete && sol.status === 'rascunho' ? `
-                                            <button class="btn btn-sm btn-danger" onclick="Solicitacoes.confirmDelete('${sol.id}')" title="Excluir">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-    }).join('')}
+                        ${rows}
                     </tbody>
                 </table>
             </div>
@@ -502,6 +564,10 @@ const Solicitacoes = {
                 </div>
             </div>
         `;
+    },
+
+    getItemsQuantity(items = []) {
+        return (items || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
     },
 
     getPieceSummary(items = []) {
@@ -783,8 +849,13 @@ const Solicitacoes = {
         const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
         const canManageTracking = Auth.getRole() === 'fornecedor' && this.canCurrentUserAccessSolicitation(sol);
         const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
+        const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+            ? DataManager.normalizeWorkflowStatus(sol.status)
+            : String(sol.status || '').trim();
 
         if (isTecnicoOwner) {
+            const items = Array.isArray(sol.itens) ? sol.itens : [];
+            const itemQuantity = this.getItemsQuantity(items);
             const content = `
                 <div class="modal-header">
                     <h3>Solicitação #${sol.numero}</h3>
@@ -792,27 +863,35 @@ const Solicitacoes = {
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <div class="form-group">
+                <div class="modal-body technician-summary-modal">
+                    <div class="technician-summary-grid">
+                        <div class="technician-summary-card">
                             <label>Número da solicitação</label>
-                            <p><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></p>
+                            <strong>#${Utils.escapeHtml(sol.numero || '-')}</strong>
                         </div>
-                        <div class="form-group">
+                        <div class="technician-summary-card">
                             <label>Data</label>
-                            <p><strong>${Utils.formatDate(sol.data)}</strong></p>
+                            <strong>${Utils.formatDate(sol.data || sol.createdAt)}</strong>
                         </div>
-                        <div class="form-group">
+                        <div class="technician-summary-card technician-summary-card-wide">
                             <label>Cliente</label>
-                            <p><strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong></p>
+                            <strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong>
                         </div>
-                        <div class="form-group">
+                        <div class="technician-summary-card">
                             <label>Status atual</label>
-                            <p>${Utils.renderStatusBadge(sol.status)}</p>
+                            <div>${Utils.renderStatusBadge(normalizedStatus)}</div>
+                        </div>
+                        <div class="technician-summary-card technician-summary-card-wide">
+                            <label>Rastreio</label>
+                            <strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio do fornecedor'}</strong>
+                        </div>
+                        <div class="technician-summary-card">
+                            <label>Quantidade total</label>
+                            <strong>${Utils.formatNumber(itemQuantity)} peça(s)</strong>
                         </div>
                     </div>
 
-                    <h4 class="mt-4 mb-2">Itens solicitados</h4>
+                    <h4 class="mt-3 mb-2">Itens/peças solicitadas</h4>
                     <div class="table-container">
                         <table class="table">
                             <thead>
@@ -822,29 +901,31 @@ const Solicitacoes = {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${(sol.itens || []).map(item => `
+                                ${items.length > 0 ? items.map(item => `
                                     <tr>
                                         <td>${Utils.escapeHtml(item.descricao || item.codigo || '-')}</td>
                                         <td>${Utils.formatNumber(Number(item.quantidade) || 0)}</td>
                                     </tr>
-                                `).join('')}
+                                `).join('') : `
+                                    <tr>
+                                        <td colspan="2" class="text-muted">Sem itens registrados nesta solicitação.</td>
+                                    </tr>
+                                `}
                             </tbody>
                         </table>
-                    </div>
-
-                    <div class="form-group mt-3">
-                        <label>Rastreio</label>
-                        <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio do fornecedor'}</strong></p>
                     </div>
 
                     ${this.renderTimeline(sol)}
                 </div>
                 <div class="modal-footer">
-                    ${canConfirmDelivery && sol.status === 'em-transito' ? `
+                    ${canConfirmDelivery && normalizedStatus === 'em-transito' ? `
                         <button class="btn btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')">
-                            <i class="fas fa-check-circle"></i> Confirmar Entrega
+                            <i class="fas fa-check-circle"></i> Confirmar Recebimento
                         </button>
                     ` : ''}
+                    <button class="btn btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}'); Utils.closeModal();">
+                        <i class="fas fa-file-pdf"></i> Download PDF
+                    </button>
                     <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
                 </div>
             `;
@@ -873,7 +954,7 @@ const Solicitacoes = {
                     </div>
                     <div class="form-group">
                         <label>Status</label>
-                        <p>${Utils.renderStatusBadge(sol.status)}</p>
+                        <p>${Utils.renderStatusBadge(normalizedStatus)}</p>
                     </div>
                     <div class="form-group">
                         <label>Cliente</label>
@@ -902,12 +983,12 @@ const Solicitacoes = {
                             ` : ''}
                         </div>
                         <div class="tracking-actions">
-                            ${canManageTracking && (sol.status === 'aprovada' || sol.status === 'em-transito') ? `
+                            ${canManageTracking && (normalizedStatus === 'aprovada' || normalizedStatus === 'em-transito') ? `
                                 <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openTrackingModal('${sol.id}')">
                                     <i class="fas fa-truck"></i> ${sol.trackingCode ? 'Atualizar' : 'Registrar'} Rastreio
                                 </button>
                             ` : ''}
-                            ${canConfirmDelivery && sol.status === 'em-transito' ? `
+                            ${canConfirmDelivery && normalizedStatus === 'em-transito' ? `
                                 <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}');">
                                     <i class="fas fa-check-circle"></i> Confirmar Entrega
                                 </button>
@@ -1093,6 +1174,7 @@ const Solicitacoes = {
             trackingCode,
             trackingUpdatedAt: Date.now(),
             trackingBy: userName,
+            supplierResponseAt: Date.now(),
             by: userName
         });
 
@@ -1121,7 +1203,11 @@ const Solicitacoes = {
             return;
         }
 
-        if (sol.status !== 'em-transito') {
+        const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+            ? DataManager.normalizeWorkflowStatus(sol.status)
+            : String(sol.status || '').trim();
+
+        if (normalizedStatus !== 'em-transito') {
             Utils.showToast('Confirme a entrega somente após o envio pelo fornecedor', 'warning');
             return;
         }
@@ -1754,6 +1840,14 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
+
+
+
+
 
 
 

@@ -1,13 +1,16 @@
 ﻿/**
  * Portal do Fornecedor
- * Exibe apenas solicitações aprovadas e em fluxo de envio do fornecedor.
+ * Exibe somente solicitações aprovadas e em trânsito para o fornecedor logado.
  */
 
 const FORNECEDOR_VISIBLE_STATUSES = ['aprovada', 'em-transito'];
+const FORNECEDOR_TRACKING_MIN_LENGTH = 4;
+const FORNECEDOR_TRACKING_REGEX = /^[A-Za-z0-9._\-/]+$/;
 
 const FornecedorPortal = {
     currentPage: 1,
     itemsPerPage: 10,
+    activeDetailId: null,
     filters: {
         search: '',
         status: ''
@@ -31,37 +34,37 @@ const FornecedorPortal = {
         }
 
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-truck"></i> Portal do Fornecedor</h2>
-                <p class="text-muted">Acompanhe pedidos aprovados, informe rastreios e consulte o histórico operacional.</p>
+            <div class="page-header supplier-header">
+                <div>
+                    <h2><i class="fas fa-truck"></i> Operação do Fornecedor</h2>
+                    <p class="text-muted">Pedidos aprovados para envio, registro de rastreio e geração de PDF operacional.</p>
+                </div>
             </div>
 
             <div class="card supplier-flow-card">
                 <div class="card-body">
-                    <h4 class="mb-2">Fluxo operacional</h4>
-                    <ol class="supplier-flow-list">
-                        <li>Técnico faz a solicitação</li>
-                        <li>Gestor avalia e aprova</li>
-                        <li>Fornecedor recebe somente solicitações aprovadas</li>
-                        <li>Fornecedor separa o material e informa rastreio</li>
-                        <li>Pedido retorna ao técnico para recebimento</li>
-                        <li>Técnico confirma o recebimento</li>
-                        <li>Solicitação é finalizada</li>
-                    </ol>
+                    <h4 class="mb-2">Fluxo oficial do pedido</h4>
+                    <div class="supplier-flow-track">
+                        <div class="supplier-flow-stage done"><span>1</span><small>Técnico cria</small></div>
+                        <div class="supplier-flow-stage done"><span>2</span><small>Gestor aprova</small></div>
+                        <div class="supplier-flow-stage active"><span>3</span><small>Fornecedor envia</small></div>
+                        <div class="supplier-flow-stage"><span>4</span><small>Técnico confirma</small></div>
+                        <div class="supplier-flow-stage"><span>5</span><small>Finalizada</small></div>
+                    </div>
                 </div>
             </div>
 
             <div class="filters-bar supplier-filters-bar">
                 <div class="search-box">
                     <input type="text" id="supplier-portal-search" class="form-control"
-                           placeholder="Buscar por número, técnico, cliente ou peça..."
+                           placeholder="Buscar por número, cliente, técnico, peça ou rastreio..."
                            value="${Utils.escapeHtml(this.filters.search)}">
                     <button class="btn btn-primary" onclick="FornecedorPortal.applyFilters()">
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
                 <div class="filter-group">
-                    <label>Status:</label>
+                    <label for="supplier-portal-status">Status:</label>
                     <select id="supplier-portal-status" class="form-control">
                         <option value="">Todos</option>
                         <option value="aprovada" ${this.filters.status === 'aprovada' ? 'selected' : ''}>Aprovado / aguardando envio</option>
@@ -71,6 +74,10 @@ const FornecedorPortal = {
                 <button class="btn btn-outline" onclick="FornecedorPortal.clearFilters()">
                     <i class="fas fa-times"></i> Limpar
                 </button>
+            </div>
+
+            <div id="supplier-portal-summary">
+                ${this.renderSummaryCards()}
             </div>
 
             <div class="card">
@@ -115,19 +122,23 @@ const FornecedorPortal = {
         return String(value || '').trim().toLowerCase();
     },
 
+    normalizeStatus(status) {
+        if (typeof DataManager.normalizeWorkflowStatus === 'function') {
+            return DataManager.normalizeWorkflowStatus(status);
+        }
+        return String(status || '').trim();
+    },
+
+    normalizeTrackingCode(value) {
+        return String(value || '').trim().toUpperCase();
+    },
+
     getSupplierScope() {
         const currentUser = Auth.getCurrentUser() || {};
         return {
             fornecedorId: Auth.getFornecedorId(),
             email: this.normalizeEmail(currentUser.email)
         };
-    },
-
-    normalizeStatus(status) {
-        if (typeof DataManager.normalizeWorkflowStatus === 'function') {
-            return DataManager.normalizeWorkflowStatus(status);
-        }
-        return String(status || '').trim();
     },
 
     belongsToCurrentSupplier(sol, scope = this.getSupplierScope()) {
@@ -149,9 +160,10 @@ const FornecedorPortal = {
 
     getFilteredSolicitations() {
         const scope = this.getSupplierScope();
-        let solicitations = DataManager.getSolicitations().filter(sol =>
-            FORNECEDOR_VISIBLE_STATUSES.includes(this.normalizeStatus(sol.status)) && this.belongsToCurrentSupplier(sol, scope)
-        );
+        let solicitations = DataManager.getSolicitations().filter((sol) => {
+            const status = this.normalizeStatus(sol.status);
+            return FORNECEDOR_VISIBLE_STATUSES.includes(status) && this.belongsToCurrentSupplier(sol, scope);
+        });
 
         if (this.filters.status) {
             solicitations = solicitations.filter(sol => this.normalizeStatus(sol.status) === this.filters.status);
@@ -159,12 +171,13 @@ const FornecedorPortal = {
 
         if (this.filters.search) {
             const term = this.filters.search;
-            solicitations = solicitations.filter(sol => {
+            solicitations = solicitations.filter((sol) => {
                 const itemText = (sol.itens || []).map(item => `${item.codigo || ''} ${item.descricao || ''}`).join(' ');
                 return (
                     Utils.matchesSearch(sol.numero, term) ||
                     Utils.matchesSearch(sol.tecnicoNome, term) ||
                     Utils.matchesSearch(sol.cliente, term) ||
+                    Utils.matchesSearch(sol.trackingCode, term) ||
                     Utils.matchesSearch(itemText, term)
                 );
             });
@@ -176,7 +189,6 @@ const FornecedorPortal = {
             return bDate - aDate;
         });
     },
-
     getTechnicianName(sol) {
         if (sol?.tecnicoNome) {
             return sol.tecnicoNome;
@@ -187,27 +199,19 @@ const FornecedorPortal = {
         return 'Não identificado';
     },
 
-    renderPartsSummary(items = []) {
-        if (!Array.isArray(items) || items.length === 0) {
-            return '<span class="text-muted">Sem itens aprovados</span>';
+    getSupplierName(sol) {
+        if (!sol?.fornecedorId) {
+            return 'Não definido';
         }
-
-        const preview = items
-            .slice(0, 2)
-            .map(item => `${Utils.escapeHtml(item.codigo || '-')}: ${Utils.formatNumber(Number(item.quantidade) || 0)}`)
-            .join(' • ');
-
-        const suffix = items.length > 2 ? ' • ...' : '';
-        return `
-            <div class="supplier-parts-summary">
-                <strong>${Utils.formatNumber(items.length)} item(ns)</strong>
-                <small>${preview}${suffix}</small>
-            </div>
-        `;
+        return DataManager.getSupplierById(sol.fornecedorId)?.nome || 'Não definido';
     },
 
     hasTotal(sol) {
         return sol && sol.total !== null && sol.total !== undefined && !Number.isNaN(Number(sol.total));
+    },
+
+    countItemsQuantity(items = []) {
+        return (items || []).reduce((sum, item) => sum + (Number(item.quantidade) || 0), 0);
     },
 
     getShippingSituation(sol) {
@@ -218,7 +222,7 @@ const FornecedorPortal = {
         if (status === 'em-transito') {
             return sol?.trackingCode
                 ? 'Pedido em trânsito com rastreio informado'
-                : 'Rastreio pendente de preenchimento';
+                : 'Pedido em trânsito sem rastreio válido';
         }
         return 'Fluxo concluído';
     },
@@ -231,21 +235,120 @@ const FornecedorPortal = {
         return status === 'aprovada' || status === 'em-transito';
     },
 
+    isTrackingCodeValid(code) {
+        const normalized = this.normalizeTrackingCode(code);
+        if (normalized.length < FORNECEDOR_TRACKING_MIN_LENGTH) {
+            return false;
+        }
+        return FORNECEDOR_TRACKING_REGEX.test(normalized);
+    },
+
+    getTrackingValidationMessage() {
+        return `Informe ao menos ${FORNECEDOR_TRACKING_MIN_LENGTH} caracteres (letras, números, ., _, - ou /).`;
+    },
+
+    renderPartsSummary(items = []) {
+        if (!Array.isArray(items) || items.length === 0) {
+            return '<span class="text-muted">Sem itens aprovados</span>';
+        }
+
+        const quantity = this.countItemsQuantity(items);
+        const preview = items
+            .slice(0, 2)
+            .map(item => `${Utils.escapeHtml(item.codigo || '-')}: ${Utils.formatNumber(Number(item.quantidade) || 0)}`)
+            .join(' • ');
+
+        const suffix = items.length > 2 ? ' • ...' : '';
+        return `
+            <div class="supplier-parts-summary">
+                <strong>${Utils.formatNumber(items.length)} item(ns) | ${Utils.formatNumber(quantity)} peça(s)</strong>
+                <small>${preview}${suffix}</small>
+            </div>
+        `;
+    },
+
+    getSummaryCounters(solicitations) {
+        return solicitations.reduce((acc, sol) => {
+            const status = this.normalizeStatus(sol.status);
+            if (status === 'aprovada') {
+                acc.awaitingDispatch += 1;
+            }
+            if (status === 'em-transito') {
+                acc.inTransit += 1;
+            }
+            if (sol.trackingCode) {
+                acc.withTracking += 1;
+            } else {
+                acc.withoutTracking += 1;
+            }
+            return acc;
+        }, {
+            awaitingDispatch: 0,
+            inTransit: 0,
+            withTracking: 0,
+            withoutTracking: 0
+        });
+    },
+
+    renderSummaryCards() {
+        const solicitations = this.getFilteredSolicitations();
+        const counters = this.getSummaryCounters(solicitations);
+
+        return `
+            <div class="kpi-grid supplier-summary-grid">
+                <div class="kpi-card supplier-summary-card">
+                    <div class="kpi-icon warning"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="kpi-content">
+                        <h4>Aguardando envio</h4>
+                        <div class="kpi-value">${Utils.formatNumber(counters.awaitingDispatch)}</div>
+                        <div class="kpi-change">Pedidos aprovados sem despacho</div>
+                    </div>
+                </div>
+                <div class="kpi-card supplier-summary-card">
+                    <div class="kpi-icon info"><i class="fas fa-truck"></i></div>
+                    <div class="kpi-content">
+                        <h4>Em trânsito</h4>
+                        <div class="kpi-value">${Utils.formatNumber(counters.inTransit)}</div>
+                        <div class="kpi-change">Pedidos com envio em andamento</div>
+                    </div>
+                </div>
+                <div class="kpi-card supplier-summary-card">
+                    <div class="kpi-icon success"><i class="fas fa-barcode"></i></div>
+                    <div class="kpi-content">
+                        <h4>Com rastreio</h4>
+                        <div class="kpi-value">${Utils.formatNumber(counters.withTracking)}</div>
+                        <div class="kpi-change">Pedidos com código válido</div>
+                    </div>
+                </div>
+                <div class="kpi-card supplier-summary-card">
+                    <div class="kpi-icon primary"><i class="fas fa-list-check"></i></div>
+                    <div class="kpi-content">
+                        <h4>No portal</h4>
+                        <div class="kpi-value">${Utils.formatNumber(solicitations.length)}</div>
+                        <div class="kpi-change">Total de pedidos visíveis</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     renderTrackingCell(sol, scope = this.getSupplierScope()) {
+        const normalizedTracking = this.normalizeTrackingCode(sol.trackingCode || '');
         if (!this.canEditTracking(sol, scope)) {
-            return `<span>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : '-'}</span>`;
+            return `<span><strong>${normalizedTracking || '-'}</strong></span>`;
         }
 
         return `
             <div class="supplier-tracking-input">
                 <input type="text" class="form-control"
                        data-supplier-tracking="${Utils.escapeHtml(sol.id)}"
-                       value="${Utils.escapeHtml(sol.trackingCode || '')}"
+                       value="${Utils.escapeHtml(normalizedTracking)}"
                        placeholder="Informar rastreio">
                 <button class="btn btn-sm btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}')">
-                    Salvar
+                    ${normalizedTracking ? 'Atualizar' : 'Salvar'}
                 </button>
             </div>
+            <small class="supplier-tracking-help">Ao salvar rastreio válido o status muda para <strong>Em trânsito</strong>.</small>
         `;
     },
 
@@ -257,7 +360,7 @@ const FornecedorPortal = {
                 <div class="empty-state">
                     <i class="fas fa-box-open"></i>
                     <h4>Sem pedidos no fluxo do fornecedor</h4>
-                    <p>Este perfil exibe somente solicitações aprovadas e em trânsito.</p>
+                    <p>Este perfil exibe somente solicitações aprovadas e em trânsito vinculadas ao seu fornecedor.</p>
                 </div>
             `;
         }
@@ -272,43 +375,60 @@ const FornecedorPortal = {
 
         return `
             <div class="table-info">
-                Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} pedidos no fluxo do fornecedor
+                Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} pedidos do fornecedor
             </div>
-            <div class="table-container">
-                <table class="table">
+            <div class="table-container supplier-table-container">
+                <table class="table supplier-table">
                     <thead>
                         <tr>
-                            <th>Solicitação</th>
-                            <th>Status</th>
-                            <th>Técnico</th>
-                            <th>Cliente</th>
-                            <th>Data</th>
-                            <th>Peças aprovadas</th>
+                            <th>Pedido</th>
+                            <th>Cliente / Técnico</th>
+                            <th>Itens solicitados</th>
                             <th>Valor total</th>
-                            <th>Situação do envio</th>
+                            <th>Status atual</th>
                             <th>Rastreio</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${paginated.map(sol => `
+                        ${paginated.map((sol) => {
+        const status = this.normalizeStatus(sol.status);
+        return `
                             <tr>
-                                <td><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></td>
-                                <td>${Utils.renderStatusBadge(this.normalizeStatus(sol.status))}</td>
-                                <td>${Utils.escapeHtml(this.getTechnicianName(sol))}</td>
-                                <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
-                                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
+                                <td>
+                                    <div class="supplier-order-meta">
+                                        <strong>#${Utils.escapeHtml(sol.numero || '-')}</strong>
+                                        <small>${Utils.formatDate(sol.data || sol.createdAt)}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="supplier-order-meta">
+                                        <strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong>
+                                        <small>Técnico: ${Utils.escapeHtml(this.getTechnicianName(sol))}</small>
+                                    </div>
+                                </td>
                                 <td>${this.renderPartsSummary(sol.itens || [])}</td>
                                 <td>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</td>
-                                <td>${Utils.escapeHtml(this.getShippingSituation(sol))}</td>
+                                <td>
+                                    <div class="supplier-status-cell">
+                                        ${Utils.renderStatusBadge(status)}
+                                        <small>${Utils.escapeHtml(this.getShippingSituation(sol))}</small>
+                                    </div>
+                                </td>
                                 <td>${this.renderTrackingCell(sol, scope)}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.openHistory('${sol.id}')">
-                                        <i class="fas fa-eye"></i> Ver itens
-                                    </button>
+                                    <div class="actions supplier-actions">
+                                        <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.openHistory('${sol.id}')" title="Visualizar pedido">
+                                            <i class="fas fa-eye"></i> Detalhes
+                                        </button>
+                                        <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.generateSolicitationPdf('${sol.id}')" title="Gerar PDF">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `;
+    }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -318,11 +438,15 @@ const FornecedorPortal = {
     })}
         `;
     },
-
     refreshTable() {
-        const container = document.getElementById('supplier-portal-table-container');
-        if (container) {
-            container.innerHTML = this.renderTable();
+        const summaryContainer = document.getElementById('supplier-portal-summary');
+        if (summaryContainer) {
+            summaryContainer.innerHTML = this.renderSummaryCards();
+        }
+
+        const tableContainer = document.getElementById('supplier-portal-table-container');
+        if (tableContainer) {
+            tableContainer.innerHTML = this.renderTable();
         }
     },
 
@@ -339,12 +463,26 @@ const FornecedorPortal = {
         this.render();
     },
 
-    getTrackingInput(id) {
-        const inputs = Array.from(document.querySelectorAll('[data-supplier-tracking]'));
-        return inputs.find(input => input.dataset.supplierTracking === id) || null;
+    getTrackingInput(id, preferModal = false) {
+        const tableInput = document.querySelector(`[data-supplier-tracking="${id}"]`);
+        const modalInput = document.querySelector(`[data-supplier-tracking-modal="${id}"]`);
+
+        if (preferModal) {
+            return modalInput || tableInput || null;
+        }
+        return tableInput || modalInput || null;
     },
 
-    saveTracking(id) {
+    isDetailModalOpen(id) {
+        if (!id) {
+            return false;
+        }
+        const marker = document.querySelector(`[data-supplier-detail-id="${id}"]`);
+        const modal = document.getElementById('modal-container');
+        return !!marker && !!modal && !modal.classList.contains('hidden');
+    },
+
+    saveTracking(id, options = {}) {
         if (Auth.getRole() !== 'fornecedor') {
             Utils.showToast('Apenas fornecedores podem registrar rastreio', 'warning');
             return;
@@ -367,8 +505,9 @@ const FornecedorPortal = {
             return;
         }
 
-        const input = this.getTrackingInput(id);
-        const trackingCode = String(input?.value || '').trim();
+        const input = this.getTrackingInput(id, !!options.preferModal);
+        const trackingCode = this.normalizeTrackingCode(input?.value || options.trackingCode || '');
+
         if (!trackingCode) {
             Utils.showToast('Informe o código de rastreio', 'warning');
             if (input) {
@@ -377,14 +516,24 @@ const FornecedorPortal = {
             return;
         }
 
+        if (!this.isTrackingCodeValid(trackingCode)) {
+            Utils.showToast(this.getTrackingValidationMessage(), 'warning');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+            return;
+        }
+
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Fornecedor';
+        const now = Date.now();
 
         const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
             trackingCode,
-            trackingUpdatedAt: Date.now(),
+            trackingUpdatedAt: now,
             trackingBy: userName,
-            supplierResponseAt: Date.now(),
+            supplierResponseAt: now,
             by: userName
         });
 
@@ -393,8 +542,26 @@ const FornecedorPortal = {
             return;
         }
 
-        Utils.showToast('Rastreio registrado com sucesso', 'success');
+        if (input) {
+            input.value = trackingCode;
+        }
+
+        const tableInput = document.querySelector(`[data-supplier-tracking="${id}"]`);
+        if (tableInput) {
+            tableInput.value = trackingCode;
+        }
+
+        const modalInput = document.querySelector(`[data-supplier-tracking-modal="${id}"]`);
+        if (modalInput) {
+            modalInput.value = trackingCode;
+        }
+
+        Utils.showToast('Rastreio salvo. Pedido atualizado para Em trânsito.', 'success');
         this.refreshTable();
+
+        if (this.isDetailModalOpen(id)) {
+            this.openHistory(id);
+        }
 
         if (typeof Auth.renderMenu === 'function') {
             Auth.renderMenu(App.currentPage);
@@ -408,7 +575,7 @@ const FornecedorPortal = {
             aprovada: 'Gestor aprovou. Aguardando envio do fornecedor',
             rejeitada: 'Gestor rejeitou e retornou ao técnico',
             'em-transito': 'Fornecedor informou rastreio. Pedido em trânsito',
-            entregue: 'Técnico confirmou entrega',
+            entregue: 'Técnico confirmou recebimento. Solicitação finalizada',
             finalizada: 'Solicitação finalizada',
             'historico-manual': 'Solicitação finalizada'
         };
@@ -420,17 +587,19 @@ const FornecedorPortal = {
 
         if (Array.isArray(sol.timeline) && sol.timeline.length > 0) {
             sol.timeline.forEach((event) => {
-                let label = '';
+                if (!event) {
+                    return;
+                }
+
+                let label = 'Registro operacional';
                 if (event.event === 'created') {
                     label = 'Técnico abriu a solicitação';
                 } else if (event.event === 'status_changed') {
                     label = this.getTimelineStatusLabel(event.to || sol.status);
-                } else {
-                    label = 'Registro operacional';
                 }
 
                 entries.push({
-                    at: event.at,
+                    at: event.at || sol.createdAt || Date.now(),
                     by: event.by || 'Sistema',
                     label,
                     note: event.comment || null
@@ -441,7 +610,7 @@ const FornecedorPortal = {
         if (entries.length === 0 && Array.isArray(sol.statusHistory)) {
             sol.statusHistory.forEach((event) => {
                 entries.push({
-                    at: event.at,
+                    at: event.at || sol.createdAt || Date.now(),
                     by: event.by || 'Sistema',
                     label: this.getTimelineStatusLabel(event.status),
                     note: null
@@ -451,7 +620,7 @@ const FornecedorPortal = {
 
         if (entries.length === 0) {
             entries.push({
-                at: sol.createdAt || sol.data,
+                at: sol.createdAt || sol.data || Date.now(),
                 by: sol.createdBy || 'Sistema',
                 label: 'Técnico abriu a solicitação',
                 note: null
@@ -460,7 +629,6 @@ const FornecedorPortal = {
 
         return entries.sort((a, b) => (b.at || 0) - (a.at || 0));
     },
-
     openHistory(id) {
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
@@ -470,13 +638,16 @@ const FornecedorPortal = {
 
         const scope = this.getSupplierScope();
         if (!FORNECEDOR_VISIBLE_STATUSES.includes(this.normalizeStatus(sol.status)) || !this.belongsToCurrentSupplier(sol, scope)) {
-            Utils.showToast('Você não tem acesso a este histórico', 'error');
+            Utils.showToast('Você não tem acesso a este pedido', 'error');
             return;
         }
 
+        this.activeDetailId = id;
+
         const entries = this.buildHistoryEntries(sol);
-        const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
         const items = Array.isArray(sol.itens) ? sol.itens : [];
+        const canEditTracking = this.canEditTracking(sol, scope);
+
         const itemsRows = items.length > 0
             ? items.map((item) => {
                 const quantity = Number(item.quantidade) || 0;
@@ -499,65 +670,69 @@ const FornecedorPortal = {
             `;
 
         const content = `
-            <div class="modal-header">
-                <h3>Detalhes da Solicitação #${Utils.escapeHtml(sol.numero || '-')}</h3>
-                <button class="modal-close" onclick="Utils.closeModal()">
+            <div class="modal-header" data-supplier-detail-id="${Utils.escapeHtml(sol.id)}">
+                <h3>Pedido #${Utils.escapeHtml(sol.numero || '-')}</h3>
+                <button class="modal-close" onclick="FornecedorPortal.activeDetailId = null; Utils.closeModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Solicitação</label>
-                        <p><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></p>
-                    </div>
-                    <div class="form-group">
-                        <label>Status atual</label>
-                        <p>${Utils.renderStatusBadge(this.normalizeStatus(sol.status))}</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Técnico</label>
-                        <p><strong>${Utils.escapeHtml(this.getTechnicianName(sol))}</strong></p>
-                    </div>
-                    <div class="form-group">
-                        <label>Cliente</label>
-                        <p><strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong></p>
-                    </div>
-                    <div class="form-group">
+            <div class="modal-body supplier-detail-modal-body">
+                <div class="supplier-detail-grid">
+                    <div class="supplier-detail-card">
                         <label>Data</label>
-                        <p><strong>${Utils.formatDate(sol.data || sol.createdAt)}</strong></p>
+                        <strong>${Utils.formatDate(sol.data || sol.createdAt)}</strong>
                     </div>
-                    <div class="form-group">
-                        <label>Situação do envio</label>
-                        <p><strong>${Utils.escapeHtml(this.getShippingSituation(sol))}</strong></p>
+                    <div class="supplier-detail-card">
+                        <label>Status atual</label>
+                        <div>${Utils.renderStatusBadge(this.normalizeStatus(sol.status))}</div>
+                    </div>
+                    <div class="supplier-detail-card">
+                        <label>Cliente</label>
+                        <strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong>
+                    </div>
+                    <div class="supplier-detail-card">
+                        <label>Técnico</label>
+                        <strong>${Utils.escapeHtml(this.getTechnicianName(sol))}</strong>
+                    </div>
+                    <div class="supplier-detail-card">
+                        <label>Fornecedor</label>
+                        <strong>${Utils.escapeHtml(this.getSupplierName(sol))}</strong>
+                    </div>
+                    <div class="supplier-detail-card">
+                        <label>Total</label>
+                        <strong>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</strong>
+                    </div>
+                    <div class="supplier-detail-card supplier-detail-card-wide">
+                        <label>Rastreio atual</label>
+                        <strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio'}</strong>
+                        ${sol.trackingUpdatedAt ? `<small>Atualizado em ${Utils.formatDate(sol.trackingUpdatedAt, true)}${sol.trackingBy ? ` por ${Utils.escapeHtml(sol.trackingBy)}` : ''}</small>` : ''}
                     </div>
                 </div>
 
-                <div class="form-row">
-                    ${supplier ? `
-                        <div class="form-group">
-                            <label>Fornecedor</label>
-                            <p><strong>${Utils.escapeHtml(supplier.nome || 'Não informado')}</strong></p>
+                ${canEditTracking ? `
+                    <div class="supplier-detail-tracking-box">
+                        <label for="supplier-modal-tracking">Atualizar rastreio</label>
+                        <div class="supplier-tracking-input">
+                            <input type="text" id="supplier-modal-tracking" class="form-control"
+                                   data-supplier-tracking-modal="${Utils.escapeHtml(sol.id)}"
+                                   value="${Utils.escapeHtml(this.normalizeTrackingCode(sol.trackingCode || ''))}"
+                                   placeholder="Informe o código de rastreio">
+                            <button class="btn btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}', { preferModal: true })">
+                                <i class="fas fa-truck"></i> Salvar rastreio
+                            </button>
                         </div>
-                    ` : ''}
-                    <div class="form-group">
-                        <label>Rastreio</label>
-                        <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio'}</strong></p>
+                        <small class="text-muted">${this.getTrackingValidationMessage()}</small>
                     </div>
-                    <div class="form-group">
-                        <label>Valor total</label>
-                        <p><strong>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</strong></p>
-                    </div>
-                </div>
+                ` : ''}
 
-                <h4 class="mt-3 mb-2">Itens solicitados</h4>
+                <h4 class="mt-3 mb-2">Itens/peças solicitadas</h4>
                 <div class="table-container">
-                    <table class="table">
+                    <table class="table supplier-items-table">
                         <thead>
                             <tr>
                                 <th>Código</th>
                                 <th>Descrição</th>
-                                <th>Qtd</th>
+                                <th>Quantidade</th>
                                 <th>Valor unitário</th>
                                 <th>Total</th>
                             </tr>
@@ -568,7 +743,7 @@ const FornecedorPortal = {
                     </table>
                 </div>
 
-                <h4 class="mt-3 mb-2">Histórico do fluxo</h4>
+                <h4 class="mt-3 mb-2">Histórico do pedido</h4>
                 <div class="supplier-history-list">
                     ${entries.map(item => `
                         <div class="supplier-history-item">
@@ -583,11 +758,11 @@ const FornecedorPortal = {
                 <button class="btn btn-outline" onclick="FornecedorPortal.generateSolicitationPdf('${sol.id}')">
                     <i class="fas fa-file-pdf"></i> Gerar PDF
                 </button>
-                <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
+                <button class="btn btn-primary" onclick="FornecedorPortal.activeDetailId = null; Utils.closeModal()">Fechar</button>
             </div>
         `;
 
-        Utils.showModal(content, { size: 'md' });
+        Utils.showModal(content, { size: 'lg' });
     },
 
     generateSolicitationPdf(id) {
@@ -620,6 +795,8 @@ const FornecedorPortal = {
     }
 };
 
-
+if (typeof window !== 'undefined') {
+    window.FornecedorPortal = FornecedorPortal;
+}
 
 
