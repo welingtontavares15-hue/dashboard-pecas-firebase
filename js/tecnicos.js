@@ -601,21 +601,51 @@ const Tecnicos = {
 
         const result = await DataManager.resetUserPasswordById(user.id, sanitizedPassword);
         if (!result.success) {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_rejected', {
+                    profile: 'tecnico',
+                    tecnicoId: id,
+                    userId: user.id,
+                    reason: result.code || 'reset_failed',
+                    error: result.error || null
+                });
+            }
             Utils.showToast(result.error || 'Não foi possível resetar a senha do técnico', 'error');
             return;
+        }
+
+        const authUser = result.user || DataManager.getUserById(user.id) || user;
+        const loginUsername = String(authUser.username || user.username || '').trim();
+        const targetEmail = String(tech.email || authUser.email || '').trim();
+        const displayName = authUser.name || tech.nome || loginUsername;
+
+        if (!loginUsername) {
+            Utils.showToast('Senha redefinida, mas o usuário de login do técnico está inválido.', 'error');
+            return;
+        }
+
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_applied', {
+                profile: 'tecnico',
+                tecnicoId: id,
+                userId: user.id,
+                username: loginUsername,
+                affectedUsers: result.affectedUsers || 1,
+                validated: result.validated === true
+            });
         }
 
         let resetEmailSent = false;
         let resetFallbackPrepared = false;
 
-        if (tech.email) {
+        if (targetEmail) {
             try {
                 if (typeof Utils.sendPasswordResetEmail === 'function') {
                     resetEmailSent = await Utils.sendPasswordResetEmail({
-                        to: tech.email,
-                        username: user.username,
+                        to: targetEmail,
+                        username: loginUsername,
                         password: sanitizedPassword,
-                        name: tech.nome,
+                        name: displayName,
                         roleLabel: 'técnico'
                     });
                 }
@@ -625,26 +655,40 @@ const Tecnicos = {
 
             if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
                 resetFallbackPrepared = Utils.sendCredentialsEmail({
-                    to: tech.email,
-                    username: user.username,
+                    to: targetEmail,
+                    username: loginUsername,
                     password: sanitizedPassword,
-                    name: tech.nome,
+                    name: displayName,
                     roleLabel: 'técnico'
                 });
             }
         }
 
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_email_status', {
+                profile: 'tecnico',
+                tecnicoId: id,
+                userId: user.id,
+                username: loginUsername,
+                recipient: targetEmail || null,
+                emailSent: resetEmailSent,
+                fallbackPrepared: resetFallbackPrepared,
+                hasRecipient: !!targetEmail
+            });
+        }
+
         if (resetEmailSent) {
-            Utils.showToast(`Senha redefinida e e-mail enviado para ${tech.email}`, 'info');
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${targetEmail}`, 'info');
         } else if (resetFallbackPrepared) {
             Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
-        } else if (tech.email) {
+        } else if (targetEmail) {
             Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
     }
 };
+
 
 
 

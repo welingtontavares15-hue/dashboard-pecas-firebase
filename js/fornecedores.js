@@ -469,21 +469,51 @@ const Fornecedores = {
 
         const result = await DataManager.resetUserPasswordById(user.id, sanitizedPassword);
         if (!result.success) {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_rejected', {
+                    profile: 'fornecedor',
+                    fornecedorId: id,
+                    userId: user.id,
+                    reason: result.code || 'reset_failed',
+                    error: result.error || null
+                });
+            }
             Utils.showToast(result.error || 'Não foi possível resetar a senha do fornecedor', 'error');
             return;
+        }
+
+        const authUser = result.user || DataManager.getUserById(user.id) || user;
+        const loginUsername = String(authUser.username || user.username || '').trim();
+        const targetEmail = String(supplier.email || authUser.email || '').trim();
+        const displayName = authUser.name || supplier.nome || loginUsername;
+
+        if (!loginUsername) {
+            Utils.showToast('Senha redefinida, mas o usuário de login do fornecedor está inválido.', 'error');
+            return;
+        }
+
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_applied', {
+                profile: 'fornecedor',
+                fornecedorId: id,
+                userId: user.id,
+                username: loginUsername,
+                affectedUsers: result.affectedUsers || 1,
+                validated: result.validated === true
+            });
         }
 
         let resetEmailSent = false;
         let resetFallbackPrepared = false;
 
-        if (supplier.email) {
+        if (targetEmail) {
             try {
                 if (typeof Utils.sendPasswordResetEmail === 'function') {
                     resetEmailSent = await Utils.sendPasswordResetEmail({
-                        to: supplier.email,
-                        username: user.username,
+                        to: targetEmail,
+                        username: loginUsername,
                         password: sanitizedPassword,
-                        name: supplier.nome,
+                        name: displayName,
                         roleLabel: 'fornecedor'
                     });
                 }
@@ -493,20 +523,33 @@ const Fornecedores = {
 
             if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
                 resetFallbackPrepared = Utils.sendCredentialsEmail({
-                    to: supplier.email,
-                    username: user.username,
+                    to: targetEmail,
+                    username: loginUsername,
                     password: sanitizedPassword,
-                    name: supplier.nome,
+                    name: displayName,
                     roleLabel: 'fornecedor'
                 });
             }
         }
 
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_email_status', {
+                profile: 'fornecedor',
+                fornecedorId: id,
+                userId: user.id,
+                username: loginUsername,
+                recipient: targetEmail || null,
+                emailSent: resetEmailSent,
+                fallbackPrepared: resetFallbackPrepared,
+                hasRecipient: !!targetEmail
+            });
+        }
+
         if (resetEmailSent) {
-            Utils.showToast(`Senha redefinida e e-mail enviado para ${supplier.email}`, 'info');
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${targetEmail}`, 'info');
         } else if (resetFallbackPrepared) {
             Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
-        } else if (supplier.email) {
+        } else if (targetEmail) {
             Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
@@ -544,6 +587,7 @@ const Fornecedores = {
         this.refreshTable();
     }
 };
+
 
 
 

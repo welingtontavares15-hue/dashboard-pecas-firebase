@@ -264,8 +264,11 @@ const Auth = {
         if (typeof DataManager !== 'undefined' && typeof DataManager.syncUsersFromCloud === 'function') {
             try {
                 syncInfo.attempted = true;
-                await DataManager.syncUsersFromCloud();
-                syncInfo.succeeded = true;
+                const synced = await DataManager.syncUsersFromCloud();
+                syncInfo.succeeded = synced === true;
+                if (!syncInfo.succeeded) {
+                    syncInfo.error = 'sync_unavailable';
+                }
             } catch (e) {
                 console.warn('Failed to sync users before login:', e);
                 syncInfo.error = e?.message || 'sync_failed';
@@ -274,6 +277,24 @@ const Auth = {
         }
 
 
+
+        const syncRequiredButUnavailable = syncInfo.attempted && !syncInfo.succeeded;
+        if (syncRequiredButUnavailable) {
+            this.logAuthAttempt({
+                username: inputUsername,
+                normalizedUsername,
+                userRole: null,
+                statusCode: 503,
+                success: false,
+                reason: 'cloud_sync_unavailable',
+                message: 'Sincronização de usuários indisponível para autenticação segura',
+                syncInfo
+            });
+            return {
+                success: false,
+                error: 'Não foi possível validar o login com a base em nuvem agora. Aguarde a sincronização e tente novamente.'
+            };
+        }
 
         const user = DataManager.getUserByUsername(inputUsername);
         
@@ -750,6 +771,9 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
+
+
 
 
 

@@ -1048,21 +1048,49 @@ const App = {
 
         const result = await DataManager.resetUserPasswordById(gestor.id, sanitizedPassword);
         if (!result.success) {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_rejected', {
+                    profile: 'gestor',
+                    gestorId: gestor.id,
+                    reason: result.code || 'reset_failed',
+                    error: result.error || null
+                });
+            }
             Utils.showToast(result.error || 'Não foi possível resetar a senha do gestor', 'error');
             return;
+        }
+
+        const authUser = result.user || DataManager.getUserById(gestor.id) || gestor;
+        const loginUsername = String(authUser.username || gestor.username || '').trim();
+        const targetEmail = String(gestor.email || authUser.email || '').trim();
+        const displayName = authUser.name || gestor.name || loginUsername;
+
+        if (!loginUsername) {
+            Utils.showToast('Senha redefinida, mas o usuário de login do gestor está inválido.', 'error');
+            return;
+        }
+
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_applied', {
+                profile: 'gestor',
+                gestorId: gestor.id,
+                username: loginUsername,
+                affectedUsers: result.affectedUsers || 1,
+                validated: result.validated === true
+            });
         }
 
         let resetEmailSent = false;
         let resetFallbackPrepared = false;
 
-        if (gestor.email) {
+        if (targetEmail) {
             try {
                 if (typeof Utils.sendPasswordResetEmail === 'function') {
                     resetEmailSent = await Utils.sendPasswordResetEmail({
-                        to: gestor.email,
-                        username: gestor.username,
+                        to: targetEmail,
+                        username: loginUsername,
                         password: sanitizedPassword,
-                        name: gestor.name,
+                        name: displayName,
                         roleLabel: 'gestor'
                     });
                 }
@@ -1072,26 +1100,37 @@ const App = {
 
             if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
                 resetFallbackPrepared = Utils.sendCredentialsEmail({
-                    to: gestor.email,
-                    username: gestor.username,
+                    to: targetEmail,
+                    username: loginUsername,
                     password: sanitizedPassword,
-                    name: gestor.name,
+                    name: displayName,
                     roleLabel: 'gestor'
                 });
             }
         }
 
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_email_status', {
+                profile: 'gestor',
+                gestorId: gestor.id,
+                username: loginUsername,
+                recipient: targetEmail || null,
+                emailSent: resetEmailSent,
+                fallbackPrepared: resetFallbackPrepared,
+                hasRecipient: !!targetEmail
+            });
+        }
+
         if (resetEmailSent) {
-            Utils.showToast(`Senha redefinida e e-mail enviado para ${gestor.email}`, 'info');
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${targetEmail}`, 'info');
         } else if (resetFallbackPrepared) {
             Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
-        } else if (gestor.email) {
+        } else if (targetEmail) {
             Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
         Utils.showToast('Senha do gestor redefinida com sucesso', 'success');
     },
-
     async handleDeleteGestor(gestorId) {
         if (Auth.getRole() !== 'administrador') {
             Utils.showToast('Apenas administradores podem excluir gestores', 'error');
@@ -1751,6 +1790,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

@@ -1108,13 +1108,104 @@ const DataManager = {
         return this.getUsers().find(u => u.id === id);
     },
 
-    getUserByUsername(username) {
+    getUsersByUsername(username) {
         if (!username) {
+            return [];
+        }
+
+        const target = this.normalizeUsername(username);
+        if (!target) {
+            return [];
+        }
+
+        return this.getUsers().filter((user) => this.normalizeUsername(user?.username) === target);
+    },
+
+    selectPreferredUserRecord(users = [], referenceUsername = '') {
+        if (!Array.isArray(users) || users.length === 0) {
             return undefined;
         }
-        const target = this.normalizeUsername(username);
-        const users = this.getUsers();
-        return users.find(u => this.normalizeUsername(u.username) === target);
+
+        const input = String(referenceUsername || '').trim();
+        const inputLower = input.toLowerCase();
+
+        const ranked = [...users].sort((a, b) => {
+            const aUsername = String(a?.username || '').trim();
+            const bUsername = String(b?.username || '').trim();
+
+            const aExact = input && aUsername === input ? 1 : 0;
+            const bExact = input && bUsername === input ? 1 : 0;
+            if (aExact !== bExact) {
+                return bExact - aExact;
+            }
+
+            const aCaseInsensitive = input && aUsername.toLowerCase() === inputLower ? 1 : 0;
+            const bCaseInsensitive = input && bUsername.toLowerCase() === inputLower ? 1 : 0;
+            if (aCaseInsensitive !== bCaseInsensitive) {
+                return bCaseInsensitive - aCaseInsensitive;
+            }
+
+            const aEnabled = a?.disabled === true ? 0 : 1;
+            const bEnabled = b?.disabled === true ? 0 : 1;
+            if (aEnabled !== bEnabled) {
+                return bEnabled - aEnabled;
+            }
+
+            const aHasHash = a?.passwordHash ? 1 : 0;
+            const bHasHash = b?.passwordHash ? 1 : 0;
+            if (aHasHash !== bHasHash) {
+                return bHasHash - aHasHash;
+            }
+
+            const aUpdatedAt = Number(a?.updatedAt) || 0;
+            const bUpdatedAt = Number(b?.updatedAt) || 0;
+            if (aUpdatedAt !== bUpdatedAt) {
+                return bUpdatedAt - aUpdatedAt;
+            }
+
+            const aCreatedAt = Number(a?.createdAt) || 0;
+            const bCreatedAt = Number(b?.createdAt) || 0;
+            if (aCreatedAt !== bCreatedAt) {
+                return bCreatedAt - aCreatedAt;
+            }
+
+            return String(a?.id || '').localeCompare(String(b?.id || ''));
+        });
+
+        return ranked[0];
+    },
+
+    getUserByUsername(username) {
+        const matches = this.getUsersByUsername(username);
+        if (matches.length === 0) {
+            return undefined;
+        }
+
+        if (matches.length > 1) {
+            const normalizedUsername = this.normalizeUsername(username);
+            const duplicateInfo = matches.map((user) => ({
+                id: user?.id || null,
+                username: user?.username || null,
+                role: user?.role || null,
+                updatedAt: user?.updatedAt || null
+            }));
+
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'duplicate_username_detected', {
+                    normalizedUsername,
+                    duplicateCount: matches.length,
+                    duplicates: duplicateInfo
+                });
+            }
+
+            console.warn('Usuários duplicados detectados para login', {
+                normalizedUsername,
+                duplicateCount: matches.length,
+                duplicates: duplicateInfo
+            });
+        }
+
+        return this.selectPreferredUserRecord(matches, username);
     },
 
     findUserConflicts(user, users = this.getUsers()) {
@@ -1205,43 +1296,165 @@ const DataManager = {
         }
 
         const users = this.getUsers();
-        const index = users.findIndex(u => u.id === userId);
+        const index = users.findIndex((u) => u.id === userId);
         if (index < 0) {
             return { success: false, error: 'Usuário não encontrado.' };
         }
 
-        const targetUser = users[index];
+        const targetUser = users[index] || null;
+        const normalizedUsername = this.normalizeUsername(targetUser?.username || '');
+        if (!normalizedUsername) {
+            return { success: false, error: 'Usuário sem login válido para redefinir senha.' };
+        }
+
+        const affectedIndexes = users.reduce((acc, currentUser, currentIndex) => {
+            if (!currentUser) {
+                return acc;
+            }
+            const sameId = currentUser.id === userId;
+            const sameNormalizedUsername = this.normalizeUsername(currentUser.username) === normalizedUsername;
+            if (sameId || sameNormalizedUsername) {
+                acc.push(currentIndex);
+            }
+            return acc;
+        }, []);
+
+        if (!affectedIndexes.includes(index)) {
+            affectedIndexes.push(index);
+        }
+
+        const now = Date.now();
+        const affectedUserIds = [];
+
         try {
-            users[index] = {
-                ...targetUser,
-                passwordHash: await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${targetUser.username}`),
-                updatedAt: Date.now()
-            };
-            delete users[index].password;
+            for (const currentIndex of affectedIndexes) {
+                const currentUser = users[currentIndex];
+                const saltUsername = String(currentUser?.username || '').trim();
+
+                if (!saltUsername) {
+                    continue;
+                }
+
+                const passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${saltUsername}`);
+                users[currentIndex] = {
+                    ...currentUser,
+                    passwordHash,
+                    updatedAt: now
+                };
+                delete users[currentIndex].password;
+                affectedUserIds.push(users[currentIndex].id);
+            }
         } catch (error) {
             console.error('Erro ao gerar hash da nova senha', error);
+            if (typeof Logger !== 'undefined' && typeof Logger.error === 'function') {
+                Logger.error(Logger.CATEGORY.AUTH, 'password_reset_hash_failed', {
+                    userId,
+                    normalizedUsername,
+                    error: error?.message || 'hash_error'
+                });
+            }
             return { success: false, error: 'Não foi possível redefinir a senha com segurança.' };
         }
 
+        if (affectedUserIds.length === 0) {
+            return { success: false, error: 'Não foi possível localizar o usuário de autenticação para atualizar a senha.' };
+        }
+
+        const uniqueAffectedUserIds = Array.from(new Set(affectedUserIds.filter(Boolean)));
+
         const saved = await this._persistUsersToCloud(users);
         if (!saved) {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_cloud_save_failed', {
+                    userId,
+                    normalizedUsername,
+                    affectedUserIds: uniqueAffectedUserIds
+                });
+            }
             return { success: false, error: 'Não foi possível salvar a nova senha na nuvem. Tente novamente.' };
         }
 
         this._sessionCache[this.KEYS.USERS] = users;
         this.emitDataUpdated([this.KEYS.USERS], 'local');
 
+        const updatedUser = this.getUserByUsername(targetUser.username) || users[index];
+        if (!updatedUser || !updatedUser.username || !updatedUser.passwordHash) {
+            return {
+                success: false,
+                error: 'A senha foi atualizada, mas a validação final do login falhou. Refaça o reset antes de enviar o e-mail.',
+                code: 'auth_validation_failed'
+            };
+        }
+
+        let validationHash;
+        try {
+            if (typeof Auth !== 'undefined' && typeof Auth.hashPassword === 'function') {
+                validationHash = await Auth.hashPassword(password, updatedUser.username);
+            } else {
+                validationHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${updatedUser.username}`);
+            }
+        } catch (validationError) {
+            if (typeof Logger !== 'undefined' && typeof Logger.error === 'function') {
+                Logger.error(Logger.CATEGORY.AUTH, 'password_reset_validation_hash_failed', {
+                    userId,
+                    username: updatedUser.username,
+                    error: validationError?.message || 'validation_hash_error'
+                });
+            }
+            return {
+                success: false,
+                error: 'A senha foi salva, mas a validação final do login não pôde ser concluída. Refaça o reset antes de enviar o e-mail.',
+                code: 'auth_validation_failed'
+            };
+        }
+
+        if (updatedUser.passwordHash !== validationHash) {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_validation_failed', {
+                    userId,
+                    username: updatedUser.username,
+                    normalizedUsername,
+                    affectedUserIds: uniqueAffectedUserIds
+                });
+            }
+
+            return {
+                success: false,
+                error: 'A nova senha não ficou válida para autenticação. Refaça o reset; o e-mail não deve ser enviado.',
+                code: 'auth_validation_failed'
+            };
+        }
+
         if (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function') {
             const currentUser = Auth.getCurrentUser();
-            if (currentUser?.id === users[index].id) {
-                Auth.currentUser = Auth.buildSessionUser(users[index]);
+            if (currentUser && uniqueAffectedUserIds.includes(currentUser.id)) {
+                const refreshedCurrentUser = users.find((item) => item.id === currentUser.id) || updatedUser;
+                Auth.currentUser = Auth.buildSessionUser(refreshedCurrentUser);
                 if (typeof Auth.persistSession === 'function') {
                     Auth.persistSession(Auth.currentUser);
                 }
             }
         }
 
-        return { success: true, user: users[index] };
+        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_success', {
+                userId,
+                username: updatedUser.username,
+                normalizedUsername,
+                affectedUsers: uniqueAffectedUserIds.length,
+                affectedUserIds: uniqueAffectedUserIds,
+                validated: true
+            });
+        }
+
+        return {
+            success: true,
+            user: updatedUser,
+            affectedUsers: uniqueAffectedUserIds.length,
+            affectedUserIds: uniqueAffectedUserIds,
+            normalizedUsername,
+            validated: true
+        };
     },
 
     /**
@@ -2925,6 +3138,10 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
+
 
 
 
