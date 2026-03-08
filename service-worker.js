@@ -1,6 +1,6 @@
 ﻿// Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -121,6 +121,7 @@ async function notifyClientsUpdated() {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
   clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED', version: CACHE_VERSION }));
 }
+
 
 
 

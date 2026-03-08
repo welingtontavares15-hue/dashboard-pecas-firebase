@@ -8,6 +8,9 @@ const Aprovacoes = {
     itemsPerPage: 10,
     selectedIds: [],
     editingSolicitation: null,
+    isApproveSubmitting: false,
+    isRejectSubmitting: false,
+    isBatchApproveSubmitting: false,
     filters: {
         minValue: '',
         tecnico: '',
@@ -585,7 +588,7 @@ const Aprovacoes = {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
-                <button class="btn btn-success" onclick="Aprovacoes.confirmApprove()">
+                <button id="approve-confirm-btn" class="btn btn-success" onclick="Aprovacoes.confirmApprove()">
                     <i class="fas fa-check"></i> Aprovar
                 </button>
             </div>
@@ -595,17 +598,43 @@ const Aprovacoes = {
         this.updateTotalsDisplay();
     },
 
+    setActionButtonState(buttonId, isLoading, loadingLabel = 'Processando...') {
+        const button = document.getElementById(buttonId);
+        if (!button) {
+            return;
+        }
+
+        if (isLoading) {
+            if (!button.dataset.originalLabel) {
+                button.dataset.originalLabel = button.innerHTML;
+            }
+            button.disabled = true;
+            button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${loadingLabel}`;
+            return;
+        }
+
+        button.disabled = false;
+        if (button.dataset.originalLabel) {
+            button.innerHTML = button.dataset.originalLabel;
+            delete button.dataset.originalLabel;
+        }
+    },
+
     /**
      * Confirm approval
      */
     confirmApprove() {
+        if (this.isApproveSubmitting) {
+            return;
+        }
+
         const id = document.getElementById('approve-id').value;
         const fornecedorId = document.getElementById('approve-supplier').value;
-        const sol = (this.editingSolicitation && this.editingSolicitation.id === id) 
-            ? this.editingSolicitation 
+        const sol = (this.editingSolicitation && this.editingSolicitation.id === id)
+            ? this.editingSolicitation
             : DataManager.getSolicitationById(id);
         const approveComment = document.getElementById('approve-comment')?.value.trim() || '';
-        
+
         if (!fornecedorId) {
             Utils.showToast('Selecione um fornecedor', 'warning');
             return;
@@ -616,57 +645,64 @@ const Aprovacoes = {
             return;
         }
 
-        this.recalculateApprovalTotals();
-        const desconto = Number(sol.desconto) || 0;
-        const frete = Number(sol.frete) || 0;
-        const subtotal = Number(this.editingSolicitation?.subtotal ?? 0);
-        const total = Number(this.editingSolicitation?.total ?? 0);
-        
-        const currentUser = Auth.getCurrentUser();
-        const userName = currentUser?.name || 'Sistema';
-        
-        const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
-            fornecedorId,
-            approvedAt: Date.now(),
-            approvedBy: userName,
-            by: userName,
-            itens: this.editingSolicitation?.itens || sol.itens,
-            subtotal: parseFloat(subtotal.toFixed(2)),
-            desconto,
-            frete,
-            total,
-            approvalComment: approveComment
-        });
-        
-        if (success) {
-            Utils.showToast('Solicitação aprovada com sucesso', 'success');
-            Utils.closeModal();
-            
-            // Generate PDF automatically
-            const updatedSol = DataManager.getSolicitationById(id);
-            if (updatedSol) {
-                Utils.generatePDF(updatedSol);
-                if (window.SheetIntegration) {
-                    const sheetConfig = DataManager.getSettings().sheetIntegration;
-                    const recorded = SheetIntegration.recordApproval(updatedSol, { approver: userName, comment: approveComment, config: sheetConfig });
-                    if (!recorded) {
-                        console.warn('SheetIntegration: failed to record approval for', updatedSol.id);
+        this.isApproveSubmitting = true;
+        this.setActionButtonState('approve-confirm-btn', true, 'Aprovando...');
+
+        try {
+            this.recalculateApprovalTotals();
+            const desconto = Number(sol.desconto) || 0;
+            const frete = Number(sol.frete) || 0;
+            const subtotal = Number(this.editingSolicitation?.subtotal ?? 0);
+            const total = Number(this.editingSolicitation?.total ?? 0);
+
+            const currentUser = Auth.getCurrentUser();
+            const userName = currentUser?.name || 'Sistema';
+
+            const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
+                fornecedorId,
+                approvedAt: Date.now(),
+                approvedBy: userName,
+                by: userName,
+                itens: this.editingSolicitation?.itens || sol.itens,
+                subtotal: parseFloat(subtotal.toFixed(2)),
+                desconto,
+                frete,
+                total,
+                approvalComment: approveComment
+            });
+
+            if (success) {
+                Utils.showToast('Solicitação aprovada com sucesso', 'success');
+                Utils.closeModal();
+
+                // Generate PDF automatically
+                const updatedSol = DataManager.getSolicitationById(id);
+                if (updatedSol) {
+                    Utils.generatePDF(updatedSol);
+                    if (window.SheetIntegration) {
+                        const sheetConfig = DataManager.getSettings().sheetIntegration;
+                        const recorded = SheetIntegration.recordApproval(updatedSol, { approver: userName, comment: approveComment, config: sheetConfig });
+                        if (!recorded) {
+                            console.warn('SheetIntegration: failed to record approval for', updatedSol.id);
+                        }
                     }
+
+                    this.sendTechnicianApprovalNotification(updatedSol, userName, { silent: false });
+                    this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
                 }
 
-                this.sendTechnicianApprovalNotification(updatedSol, userName, { silent: false });
-                this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
+                // Refresh views
+                this.editingSolicitation = null;
+                this.refreshTable();
+                Auth.renderMenu(App.currentPage);
+            } else {
+                Utils.showToast('Erro ao aprovar solicitação', 'error');
             }
-            
-            // Refresh views
-            this.editingSolicitation = null;
-            this.refreshTable();
-            Auth.renderMenu(App.currentPage);
-        } else {
-            Utils.showToast('Erro ao aprovar solicitação', 'error');
+        } finally {
+            this.isApproveSubmitting = false;
+            this.setActionButtonState('approve-confirm-btn', false);
         }
     },
-
     getTechnicianNotificationFailureMessage(reason) {
         if (reason === 'missing_email') {
             return 'o técnico solicitante está sem e-mail cadastrado na base de Técnicos.';
@@ -904,7 +940,7 @@ const Aprovacoes = {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
-                <button class="btn btn-danger" onclick="Aprovacoes.confirmReject()">
+                <button id="reject-confirm-btn" class="btn btn-danger" onclick="Aprovacoes.confirmReject()">
                     <i class="fas fa-times"></i> Rejeitar
                 </button>
             </div>
@@ -917,37 +953,49 @@ const Aprovacoes = {
      * Confirm rejection
      */
     confirmReject() {
+        if (this.isRejectSubmitting) {
+            return;
+        }
+
         const id = document.getElementById('reject-id').value;
         const reason = document.getElementById('reject-reason').value.trim();
-        
+
         if (!reason) {
             Utils.showToast('Informe o motivo da rejeição', 'warning');
             return;
         }
-        
-        const currentUser = Auth.getCurrentUser();
-        const userName = currentUser?.name || 'Sistema';
-        
-        const success = DataManager.updateSolicitationStatus(id, 'rejeitada', {
-            rejectionReason: reason,
-            rejectedAt: Date.now(),
-            rejectedBy: userName,
-            by: userName
-        });
-        
-        if (success) {
-            Utils.showToast('Solicitação rejeitada', 'success');
-            Utils.closeModal();
 
-            const updatedSol = DataManager.getSolicitationById(id);
-            if (updatedSol) {
-                this.sendTechnicianRejectionNotification(updatedSol, userName, reason, { silent: false });
+        this.isRejectSubmitting = true;
+        this.setActionButtonState('reject-confirm-btn', true, 'Rejeitando...');
+
+        try {
+            const currentUser = Auth.getCurrentUser();
+            const userName = currentUser?.name || 'Sistema';
+
+            const success = DataManager.updateSolicitationStatus(id, 'rejeitada', {
+                rejectionReason: reason,
+                rejectedAt: Date.now(),
+                rejectedBy: userName,
+                by: userName
+            });
+
+            if (success) {
+                Utils.showToast('Solicitação rejeitada', 'success');
+                Utils.closeModal();
+
+                const updatedSol = DataManager.getSolicitationById(id);
+                if (updatedSol) {
+                    this.sendTechnicianRejectionNotification(updatedSol, userName, reason, { silent: false });
+                }
+
+                this.refreshTable();
+                Auth.renderMenu(App.currentPage);
+            } else {
+                Utils.showToast('Erro ao rejeitar solicitação', 'error');
             }
-
-            this.refreshTable();
-            Auth.renderMenu(App.currentPage);
-        } else {
-            Utils.showToast('Erro ao rejeitar solicitação', 'error');
+        } finally {
+            this.isRejectSubmitting = false;
+            this.setActionButtonState('reject-confirm-btn', false);
         }
     },
 
@@ -984,7 +1032,7 @@ const Aprovacoes = {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
-                <button class="btn btn-success" onclick="Aprovacoes.confirmBatchApprove()">
+                <button id="batch-approve-confirm-btn" class="btn btn-success" onclick="Aprovacoes.confirmBatchApprove()">
                     <i class="fas fa-check-double"></i> Aprovar Todas
                 </button>
             </div>
@@ -997,85 +1045,104 @@ const Aprovacoes = {
      * Confirm batch approve
      */
     confirmBatchApprove() {
+        if (this.isBatchApproveSubmitting) {
+            return;
+        }
+
         const fornecedorId = document.getElementById('batch-supplier').value;
-        
+
         if (!fornecedorId) {
             Utils.showToast('Selecione um fornecedor', 'warning');
             return;
         }
-        
-        const currentUser = Auth.getCurrentUser();
-        const userName = currentUser?.name || 'Sistema';
-        const emailPromises = [];
-        
-        let approved = 0;
-        
-        this.selectedIds.forEach(id => {
-            const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
-                fornecedorId,
-                approvedAt: Date.now(),
-                approvedBy: userName,
-                by: userName,
-                approvalComment: 'Aprovação em lote'
-            });
-            
-            if (success) {
-                approved++;
-                
-                // Generate PDF for each
-                const sol = DataManager.getSolicitationById(id);
-                if (sol) {
-                    Utils.generatePDF(sol);
-                    if (window.SheetIntegration) {
-                        const sheetConfig = DataManager.getSettings().sheetIntegration;
-                        const recorded = SheetIntegration.recordApproval(sol, { approver: userName, comment: 'Aprovação em lote', config: sheetConfig });
-                        if (!recorded) {
-                            console.warn('SheetIntegration: failed to record approval for', sol.id);
+
+        this.isBatchApproveSubmitting = true;
+        this.setActionButtonState('batch-approve-confirm-btn', true, 'Aprovando...');
+
+        try {
+            const currentUser = Auth.getCurrentUser();
+            const userName = currentUser?.name || 'Sistema';
+            const emailPromises = [];
+
+            let approved = 0;
+
+            this.selectedIds.forEach(id => {
+                const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
+                    fornecedorId,
+                    approvedAt: Date.now(),
+                    approvedBy: userName,
+                    by: userName,
+                    approvalComment: 'Aprovação em lote'
+                });
+
+                if (success) {
+                    approved++;
+
+                    // Generate PDF for each
+                    const sol = DataManager.getSolicitationById(id);
+                    if (sol) {
+                        Utils.generatePDF(sol);
+                        if (window.SheetIntegration) {
+                            const sheetConfig = DataManager.getSettings().sheetIntegration;
+                            const recorded = SheetIntegration.recordApproval(sol, { approver: userName, comment: 'Aprovação em lote', config: sheetConfig });
+                            if (!recorded) {
+                                console.warn('SheetIntegration: failed to record approval for', sol.id);
+                            }
                         }
+
+                        emailPromises.push(this.sendTechnicianApprovalNotification(sol, userName, { silent: true }));
+                        emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
                     }
-
-                    emailPromises.push(this.sendTechnicianApprovalNotification(sol, userName, { silent: true }));
-                    emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
-                }
-            }
-        });
-        
-        Utils.showToast(`${approved} solicitações aprovadas com sucesso`, 'success');
-        if (emailPromises.length > 0) {
-            Promise.allSettled(emailPromises).then((results) => {
-                const summary = results.reduce((acc, result) => {
-                    if (result.status === 'fulfilled' && result.value) {
-                        acc.sentCount += Number(result.value.sentCount) || 0;
-                        acc.failedCount += Number(result.value.failedCount) || 0;
-                        acc.totalRecipients += Number(result.value.totalRecipients) || 0;
-                        return acc;
-                    }
-
-                    acc.failedCount += 1;
-                    acc.totalRecipients += 1;
-                    return acc;
-                }, { sentCount: 0, failedCount: 0, totalRecipients: 0 });
-
-                if (summary.totalRecipients === 0) {
-                    Utils.showToast('Aprovações concluídas. Nenhum destinatário válido para notificação.', 'warning');
-                    return;
-                }
-
-                if (summary.sentCount > 0) {
-                    Utils.showToast(`${summary.sentCount} notificação(ões) por e-mail enviada(s).`, 'info');
-                }
-                if (summary.failedCount > 0) {
-                    Utils.showToast(`${summary.failedCount} notificação(ões) por e-mail falharam. Verifique o log.`, 'warning');
                 }
             });
+
+            Utils.showToast(`${approved} solicitações aprovadas com sucesso`, 'success');
+            if (emailPromises.length > 0) {
+                Promise.allSettled(emailPromises).then((results) => {
+                    const summary = results.reduce((acc, result) => {
+                        if (result.status === 'fulfilled' && result.value) {
+                            acc.sentCount += Number(result.value.sentCount) || 0;
+                            acc.failedCount += Number(result.value.failedCount) || 0;
+                            acc.totalRecipients += Number(result.value.totalRecipients) || 0;
+                            return acc;
+                        }
+
+                        acc.failedCount += 1;
+                        acc.totalRecipients += 1;
+                        return acc;
+                    }, { sentCount: 0, failedCount: 0, totalRecipients: 0 });
+
+                    if (summary.totalRecipients === 0) {
+                        Utils.showToast('Aprovações concluídas. Nenhum destinatário válido para notificação.', 'warning');
+                        return;
+                    }
+
+                    if (summary.sentCount > 0) {
+                        Utils.showToast(`${summary.sentCount} notificação(ões) por e-mail enviada(s).`, 'info');
+                    }
+                    if (summary.failedCount > 0) {
+                        Utils.showToast(`${summary.failedCount} notificação(ões) por e-mail falharam. Verifique o log.`, 'warning');
+                    }
+                });
+            }
+            Utils.closeModal();
+
+            this.selectedIds = [];
+            this.refreshTable();
+            Auth.renderMenu(App.currentPage);
+        } finally {
+            this.isBatchApproveSubmitting = false;
+            this.setActionButtonState('batch-approve-confirm-btn', false);
         }
-        Utils.closeModal();
-        
-        this.selectedIds = [];
-        this.refreshTable();
-        Auth.renderMenu(App.currentPage);
     }
 };
+
+
+
+
+
+
+
 
 
 

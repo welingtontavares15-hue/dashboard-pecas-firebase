@@ -2274,14 +2274,47 @@ const DataManager = {
             const solicitation = solicitations[index];
             const previousStatus = this.normalizeWorkflowStatus(solicitation.status || this.STATUS.PENDENTE);
             const nextStatus = this.normalizeWorkflowStatus(status);
+            const payload = { ...extra };
+            const now = Date.now();
+
+            if (previousStatus === nextStatus) {
+                if (nextStatus === this.STATUS.EM_TRANSITO) {
+                    const incomingTrackingCode = String(payload.trackingCode || '').trim();
+                    const currentTrackingCode = String(solicitation.trackingCode || '').trim();
+
+                    if (incomingTrackingCode && incomingTrackingCode !== currentTrackingCode) {
+                        const currentVersion = solicitation.audit?.version || 0;
+                        solicitation.audit = {
+                            ...solicitation.audit,
+                            version: currentVersion + 1,
+                            lastUpdatedAt: now,
+                            lastUpdatedBy: payload.by || 'Sistema'
+                        };
+
+                        payload.trackingCode = incomingTrackingCode;
+                        payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
+                        delete payload.status;
+
+                        Object.assign(solicitation, payload);
+                        solicitation.updatedAt = now;
+
+                        const savedTrackingUpdate = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
+                        if (savedTrackingUpdate) {
+                            this.queueOneDriveBackup(solicitation);
+                            this.createSolicitationsBackup({ download: false, reason: 'auto-tracking-update', silent: true });
+                        }
+                        return savedTrackingUpdate;
+                    }
+                }
+
+                console.warn(`Atualização de status ignorada (status já aplicado): ${previousStatus}`);
+                return false;
+            }
 
             if (!this.isValidWorkflowTransition(previousStatus, nextStatus)) {
                 console.warn(`Transição de status inválida: ${previousStatus} -> ${nextStatus}`);
                 return false;
             }
-
-            const payload = { ...extra };
-            const now = Date.now();
 
             if (nextStatus === this.STATUS.EM_TRANSITO) {
                 const trackingCode = String(payload.trackingCode || solicitation.trackingCode || '').trim();
@@ -2892,6 +2925,11 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
+
+
 
 
 

@@ -17,6 +17,12 @@ const Utils = {
      */
     PASSWORD_SALT: (typeof window !== 'undefined' && window.__diverseySalt) ? window.__diverseySalt : 'diversey_salt_v1',
 
+    OP_EMAIL_TIMEOUT_MS: 12000,
+    OP_EMAIL_MAX_RETRIES: 2,
+    OP_EMAIL_RETRY_DELAY_MS: 1200,
+    OP_EMAIL_TEMPLATE: 'box',
+    _operationalEmailQueue: Promise.resolve(),
+
     /**
      * Hash string with SHA-256 using Web Crypto (falls back to base64)
      */
@@ -376,11 +382,49 @@ Equipe Diversey`;
         return `${origin}${pathname || '/'}`;
     },
 
+    maskEmailForLog(email) {
+        const normalized = String(email || '').trim().toLowerCase();
+        if (!normalized || !normalized.includes('@')) {
+            return null;
+        }
+
+        const [localPart, domain] = normalized.split('@');
+        if (!domain) {
+            return null;
+        }
+
+        const compactLocal = localPart.length <= 2
+            ? `${localPart.charAt(0)}*`
+            : `${localPart.slice(0, 2)}***`;
+
+        return `${compactLocal}@${domain}`;
+    },
+
+    buildOperationalEmailBody(message = '', context = {}) {
+        const header = context?.header || 'DIVERSEY | Sistema de Solicitação de Peças';
+        const generatedAt = this.formatDate(Date.now(), true);
+        const normalizedMessage = String(message || '').trim();
+
+        return [
+            header,
+            '----------------------------------------',
+            normalizedMessage,
+            '----------------------------------------',
+            `Mensagem automática gerada em ${generatedAt}`
+        ].filter(Boolean).join('\n');
+    },
+
     logEmailNotification({ eventType, solicitationNumber, recipient, success, reason = null, error = null, profile = null, sentAt = null } = {}) {
+        const safeRecipient = this.maskEmailForLog(recipient);
+        const recipientDomain = String(recipient || '').includes('@')
+            ? String(recipient || '').split('@').pop().toLowerCase()
+            : null;
+
         const payload = {
             eventType: eventType || null,
             solicitationNumber: solicitationNumber || null,
-            recipient: recipient || null,
+            recipient: safeRecipient,
+            recipientDomain,
             success: !!success,
             sentAt: sentAt || new Date().toISOString(),
             reason: reason || null,
@@ -415,9 +459,25 @@ Equipe Diversey`;
             };
         }
 
-        const technician = (typeof DataManager !== 'undefined' && typeof DataManager.getTechnicianById === 'function')
-            ? DataManager.getTechnicianById(technicianId)
-            : null;
+        const techniciansById = (typeof DataManager !== 'undefined' && typeof DataManager.getTechnicians === 'function')
+            ? DataManager.getTechnicians().filter((item) => item && item.id === technicianId)
+            : [];
+
+        if (techniciansById.length > 1) {
+            return {
+                success: false,
+                reason: 'invalid_technician_link',
+                solicitationNumber,
+                technicianId
+            };
+        }
+
+        const technician = techniciansById.length === 1
+            ? techniciansById[0]
+            : ((typeof DataManager !== 'undefined' && typeof DataManager.getTechnicianById === 'function')
+                ? DataManager.getTechnicianById(technicianId)
+                : null);
+
         if (!technician) {
             return {
                 success: false,
@@ -651,71 +711,148 @@ Equipe Diversey`;
         return markers.some((token) => code.includes(token) || message.includes(token));
     },
 
-    async sendOperationalEmail({ recipient, subject, message, fields = {}, eventLabel = 'email_notification' } = {}) {
+    delay(ms = 0) {
+        return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+    },
+
+    async executeOperationalEmailRequest(endpoint, payload, timeoutMs = 12000) {
+        const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        let timeoutHandle = null;
+
         try {
-            const to = String(recipient || '').trim().toLowerCase();
-            if (!to || !this.isValidEmail(to) || !subject || !message) {
-                return false;
-            }
-
-            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-                return false;
-            }
-
-            if (typeof fetch !== 'function') {
-                return false;
-            }
-
-            const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(to)}`;
-            const response = await fetch(endpoint, {
+            const request = fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    _subject: subject,
-                    _template: 'table',
-                    _captcha: 'false',
-                    mensagem: message,
-                    ...fields
-                })
+                body: JSON.stringify(payload),
+                signal: controller ? controller.signal : undefined
             });
 
-            if (!response.ok) {
-                if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
-                    Logger.warn(Logger.CATEGORY.REQUEST, eventLabel, { recipient: to, status: response.status, success: false });
-                }
-                return false;
+            if (controller) {
+                timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
             }
 
-            let payload = null;
+            const response = await request;
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+            }
+
+            let parsed = null;
             try {
-                payload = await response.json();
+                parsed = await response.json();
             } catch (_jsonError) {
-                // ignore empty json body
+                parsed = null;
             }
 
-            const success = !payload || typeof payload.success === 'undefined'
-                ? true
-                : (payload.success === true || payload.success === 'true');
-
-            if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
-                const loggerFn = success ? Logger.info.bind(Logger) : Logger.warn.bind(Logger);
-                loggerFn(Logger.CATEGORY.REQUEST, eventLabel, { recipient: to, success });
-            }
-
-            return success;
+            return { response, payload: parsed };
         } catch (error) {
-            if (typeof Logger !== 'undefined' && typeof Logger.error === 'function') {
-                Logger.error(Logger.CATEGORY.REQUEST, eventLabel, {
-                    recipient: recipient || null,
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+            }
+            throw error;
+        }
+    },
+
+    enqueueOperationalEmail(task) {
+        const execute = () => Promise.resolve().then(task);
+        const queue = this._operationalEmailQueue || Promise.resolve();
+        const scheduled = queue.then(execute, execute);
+        this._operationalEmailQueue = scheduled.catch(() => false);
+        return scheduled;
+    },
+
+    async sendOperationalEmail({ recipient, subject, message, fields = {}, eventLabel = 'email_notification' } = {}) {
+        const to = String(recipient || '').trim().toLowerCase();
+        const maskedRecipient = this.maskEmailForLog(to);
+
+        if (!to || !this.isValidEmail(to) || !subject || !message) {
+            return false;
+        }
+
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return false;
+        }
+
+        if (typeof fetch !== 'function') {
+            return false;
+        }
+
+        const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(to)}`;
+        const timeoutMs = Math.max(3000, Number(this.OP_EMAIL_TIMEOUT_MS) || 12000);
+        const maxRetries = Math.max(0, Number(this.OP_EMAIL_MAX_RETRIES) || 0);
+        const retryDelay = Math.max(200, Number(this.OP_EMAIL_RETRY_DELAY_MS) || 1200);
+
+        const normalizedMessage = this.buildOperationalEmailBody(message);
+
+        return this.enqueueOperationalEmail(async () => {
+            let lastError = null;
+
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                let response = null;
+                try {
+                    const payload = {
+                        _subject: subject,
+                        _template: this.OP_EMAIL_TEMPLATE || 'box',
+                        _captcha: 'false',
+                        mensagem: normalizedMessage,
+                        ...fields
+                    };
+
+                    const result = await this.executeOperationalEmailRequest(endpoint, payload, timeoutMs);
+                    response = result?.response || null;
+                    const parsedPayload = result?.payload || null;
+
+                    if (response && response.ok) {
+                        const success = !parsedPayload || typeof parsedPayload.success === 'undefined'
+                            ? true
+                            : (parsedPayload.success === true || parsedPayload.success === 'true');
+
+                        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+                            const loggerFn = success ? Logger.info.bind(Logger) : Logger.warn.bind(Logger);
+                            loggerFn(Logger.CATEGORY.REQUEST, eventLabel, {
+                                recipient: maskedRecipient,
+                                success,
+                                attempt: attempt + 1
+                            });
+                        }
+
+                        if (success) {
+                            return true;
+                        }
+
+                        lastError = new Error('provider_negative_ack');
+                    } else {
+                        const statusCode = response?.status || 0;
+                        lastError = new Error(`http_${statusCode}`);
+
+                        if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    lastError = error;
+                    const transient = this.isConnectionError(error) || String(error?.message || '').includes('abort');
+                    if (!transient && attempt >= maxRetries) {
+                        break;
+                    }
+                }
+
+                if (attempt < maxRetries) {
+                    await this.delay(retryDelay * (attempt + 1));
+                }
+            }
+
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.REQUEST, eventLabel, {
+                    recipient: maskedRecipient,
                     success: false,
-                    error: error?.message || 'unknown_error'
+                    error: lastError?.message || 'send_failed'
                 });
             }
             return false;
-        }
+        });
     },
 
     async sendSupplierApprovalEmail({ solicitation, approvedBy } = {}) {
@@ -2538,6 +2675,13 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
+
+
+
+
+
 
 
 

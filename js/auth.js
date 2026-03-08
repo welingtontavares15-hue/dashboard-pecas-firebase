@@ -3,10 +3,6 @@
  * Handles login, logout, and role-based access control
  */
 
-const ADMIN_USERNAME = 'admin';
-const CANONICAL_ADMIN_PASSWORD = 'admin';
-// Allow common alias/typo to reduce login friction for the default admin account
-const ADMIN_PASSWORD_ALIASES = [CANONICAL_ADMIN_PASSWORD, 'adim'];
 
 const Auth = {
     // Current user
@@ -326,22 +322,8 @@ const Auth = {
             return { success: false, error: 'Perfil não autorizado. Contate o administrador.' };
         }
         user.role = effectiveRole;
-        
         const canonicalUsername = user.username || inputUsername;
-        let effectivePassword = password;
-        const normalizedUsernameForAlias = Utils.normalizeText(canonicalUsername);
-        const normalizedPasswordInput = Utils.normalizeText(password || '');
-        if (normalizedUsernameForAlias === ADMIN_USERNAME) {
-            if (ADMIN_PASSWORD_ALIASES.includes(normalizedPasswordInput)) {
-                effectivePassword = CANONICAL_ADMIN_PASSWORD;
-            }
-        }
-        if (normalizedUsernameForAlias === 'gestor' && normalizedPasswordInput === 'gestor') {
-            effectivePassword = 'gestor123';
-        }
-        if (normalizedUsernameForAlias === 'tecnico' && normalizedPasswordInput === 'tecnico') {
-            effectivePassword = 'tecnico123';
-        }
+        const effectivePassword = password;
         const passwordHash = await this.hashPassword(effectivePassword, canonicalUsername);
         let storedHash = user.passwordHash || null;
 
@@ -768,6 +750,8 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
+
 
 
 
