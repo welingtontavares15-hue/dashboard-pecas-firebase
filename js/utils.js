@@ -376,6 +376,90 @@ Equipe Diversey`;
         return `${origin}${pathname || '/'}`;
     },
 
+    logEmailNotification({ eventType, solicitationNumber, recipient, success, reason = null, error = null, profile = null, sentAt = null } = {}) {
+        const payload = {
+            eventType: eventType || null,
+            solicitationNumber: solicitationNumber || null,
+            recipient: recipient || null,
+            success: !!success,
+            sentAt: sentAt || new Date().toISOString(),
+            reason: reason || null,
+            error: error || null,
+            profile: profile || null
+        };
+
+        if (typeof Logger !== 'undefined') {
+            if (success && typeof Logger.info === 'function') {
+                Logger.info(Logger.CATEGORY.REQUEST, 'email_notification_dispatch', payload);
+            } else if (!success && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.REQUEST, 'email_notification_dispatch', payload);
+            }
+        }
+
+        return payload;
+    },
+
+    resolveTechnicianNotificationTarget(solicitation) {
+        if (!solicitation) {
+            return { success: false, reason: 'missing_solicitation' };
+        }
+
+        const solicitationNumber = solicitation.numero || '(sem número)';
+        const technicianId = solicitation.tecnicoId || null;
+        if (!technicianId) {
+            return {
+                success: false,
+                reason: 'invalid_technician_link',
+                solicitationNumber,
+                technicianId: null
+            };
+        }
+
+        const technician = (typeof DataManager !== 'undefined' && typeof DataManager.getTechnicianById === 'function')
+            ? DataManager.getTechnicianById(technicianId)
+            : null;
+        if (!technician) {
+            return {
+                success: false,
+                reason: 'technician_not_found',
+                solicitationNumber,
+                technicianId
+            };
+        }
+
+        const recipientEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(technician.email || '')
+            : String(technician.email || '').trim().toLowerCase();
+
+        if (!recipientEmail) {
+            return {
+                success: false,
+                reason: 'missing_email',
+                solicitationNumber,
+                technicianId,
+                technician
+            };
+        }
+
+        if (!this.isValidEmail(recipientEmail)) {
+            return {
+                success: false,
+                reason: 'invalid_email',
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail
+            };
+        }
+
+        return {
+            success: true,
+            solicitationNumber,
+            technicianId,
+            technician,
+            recipientEmail
+        };
+    },
     /**
      * Build compact item summary for e-mail notifications.
      */
@@ -389,60 +473,158 @@ Equipe Diversey`;
             .join(' | ');
     },
 
+    buildItemsDetailedList(items = []) {
+        if (!Array.isArray(items) || items.length === 0) {
+            return 'Sem itens detalhados';
+        }
+
+        return items
+            .slice(0, 30)
+            .map((item, index) => {
+                const quantity = Number(item?.quantidade);
+                const qtyValue = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+                const qtyDecimals = Math.abs(qtyValue - Math.round(qtyValue)) > 0.001 ? 2 : 0;
+                const qtyText = this.formatNumber(qtyValue, qtyDecimals);
+                const description = String(item?.descricao || item?.codigo || `Item ${index + 1}`).trim();
+                const code = String(item?.codigo || '').trim();
+                return code && code !== description
+                    ? `- ${qtyText}x ${description} (${code})`
+                    : `- ${qtyText}x ${description}`;
+            })
+            .join('\n');
+    },
+
+    buildSolicitationEmailContext(solicitation, options = {}) {
+        const safeSolicitation = solicitation || {};
+        const items = Array.isArray(safeSolicitation.itens) ? safeSolicitation.itens : [];
+        const totalQuantityRaw = items.reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
+        const quantityDecimals = Math.abs(totalQuantityRaw - Math.round(totalQuantityRaw)) > 0.001 ? 2 : 0;
+        const hasTotalValue = safeSolicitation.total !== null
+            && safeSolicitation.total !== undefined
+            && !Number.isNaN(Number(safeSolicitation.total));
+
+        return {
+            number: safeSolicitation.numero || '(sem número)',
+            technician: safeSolicitation.tecnicoNome || 'Técnico não identificado',
+            client: safeSolicitation.cliente || 'Não informado',
+            requestDate: this.formatDate(safeSolicitation.data || safeSolicitation.createdAt || Date.now()),
+            itemsSummary: this.buildItemsSummary(items),
+            itemsDetailed: this.buildItemsDetailedList(items),
+            totalQuantity: this.formatNumber(totalQuantityRaw, quantityDecimals),
+            totalValue: hasTotalValue ? this.formatCurrency(Number(safeSolicitation.total)) : 'Não informado',
+            statusLabel: options.statusLabel || this.getStatusInfo(safeSolicitation.status || 'pendente').label,
+            portalLink: this.getSystemPortalLink(),
+            trackingCode: String(options.trackingCode || safeSolicitation.trackingCode || '').trim(),
+            rejectionReason: String(options.rejectionReason || safeSolicitation.rejectionReason || '').trim(),
+            hasTotalValue
+        };
+    },
+
     /**
      * Send automatic manager notification e-mail when a technician submits a request.
      * Uses FormSubmit AJAX endpoint to avoid backend/Firebase changes.
      */
     async sendSolicitationApprovalEmail({ solicitation, submittedBy, recipient } = {}) {
+        const eventType = 'nova solicitação';
+        const sentAt = new Date().toISOString();
         const to = String(recipient || this.getManagerNotificationEmail()).trim().toLowerCase();
-        if (!to || !this.isValidEmail(to) || !solicitation) {
-            return false;
+        const solicitationNumber = solicitation?.numero || '(sem número)';
+
+        if (!solicitation) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber,
+                recipient: to || null,
+                success: false,
+                reason: 'missing_solicitation',
+                profile: 'gestor',
+                sentAt
+            });
+            return { success: false, reason: 'missing_solicitation', recipient: to || null, sentAt, log };
         }
 
-        const number = solicitation.numero || '(sem número)';
-        const technician = solicitation.tecnicoNome || 'Técnico não identificado';
-        const client = solicitation.cliente || 'Não informado';
-        const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
-        const total = this.formatCurrency(Number(solicitation.total) || 0);
-        const statusLabel = this.getStatusInfo(solicitation.status || 'pendente').label;
-        const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
-        const sentAt = this.formatDate(Date.now(), true);
-        const sender = submittedBy || 'Sistema';
+        if (!to || !this.isValidEmail(to)) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber,
+                recipient: to || null,
+                success: false,
+                reason: 'invalid_recipient',
+                profile: 'gestor',
+                sentAt
+            });
+            return { success: false, reason: 'invalid_recipient', recipient: to || null, sentAt, log };
+        }
 
-        const subject = `Nova solicitação enviada para aprovação - ${number}`;
+        const details = this.buildSolicitationEmailContext(solicitation, { statusLabel: 'Em aprovação' });
+        const sender = submittedBy || 'Técnico';
+        const subject = 'Nova solicitação de peças aguardando análise';
+
         const message = [
-            'Nova solicitação enviada para aprovação.',
+            'Uma nova solicitação de peças foi enviada e está aguardando análise do gestor.',
+            'Acesse o sistema pelo link abaixo para avaliar e decidir a solicitação.',
             '',
-            `Número: ${number}`,
-            `Técnico: ${technician}`,
-            `Cliente: ${client}`,
-            `Data: ${requestDate}`,
-            `Total: ${total}`,
-            `Status: ${statusLabel}`,
-            `Itens: ${itemsLabel}`,
-            `Enviado por: ${sender}`,
-            `Enviado em: ${sentAt}`
+            `Número da solicitação: ${details.number}`,
+            `Técnico: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Valor total: ${details.totalValue}`,
+            `Status atual: ${details.statusLabel}`,
+            `Link do sistema: ${details.portalLink}`,
+            `Enviado por: ${sender}`
         ].join('\n');
 
-        return this.sendOperationalEmail({
-            recipient: to,
-            subject,
-            message,
-            fields: {
-                numero_solicitacao: number,
-                tecnico: technician,
-                cliente: client,
-                data_solicitacao: requestDate,
-                total,
-                status: statusLabel,
-                itens: itemsLabel,
-                enviado_por: sender,
-                enviado_em: sentAt
-            },
-            eventLabel: 'manager_new_request_email'
-        });
-    },
+        let sent = false;
+        let errorMessage = null;
 
+        try {
+            sent = await this.sendOperationalEmail({
+                recipient: to,
+                subject,
+                message,
+                fields: {
+                    evento: eventType,
+                    numero_solicitacao: details.number,
+                    tecnico: details.technician,
+                    cliente: details.client,
+                    data_solicitacao: details.requestDate,
+                    itens_pecas_solicitadas: details.itemsSummary,
+                    quantidade_total: details.totalQuantity,
+                    valor_total: details.totalValue,
+                    status_atual: details.statusLabel,
+                    link_sistema: details.portalLink,
+                    enviado_por: sender
+                },
+                eventLabel: 'manager_new_request_email'
+            });
+        } catch (error) {
+            sent = false;
+            errorMessage = error?.message || 'unknown_error';
+        }
+
+        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+        const log = this.logEmailNotification({
+            eventType,
+            solicitationNumber: details.number,
+            recipient: to,
+            success: !!sent,
+            reason,
+            error: errorMessage,
+            profile: 'gestor',
+            sentAt
+        });
+
+        return {
+            success: !!sent,
+            reason,
+            recipient: to,
+            sentAt,
+            log
+        };
+    },
     isConnectionError(error) {
         if (!error) {
             return false;
@@ -537,6 +719,8 @@ Equipe Diversey`;
     },
 
     async sendSupplierApprovalEmail({ solicitation, approvedBy } = {}) {
+        const eventType = 'aprovação';
+
         if (!solicitation) {
             return {
                 success: false,
@@ -547,7 +731,6 @@ Equipe Diversey`;
             };
         }
 
-        const number = solicitation.numero || '(sem número)';
         const recipients = Array.from(new Set(this.getSupplierNotificationRecipients()
             .map((email) => String(email || '').trim().toLowerCase())))
             .filter((email) => this.isValidEmail(email));
@@ -562,17 +745,8 @@ Equipe Diversey`;
             };
         }
 
-        const technician = solicitation.tecnicoNome || 'Técnico não identificado';
-        const client = solicitation.cliente || 'Não informado';
-        const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
-        const totalValue = (solicitation.total !== null && solicitation.total !== undefined && !Number.isNaN(Number(solicitation.total)))
-            ? this.formatCurrency(Number(solicitation.total))
-            : 'Não informado';
-        const totalQuantity = (solicitation.itens || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
-        const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
-        const statusLabel = this.getStatusInfo(solicitation.status || 'aprovada').label;
+        const details = this.buildSolicitationEmailContext(solicitation, { statusLabel: 'Aprovado / aguardando envio' });
         const approver = approvedBy || 'Gestor';
-        const portalLink = this.getSystemPortalLink();
         const subject = 'Nova solicitação de peças aprovada para separação e envio';
 
         const message = [
@@ -580,23 +754,23 @@ Equipe Diversey`;
             'Acesse o sistema pelo link abaixo para identificar o material a ser separado e enviado.',
             'Após o envio, por favor informe no sistema o código de rastreio para atualização do fluxo.',
             '',
-            `Link do sistema: ${portalLink}`,
-            '',
-            `Número da solicitação: ${number}`,
-            `Técnico: ${technician}`,
-            `Cliente: ${client}`,
-            `Data: ${requestDate}`,
-            `Itens/peças solicitadas: ${itemsLabel}`,
-            `Quantidade total: ${this.formatNumber(totalQuantity)}`,
-            `Valor total: ${totalValue}`,
-            `Status atual: ${statusLabel}`,
+            `Número da solicitação: ${details.number}`,
+            `Técnico: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Valor total: ${details.totalValue}`,
+            `Status atual: ${details.statusLabel}`,
+            `Link do sistema: ${details.portalLink}`,
             `Aprovado por: ${approver}`
         ].join('\n');
 
         const results = [];
 
         for (const supplierEmail of recipients) {
-            const timestamp = new Date().toISOString();
+            const sentAt = new Date().toISOString();
             let sent = false;
             let errorMessage = null;
 
@@ -606,16 +780,16 @@ Equipe Diversey`;
                     subject,
                     message,
                     fields: {
-                        evento: 'aprovação para fornecedor',
-                        numero_solicitacao: number,
-                        tecnico: technician,
-                        cliente: client,
-                        data_solicitacao: requestDate,
-                        itens_pecas_solicitadas: itemsLabel,
-                        quantidade_total: this.formatNumber(totalQuantity),
-                        valor_total: totalValue,
-                        status_atual: statusLabel,
-                        link_sistema: portalLink,
+                        evento: eventType,
+                        numero_solicitacao: details.number,
+                        tecnico: details.technician,
+                        cliente: details.client,
+                        data_solicitacao: details.requestDate,
+                        itens_pecas_solicitadas: details.itemsSummary,
+                        quantidade_total: details.totalQuantity,
+                        valor_total: details.totalValue,
+                        status_atual: details.statusLabel,
+                        link_sistema: details.portalLink,
                         aprovado_por: approver
                     },
                     eventLabel: 'supplier_approval_email'
@@ -625,23 +799,17 @@ Equipe Diversey`;
                 errorMessage = error?.message || 'unknown_error';
             }
 
-            const logPayload = {
-                eventType: 'aprovacao_para_fornecedor',
-                solicitationNumber: number,
+            const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+            const logPayload = this.logEmailNotification({
+                eventType,
+                solicitationNumber: details.number,
                 recipient: supplierEmail,
                 success: !!sent,
-                sentAt: timestamp,
-                status: statusLabel,
-                error: errorMessage
-            };
-
-            if (typeof Logger !== 'undefined') {
-                if (sent && typeof Logger.info === 'function') {
-                    Logger.info(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', logPayload);
-                } else if (!sent && typeof Logger.warn === 'function') {
-                    Logger.warn(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', logPayload);
-                }
-            }
+                reason,
+                error: errorMessage,
+                profile: 'fornecedor',
+                sentAt
+            });
 
             results.push(logPayload);
         }
@@ -656,146 +824,294 @@ Equipe Diversey`;
         };
     },
 
-    async sendTrackingNotificationToTechnician({ solicitation, trackingCode, updatedBy } = {}) {
-        const eventType = 'rastreio_informado_ao_tecnico';
+    async sendApprovalNotificationToTechnician({ solicitation, approvedBy } = {}) {
+        const eventType = 'aprovação';
         const sentAt = new Date().toISOString();
 
-        const logResult = ({ success, solicitationNumber, recipient, reason, error, tecnicoId }) => {
-            const payload = {
-                eventType,
-                solicitationNumber: solicitationNumber || null,
-                recipient: recipient || null,
-                success: !!success,
-                sentAt,
-                reason: reason || null,
-                error: error || null,
-                tecnicoId: tecnicoId || null
-            };
-
-            if (typeof Logger !== 'undefined') {
-                if (success && typeof Logger.info === 'function') {
-                    Logger.info(Logger.CATEGORY.REQUEST, 'tracking_notified_technician_email_dispatch', payload);
-                } else if (!success && typeof Logger.warn === 'function') {
-                    Logger.warn(Logger.CATEGORY.REQUEST, 'tracking_notified_technician_email_dispatch', payload);
-                }
-            }
-
-            return payload;
-        };
-
         if (!solicitation) {
-            const payload = logResult({ success: false, reason: 'missing_solicitation' });
-            return {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: null,
+                recipient: null,
                 success: false,
                 reason: 'missing_solicitation',
-                recipient: null,
-                sentAt,
-                log: payload
-            };
+                profile: 'tecnico',
+                sentAt
+            });
+            return { success: false, reason: 'missing_solicitation', recipient: null, sentAt, log };
         }
 
-        const solicitationNumber = solicitation.numero || '(sem número)';
-        const technicianId = solicitation.tecnicoId || null;
-
-        if (!technicianId) {
-            const payload = logResult({
+        const target = this.resolveTechnicianNotificationTarget(solicitation);
+        if (!target.success) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: target.solicitationNumber || solicitation.numero || null,
+                recipient: target.recipientEmail || null,
                 success: false,
-                solicitationNumber,
-                reason: 'invalid_technician_link'
+                reason: target.reason,
+                profile: 'tecnico',
+                sentAt
             });
             return {
                 success: false,
-                reason: 'invalid_technician_link',
-                recipient: null,
+                reason: target.reason,
+                recipient: target.recipientEmail || null,
                 sentAt,
-                log: payload
+                tecnicoId: target.technicianId || null,
+                log
             };
         }
 
-        const technician = (typeof DataManager !== 'undefined' && typeof DataManager.getTechnicianById === 'function')
-            ? DataManager.getTechnicianById(technicianId)
-            : null;
+        const details = this.buildSolicitationEmailContext(solicitation, { statusLabel: 'Aprovado / aguardando envio' });
+        const approver = approvedBy || 'Gestor';
+        const subject = 'Sua solicitação de peças foi aprovada';
+        const message = [
+            'Sua solicitação de peças foi aprovada e já está disponível para atendimento do fornecedor.',
+            'Acompanhe o andamento no sistema e aguarde o envio do rastreio.',
+            '',
+            `Número da solicitação: ${details.number}`,
+            `Técnico: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Valor total: ${details.totalValue}`,
+            `Status atual: ${details.statusLabel}`,
+            `Link do sistema: ${details.portalLink}`,
+            `Aprovado por: ${approver}`
+        ].join('\n');
 
-        if (!technician) {
-            const payload = logResult({
+        let sent = false;
+        let errorMessage = null;
+
+        try {
+            sent = await this.sendOperationalEmail({
+                recipient: target.recipientEmail,
+                subject,
+                message,
+                fields: {
+                    evento: eventType,
+                    numero_solicitacao: details.number,
+                    tecnico: details.technician,
+                    cliente: details.client,
+                    data_solicitacao: details.requestDate,
+                    itens_pecas_solicitadas: details.itemsSummary,
+                    quantidade_total: details.totalQuantity,
+                    valor_total: details.totalValue,
+                    status_atual: details.statusLabel,
+                    link_sistema: details.portalLink,
+                    aprovado_por: approver
+                },
+                eventLabel: 'technician_approval_email'
+            });
+        } catch (error) {
+            sent = false;
+            errorMessage = error?.message || 'unknown_error';
+        }
+
+        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+        const log = this.logEmailNotification({
+            eventType,
+            solicitationNumber: details.number,
+            recipient: target.recipientEmail,
+            success: !!sent,
+            reason,
+            error: errorMessage,
+            profile: 'tecnico',
+            sentAt
+        });
+
+        return {
+            success: !!sent,
+            reason,
+            recipient: target.recipientEmail,
+            sentAt,
+            tecnicoId: target.technicianId || null,
+            log
+        };
+    },
+
+    async sendRejectionNotificationToTechnician({ solicitation, rejectedBy, rejectionReason } = {}) {
+        const eventType = 'rejeição';
+        const sentAt = new Date().toISOString();
+
+        if (!solicitation) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: null,
+                recipient: null,
                 success: false,
-                solicitationNumber,
-                reason: 'technician_not_found',
-                tecnicoId: technicianId
+                reason: 'missing_solicitation',
+                profile: 'tecnico',
+                sentAt
+            });
+            return { success: false, reason: 'missing_solicitation', recipient: null, sentAt, log };
+        }
+
+        const target = this.resolveTechnicianNotificationTarget(solicitation);
+        if (!target.success) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: target.solicitationNumber || solicitation.numero || null,
+                recipient: target.recipientEmail || null,
+                success: false,
+                reason: target.reason,
+                profile: 'tecnico',
+                sentAt
             });
             return {
                 success: false,
-                reason: 'technician_not_found',
-                recipient: null,
+                reason: target.reason,
+                recipient: target.recipientEmail || null,
                 sentAt,
-                log: payload
+                tecnicoId: target.technicianId || null,
+                log
             };
         }
 
-        const recipientEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
-            ? DataManager.normalizeEmail(technician.email || '')
-            : String(technician.email || '').trim().toLowerCase();
+        const details = this.buildSolicitationEmailContext(solicitation, {
+            statusLabel: 'Rejeitado',
+            rejectionReason
+        });
+        const rejector = rejectedBy || 'Gestor';
+        const subject = 'Sua solicitação de peças foi rejeitada';
 
-        if (!recipientEmail) {
-            const payload = logResult({
+        const messageLines = [
+            'Sua solicitação de peças foi analisada e rejeitada pelo gestor.',
+            'Verifique os detalhes abaixo e, se necessário, ajuste a solicitação no sistema.',
+            '',
+            `Número da solicitação: ${details.number}`,
+            `Técnico: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Status atual: ${details.statusLabel}`
+        ];
+
+        if (details.rejectionReason) {
+            messageLines.push(`Motivo da rejeição: ${details.rejectionReason}`);
+        }
+
+        messageLines.push(`Link do sistema: ${details.portalLink}`);
+        messageLines.push(`Rejeitado por: ${rejector}`);
+
+        const message = messageLines.join('\n');
+
+        let sent = false;
+        let errorMessage = null;
+
+        try {
+            sent = await this.sendOperationalEmail({
+                recipient: target.recipientEmail,
+                subject,
+                message,
+                fields: {
+                    evento: eventType,
+                    numero_solicitacao: details.number,
+                    tecnico: details.technician,
+                    cliente: details.client,
+                    data_solicitacao: details.requestDate,
+                    itens_pecas_solicitadas: details.itemsSummary,
+                    quantidade_total: details.totalQuantity,
+                    status_atual: details.statusLabel,
+                    motivo_rejeicao: details.rejectionReason || '',
+                    link_sistema: details.portalLink,
+                    rejeitado_por: rejector
+                },
+                eventLabel: 'technician_rejection_email'
+            });
+        } catch (error) {
+            sent = false;
+            errorMessage = error?.message || 'unknown_error';
+        }
+
+        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+        const log = this.logEmailNotification({
+            eventType,
+            solicitationNumber: details.number,
+            recipient: target.recipientEmail,
+            success: !!sent,
+            reason,
+            error: errorMessage,
+            profile: 'tecnico',
+            sentAt
+        });
+
+        return {
+            success: !!sent,
+            reason,
+            recipient: target.recipientEmail,
+            sentAt,
+            tecnicoId: target.technicianId || null,
+            log
+        };
+    },
+
+    async sendTrackingNotificationToTechnician({ solicitation, trackingCode, updatedBy } = {}) {
+        const eventType = 'rastreio informado';
+        const sentAt = new Date().toISOString();
+
+        if (!solicitation) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: null,
+                recipient: null,
                 success: false,
-                solicitationNumber,
-                reason: 'missing_email',
-                tecnicoId: technicianId
+                reason: 'missing_solicitation',
+                profile: 'tecnico',
+                sentAt
+            });
+            return { success: false, reason: 'missing_solicitation', recipient: null, sentAt, log };
+        }
+
+        const target = this.resolveTechnicianNotificationTarget(solicitation);
+        if (!target.success) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: target.solicitationNumber || solicitation.numero || null,
+                recipient: target.recipientEmail || null,
+                success: false,
+                reason: target.reason,
+                profile: 'tecnico',
+                sentAt
             });
             return {
                 success: false,
-                reason: 'missing_email',
-                recipient: null,
+                reason: target.reason,
+                recipient: target.recipientEmail || null,
                 sentAt,
-                log: payload
+                tecnicoId: target.technicianId || null,
+                log
             };
         }
 
-        if (!this.isValidEmail(recipientEmail)) {
-            const payload = logResult({
-                success: false,
-                solicitationNumber,
-                recipient: recipientEmail,
-                reason: 'invalid_email',
-                tecnicoId: technicianId
-            });
-            return {
-                success: false,
-                reason: 'invalid_email',
-                recipient: recipientEmail,
-                sentAt,
-                log: payload
-            };
-        }
-
-        const technicianName = technician.nome || solicitation.tecnicoNome || 'Técnico não identificado';
-        const client = solicitation.cliente || 'Não informado';
-        const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
-        const statusLabel = 'Em trânsito';
-        const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
-        const totalQuantity = (solicitation.itens || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
-        const totalValue = (solicitation.total !== null && solicitation.total !== undefined && !Number.isNaN(Number(solicitation.total)))
-            ? this.formatCurrency(Number(solicitation.total))
-            : 'Não informado';
-        const trackingValue = String(trackingCode || solicitation.trackingCode || '').trim();
-        const portalLink = this.getSystemPortalLink();
+        const details = this.buildSolicitationEmailContext(solicitation, {
+            statusLabel: 'Em trânsito',
+            trackingCode
+        });
         const sender = updatedBy || 'Fornecedor';
 
-        if (!trackingValue) {
-            const payload = logResult({
+        if (!details.trackingCode) {
+            const log = this.logEmailNotification({
+                eventType,
+                solicitationNumber: details.number,
+                recipient: target.recipientEmail,
                 success: false,
-                solicitationNumber,
-                recipient: recipientEmail,
                 reason: 'missing_tracking_code',
-                tecnicoId: technicianId
+                profile: 'tecnico',
+                sentAt
             });
+
             return {
                 success: false,
                 reason: 'missing_tracking_code',
-                recipient: recipientEmail,
+                recipient: target.recipientEmail,
                 sentAt,
-                log: payload
+                tecnicoId: target.technicianId || null,
+                log
             };
         }
 
@@ -805,71 +1121,68 @@ Equipe Diversey`;
             'Acompanhe a entrega para planejar o recebimento do material.',
             'Após receber o material, confirme no sistema para finalizar o fluxo.',
             '',
-            `Número da solicitação: ${solicitationNumber}`,
-            `Técnico: ${technicianName}`,
-            `Cliente: ${client}`,
-            `Data: ${requestDate}`,
-            `Itens/peças solicitadas: ${itemsLabel}`,
-            `Quantidade total: ${this.formatNumber(totalQuantity)}`,
-            `Código de rastreio: ${trackingValue}`,
-            `Valor total: ${totalValue}`,
-            `Status atual: ${statusLabel}`,
-            `Link do sistema: ${portalLink}`,
+            `Número da solicitação: ${details.number}`,
+            `Técnico: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Código de rastreio: ${details.trackingCode}`,
+            `Valor total: ${details.totalValue}`,
+            `Status atual: ${details.statusLabel}`,
+            `Link do sistema: ${details.portalLink}`,
             `Atualizado por: ${sender}`
         ].join('\n');
 
-        const sent = await this.sendOperationalEmail({
-            recipient: recipientEmail,
-            subject,
-            message,
-            fields: {
-                evento: 'rastreio informado ao técnico',
-                numero_solicitacao: solicitationNumber,
-                tecnico: technicianName,
-                cliente: client,
-                data_solicitacao: requestDate,
-                itens_pecas_solicitadas: itemsLabel,
-                quantidade_total: this.formatNumber(totalQuantity),
-                codigo_rastreio: trackingValue,
-                valor_total: totalValue,
-                status_atual: statusLabel,
-                link_sistema: portalLink,
-                atualizado_por: sender
-            },
-            eventLabel: 'tracking_technician_email'
-        });
+        let sent = false;
+        let errorMessage = null;
 
-        if (!sent) {
-            const payload = logResult({
-                success: false,
-                solicitationNumber,
-                recipient: recipientEmail,
-                reason: 'send_failed',
-                tecnicoId: technicianId
+        try {
+            sent = await this.sendOperationalEmail({
+                recipient: target.recipientEmail,
+                subject,
+                message,
+                fields: {
+                    evento: eventType,
+                    numero_solicitacao: details.number,
+                    tecnico: details.technician,
+                    cliente: details.client,
+                    data_solicitacao: details.requestDate,
+                    itens_pecas_solicitadas: details.itemsSummary,
+                    quantidade_total: details.totalQuantity,
+                    codigo_rastreio: details.trackingCode,
+                    valor_total: details.totalValue,
+                    status_atual: details.statusLabel,
+                    link_sistema: details.portalLink,
+                    atualizado_por: sender
+                },
+                eventLabel: 'tracking_technician_email'
             });
-            return {
-                success: false,
-                reason: 'send_failed',
-                recipient: recipientEmail,
-                sentAt,
-                log: payload
-            };
+        } catch (error) {
+            sent = false;
+            errorMessage = error?.message || 'unknown_error';
         }
 
-        const payload = logResult({
-            success: true,
-            solicitationNumber,
-            recipient: recipientEmail,
-            reason: null,
-            tecnicoId: technicianId
+        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+        const log = this.logEmailNotification({
+            eventType,
+            solicitationNumber: details.number,
+            recipient: target.recipientEmail,
+            success: !!sent,
+            reason,
+            error: errorMessage,
+            profile: 'tecnico',
+            sentAt
         });
 
         return {
-            success: true,
-            reason: null,
-            recipient: recipientEmail,
+            success: !!sent,
+            reason,
+            recipient: target.recipientEmail,
             sentAt,
-            log: payload
+            tecnicoId: target.technicianId || null,
+            log
         };
     },
     /**
@@ -2225,6 +2538,9 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
+
 
 
 

@@ -1202,7 +1202,8 @@ const Solicitacoes = {
             trackingCode,
             updatedBy
         }).then((result) => {
-            if (result?.success) {
+                const sent = result === true || result?.success === true;
+                if (sent) {
                 Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
                 return;
             }
@@ -1678,12 +1679,19 @@ const Solicitacoes = {
                 solicitation: persistedSolicitation,
                 submittedBy: userName,
                 recipient
-            }).then((sent) => {
+            }).then((result) => {
+                const sent = result === true || result?.success === true;
                 if (sent) {
                     Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
-                } else {
-                    Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+                    return;
                 }
+
+                if (result?.reason === 'invalid_recipient') {
+                    Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
+                    return;
+                }
+
+                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
             }).catch(() => {
                 Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
             });
@@ -1880,6 +1888,10 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
 
 
 

@@ -654,6 +654,7 @@ const Aprovacoes = {
                     }
                 }
 
+                this.sendTechnicianApprovalNotification(updatedSol, userName, { silent: false });
                 this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
             }
             
@@ -664,6 +665,140 @@ const Aprovacoes = {
         } else {
             Utils.showToast('Erro ao aprovar solicitação', 'error');
         }
+    },
+
+    getTechnicianNotificationFailureMessage(reason) {
+        if (reason === 'missing_email') {
+            return 'o técnico solicitante está sem e-mail cadastrado na base de Técnicos.';
+        }
+        if (reason === 'invalid_email') {
+            return 'o e-mail do técnico solicitante está inválido no cadastro de Técnicos.';
+        }
+        if (reason === 'invalid_technician_link' || reason === 'technician_not_found') {
+            return 'não foi possível validar o vínculo da solicitação com o técnico solicitante.';
+        }
+        return 'houve falha no envio automático. Verifique o log.';
+    },
+
+    sendTechnicianApprovalNotification(solicitation, approvedBy, options = {}) {
+        if (!solicitation || typeof Utils.sendApprovalNotificationToTechnician !== 'function') {
+            return Promise.resolve({
+                success: false,
+                sentCount: 0,
+                failedCount: solicitation ? 1 : 0,
+                totalRecipients: solicitation ? 1 : 0,
+                results: []
+            });
+        }
+
+        const silent = options?.silent === true;
+        return Utils.sendApprovalNotificationToTechnician({
+            solicitation,
+            approvedBy
+        }).then((result) => {
+            const success = !!result?.success;
+            const summary = {
+                success,
+                sentCount: success ? 1 : 0,
+                failedCount: success ? 0 : 1,
+                totalRecipients: 1,
+                results: [result]
+            };
+
+            if (!silent) {
+                if (success) {
+                    Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
+                } else {
+                    const reasonMessage = this.getTechnicianNotificationFailureMessage(result?.reason);
+                    Utils.showToast(`Solicitação aprovada, mas ${reasonMessage}`, 'warning');
+                }
+            }
+
+            return summary;
+        }).catch((error) => {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.APPROVAL, 'technician_approval_email_dispatch', {
+                    eventType: 'aprovação',
+                    solicitationNumber: solicitation?.numero || null,
+                    success: false,
+                    sentAt: new Date().toISOString(),
+                    error: error?.message || 'unknown_error'
+                });
+            }
+
+            if (!silent) {
+                Utils.showToast('Solicitação aprovada, mas houve falha no envio de e-mail para o técnico.', 'warning');
+            }
+
+            return {
+                success: false,
+                sentCount: 0,
+                failedCount: 1,
+                totalRecipients: 1,
+                results: []
+            };
+        });
+    },
+
+    sendTechnicianRejectionNotification(solicitation, rejectedBy, rejectionReason, options = {}) {
+        if (!solicitation || typeof Utils.sendRejectionNotificationToTechnician !== 'function') {
+            return Promise.resolve({
+                success: false,
+                sentCount: 0,
+                failedCount: solicitation ? 1 : 0,
+                totalRecipients: solicitation ? 1 : 0,
+                results: []
+            });
+        }
+
+        const silent = options?.silent === true;
+        return Utils.sendRejectionNotificationToTechnician({
+            solicitation,
+            rejectedBy,
+            rejectionReason
+        }).then((result) => {
+            const success = !!result?.success;
+            const summary = {
+                success,
+                sentCount: success ? 1 : 0,
+                failedCount: success ? 0 : 1,
+                totalRecipients: 1,
+                results: [result]
+            };
+
+            if (!silent) {
+                if (success) {
+                    Utils.showToast(`Técnico notificado da rejeição por e-mail (${result.recipient})`, 'info');
+                } else {
+                    const reasonMessage = this.getTechnicianNotificationFailureMessage(result?.reason);
+                    Utils.showToast(`Solicitação rejeitada, mas ${reasonMessage}`, 'warning');
+                }
+            }
+
+            return summary;
+        }).catch((error) => {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.APPROVAL, 'technician_rejection_email_dispatch', {
+                    eventType: 'rejeição',
+                    solicitationNumber: solicitation?.numero || null,
+                    success: false,
+                    sentAt: new Date().toISOString(),
+                    error: error?.message || 'unknown_error'
+                });
+            }
+
+            if (!silent) {
+                Utils.showToast('Solicitação rejeitada, mas houve falha no envio de e-mail para o técnico.', 'warning');
+            }
+
+            return {
+                success: false,
+                sentCount: 0,
+                failedCount: 1,
+                totalRecipients: 1,
+                results: []
+            };
+        });
     },
 
     sendSupplierApprovalNotification(solicitation, approvedBy, options = {}) {
@@ -691,7 +826,7 @@ const Aprovacoes = {
                     Utils.showToast('Aprovação concluída. Nenhum destinatário de fornecedor válido para notificação.', 'warning');
                 } else {
                     if (sentCount > 0) {
-                        Utils.showToast(`${sentCount} destinatário(s) fornecedor notificado(s) por e-mail.`, 'info');
+                        Utils.showToast(`${sentCount} destinatário(s) de fornecedor notificado(s) por e-mail.`, 'info');
                     }
                     if (failedCount > 0) {
                         Utils.showToast(`${failedCount} envio(s) de e-mail para fornecedor falharam. Verifique o log.`, 'warning');
@@ -709,7 +844,7 @@ const Aprovacoes = {
         }).catch((error) => {
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', {
-                    eventType: 'aprovacao_para_fornecedor',
+                    eventType: 'aprovação',
                     solicitationNumber: solicitation?.numero || null,
                     success: false,
                     sentAt: new Date().toISOString(),
@@ -730,7 +865,6 @@ const Aprovacoes = {
             };
         });
     },
-
     /**
      * Open reject modal
      */
@@ -804,6 +938,12 @@ const Aprovacoes = {
         if (success) {
             Utils.showToast('Solicitação rejeitada', 'success');
             Utils.closeModal();
+
+            const updatedSol = DataManager.getSolicitationById(id);
+            if (updatedSol) {
+                this.sendTechnicianRejectionNotification(updatedSol, userName, reason, { silent: false });
+            }
+
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
         } else {
@@ -894,6 +1034,7 @@ const Aprovacoes = {
                         }
                     }
 
+                    emailPromises.push(this.sendTechnicianApprovalNotification(sol, userName, { silent: true }));
                     emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
                 }
             }
@@ -916,15 +1057,15 @@ const Aprovacoes = {
                 }, { sentCount: 0, failedCount: 0, totalRecipients: 0 });
 
                 if (summary.totalRecipients === 0) {
-                    Utils.showToast('Aprovações concluídas. Nenhum destinatário de fornecedor válido para notificação.', 'warning');
+                    Utils.showToast('Aprovações concluídas. Nenhum destinatário válido para notificação.', 'warning');
                     return;
                 }
 
                 if (summary.sentCount > 0) {
-                    Utils.showToast(`${summary.sentCount} envio(s) de e-mail para fornecedores realizado(s).`, 'info');
+                    Utils.showToast(`${summary.sentCount} notificação(ões) por e-mail enviada(s).`, 'info');
                 }
                 if (summary.failedCount > 0) {
-                    Utils.showToast(`${summary.failedCount} envio(s) de e-mail para fornecedores falharam. Verifique o log.`, 'warning');
+                    Utils.showToast(`${summary.failedCount} notificação(ões) por e-mail falharam. Verifique o log.`, 'warning');
                 }
             });
         }
@@ -935,6 +1076,12 @@ const Aprovacoes = {
         Auth.renderMenu(App.currentPage);
     }
 };
+
+
+
+
+
+
 
 
 
