@@ -123,6 +123,13 @@ const FornecedorPortal = {
         };
     },
 
+    normalizeStatus(status) {
+        if (typeof DataManager.normalizeWorkflowStatus === 'function') {
+            return DataManager.normalizeWorkflowStatus(status);
+        }
+        return String(status || '').trim();
+    },
+
     belongsToCurrentSupplier(sol, scope = this.getSupplierScope()) {
         if (!sol || !sol.fornecedorId) {
             return false;
@@ -143,11 +150,11 @@ const FornecedorPortal = {
     getFilteredSolicitations() {
         const scope = this.getSupplierScope();
         let solicitations = DataManager.getSolicitations().filter(sol =>
-            FORNECEDOR_VISIBLE_STATUSES.includes(sol.status) && this.belongsToCurrentSupplier(sol, scope)
+            FORNECEDOR_VISIBLE_STATUSES.includes(this.normalizeStatus(sol.status)) && this.belongsToCurrentSupplier(sol, scope)
         );
 
         if (this.filters.status) {
-            solicitations = solicitations.filter(sol => sol.status === this.filters.status);
+            solicitations = solicitations.filter(sol => this.normalizeStatus(sol.status) === this.filters.status);
         }
 
         if (this.filters.search) {
@@ -204,7 +211,7 @@ const FornecedorPortal = {
     },
 
     getShippingSituation(sol) {
-        const status = sol?.status;
+        const status = this.normalizeStatus(sol?.status);
         if (status === 'aprovada') {
             return 'Aguardando envio do fornecedor';
         }
@@ -220,7 +227,8 @@ const FornecedorPortal = {
         if (!this.belongsToCurrentSupplier(sol, scope)) {
             return false;
         }
-        return sol.status === 'aprovada' || sol.status === 'em-transito';
+        const status = this.normalizeStatus(sol.status);
+        return status === 'aprovada' || status === 'em-transito';
     },
 
     renderTrackingCell(sol, scope = this.getSupplierScope()) {
@@ -286,7 +294,7 @@ const FornecedorPortal = {
                         ${paginated.map(sol => `
                             <tr>
                                 <td><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></td>
-                                <td>${Utils.renderStatusBadge(sol.status)}</td>
+                                <td>${Utils.renderStatusBadge(this.normalizeStatus(sol.status))}</td>
                                 <td>${Utils.escapeHtml(this.getTechnicianName(sol))}</td>
                                 <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
@@ -461,7 +469,7 @@ const FornecedorPortal = {
         }
 
         const scope = this.getSupplierScope();
-        if (!FORNECEDOR_VISIBLE_STATUSES.includes(sol.status) || !this.belongsToCurrentSupplier(sol, scope)) {
+        if (!FORNECEDOR_VISIBLE_STATUSES.includes(this.normalizeStatus(sol.status)) || !this.belongsToCurrentSupplier(sol, scope)) {
             Utils.showToast('Você não tem acesso a este histórico', 'error');
             return;
         }
@@ -505,7 +513,7 @@ const FornecedorPortal = {
                     </div>
                     <div class="form-group">
                         <label>Status atual</label>
-                        <p>${Utils.renderStatusBadge(sol.status)}</p>
+                        <p>${Utils.renderStatusBadge(this.normalizeStatus(sol.status))}</p>
                     </div>
                     <div class="form-group">
                         <label>Técnico</label>
@@ -595,7 +603,7 @@ const FornecedorPortal = {
         }
 
         const scope = this.getSupplierScope();
-        if (!FORNECEDOR_VISIBLE_STATUSES.includes(sol.status) || !this.belongsToCurrentSupplier(sol, scope)) {
+        if (!FORNECEDOR_VISIBLE_STATUSES.includes(this.normalizeStatus(sol.status)) || !this.belongsToCurrentSupplier(sol, scope)) {
             Utils.showToast('Você não tem acesso a esta solicitação', 'error');
             return;
         }
@@ -611,5 +619,7 @@ const FornecedorPortal = {
         }
     }
 };
+
+
 
 

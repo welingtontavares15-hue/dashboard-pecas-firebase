@@ -638,30 +638,17 @@ const Solicitacoes = {
         }
 
         if (role === 'fornecedor') {
-            const fornecedorId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
-            const currentUser = Auth.getCurrentUser() || {};
-            const normalizeEmail = (value) => {
-                if (typeof DataManager.normalizeEmail === 'function') {
-                    return DataManager.normalizeEmail(value);
-                }
-                return String(value || '').trim().toLowerCase();
-            };
-            const currentEmail = normalizeEmail(currentUser.email);
-            solicitations = solicitations.filter((sol) => {
-                const inSupplierFlow = sol.status === 'aprovada' || sol.status === 'em-transito';
-                if (!inSupplierFlow || !sol.fornecedorId) {
-                    return false;
-                }
-                if (fornecedorId) {
-                    return sol.fornecedorId === fornecedorId;
-                }
-                const supplier = DataManager.getSupplierById(sol.fornecedorId);
-                return !!currentEmail && normalizeEmail(supplier?.email) === currentEmail;
-            });
+            solicitations = solicitations.filter((sol) => this.canCurrentUserAccessSolicitation(sol));
         }
+
         const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : (this.filters.status ? [this.filters.status] : []);
         if (selectedStatuses.length > 0) {
-            solicitations = solicitations.filter(s => selectedStatuses.includes(s.status));
+            solicitations = solicitations.filter((s) => {
+                const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+                    ? DataManager.normalizeWorkflowStatus(s.status)
+                    : s.status;
+                return selectedStatuses.includes(normalizedStatus);
+            });
         }
         if (this.filters.tecnico) {
             solicitations = solicitations.filter(s => s.tecnicoId === this.filters.tecnico);
@@ -735,6 +722,48 @@ const Solicitacoes = {
         }
     },
 
+    canCurrentUserAccessSolicitation(sol) {
+        if (!sol) {
+            return false;
+        }
+
+        const role = Auth.getRole();
+        if (role === 'administrador' || role === 'gestor') {
+            return true;
+        }
+
+        if (role === 'tecnico') {
+            return sol.tecnicoId === Auth.getTecnicoId();
+        }
+
+        if (role === 'fornecedor') {
+            const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+                ? DataManager.normalizeWorkflowStatus(sol.status)
+                : String(sol.status || '').trim();
+            if (!['aprovada', 'em-transito'].includes(normalizedStatus) || !sol.fornecedorId) {
+                return false;
+            }
+
+            const fornecedorId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
+            if (fornecedorId) {
+                return sol.fornecedorId === fornecedorId;
+            }
+
+            const normalizeEmail = (value) => {
+                if (typeof DataManager.normalizeEmail === 'function') {
+                    return DataManager.normalizeEmail(value);
+                }
+                return String(value || '').trim().toLowerCase();
+            };
+
+            const currentEmail = normalizeEmail(Auth.getCurrentUser()?.email);
+            const supplier = DataManager.getSupplierById(sol.fornecedorId);
+            return !!currentEmail && normalizeEmail(supplier?.email) === currentEmail;
+        }
+
+        return false;
+    },
+
     /**
      * View solicitation details
      */
@@ -745,9 +774,14 @@ const Solicitacoes = {
             return;
         }
 
+        if (!this.canCurrentUserAccessSolicitation(sol)) {
+            Utils.showToast('Você não tem acesso a esta solicitação', 'error');
+            return;
+        }
+
         const isTecnicoOwner = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
         const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
-        const canManageTracking = Auth.getRole() === 'fornecedor';
+        const canManageTracking = Auth.getRole() === 'fornecedor' && this.canCurrentUserAccessSolicitation(sol);
         const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
 
         if (isTecnicoOwner) {
@@ -972,7 +1006,16 @@ const Solicitacoes = {
             return;
         }
 
-        if (!['aprovada', 'em-transito'].includes(sol.status)) {
+        if (!this.canCurrentUserAccessSolicitation(sol)) {
+            Utils.showToast('Você não tem acesso a esta solicitação', 'error');
+            return;
+        }
+
+        const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+            ? DataManager.normalizeWorkflowStatus(sol.status)
+            : sol.status;
+
+        if (!['aprovada', 'em-transito'].includes(normalizedStatus)) {
             Utils.showToast('O rastreio só pode ser informado após a aprovação', 'warning');
             return;
         }
@@ -1029,9 +1072,17 @@ const Solicitacoes = {
             return;
         }
 
-        const supplierId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
-        if (supplierId && sol.fornecedorId !== supplierId) {
+        if (!this.canCurrentUserAccessSolicitation(sol)) {
             Utils.showToast('Você não tem acesso a esta solicitação', 'error');
+            return;
+        }
+
+        const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
+            ? DataManager.normalizeWorkflowStatus(sol.status)
+            : sol.status;
+
+        if (!['aprovada', 'em-transito'].includes(normalizedStatus)) {
+            Utils.showToast('O rastreio só pode ser informado em solicitações aprovadas ou em trânsito', 'warning');
             return;
         }
 
@@ -1703,6 +1754,10 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
 
 
 

@@ -181,7 +181,7 @@ const Auth = {
                     return false;
                 }
 
-                const latestUser = DataManager.getUserByUsername(sessionUser.username);
+                const latestUser = DataManager.getUserById(sessionUser.id) || DataManager.getUserByUsername(sessionUser.username);
 
                 if (!latestUser) {
                     console.warn('Sessão removida: usuário não encontrado na base');
@@ -230,11 +230,6 @@ const Auth = {
             const directTecnico = DataManager.getUserByUsername('tecnico');
             if (directTecnico && directTecnico.disabled !== true) {
                 inputUsername = 'tecnico';
-            } else {
-                const tecnicoUser = (DataManager.getUsers() || []).find(u => u?.role === 'tecnico' && u?.disabled !== true);
-                if (tecnicoUser?.username) {
-                    inputUsername = tecnicoUser.username;
-                }
             }
         }
 
@@ -773,6 +768,7 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
 
 
 

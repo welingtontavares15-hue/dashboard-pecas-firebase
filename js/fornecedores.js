@@ -472,16 +472,40 @@ const Fornecedores = {
             return;
         }
 
+        let resetEmailSent = false;
+        let resetFallbackPrepared = false;
+
         if (supplier.email) {
-            const sent = Utils.sendCredentialsEmail({
-                to: supplier.email,
-                username: user.username,
-                password: sanitizedPassword,
-                name: supplier.nome
-            });
-            if (sent) {
-                Utils.showToast('Senha redefinida. E-mail preparado para envio.', 'info');
+            try {
+                if (typeof Utils.sendPasswordResetEmail === 'function') {
+                    resetEmailSent = await Utils.sendPasswordResetEmail({
+                        to: supplier.email,
+                        username: user.username,
+                        password: sanitizedPassword,
+                        name: supplier.nome,
+                        roleLabel: 'fornecedor'
+                    });
+                }
+            } catch (_emailError) {
+                resetEmailSent = false;
             }
+
+            if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
+                resetFallbackPrepared = Utils.sendCredentialsEmail({
+                    to: supplier.email,
+                    username: user.username,
+                    password: sanitizedPassword,
+                    name: supplier.nome
+                });
+            }
+        }
+
+        if (resetEmailSent) {
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${supplier.email}`, 'info');
+        } else if (resetFallbackPrepared) {
+            Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
+        } else if (supplier.email) {
+            Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
         Utils.showToast('Senha do fornecedor redefinida com sucesso', 'success');
@@ -518,6 +542,7 @@ const Fornecedores = {
         this.refreshTable();
     }
 };
+
 
 
 

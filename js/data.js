@@ -213,6 +213,63 @@ const DataManager = {
         HISTORICO_MANUAL: 'historico-manual'
     },
 
+    normalizeWorkflowStatus(status) {
+        const raw = Utils.normalizeText(String(status || '').replace(/-/g, '_'));
+        const aliases = {
+            rascunho: this.STATUS.RASCUNHO,
+            enviada: this.STATUS.PENDENTE,
+            criado: this.STATUS.PENDENTE,
+            criada: this.STATUS.PENDENTE,
+            pendente: this.STATUS.PENDENTE,
+            pendente_aprovacao: this.STATUS.PENDENTE,
+            aprovada: this.STATUS.APROVADA,
+            aprovado: this.STATUS.APROVADA,
+            rejeitada: this.STATUS.REJEITADA,
+            reprovado: this.STATUS.REJEITADA,
+            em_transito: this.STATUS.EM_TRANSITO,
+            em_compra: this.STATUS.EM_TRANSITO,
+            entregue: this.STATUS.FINALIZADA,
+            finalizada: this.STATUS.FINALIZADA,
+            concluido: this.STATUS.FINALIZADA,
+            enviado: this.STATUS.FINALIZADA,
+            historico_manual: this.STATUS.HISTORICO_MANUAL
+        };
+
+        return aliases[raw] || (String(status || '').trim() || this.STATUS.PENDENTE);
+    },
+
+    isValidWorkflowTransition(currentStatus, nextStatus) {
+        const from = this.normalizeWorkflowStatus(currentStatus);
+        const to = this.normalizeWorkflowStatus(nextStatus);
+
+        if (!to) {
+            return false;
+        }
+
+        if (from === to) {
+            return true;
+        }
+
+        if (to === this.STATUS.HISTORICO_MANUAL) {
+            return true;
+        }
+
+        const allowedTransitions = {
+            [this.STATUS.RASCUNHO]: [this.STATUS.PENDENTE],
+            [this.STATUS.PENDENTE]: [this.STATUS.APROVADA, this.STATUS.REJEITADA],
+            [this.STATUS.APROVADA]: [this.STATUS.EM_TRANSITO],
+            [this.STATUS.EM_TRANSITO]: [this.STATUS.FINALIZADA],
+            [this.STATUS.REJEITADA]: [this.STATUS.PENDENTE],
+            [this.STATUS.FINALIZADA]: []
+        };
+
+        if (!Object.prototype.hasOwnProperty.call(allowedTransitions, from)) {
+            return true;
+        }
+
+        return (allowedTransitions[from] || []).includes(to);
+    },
+
     // Cloud storage initialized flag
     cloudInitialized: false,
     initPromise: null,
@@ -1096,11 +1153,38 @@ const DataManager = {
         return this._persistCollectionToCloud(this.KEYS.USERS, users);
     },
 
+    handlePostUserRemoval(removedUsers = []) {
+        const removed = Array.isArray(removedUsers) ? removedUsers.filter(Boolean) : [];
+        if (removed.length === 0) {
+            return;
+        }
+
+        if (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function') {
+            const currentUser = Auth.getCurrentUser();
+            if (currentUser && removed.some((item) => item?.id && item.id === currentUser.id)) {
+                Auth.logout();
+                if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
+                    App.showLogin();
+                }
+            }
+        }
+
+        if (typeof Auth !== 'undefined' && typeof Auth._rateLimitCache === 'object' && Auth._rateLimitCache) {
+            removed.forEach((item) => {
+                const normalizedRemoved = this.normalizeUsername(item?.username);
+                if (normalizedRemoved) {
+                    delete Auth._rateLimitCache[normalizedRemoved];
+                }
+            });
+        }
+    },
+
     async deleteUserById(userId) {
         if (!userId) {
             return false;
         }
         const users = this.getUsers();
+        const removedUser = users.find(u => u.id === userId) || null;
         const filtered = users.filter(u => u.id !== userId);
         if (filtered.length === users.length) {
             return false;
@@ -1109,6 +1193,7 @@ const DataManager = {
         if (saved) {
             this._sessionCache[this.KEYS.USERS] = filtered;
             this.emitDataUpdated([this.KEYS.USERS], 'local');
+            this.handlePostUserRemoval([removedUser]);
         }
         return saved;
     },
@@ -1339,8 +1424,8 @@ const DataManager = {
             const merged = {
                 ...current,
                 ...requestedGestor,
-                passwordHash: requestedPasswordHash,
-                updatedAt: Date.now()
+                passwordHash: current.passwordHash || requestedPasswordHash,
+                updatedAt: current.updatedAt || Date.now()
             };
             delete merged.password;
 
@@ -1350,10 +1435,11 @@ const DataManager = {
                 current.role !== merged.role ||
                 this.normalizeEmail(current.email) !== this.normalizeEmail(merged.email) ||
                 current.disabled !== merged.disabled ||
-                current.passwordHash !== merged.passwordHash
+                !current.passwordHash
             );
 
             if (changed) {
+                merged.updatedAt = Date.now();
                 users[requestedIndex] = merged;
                 updated = true;
             }
@@ -1650,6 +1736,7 @@ const DataManager = {
             u.tecnicoId !== technicianId &&
             !(u.role === 'tecnico' && this.normalizeUsername(u.username) === normalizedUsername)
         );
+        const removedUsers = users.filter(u => !nextUsers.includes(u));
 
         const savedTechnicians = await this._persistCollectionToCloud(this.KEYS.TECHNICIANS, nextTechnicians);
         if (!savedTechnicians) {
@@ -1665,6 +1752,7 @@ const DataManager = {
         this._sessionCache[this.KEYS.TECHNICIANS] = nextTechnicians;
         this._sessionCache[this.KEYS.USERS] = nextUsers;
         this.emitDataUpdated([this.KEYS.TECHNICIANS, this.KEYS.USERS], 'local');
+        this.handlePostUserRemoval(removedUsers);
         return { success: true };
     },
 
@@ -1809,6 +1897,7 @@ const DataManager = {
             const sameEmail = normalizedEmail && this.normalizeEmail(u.email) === normalizedEmail;
             return !(sameUsername || sameEmail);
         });
+        const removedUsers = users.filter(u => !nextUsers.includes(u));
 
         const savedSuppliers = await this._persistCollectionToCloud(this.KEYS.SUPPLIERS, nextSuppliers);
         if (!savedSuppliers) {
@@ -1824,6 +1913,7 @@ const DataManager = {
         this._sessionCache[this.KEYS.SUPPLIERS] = nextSuppliers;
         this._sessionCache[this.KEYS.USERS] = nextUsers;
         this.emitDataUpdated([this.KEYS.SUPPLIERS, this.KEYS.USERS], 'local');
+        this.handlePostUserRemoval(removedUsers);
         return { success: true };
     },
 
@@ -2085,40 +2175,49 @@ const DataManager = {
 
     getPendingSolicitations() {
         const solicitations = this.getSolicitations();
-        return solicitations.filter(s => 
-            s.status === this.STATUS.PENDENTE &&
+        return solicitations.filter(s =>
+            this.normalizeWorkflowStatus(s.status) === this.STATUS.PENDENTE &&
             s.historicoManual !== true
         );
     },
 
     saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(solicitation);
+        normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
 
         const solicitations = this.getSolicitations();
         const index = solicitations.findIndex(s => s.id === normalizedSolicitation.id);
         let persistedSolicitation;
-        
+        const now = Date.now();
+
         if (index >= 0) {
             // Optimistic concurrency check
             const existing = solicitations[index];
             const existingVersion = Number(existing.audit?.version) || 0;
             const incomingVersion = normalizedSolicitation.audit?.version;
-            
+            const existingStatus = this.normalizeWorkflowStatus(existing.status || this.STATUS.PENDENTE);
+
             // If incoming has version and it doesn't match, there's a conflict
             // Use Number() for type-safe comparison
             if (incomingVersion !== undefined && Number(incomingVersion) !== existingVersion) {
                 console.warn(`Conflito de versão: esperado ${existingVersion}, recebido ${incomingVersion}`);
                 return { success: false, error: 'conflict', message: 'Versão desatualizada. Recarregue os dados.' };
             }
-            
+
+            if (!this.isValidWorkflowTransition(existingStatus, normalizedSolicitation.status)) {
+                console.warn(`Transição de status inválida ao salvar solicitação: ${existingStatus} -> ${normalizedSolicitation.status}`);
+                return { success: false, error: 'invalid_transition', message: 'Fluxo de status inválido.' };
+            }
+
             // Update with new version
             normalizedSolicitation.audit = {
                 ...normalizedSolicitation.audit,
                 version: existingVersion + 1,
-                lastUpdatedAt: Date.now(),
+                lastUpdatedAt: now,
                 lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
             };
-            
+            normalizedSolicitation.updatedAt = now;
+
             solicitations[index] = normalizedSolicitation;
             persistedSolicitation = solicitations[index];
         } else {
@@ -2127,32 +2226,33 @@ const DataManager = {
                 solicitations.map(s => s.numero),
                 normalizedSolicitation.data
             );
-            normalizedSolicitation.createdAt = Date.now();
-            
+            normalizedSolicitation.createdAt = now;
+            normalizedSolicitation.updatedAt = now;
+
             // Initialize audit trail for new solicitation
             normalizedSolicitation.audit = {
                 version: 1,
-                createdAt: Date.now(),
+                createdAt: now,
                 createdBy: normalizedSolicitation.createdBy || 'Sistema',
-                lastUpdatedAt: Date.now(),
+                lastUpdatedAt: now,
                 lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
             };
-            
+
             // Initialize timeline array for tracking events
             if (!normalizedSolicitation.timeline) {
                 normalizedSolicitation.timeline = [];
             }
             normalizedSolicitation.timeline.push({
                 event: 'created',
-                at: Date.now(),
+                at: now,
                 by: normalizedSolicitation.createdBy || 'Sistema'
             });
-            
+
             // Initialize approvals array for approval history
             if (!normalizedSolicitation.approvals) {
                 normalizedSolicitation.approvals = [];
             }
-            
+
             solicitations.push(normalizedSolicitation);
             persistedSolicitation = normalizedSolicitation;
         }
@@ -2162,40 +2262,65 @@ const DataManager = {
             this.queueOneDriveBackup(persistedSolicitation);
             this.createSolicitationsBackup({ download: false, reason: index >= 0 ? 'auto-update' : 'auto-create', silent: true });
         }
-        
+
         return saved;
     },
     
     updateSolicitationStatus(id, status, extra = {}) {
         const solicitations = this.getSolicitations();
         const index = solicitations.findIndex(s => s.id === id);
-        
+
         if (index >= 0) {
             const solicitation = solicitations[index];
-            const previousStatus = solicitation.status;
-            
-            solicitation.status = status;
-            
+            const previousStatus = this.normalizeWorkflowStatus(solicitation.status || this.STATUS.PENDENTE);
+            const nextStatus = this.normalizeWorkflowStatus(status);
+
+            if (!this.isValidWorkflowTransition(previousStatus, nextStatus)) {
+                console.warn(`Transição de status inválida: ${previousStatus} -> ${nextStatus}`);
+                return false;
+            }
+
+            const payload = { ...extra };
+            const now = Date.now();
+
+            if (nextStatus === this.STATUS.EM_TRANSITO) {
+                const trackingCode = String(payload.trackingCode || solicitation.trackingCode || '').trim();
+                if (!trackingCode) {
+                    console.warn('Transição para "Em trânsito" bloqueada: rastreio ausente.');
+                    return false;
+                }
+                payload.trackingCode = trackingCode;
+                payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
+            }
+
+            if (nextStatus === this.STATUS.FINALIZADA) {
+                payload.deliveredAt = payload.deliveredAt || now;
+                payload.finalizedAt = payload.finalizedAt || now;
+            }
+
+            solicitation.status = nextStatus;
+            solicitation.updatedAt = now;
+
             // Update audit version
             const currentVersion = solicitation.audit?.version || 0;
             solicitation.audit = {
                 ...solicitation.audit,
                 version: currentVersion + 1,
-                lastUpdatedAt: Date.now(),
-                lastUpdatedBy: extra.by || 'Sistema'
+                lastUpdatedAt: now,
+                lastUpdatedBy: payload.by || 'Sistema'
             };
-            
+
             // Maintain statusHistory for backward compatibility
             if (!solicitation.statusHistory) {
                 solicitation.statusHistory = [];
             }
-            
+
             solicitation.statusHistory.push({
-                status,
-                at: Date.now(),
-                by: extra.by || 'Sistema'
+                status: nextStatus,
+                at: now,
+                by: payload.by || 'Sistema'
             });
-            
+
             // Add to timeline for comprehensive event tracking
             if (!solicitation.timeline) {
                 solicitation.timeline = [];
@@ -2203,28 +2328,31 @@ const DataManager = {
             solicitation.timeline.push({
                 event: 'status_changed',
                 from: previousStatus,
-                to: status,
-                at: Date.now(),
-                by: extra.by || 'Sistema',
-                comment: extra.approvalComment || extra.rejectionReason || null
+                to: nextStatus,
+                at: now,
+                by: payload.by || 'Sistema',
+                comment: payload.approvalComment || payload.rejectionReason || null
             });
-            
+
             // Track approvals separately for the approvals trail
-            if (status === 'aprovada' || status === 'rejeitada') {
+            if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
                 if (!solicitation.approvals) {
                     solicitation.approvals = [];
                 }
                 solicitation.approvals.push({
-                    decision: status === 'aprovada' ? 'approved' : 'rejected',
-                    at: Date.now(),
-                    by: extra.by || 'Sistema',
-                    comment: extra.approvalComment || extra.rejectionReason || null
+                    decision: nextStatus === this.STATUS.APROVADA ? 'approved' : 'rejected',
+                    at: now,
+                    by: payload.by || 'Sistema',
+                    comment: payload.approvalComment || payload.rejectionReason || null
                 });
             }
-            
+
             // Merge extra data
-            Object.assign(solicitation, extra);
-            
+            delete payload.status;
+            Object.assign(solicitation, payload);
+            solicitation.status = nextStatus;
+            solicitation.updatedAt = now;
+
             const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
             if (saved) {
                 this.queueOneDriveBackup(solicitation);
@@ -2764,6 +2892,18 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

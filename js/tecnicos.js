@@ -604,21 +604,46 @@ const Tecnicos = {
             return;
         }
 
+        let resetEmailSent = false;
+        let resetFallbackPrepared = false;
+
         if (tech.email) {
-            const sent = Utils.sendCredentialsEmail({
-                to: tech.email,
-                username: user.username,
-                password: sanitizedPassword,
-                name: tech.nome
-            });
-            if (sent) {
-                Utils.showToast('Senha redefinida. E-mail preparado para envio.', 'info');
+            try {
+                if (typeof Utils.sendPasswordResetEmail === 'function') {
+                    resetEmailSent = await Utils.sendPasswordResetEmail({
+                        to: tech.email,
+                        username: user.username,
+                        password: sanitizedPassword,
+                        name: tech.nome,
+                        roleLabel: 'técnico'
+                    });
+                }
+            } catch (_emailError) {
+                resetEmailSent = false;
             }
+
+            if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
+                resetFallbackPrepared = Utils.sendCredentialsEmail({
+                    to: tech.email,
+                    username: user.username,
+                    password: sanitizedPassword,
+                    name: tech.nome
+                });
+            }
+        }
+
+        if (resetEmailSent) {
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${tech.email}`, 'info');
+        } else if (resetFallbackPrepared) {
+            Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
+        } else if (tech.email) {
+            Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
     }
 };
+
 
 
 

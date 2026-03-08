@@ -313,6 +313,41 @@ Equipe Diversey`;
     },
 
     /**
+     * Send password reset notification e-mail (automatic).
+     */
+    async sendPasswordResetEmail({ to, username, password, name, roleLabel = 'usuário' } = {}) {
+        if (!to || !this.isValidEmail(to) || !username || !password) {
+            return false;
+        }
+
+        const safeRole = String(roleLabel || 'usuário').trim().toLowerCase();
+        const greeting = name ? `Olá ${name}` : 'Olá';
+        const subject = `Redefinição de senha - ${safeRole}`;
+        const message = [
+            `${greeting},`,
+            '',
+            `A senha do perfil ${safeRole} foi redefinida pelo administrador.`,
+            `Usuário: ${username}`,
+            `Nova senha: ${password}`,
+            '',
+            'Recomendamos alterar a senha após o primeiro acesso.'
+        ].join('\n');
+
+        return this.sendOperationalEmail({
+            recipient: to,
+            subject,
+            message,
+            fields: {
+                usuario: username,
+                perfil: safeRole,
+                nova_senha: password,
+                nome: name || ''
+            },
+            eventLabel: 'password_reset_email'
+        });
+    },
+
+    /**
      * Default manager e-mail recipient for approval notifications.
      */
     getManagerNotificationEmail() {
@@ -679,7 +714,7 @@ Equipe Diversey`;
 
         container.appendChild(toast);
 
-        const maxVisible = 4;
+        const maxVisible = window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 2 : 4;
         while (container.children.length > maxVisible) {
             container.firstElementChild?.remove();
         }
@@ -1848,6 +1883,10 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
+
+
 
 
 

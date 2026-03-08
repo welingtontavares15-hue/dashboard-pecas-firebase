@@ -553,17 +553,15 @@ const App = {
         } catch (error) {
             console.error('Erro de autenticação', error);
             const browserOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
-            const cloudReady = (typeof DataManager !== 'undefined' && typeof DataManager.isCloudReady === 'function')
-                ? DataManager.isCloudReady()
-                : true;
             const networkLikeError = (typeof Utils !== 'undefined' && typeof Utils.isConnectionError === 'function')
                 ? Utils.isConnectionError(error)
                 : false;
-            const shouldShowOffline = browserOffline || (!cloudReady && networkLikeError);
 
-            errorDiv.textContent = shouldShowOffline
+            errorDiv.textContent = browserOffline
                 ? 'Sem conexão com a internet. Tente novamente quando reconectar.'
-                : 'Erro ao autenticar. Verifique usuário e senha e tente novamente.';
+                : (networkLikeError
+                    ? 'Falha momentânea de comunicação com o serviço. Tente novamente em instantes.'
+                    : 'Erro ao autenticar. Verifique usuário e senha e tente novamente.');
             errorDiv.classList.remove('hidden');
             return;
         }
@@ -1054,16 +1052,40 @@ const App = {
             return;
         }
 
+        let resetEmailSent = false;
+        let resetFallbackPrepared = false;
+
         if (gestor.email) {
-            const sent = Utils.sendCredentialsEmail({
-                to: gestor.email,
-                username: gestor.username,
-                password: sanitizedPassword,
-                name: gestor.name
-            });
-            if (sent) {
-                Utils.showToast('Senha redefinida. E-mail preparado para envio.', 'info');
+            try {
+                if (typeof Utils.sendPasswordResetEmail === 'function') {
+                    resetEmailSent = await Utils.sendPasswordResetEmail({
+                        to: gestor.email,
+                        username: gestor.username,
+                        password: sanitizedPassword,
+                        name: gestor.name,
+                        roleLabel: 'gestor'
+                    });
+                }
+            } catch (_emailError) {
+                resetEmailSent = false;
             }
+
+            if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
+                resetFallbackPrepared = Utils.sendCredentialsEmail({
+                    to: gestor.email,
+                    username: gestor.username,
+                    password: sanitizedPassword,
+                    name: gestor.name
+                });
+            }
+        }
+
+        if (resetEmailSent) {
+            Utils.showToast(`Senha redefinida e e-mail enviado para ${gestor.email}`, 'info');
+        } else if (resetFallbackPrepared) {
+            Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
+        } else if (gestor.email) {
+            Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
         }
 
         Utils.showToast('Senha do gestor redefinida com sucesso', 'success');
@@ -1728,6 +1750,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+
 
 
 
