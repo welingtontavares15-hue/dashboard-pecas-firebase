@@ -24,10 +24,14 @@ const Aprovacoes = {
     render() {
         const content = document.getElementById('content-area');
         const pending = DataManager.getPendingSolicitations();
+        const advancedOpen = !!(this.filters.tecnico || this.filters.regiao);
 
         content.innerHTML = `
             <div class="page-header">
-                <h2><i class="fas fa-check-double"></i> Aprovações</h2>
+                <div class="page-heading">
+                    <h2><i class="fas fa-check-double"></i> Aprovações</h2>
+                    <p class="text-muted">Fila de decisão mais enxuta, com SLA e prioridade em primeiro plano.</p>
+                </div>
                 ${pending.length > 0 && Auth.hasPermission('aprovacoes', 'batch') ? `
                     <div class="btn-group">
                         <button class="btn btn-success" onclick="Aprovacoes.batchApprove()" id="batch-approve-btn" disabled>
@@ -37,59 +41,66 @@ const Aprovacoes = {
                 ` : ''}
             </div>
 
-            ${pending.length > 0 ? `
-                <div class="alert alert-warning mb-3" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid var(--warning-color); border-radius: var(--radius-md);">
-                    <i class="fas fa-clock" style="font-size: 1.5rem; color: var(--warning-color);"></i>
-                    <div>
-                        <strong>${pending.length} solicitação(ões) aguardando aprovação</strong>
-                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">
-                            Fila priorizada por maior custo. SLA: ${DataManager.getSettings().slaHours || 24} horas
-                        </p>
-                    </div>
-                </div>
-            ` : ''}
+            ${pending.length > 0 ? this.renderQueueSummary(pending) : ''}
 
-            <details class="filter-panel" open>
-                <summary class="filter-panel-toggle">Filtros</summary>
-                <div class="filters-bar filter-panel-body">
-                    <div class="filter-group">
-                        <label>Valor mínimo:</label>
-                        <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
+            <section class="page-filters approval-filter-shell filter-shell">
+                <div class="filter-shell-primary">
+                    <div class="filter-inline-group">
+                        <div class="filter-group">
+                            <label>Valor mínimo</label>
+                            <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
+                        </div>
+                        <div class="filter-group">
+                            <label>Prioridade</label>
+                            <select id="approval-prioridade" class="form-control">
+                                <option value="">Todas</option>
+                                <option value="alta" ${this.filters.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
+                                <option value="media" ${this.filters.prioridade === 'media' ? 'selected' : ''}>Média</option>
+                                <option value="baixa" ${this.filters.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="filter-group">
-                        <label>Técnico:</label>
-                        <select id="approval-tecnico" class="form-control">
-                            <option value="">Todos</option>
-                            ${DataManager.getTechnicians().map(t => `
-                                <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
-                            `).join('')}
-                        </select>
+                    <div class="filter-inline-group filter-inline-group-actions">
+                        <details class="filter-panel compact" ${advancedOpen ? 'open' : ''}>
+                            <summary class="filter-panel-toggle">Mais filtros</summary>
+                            <div class="filter-panel-body">
+                                <div class="filters-bar">
+                                    <div class="filter-group">
+                                        <label>Técnico</label>
+                                        <select id="approval-tecnico" class="form-control">
+                                            <option value="">Todos</option>
+                                            ${DataManager.getTechnicians().map(t => `
+                                                <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>${Utils.escapeHtml(t.nome)}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="filter-group">
+                                        <label>Região</label>
+                                        <select id="approval-regiao" class="form-control">
+                                            <option value="">Todas</option>
+                                            ${this.getRegionOptions().map(regiao => `
+                                                <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                        <button class="btn btn-outline btn-sm" onclick="Aprovacoes.clearFilters()">
+                            <i class="fas fa-times"></i> Limpar
+                        </button>
                     </div>
-                    <div class="filter-group">
-                        <label>Região:</label>
-                        <select id="approval-regiao" class="form-control">
-                            <option value="">Todas</option>
-                            ${this.getRegionOptions().map(regiao => `
-                                <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Prioridade:</label>
-                        <select id="approval-prioridade" class="form-control">
-                            <option value="">Todas</option>
-                            <option value="alta" ${this.filters.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
-                            <option value="media" ${this.filters.prioridade === 'media' ? 'selected' : ''}>Média</option>
-                            <option value="baixa" ${this.filters.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-outline" onclick="Aprovacoes.clearFilters()">
-                        <i class="fas fa-times"></i> Limpar
-                    </button>
                 </div>
-            </details>
+                ${this.renderFilterSummary()}
+            </section>
 
             <div class="card">
+                <div class="card-header compact-card-header">
+                    <div>
+                        <h4>Fila de aprovação</h4>
+                        <p id="approval-list-meta" class="text-muted">${pending.length > 0 ? `${Utils.formatNumber(pending.length)} solicitação(ões) aguardando avaliação.` : 'Sem solicitações aguardando avaliação.'}</p>
+                    </div>
+                </div>
                 <div class="card-body">
                     <div id="approvals-table-container">
                         ${this.renderTable()}
@@ -100,6 +111,66 @@ const Aprovacoes = {
 
         this.bindFilters();
         this.updateSelectedCount();
+    },
+
+    renderQueueSummary(pending = []) {
+        const settings = DataManager.getSettings();
+        const slaHours = settings.slaHours || 24;
+        const overSla = pending.filter((sol) => Utils.getHoursDiff(sol.createdAt || Date.now(), Date.now()) > slaHours).length;
+        const avgValue = pending.length > 0
+            ? pending.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0) / pending.length
+            : 0;
+
+        return `
+            <div class="summary-inline-grid approval-summary-grid">
+                <article class="summary-inline-card">
+                    <span>Fila pendente</span>
+                    <strong>${Utils.formatNumber(pending.length)}</strong>
+                    <small>Solicitações aguardando decisão</small>
+                </article>
+                <article class="summary-inline-card">
+                    <span>Acima do SLA</span>
+                    <strong>${Utils.formatNumber(overSla)}</strong>
+                    <small>SLA configurado em ${Utils.formatNumber(slaHours)} hora(s)</small>
+                </article>
+                <article class="summary-inline-card">
+                    <span>Ticket médio pendente</span>
+                    <strong>${Utils.formatCurrency(avgValue)}</strong>
+                    <small>Valor médio da fila atual</small>
+                </article>
+            </div>
+        `;
+    },
+
+    getActiveFilterChips() {
+        const chips = [];
+        if (this.filters.minValue) {
+            chips.push(`Valor mínimo: ${Utils.formatCurrency(Number(this.filters.minValue) || 0)}`);
+        }
+        if (this.filters.prioridade) {
+            chips.push(`Prioridade: ${this.filters.prioridade}`);
+        }
+        if (this.filters.tecnico) {
+            const technician = DataManager.getTechnicianById(this.filters.tecnico);
+            if (technician?.nome) {
+                chips.push(`Técnico: ${technician.nome}`);
+            }
+        }
+        if (this.filters.regiao) {
+            chips.push(`Região: ${this.filters.regiao}`);
+        }
+        return chips;
+    },
+
+    renderFilterSummary() {
+        const chips = this.getActiveFilterChips();
+        return `
+            <div class="filter-summary-row">
+                ${chips.length
+        ? chips.map(chip => `<span class="filter-summary-chip">${Utils.escapeHtml(chip)}</span>`).join('')
+        : '<span class="filter-summary-empty">Sem filtros adicionais aplicados à fila de aprovação.</span>'}
+            </div>
+        `;
     },
 
     /**
@@ -306,6 +377,17 @@ const Aprovacoes = {
      * Refresh table
      */
     refreshTable() {
+        const filterSummary = document.querySelector('.page-filters .filter-summary-row');
+        if (filterSummary) {
+            filterSummary.outerHTML = this.renderFilterSummary();
+        }
+        const meta = document.getElementById('approval-list-meta');
+        if (meta) {
+            const pending = this.getFilteredPendingSolicitations();
+            meta.textContent = pending.length > 0
+                ? `${Utils.formatNumber(pending.length)} solicitação(ões) aguardando avaliação.`
+                : 'Sem solicitações aguardando avaliação.';
+        }
         const container = document.getElementById('approvals-table-container');
         if (container) {
             container.innerHTML = this.renderTable();
@@ -1136,6 +1218,10 @@ const Aprovacoes = {
         }
     }
 };
+
+
+
+
 
 
 

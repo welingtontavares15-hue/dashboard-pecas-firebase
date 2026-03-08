@@ -1,40 +1,19 @@
 ﻿import { renderKpiCard } from './kpi-card.js';
 import { renderFilterField } from './filters.js';
-import { renderDataTable } from './data-table.js';
-import { normalizePipelineStatus, badgeClassByPipelineStatus } from './status-badge.js';
 
 const DASHBOARD_TEXTS = {
-    title: 'Painel de Custos de Pe\u00e7as',
-    subtitle: 'Acompanhe custos, volume e desempenho financeiro das solicita\u00e7\u00f5es.',
-    emptyGeneral: 'Sem dados no per\u00edodo selecionado.',
-    emptyRanking: 'Sem dados no per\u00edodo selecionado.',
-    emptyHistory: 'Sem dados no per\u00edodo selecionado.'
+    title: 'Painel Executivo de Pecas',
+    subtitle: 'Leitura objetiva de custo, volume e pendencias operacionais.',
+    empty: 'Sem dados no periodo selecionado.'
 };
 
-const FLOW_STEPS = [
-    'T\u00e9cnico abre a solicita\u00e7\u00e3o.',
-    'Gestor avalia a solicita\u00e7\u00e3o.',
-    'Se rejeitar, retorna para o t\u00e9cnico.',
-    'Se aprovar, a solicita\u00e7\u00e3o \u00e9 enviada ao fornecedor em PDF por e-mail.',
-    'Fornecedor responde com os dados do envio.',
-    'Gestor registra o rastreio no sistema.',
-    'Quando o material chega, o t\u00e9cnico marca como entregue.',
-    'A solicita\u00e7\u00e3o \u00e9 finalizada.'
+const PIPELINE_STATUSES = [
+    'PENDENTE_APROVACAO',
+    'APROVADO',
+    'EM_COMPRA',
+    'CONCLUIDO',
+    'REPROVADO'
 ];
-
-const FLOW_STATUSES = ['PENDENTE_APROVACAO', 'APROVADO', 'EM_COMPRA', 'CONCLUIDO', 'REPROVADO'];
-
-function getPipelineStatusLabel(status) {
-    const labels = {
-        PENDENTE_APROVACAO: 'Em aprovação',
-        APROVADO: 'Aprovado / aguardando envio',
-        EM_COMPRA: 'Em trânsito',
-        CONCLUIDO: 'Finalizada',
-        REPROVADO: 'Rejeitado'
-    };
-
-    return labels[status] || labels.PENDENTE_APROVACAO;
-}
 
 function getDefaultFilters() {
     const period = AnalyticsHelper.getGlobalPeriodFilter();
@@ -53,10 +32,11 @@ function getDefaultFilters() {
 function getStatusOptions() {
     return [
         { label: 'Todos', value: '' },
-        ...FLOW_STATUSES.map((status) => ({
-            label: getPipelineStatusLabel(status),
-            value: status
-        }))
+        { label: 'Em aprovacao', value: 'PENDENTE_APROVACAO' },
+        { label: 'Aprovado', value: 'APROVADO' },
+        { label: 'Em transito', value: 'EM_COMPRA' },
+        { label: 'Finalizada', value: 'CONCLUIDO' },
+        { label: 'Rejeitado', value: 'REPROVADO' }
     ];
 }
 
@@ -70,6 +50,48 @@ function getMappedStatuses(pipelineStatus) {
     };
 
     return map[pipelineStatus] || [];
+}
+
+function getPeriodLabel(filters) {
+    return AnalyticsHelper.getRangeLabel({
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        rangeDays: AnalyticsHelper.getGlobalPeriodFilter().rangeDays
+    });
+}
+
+function hasAdvancedDashboardFilters(filters) {
+    return !!(
+        filters.estado ||
+        filters.cliente ||
+        filters.tecnico ||
+        filters.status ||
+        String(filters.periodPreset) === 'custom'
+    );
+}
+
+function buildDashboardFilterChips(filters) {
+    const chips = [];
+    const statusOption = getStatusOptions().find((option) => option.value === filters.status);
+    const technician = filters.tecnico ? DataManager.getTechnicianById(filters.tecnico) : null;
+
+    if (String(filters.periodPreset) === 'custom') {
+        chips.push('Periodo personalizado');
+    }
+    if (filters.estado) {
+        chips.push(`Regiao: ${filters.estado}`);
+    }
+    if (filters.cliente) {
+        chips.push(`Cliente: ${filters.cliente}`);
+    }
+    if (technician?.nome) {
+        chips.push(`Tecnico: ${technician.nome}`);
+    }
+    if (statusOption?.label && filters.status) {
+        chips.push(`Status: ${statusOption.label}`);
+    }
+
+    return chips;
 }
 
 function filterBaseSolicitations(filters) {
@@ -114,47 +136,14 @@ function buildAnalysis(filters) {
 
 function getOpenSolicitationsCount(solicitations = []) {
     const closedStatuses = new Set(['CONCLUIDO', 'REPROVADO']);
-    return solicitations.filter((sol) => !closedStatuses.has(normalizePipelineStatus(sol.status))).length;
+    return solicitations.filter((sol) => !closedStatuses.has(String(AnalyticsHelper.normalizeStatus(sol.status || '') || '').toUpperCase())).length;
 }
 
-function getPartLabel(part) {
-    const description = String(part?.descricao || '').trim();
-    const code = String(part?.codigo || '').trim();
-    return description || code || 'Sem dados';
-}
-
-function getSolicitationTotalCost(solicitation = {}) {
-    const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
-    const itemsCost = items.reduce((sum, item) => {
-        const quantity = Number(item?.quantidade) || 0;
-        const unitValue = Number(item?.valorUnit) || 0;
-        return sum + (quantity * unitValue);
-    }, 0);
-
-    if (itemsCost > 0) {
-        return Math.round(itemsCost * 100) / 100;
-    }
-
-    return Number(solicitation.total) || 0;
-}
-
-function getHighValueSolicitations(solicitations = []) {
-    return solicitations.slice().sort((a, b) => {
-        const totalDiff = getSolicitationTotalCost(b) - getSolicitationTotalCost(a);
-        if (totalDiff !== 0) {
-            return totalDiff;
-        }
-
-        const dateA = new Date(a.createdAt || a.data || 0).getTime();
-        const dateB = new Date(b.createdAt || b.data || 0).getTime();
-        return dateB - dateA;
-    });
-}
-
-function renderCompactEmpty(message = DASHBOARD_TEXTS.emptyGeneral) {
+function renderCompactEmpty(message = DASHBOARD_TEXTS.empty) {
     return `
         <div class="empty-state compact-empty-state">
             <i class="fas fa-chart-line"></i>
+            <h4>Sem dados suficientes</h4>
             <p>${Utils.escapeHtml(message)}</p>
         </div>
     `;
@@ -162,25 +151,27 @@ function renderCompactEmpty(message = DASHBOARD_TEXTS.emptyGeneral) {
 
 function renderTopTechniciansTable(items = []) {
     if (!items.length) {
-        return renderCompactEmpty(DASHBOARD_TEXTS.emptyRanking);
+        return renderCompactEmpty();
     }
 
     return `
-        <div class="table-container dashboard-compact-table">
-            <table class="table">
+        <div class="table-container dashboard-compact-table" data-skip-quick-filter="true">
+            <table class="table compact-table">
                 <thead>
                     <tr>
-                        <th>T\u00e9cnico</th>
-                        <th>Solicita\u00e7\u00f5es</th>
+                        <th>Tecnico</th>
+                        <th>Solicitacoes</th>
                         <th>Custo total</th>
-                        <th>Custo m\u00e9dio</th>
+                        <th>Ticket medio</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${items.map((tech, index) => `
                         <tr>
-                            <td><strong>${index + 1}. ${Utils.escapeHtml(tech.nome || 'Sem dados')}</strong></td>
-                            <td>${Utils.formatNumber(tech.calls)}</td>
+                            <td>
+                                <strong>${index + 1}. ${Utils.escapeHtml(tech.nome || 'Sem dados')}</strong>
+                            </td>
+                            <td>${Utils.formatNumber(tech.calls || 0)}</td>
                             <td>${Utils.formatCurrency(tech.totalCost || 0)}</td>
                             <td>${Utils.formatCurrency(tech.costPerCall || 0)}</td>
                         </tr>
@@ -191,73 +182,82 @@ function renderTopTechniciansTable(items = []) {
     `;
 }
 
-function renderExecutiveSummary(analysis, topTechnician) {
+function renderTopPiecesTable(items = []) {
+    if (!items.length) {
+        return renderCompactEmpty();
+    }
+
     return `
-        <div class="dashboard-executive-panel">
-            <div class="dashboard-executive-grid">
-                <div class="dashboard-summary-item primary">
-                    <span>Total gasto no per\u00edodo</span>
-                    <strong>${Utils.formatCurrency(analysis.totalCost || 0)}</strong>
-                    <small>${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>Custo m\u00e9dio por solicita\u00e7\u00e3o</span>
-                    <strong>${Utils.formatCurrency(analysis.averageCostPerSolicitation || 0)}</strong>
-                    <small>Base de ${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es)</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>Custo m\u00e9dio por t\u00e9cnico</span>
-                    <strong>${Utils.formatCurrency(analysis.avgCostPerTech || 0)}</strong>
-                    <small>${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnico(s) com custo</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>T\u00e9cnico com maior custo</span>
-                    <strong>${Utils.escapeHtml(topTechnician?.nome || 'Sem dados')}</strong>
-                    <small>${topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral}</small>
-                </div>
-            </div>
-
-            <div class="dashboard-flow-head">Fluxo visual da solicita\u00e7\u00e3o</div>
-            <p class="dashboard-flow-support">Abertura t\u00e9cnica, avalia\u00e7\u00e3o do gestor, envio ao fornecedor, rastreio e entrega final.</p>
-            <ol class="dashboard-flow-list">
-                ${FLOW_STEPS.map((step, index) => `
-                    <li class="dashboard-flow-item">
-                        <span class="dashboard-flow-index">${index + 1}</span>
-                        <span>${Utils.escapeHtml(step)}</span>
-                    </li>
-                `).join('')}
-            </ol>
-
-            <div class="dashboard-flow-status-head">Status acompanhados na vis\u00e3o geral</div>
-            <div class="dashboard-flow-status-list">
-                ${FLOW_STATUSES.map((status) => `
-                    <span>${Utils.escapeHtml(getPipelineStatusLabel(status))}</span>
-                `).join('')}
-            </div>
+        <div class="table-container dashboard-compact-table" data-skip-quick-filter="true">
+            <table class="table compact-table">
+                <thead>
+                    <tr>
+                        <th>Peca</th>
+                        <th>Quantidade</th>
+                        <th>Custo total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((piece) => `
+                        <tr>
+                            <td>
+                                <strong>${Utils.escapeHtml(piece.descricao || piece.codigo || 'Sem descricao')}</strong>
+                            </td>
+                            <td>${Utils.formatNumber(piece.quantidade || 0)}</td>
+                            <td>${Utils.formatCurrency(piece.totalCost || 0)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
         </div>
     `;
 }
 
-function renderHistoryRows(solicitations = []) {
-    return solicitations.slice(0, 10).map((sol) => {
-        const piece = (sol.itens || [])[0];
-        const pipelineStatus = normalizePipelineStatus(sol.status);
-        const badgeClass = badgeClassByPipelineStatus(pipelineStatus);
-        const statusLabel = getPipelineStatusLabel(pipelineStatus);
-        const solicitationCost = getSolicitationTotalCost(sol);
+function renderExecutiveSummary(analysis, pendingCount, periodLabel) {
+    const topTechnician = (analysis.byTechnician || []).slice().sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0))[0] || null;
+    const latestMonth = analysis.latestMonth || (analysis.byMonth || []).slice(-1)[0] || null;
+    const monthCount = Math.max((analysis.byMonth || []).length, 1);
+    const monthlyAverage = monthCount > 0 ? (Number(analysis.totalCost) || 0) / monthCount : 0;
 
-        return `
-            <tr>
-                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-                <td><strong>#${sol.numero}</strong></td>
-                <td>${Utils.escapeHtml(sol.cliente || sol.clienteNome || 'N\u00e3o informado')}</td>
-                <td>${Utils.escapeHtml(sol.tecnicoNome || 'N\u00e3o informado')}</td>
-                <td><strong>${Utils.escapeHtml(getPartLabel(piece))}</strong></td>
-                <td>${Utils.formatCurrency(solicitationCost)}</td>
-                <td class="dashboard-history-status"><span class="status-badge ${badgeClass}">${Utils.escapeHtml(statusLabel)}</span></td>
-            </tr>
-        `;
-    }).join('');
+    return `
+        <div class="summary-inline-grid summary-inline-grid-compact">
+            <article class="summary-inline-card">
+                <span>Fila de aprovacao</span>
+                <strong>${Utils.formatNumber(pendingCount)}</strong>
+                <small>Itens aguardando decisao</small>
+            </article>
+            <article class="summary-inline-card">
+                <span>Media mensal</span>
+                <strong>${Utils.formatCurrency(monthlyAverage)}</strong>
+                <small>${Utils.escapeHtml(periodLabel)}</small>
+            </article>
+            <article class="summary-inline-card">
+                <span>Maior concentracao</span>
+                <strong>${Utils.escapeHtml(topTechnician?.nome || 'Sem dados')}</strong>
+                <small>${topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : 'Sem custos no filtro'}</small>
+            </article>
+            <article class="summary-inline-card">
+                <span>Ultimo mes</span>
+                <strong>${Utils.formatCurrency(latestMonth?.totalCost || 0)}</strong>
+                <small>${Utils.escapeHtml(latestMonth?.label || 'Sem consolidacao mensal')}</small>
+            </article>
+        </div>
+        <div class="dashboard-status-strip">
+            ${PIPELINE_STATUSES.map((status) => {
+        const label = getStatusOptions().find((option) => option.value === status)?.label || status;
+        return `<span class="dashboard-status-pill">${Utils.escapeHtml(label)}</span>`;
+    }).join('')}
+        </div>
+    `;
+}
+
+function buildPeriodOptions(filters) {
+    return [
+        { value: '7', label: 'Ultimos 7 dias' },
+        { value: '30', label: 'Ultimos 30 dias' },
+        { value: '90', label: 'Ultimos 90 dias' },
+        { value: 'custom', label: 'Personalizado' }
+    ].map((option) => `<option value="${option.value}" ${String(filters.periodPreset) === option.value ? 'selected' : ''}>${option.label}</option>`).join('');
 }
 
 export function applyDashboardModernization() {
@@ -281,7 +281,7 @@ export function applyDashboardModernization() {
                     <div class="empty-state compact-empty-state">
                         <i class="fas fa-lock"></i>
                         <h4>Dashboard restrito</h4>
-                        <p>Seu perfil possui acesso somente \u00e0s suas solicita\u00e7\u00f5es.</p>
+                        <p>Seu perfil possui acesso somente as suas solicitacoes.</p>
                     </div>
                 </div>
             `;
@@ -292,71 +292,141 @@ export function applyDashboardModernization() {
         this.saasFilters = filters;
 
         const solicitations = filterBaseSolicitations(filters);
-        const highValueSolicitations = getHighValueSolicitations(solicitations);
         const analysis = buildAnalysis(filters);
+        const pending = DataManager.getPendingSolicitations();
         const technicians = DataManager.getTechnicians().filter((t) => t.ativo !== false);
         const regions = Array.from(new Set(technicians.map((t) => (t.regiao || t.estado || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+        const activeChips = buildDashboardFilterChips(filters);
+        const periodLabel = getPeriodLabel(filters);
         const openCount = getOpenSolicitationsCount(solicitations);
-        const topTechnicians = (analysis.byTechnician || []).slice(0, 5);
-        const topTechnician = topTechnicians[0] || null;
+        const topTechnicians = (analysis.byTechnician || []).slice().sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0)).slice(0, 6);
+        const topPieces = (analysis.byPiece || []).slice().sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0)).slice(0, 6);
+        const advancedOpen = hasAdvancedDashboardFilters(filters);
 
         content.innerHTML = `
             <div class="page-container dashboard-refined-shell dashboard-cost-shell">
-                <div class="page-header dashboard-header-compact">
-                    <div>
-                        <h2><i class="fas fa-sack-dollar"></i> ${DASHBOARD_TEXTS.title}</h2>
+                <div class="page-header executive-page-header">
+                    <div class="page-heading">
+                        <h2><i class="fas fa-chart-line"></i> ${DASHBOARD_TEXTS.title}</h2>
                         <p class="text-muted">${DASHBOARD_TEXTS.subtitle}</p>
                     </div>
                 </div>
 
-                <div class="page-filters dashboard-filters-grid dashboard-filters-compact">
-                    ${renderFilterField('Per\u00edodo', `
-                        <select id="saas-period" class="form-control">
-                            <option value="7" ${filters.periodPreset === '7' ? 'selected' : ''}>\u00daltimos 7 dias</option>
-                            <option value="30" ${filters.periodPreset === '30' ? 'selected' : ''}>\u00daltimos 30 dias</option>
-                            <option value="90" ${filters.periodPreset === '90' ? 'selected' : ''}>\u00daltimos 90 dias</option>
-                            <option value="custom" ${filters.periodPreset === 'custom' ? 'selected' : ''}>Personalizado</option>
-                        </select>
-                    `)}
-                    ${renderFilterField('De', `<input id="saas-date-from" type="date" class="form-control" value="${filters.dateFrom}">`)}
-                    ${renderFilterField('At\u00e9', `<input id="saas-date-to" type="date" class="form-control" value="${filters.dateTo}">`)}
-                    ${renderFilterField('Estado', `
-                        <select id="saas-estado" class="form-control">
-                            <option value="">Todos</option>
-                            ${regions.map((region) => `<option value="${Utils.escapeHtml(region)}" ${filters.estado === region ? 'selected' : ''}>${Utils.escapeHtml(region)}</option>`).join('')}
-                        </select>
-                    `)}
-                    ${renderFilterField('Cliente', `<input id="saas-cliente" class="form-control" placeholder="Nome do cliente" value="${Utils.escapeHtml(filters.cliente)}">`)}
-                    ${renderFilterField('T\u00e9cnico', `
-                        <select id="saas-tecnico" class="form-control">
-                            <option value="">Todos</option>
-                            ${technicians.map((technician) => `<option value="${technician.id}" ${filters.tecnico === technician.id ? 'selected' : ''}>${Utils.escapeHtml(technician.nome)}</option>`).join('')}
-                        </select>
-                    `)}
-                    ${renderFilterField('Status', `
-                        <select id="saas-status" class="form-control">
-                            ${getStatusOptions().map((status) => `<option value="${status.value}" ${filters.status === status.value ? 'selected' : ''}>${status.label}</option>`).join('')}
-                        </select>
-                    `)}
-                </div>
+                <section class="page-filters dashboard-filter-shell">
+                    <div class="filter-shell-primary">
+                        <div class="filter-inline-group filter-inline-group-main">
+                            ${renderFilterField('Periodo', `
+                                <select id="saas-period" class="form-control">
+                                    ${buildPeriodOptions(filters)}
+                                </select>
+                            `)}
+                            <div class="filter-group filter-period-pill">
+                                <label>Base atual</label>
+                                <div class="helper-text">${Utils.escapeHtml(periodLabel)}</div>
+                            </div>
+                        </div>
+                        <div class="filter-inline-group filter-inline-group-actions">
+                            <details class="filter-panel compact" ${advancedOpen ? 'open' : ''}>
+                                <summary class="filter-panel-toggle">Mais filtros${activeChips.length ? ` <span class="filter-summary-count">${activeChips.length}</span>` : ''}</summary>
+                                <div class="filter-panel-body">
+                                    <div class="filters-bar dashboard-advanced-filters">
+                                        ${renderFilterField('De', `<input id="saas-date-from" type="date" class="form-control" value="${filters.dateFrom}">`)}
+                                        ${renderFilterField('Ate', `<input id="saas-date-to" type="date" class="form-control" value="${filters.dateTo}">`)}
+                                        ${renderFilterField('Regiao', `
+                                            <select id="saas-estado" class="form-control">
+                                                <option value="">Todas</option>
+                                                ${regions.map((region) => `<option value="${Utils.escapeHtml(region)}" ${filters.estado === region ? 'selected' : ''}>${Utils.escapeHtml(region)}</option>`).join('')}
+                                            </select>
+                                        `)}
+                                        ${renderFilterField('Cliente', `<input id="saas-cliente" class="form-control" placeholder="Nome do cliente" value="${Utils.escapeHtml(filters.cliente)}">`)}
+                                        ${renderFilterField('Tecnico', `
+                                            <select id="saas-tecnico" class="form-control">
+                                                <option value="">Todos</option>
+                                                ${technicians.map((technician) => `<option value="${technician.id}" ${filters.tecnico === technician.id ? 'selected' : ''}>${Utils.escapeHtml(technician.nome)}</option>`).join('')}
+                                            </select>
+                                        `)}
+                                        ${renderFilterField('Status', `
+                                            <select id="saas-status" class="form-control">
+                                                ${getStatusOptions().map((status) => `<option value="${status.value}" ${filters.status === status.value ? 'selected' : ''}>${status.label}</option>`).join('')}
+                                            </select>
+                                        `)}
+                                    </div>
+                                </div>
+                            </details>
+                            <button class="btn btn-outline btn-sm" type="button" onclick="Dashboard.resetSaasFilters()">
+                                <i class="fas fa-rotate-left"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="filter-summary-row">
+                        ${activeChips.length
+        ? activeChips.map((chip) => `<span class="filter-summary-chip">${Utils.escapeHtml(chip)}</span>`).join('')
+        : '<span class="filter-summary-empty">Visao executiva sem filtros adicionais.</span>'}
+                    </div>
+                </section>
+
+                <section class="summary-inline-grid summary-inline-grid-dashboard">
+                    <article class="summary-inline-card">
+                        <span>Solicitacoes abertas</span>
+                        <strong>${Utils.formatNumber(openCount)}</strong>
+                        <small>Itens em andamento no filtro atual</small>
+                    </article>
+                    <article class="summary-inline-card">
+                        <span>Solicitacoes no periodo</span>
+                        <strong>${Utils.formatNumber(solicitations.length)}</strong>
+                        <small>${Utils.escapeHtml(periodLabel)}</small>
+                    </article>
+                    <article class="summary-inline-card">
+                        <span>Solicitacoes com custo</span>
+                        <strong>${Utils.formatNumber(analysis.totalApproved || 0)}</strong>
+                        <small>Base considerada nos indicadores financeiros</small>
+                    </article>
+                </section>
 
                 <div class="page-kpis">
-                    <div class="kpi-grid dashboard-kpi-grid">
-                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es abertas', value: Utils.formatNumber(openCount), subtitle: 'Em andamento no filtro atual', icon: 'fa-folder-open', tone: 'warning' })}
-                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es no per\u00edodo', value: Utils.formatNumber(solicitations.length), subtitle: `${Utils.formatDate(filters.dateFrom)} a ${Utils.formatDate(filters.dateTo)}`, icon: 'fa-clipboard-list', tone: 'info' })}
-                        ${renderKpiCard({ title: 'Custo total de pe\u00e7as', value: Utils.formatCurrency(analysis.totalCost || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo`, icon: 'fa-sack-dollar', tone: 'primary' })}
-                        ${renderKpiCard({ title: 'Custo m\u00e9dio por solicita\u00e7\u00e3o', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo`, icon: 'fa-receipt', tone: 'success' })}
-                        ${renderKpiCard({ title: 'Custo m\u00e9dio por t\u00e9cnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnico(s) com custo`, icon: 'fa-user-gear', tone: 'info' })}
+                    <div class="kpi-grid dashboard-primary-grid">
+                        ${renderKpiCard({ title: 'Solicitacoes abertas', value: Utils.formatNumber(openCount), subtitle: 'Itens em andamento no filtro', icon: 'fa-folder-open', tone: 'warning' })}
+                        ${renderKpiCard({ title: 'Custo total de pecas', value: Utils.formatCurrency(analysis.totalCost || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicitacao(oes) com custo`, icon: 'fa-sack-dollar', tone: 'primary' })}
+                        ${renderKpiCard({ title: 'Ticket medio', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: 'Leitura financeira media por atendimento', icon: 'fa-receipt', tone: 'success' })}
+                        ${renderKpiCard({ title: 'Custo medio por tecnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} tecnico(s) com custo`, icon: 'fa-user-gear', tone: 'info' })}
                     </div>
                 </div>
 
                 <div class="page-content dashboard-content-stack">
-                    <section class="dashboard-insight-grid dashboard-cost-overview-grid">
+                    <section class="dashboard-focus-grid">
                         <article class="card dashboard-panel-card">
-                            <div class="card-header dashboard-panel-header">
+                            <div class="card-header compact-card-header">
                                 <div>
-                                    <h4>Top 5 t\u00e9cnicos com maior custo</h4>
-                                    <p class="text-muted">T\u00e9cnico, quantidade de solicita\u00e7\u00f5es, custo total e custo m\u00e9dio.</p>
+                                    <h4>Tendencia de custos e volume</h4>
+                                    <p class="text-muted">Grafico principal para leitura mensal de custo, solicitacoes e pecas.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${(analysis.byMonth || []).length > 0
+        ? '<div class="chart-wrapper executive-chart-wrapper"><canvas id="dashboardTrendChart"></canvas></div>'
+        : renderCompactEmpty()}
+                            </div>
+                        </article>
+
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header compact-card-header">
+                                <div>
+                                    <h4>Resumo executivo</h4>
+                                    <p class="text-muted">Concentracao de custo, fila e status acompanhados pela operacao.</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                ${renderExecutiveSummary(analysis, pending.length, periodLabel)}
+                            </div>
+                        </article>
+                    </section>
+
+                    <section class="dashboard-secondary-grid">
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header compact-card-header">
+                                <div>
+                                    <h4>Ranking de tecnicos</h4>
+                                    <p class="text-muted">Prioridade para os maiores custos totais no periodo.</p>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -365,33 +435,43 @@ export function applyDashboardModernization() {
                         </article>
 
                         <article class="card dashboard-panel-card">
-                            <div class="card-header dashboard-panel-header">
+                            <div class="card-header compact-card-header">
                                 <div>
-                                    <h4>Resumo executivo e fluxo da solicita\u00e7\u00e3o</h4>
-                                    <p class="text-muted">Leitura r\u00e1pida de custo, etapas e status do processo.</p>
+                                    <h4>Pecas com maior impacto</h4>
+                                    <p class="text-muted">Visao concentrada das pecas que mais pesam no custo filtrado.</p>
                                 </div>
                             </div>
                             <div class="card-body">
-                                ${renderExecutiveSummary(analysis, topTechnician)}
+                                ${renderTopPiecesTable(topPieces)}
                             </div>
                         </article>
                     </section>
 
-                    <section class="dashboard-insight-grid dashboard-history-grid">
+                    <section class="dashboard-secondary-grid dashboard-secondary-grid-balanced">
                         <article class="card dashboard-panel-card">
-                            <div class="card-header dashboard-panel-header">
+                            <div class="card-header compact-card-header">
                                 <div>
-                                    <h4>Hist\u00f3rico recente de maior valor</h4>
-                                    <p class="text-muted">Data, n\u00famero, cliente, t\u00e9cnico, pe\u00e7a, valor e status atual do fluxo.</p>
+                                    <h4>Alertas de custo elevado</h4>
+                                    <p class="text-muted">Solicitacoes acima de 30% da media do periodo.</p>
                                 </div>
                             </div>
                             <div class="card-body">
-                                ${highValueSolicitations.length === 0
-        ? renderCompactEmpty(DASHBOARD_TEXTS.emptyGeneral)
-        : renderDataTable({
-            headers: ['Data', 'N\u00famero da solicita\u00e7\u00e3o', 'Cliente', 'T\u00e9cnico', 'Pe\u00e7a', 'Valor', 'Status'],
-            rows: renderHistoryRows(highValueSolicitations)
-        })}
+                                ${typeof this.renderHighCostAlerts === 'function' ? this.renderHighCostAlerts(analysis) : renderCompactEmpty()}
+                            </div>
+                        </article>
+
+                        <article class="card dashboard-panel-card">
+                            <div class="card-header compact-card-header">
+                                <div>
+                                    <h4>Fila de aprovacoes</h4>
+                                    <p class="text-muted">Acompanhe rapidamente o que exige decisao imediata.</p>
+                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="App.navigate('aprovacoes')">
+                                    <i class="fas fa-arrow-right"></i> Abrir fila
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                ${typeof this.renderApprovalsPreview === 'function' ? this.renderApprovalsPreview(pending) : renderCompactEmpty()}
                             </div>
                         </article>
                     </section>
@@ -400,6 +480,11 @@ export function applyDashboardModernization() {
         `;
 
         this.bindSaasFilters();
+        setTimeout(() => {
+            if (typeof this.initCharts === 'function' && (analysis.byMonth || []).length > 0) {
+                this.initCharts(analysis);
+            }
+        }, 60);
     };
 
     window.Dashboard.bindSaasFilters = function bindSaasFilters() {
@@ -455,9 +540,13 @@ export function applyDashboardModernization() {
     };
 
     window.Dashboard.resetSaasFilters = function resetSaasFilters() {
-        this.saasFilters = getDefaultFilters();
+        const defaults = getDefaultFilters();
+        this.saasFilters = defaults;
+        AnalyticsHelper.saveGlobalPeriodFilter({
+            dateFrom: defaults.dateFrom,
+            dateTo: defaults.dateTo
+        });
         this.render();
     };
 }
-
 

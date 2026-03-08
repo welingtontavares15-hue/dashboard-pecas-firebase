@@ -27,12 +27,15 @@ const Solicitacoes = {
         const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
         const isTecnico = Auth.getRole() === 'tecnico';
         const canExport = !!(window && window.XLSX);
-        const exportAttrs = canExport ? '' : 'disabled aria-disabled="true"';
         const exportTitle = canExport ? '' : 'title="Exportação indisponível: biblioteca XLSX não carregada"';
+        const advancedOpen = !!(this.filters.tecnico || this.filters.dateFrom || this.filters.dateTo);
 
         content.innerHTML = `
             <div class="page-header">
-                <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
+                <div class="page-heading">
+                    <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
+                    <p class="text-muted">Centralize busca, status e decisões com menos ruído visual e leitura mais direta.</p>
+                </div>
                 <div class="page-actions">
                     ${canCreate ? `
                         <button class="btn btn-success" onclick="Solicitacoes.openForm()">
@@ -54,7 +57,7 @@ const Solicitacoes = {
                                     </button>
                                 ` : ''}
                                 ${canExport ? `
-                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()">
+                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()" ${exportTitle}>
                                         <i class="fas fa-file-excel"></i> Exportar
                                     </button>
                                 ` : ''}
@@ -63,56 +66,70 @@ const Solicitacoes = {
                     ` : ''}
                 </div>
             </div>
-            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
+            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">A exportação volta a ficar disponível assim que a biblioteca XLSX estiver carregada.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <details class="filter-panel" open>
-                <summary class="filter-panel-toggle">Filtros</summary>
-                <div class="filters-bar filter-panel-body">
-                    <div class="search-box">
+            <section class="page-filters filter-shell">
+                <div class="filter-shell-primary">
+                    <div class="search-box search-box-wide">
                         <input type="text" id="sol-search" class="form-control"
                                placeholder="Buscar por número, cliente, técnico ou peça..."
                                value="${Utils.escapeHtml(this.filters.search)}">
                         <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
-                            <i class="fas fa-search"></i>
+                            <i class="fas fa-search"></i> Buscar
                         </button>
                     </div>
-                    <div class="filter-group">
-                        <label>Status:</label>
-                        ${this.renderStatusFilter('sol-status-filter')}
-                    </div>
-                    ${!isTecnico ? `
-                        <div class="filter-group">
-                            <label>Técnico:</label>
-                            <select id="sol-tecnico-filter" class="form-control">
-                                <option value="">Todos</option>
-                                ${DataManager.getTechnicians().map(t =>
-        `<option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
-                                        ${Utils.escapeHtml(t.nome)}
-                                    </option>`
-    ).join('')}
-                            </select>
+                    <div class="filter-inline-group filter-inline-group-actions">
+                        <div class="filter-group filter-group-wide">
+                            <label>Status</label>
+                            ${this.renderStatusFilter('sol-status-filter')}
                         </div>
-                    ` : ''}
-                    <div class="filter-group">
-                        <label>De:</label>
-                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
+                        <details class="filter-panel compact" ${advancedOpen ? 'open' : ''}>
+                            <summary class="filter-panel-toggle">Mais filtros</summary>
+                            <div class="filter-panel-body">
+                                <div class="filters-bar">
+                                    ${!isTecnico ? `
+                                        <div class="filter-group">
+                                            <label>Técnico</label>
+                                            <select id="sol-tecnico-filter" class="form-control">
+                                                <option value="">Todos</option>
+                                                ${DataManager.getTechnicians().map(t => `
+                                                    <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
+                                                        ${Utils.escapeHtml(t.nome)}
+                                                    </option>`).join('')}
+                                            </select>
+                                        </div>
+                                    ` : ''}
+                                    <div class="filter-group">
+                                        <label>De</label>
+                                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
+                                    </div>
+                                    <div class="filter-group">
+                                        <label>Até</label>
+                                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                        <button class="btn btn-outline btn-sm" onclick="Solicitacoes.clearFilters()">
+                            <i class="fas fa-times"></i> Limpar
+                        </button>
                     </div>
-                    <div class="filter-group">
-                        <label>Até:</label>
-                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
-                    </div>
-                    <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
-                        <i class="fas fa-times"></i> Limpar
-                    </button>
                 </div>
-            </details>
+                ${this.renderFilterSummary()}
+            </section>
 
             <div id="sol-summary-container">
                 ${this.renderSummaryCards()}
             </div>
 
             <div class="card">
+                <div class="card-header compact-card-header">
+                    <div>
+                        <h4>Lista de solicitações</h4>
+                        <p id="sol-list-meta" class="text-muted">${this.renderListMeta()}</p>
+                    </div>
+                </div>
                 <div class="card-body">
                     <div id="sol-table-container">
                         ${this.renderTable()}
@@ -160,6 +177,48 @@ const Solicitacoes = {
                 tecnicoFilter.addEventListener('change', () => this.applyFilters());
             }
         }
+    },
+
+    getActiveFilterChips() {
+        const chips = [];
+        const selectedStatuses = this.getSelectedStatusSummary();
+        if (selectedStatuses.length > 0) {
+            chips.push(`Status: ${selectedStatuses.map(status => status.label).join(', ')}`);
+        }
+        if (this.filters.tecnico) {
+            const technician = DataManager.getTechnicianById(this.filters.tecnico);
+            if (technician?.nome) {
+                chips.push(`Técnico: ${technician.nome}`);
+            }
+        }
+        if (this.filters.dateFrom) {
+            chips.push(`De: ${Utils.formatDate(this.filters.dateFrom)}`);
+        }
+        if (this.filters.dateTo) {
+            chips.push(`Até: ${Utils.formatDate(this.filters.dateTo)}`);
+        }
+        if (this.filters.search) {
+            chips.push(`Busca: ${this.filters.search}`);
+        }
+        return chips;
+    },
+
+    renderFilterSummary() {
+        const chips = this.getActiveFilterChips();
+        return `
+            <div class="filter-summary-row">
+                ${chips.length
+        ? chips.map(chip => `<span class="filter-summary-chip">${Utils.escapeHtml(chip)}</span>`).join('')
+        : '<span class="filter-summary-empty">Exibindo a base completa sem filtros adicionais.</span>'}
+            </div>
+        `;
+    },
+
+    renderListMeta() {
+        const solicitations = this.getFilteredSolicitations();
+        const totalParts = solicitations.reduce((sum, sol) => sum + this.getItemsQuantity(sol.itens || []), 0);
+        const uniqueClients = new Set(solicitations.map(sol => (sol.cliente || '').trim()).filter(Boolean)).size;
+        return `${Utils.formatNumber(totalParts)} peças consolidadas e ${Utils.formatNumber(uniqueClients)} cliente(s) na seleção atual.`;
     },
 
     getStatusOptions() {
@@ -529,7 +588,7 @@ const Solicitacoes = {
         const avgValue = solicitations.length > 0 ? totalValue / solicitations.length : 0;
 
         return `
-            <div class="kpi-grid">
+            <div class="kpi-grid compact-kpi-grid compact-kpi-grid-3">
                 <div class="kpi-card">
                     <div class="kpi-icon info"><i class="fas fa-list"></i></div>
                     <div class="kpi-content">
@@ -543,25 +602,29 @@ const Solicitacoes = {
                     <div class="kpi-content">
                         <h4>Valor total solicitado</h4>
                         <div class="kpi-value">${Utils.formatCurrency(totalValue)}</div>
-                        <div class="kpi-change">Soma das solicitações filtradas</div>
+                        <div class="kpi-change">Soma das solicitações exibidas</div>
                     </div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-icon warning"><i class="fas fa-boxes"></i></div>
-                    <div class="kpi-content">
-                        <h4>Total de peças usadas</h4>
-                        <div class="kpi-value">${Utils.formatNumber(totalParts)}</div>
-                        <div class="kpi-change">Quantidade consolidada de itens</div>
-                    </div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon primary"><i class="fas fa-users"></i></div>
+                    <div class="kpi-icon primary"><i class="fas fa-receipt"></i></div>
                     <div class="kpi-content">
                         <h4>Ticket médio</h4>
                         <div class="kpi-value">${Utils.formatCurrency(avgValue)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(uniqueClients)} clientes na seleção</div>
+                        <div class="kpi-change">Média por solicitação filtrada</div>
                     </div>
                 </div>
+            </div>
+            <div class="summary-inline-grid summary-inline-grid-compact">
+                <article class="summary-inline-card">
+                    <span>Peças consolidadas</span>
+                    <strong>${Utils.formatNumber(totalParts)}</strong>
+                    <small>Total de itens na seleção atual</small>
+                </article>
+                <article class="summary-inline-card">
+                    <span>Clientes únicos</span>
+                    <strong>${Utils.formatNumber(uniqueClients)}</strong>
+                    <small>Base de clientes do filtro aplicado</small>
+                </article>
             </div>
         `;
     },
@@ -781,6 +844,14 @@ const Solicitacoes = {
         const summaryContainer = document.getElementById('sol-summary-container');
         if (summaryContainer) {
             summaryContainer.innerHTML = this.renderSummaryCards();
+        }
+        const filterSummary = document.querySelector('.page-filters .filter-summary-row');
+        if (filterSummary) {
+            filterSummary.outerHTML = this.renderFilterSummary();
+        }
+        const listMeta = document.getElementById('sol-list-meta');
+        if (listMeta) {
+            listMeta.textContent = this.renderListMeta();
         }
         const container = document.getElementById('sol-table-container');
         if (container) {
@@ -1888,6 +1959,10 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
 
 
 
