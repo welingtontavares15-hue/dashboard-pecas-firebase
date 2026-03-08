@@ -13,7 +13,6 @@ const Logger = {
     LOG_KEY: 'diversey_structured_logs',
     LOG_LIMIT: 500,
     HEALTH_KEY: 'diversey_health_stats',
-    DEDUP_WINDOW_MS: 8000,
 
     /**
      * Log levels
@@ -34,9 +33,7 @@ const Logger = {
         EXPORT: 'export',
         REQUEST: 'request',
         SYSTEM: 'system',
-        APPROVAL: 'approval',
-        UI: 'ui',
-        CACHE: 'cache'
+        APPROVAL: 'approval'
     },
 
     /**
@@ -95,27 +92,6 @@ const Logger = {
     createEntry(level, category, message, data = {}) {
         const context = this.getRequestContext();
         const user = this.getCurrentUser();
-        const normalizedData = { ...(data || {}) };
-        const explicitRequestId = data?.requestId || data?.opId || data?.operationId;
-        const requestId = explicitRequestId
-            ? String(explicitRequestId)
-            : this.generateRequestId();
-        const startReference = Number(data?.startedAt || context.startTime || Date.now());
-
-        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'userId')) {
-            normalizedData.userId = user?.id || null;
-        }
-        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'route')) {
-            normalizedData.route = (typeof window !== 'undefined' && window.location)
-                ? (window.location.hash || window.location.pathname || null)
-                : null;
-        }
-        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'buildVersion') && typeof window !== 'undefined') {
-            normalizedData.buildVersion = window.__APP_BUILD_VERSION__ || null;
-        }
-        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'cacheVersion') && typeof window !== 'undefined') {
-            normalizedData.cacheVersion = window.__APP_CACHE_VERSION__ || null;
-        }
 
         return {
             id: this.generateRequestId(),
@@ -123,10 +99,10 @@ const Logger = {
             level,
             category,
             message,
-            requestId,
-            duration: Math.max(0, Date.now() - startReference),
+            requestId: context.requestId,
+            duration: Date.now() - context.startTime,
             user: user ? { id: user.id, username: user.username, role: user.role } : null,
-            data: normalizedData,
+            data,
             device: this.getDeviceInfo()
         };
     },
@@ -155,165 +131,6 @@ const Logger = {
         };
     },
 
-    normalizeSyncError(errorLike = '', fallbackCode = '') {
-        const raw = String(
-            (typeof errorLike === 'string' ? errorLike : (errorLike?.message || errorLike?.code || ''))
-            || fallbackCode
-            || 'unknown_error'
-        ).trim();
-        const lower = raw.toLowerCase();
-        const map = [
-            { code: 'offline', pattern: /offline|sem conexao|network.*offline|navigator\.online/ },
-            { code: 'timeout', pattern: /timeout|timed out|deadline|aborted/ },
-            { code: 'permission_denied', pattern: /permission|denied|forbidden|auth\/insufficient-permission/ },
-            { code: 'version_conflict', pattern: /conflict|version|stale|concurrent/ },
-            { code: 'cloud_not_ready', pattern: /cloud_not_ready|cloud not ready|not connected/ },
-            { code: 'cloud_unavailable', pattern: /cloud_unavailable|cloud unavailable|firebase.*not.*ready/ },
-            { code: 'snapshot_invalid', pattern: /snapshot|payload|invalid.*format|invalid_snapshot/ },
-            { code: 'write_failed', pattern: /save_failed|write failed|set failed|persist failed/ },
-            { code: 'read_failed', pattern: /read failed|load failed|fetch failed|get failed/ }
-        ];
-        const matched = map.find((entry) => entry.pattern.test(lower));
-        const code = matched?.code || fallbackCode || raw || 'unknown_error';
-        const messageByCode = {
-            offline: 'sem conexão com a internet',
-            timeout: 'tempo limite de comunicação excedido',
-            permission_denied: 'permissão negada para operação',
-            version_conflict: 'conflito de versão detectado',
-            cloud_not_ready: 'nuvem ainda não está pronta',
-            cloud_unavailable: 'serviço de nuvem indisponível',
-            snapshot_invalid: 'snapshot inválido recebido',
-            write_failed: 'falha ao gravar dados',
-            read_failed: 'falha ao ler dados',
-            unknown_error: 'erro de sincronização não identificado'
-        };
-
-        return {
-            code,
-            raw,
-            normalizedMessage: messageByCode[code] || raw || messageByCode.unknown_error
-        };
-    },
-
-    normalizeSyncPayload(event, data = {}) {
-        const eventName = String(event || 'sync_event').trim() || 'sync_event';
-        const action = data?.action || data?.operation || eventName;
-        const stage = data?.stage || data?.status || 'unknown_stage';
-        const entityId = data?.entityId || data?.key || null;
-        const userId = data?.userId || data?.user?.id || null;
-        const source = data?.origin || data?.source || 'sync_layer';
-        const errorInfo = this.normalizeSyncError(data?.errorCode || data?.errorOriginal || data?.error || data?.reason, data?.errorCode || '');
-        const isFailure = /failed|error|fail/i.test(eventName) || String(data?.status || '').toLowerCase() === 'fail';
-        const isPending = /pending|queued|retry/i.test(eventName) || String(data?.status || '').toLowerCase() === 'pending';
-        const level = isFailure ? this.LEVEL.ERROR : (isPending ? this.LEVEL.WARN : this.LEVEL.INFO);
-
-        let message = eventName;
-        if (isFailure) {
-            message = `Falha de sync em ${action} (${stage}): ${errorInfo.normalizedMessage}`;
-        } else if (isPending) {
-            message = `Sync pendente em ${action} (${stage})`;
-        } else if (/success|complete|done|synced/i.test(eventName)) {
-            message = `Sync concluída em ${action}`;
-        } else if (/start|saving|running/i.test(eventName)) {
-            message = `Sync iniciada em ${action}`;
-        }
-
-        return {
-            level,
-            message,
-            data: {
-                ...data,
-                action,
-                operation: action,
-                stage,
-                origin: source,
-                entityId,
-                userId,
-                errorCode: errorInfo.code,
-                errorOriginal: data?.errorOriginal || errorInfo.raw
-            }
-        };
-    },
-
-    buildDedupFingerprint(entry) {
-        const data = entry?.data || {};
-        const action = data.action || data.operation || '';
-        const stage = data.stage || data.status || '';
-        const entityId = data.entityId || data.key || '';
-        const errorCode = data.errorCode || data.error || data.reason || '';
-        const requestId = entry?.requestId || data.requestId || `${entry?.category || ''}:${action}:${stage}:${entityId}:${errorCode}`;
-        return [
-            entry?.level || '',
-            entry?.category || '',
-            requestId,
-            action,
-            stage,
-            entityId,
-            errorCode
-        ].join('|');
-    },
-
-    shouldSkipDuplicate(entry, logs = []) {
-        if (!entry || !Array.isArray(logs) || logs.length === 0) {
-            return false;
-        }
-        const fingerprint = this.buildDedupFingerprint(entry);
-        const nowMs = Date.parse(entry.timestamp) || Date.now();
-        const limitMs = Math.max(1000, Number(this.DEDUP_WINDOW_MS) || 8000);
-
-        return logs.some((existing) => {
-            if (!existing) {
-                return false;
-            }
-            if (this.buildDedupFingerprint(existing) !== fingerprint) {
-                return false;
-            }
-            const existingMs = Date.parse(existing.timestamp) || 0;
-            return Math.abs(nowMs - existingMs) <= limitMs;
-        });
-    },
-
-    compactLogs(logs = []) {
-        if (!Array.isArray(logs) || logs.length === 0) {
-            return [];
-        }
-        const compacted = [];
-        const seen = new Map();
-        const limitMs = Math.max(1000, Number(this.DEDUP_WINDOW_MS) || 8000);
-
-        logs.forEach((entry) => {
-            if (!entry) {
-                return;
-            }
-            const fingerprint = this.buildDedupFingerprint(entry);
-            const ts = Date.parse(entry.timestamp) || 0;
-            const previousTs = seen.get(fingerprint);
-            if (previousTs !== undefined && Math.abs(previousTs - ts) <= limitMs) {
-                return;
-            }
-            seen.set(fingerprint, ts);
-            compacted.push(entry);
-        });
-
-        return compacted;
-    },
-
-    normalizeLegacyEntry(entry) {
-        if (!entry || typeof entry !== 'object') {
-            return entry;
-        }
-        if (entry.category === this.CATEGORY.SYNC && String(entry.message || '').toLowerCase() === 'operation_failed') {
-            const normalized = this.normalizeSyncPayload('operation_failed', entry.data || {});
-            return {
-                ...entry,
-                level: normalized.level,
-                message: normalized.message,
-                data: normalized.data
-            };
-        }
-        return entry;
-    },
-
     /**
      * Persist log entry
      * @param {object} entry - Log entry to persist
@@ -321,9 +138,6 @@ const Logger = {
     persist(entry) {
         try {
             const logs = this.getLogs();
-            if (this.shouldSkipDuplicate(entry, logs)) {
-                return;
-            }
             logs.unshift(entry);
             
             // Trim to limit
@@ -352,21 +166,7 @@ const Logger = {
     getLogs(limit = null) {
         try {
             const logs = JSON.parse(localStorage.getItem(this.LOG_KEY) || '[]');
-            let normalizedMutated = false;
-            const normalizedLogs = Array.isArray(logs)
-                ? logs.map((entry) => {
-                    const normalized = this.normalizeLegacyEntry(entry);
-                    if (!normalizedMutated && JSON.stringify(normalized) !== JSON.stringify(entry)) {
-                        normalizedMutated = true;
-                    }
-                    return normalized;
-                })
-                : [];
-            const compacted = this.compactLogs(normalizedLogs);
-            if (normalizedMutated || compacted.length !== (Array.isArray(logs) ? logs.length : 0)) {
-                localStorage.setItem(this.LOG_KEY, JSON.stringify(compacted.slice(0, this.LOG_LIMIT)));
-            }
-            return limit ? compacted.slice(0, limit) : compacted;
+            return limit ? logs.slice(0, limit) : logs;
         } catch (_e) {
             return [];
         }
@@ -402,75 +202,67 @@ const Logger = {
         return this.getLogsByLevel([this.LEVEL.ERROR, this.LEVEL.WARN], limit);
     },
 
-    buildHealthStats(logs = []) {
-        const now = Date.now();
-        const hourAgo = now - (60 * 60 * 1000);
-        const dayAgo = now - (24 * 60 * 60 * 1000);
-        const stats = {
-            byCategory: {},
-            totalErrors: 0,
-            recentEvents: [],
-            lastUpdated: now
-        };
-
-        logs.forEach((entry) => {
-            if (!entry || !entry.category) {
-                return;
-            }
-
-            if (!stats.byCategory[entry.category]) {
-                stats.byCategory[entry.category] = {
-                    total: 0,
-                    errors: 0,
-                    warns: 0,
-                    lastHour: 0,
-                    lastDay: 0
-                };
-            }
-
-            const bucket = stats.byCategory[entry.category];
-            const entryTs = Date.parse(entry.timestamp) || now;
-            bucket.total += 1;
-
-            if (entry.level === this.LEVEL.ERROR) {
-                bucket.errors += 1;
-                stats.totalErrors += 1;
-            }
-            if (entry.level === this.LEVEL.WARN) {
-                bucket.warns += 1;
-            }
-            if (entryTs > hourAgo) {
-                bucket.lastHour += 1;
-            }
-            if (entryTs > dayAgo) {
-                bucket.lastDay += 1;
-                stats.recentEvents.push({
-                    timestamp: entryTs,
-                    category: entry.category,
-                    level: entry.level
-                });
-            }
-        });
-
-        stats.recentEvents.sort((a, b) => b.timestamp - a.timestamp);
-        return stats;
-    },
-
-    persistHealthSnapshot(logs = []) {
+    /**
+     * Update health statistics
+     * @param {object} entry - Log entry
+     */
+    updateHealthStats(entry) {
         try {
-            const stats = this.buildHealthStats(logs);
+            const stats = this.getHealthStats();
+            const now = Date.now();
+            const hourAgo = now - (60 * 60 * 1000);
+            const dayAgo = now - (24 * 60 * 60 * 1000);
+
+            // Initialize category stats if needed
+            if (!stats.byCategory[entry.category]) {
+                stats.byCategory[entry.category] = { total: 0, errors: 0, lastHour: 0, lastDay: 0 };
+            }
+
+            // Update counters
+            stats.byCategory[entry.category].total++;
+            if (entry.level === 'error') {
+                stats.byCategory[entry.category].errors++;
+                stats.totalErrors++;
+            }
+
+            // Add to time series for recent window tracking
+            if (!stats.recentEvents) {
+                stats.recentEvents = [];
+            }
+            stats.recentEvents.unshift({
+                timestamp: now,
+                category: entry.category,
+                level: entry.level
+            });
+            
+            // Keep only last 1000 events for time-window calculations
+            stats.recentEvents = stats.recentEvents.slice(0, 1000);
+
+            // Recalculate hourly/daily counts efficiently with single pass
+            // Reset counts first
+            Object.keys(stats.byCategory).forEach(cat => {
+                stats.byCategory[cat].lastHour = 0;
+                stats.byCategory[cat].lastDay = 0;
+            });
+            
+            // Single pass through recentEvents
+            for (const event of stats.recentEvents) {
+                const cat = event.category;
+                if (stats.byCategory[cat]) {
+                    if (event.timestamp > hourAgo) {
+                        stats.byCategory[cat].lastHour++;
+                    }
+                    if (event.timestamp > dayAgo) {
+                        stats.byCategory[cat].lastDay++;
+                    }
+                }
+            }
+
+            stats.lastUpdated = now;
             localStorage.setItem(this.HEALTH_KEY, JSON.stringify(stats));
         } catch (_e) {
             console.warn('Health stats update failed:', _e);
         }
-    },
-
-    /**
-     * Update health statistics
-     * @param {object} _entry - Unused incremental entry; health is rebuilt from compacted logs.
-     */
-    updateHealthStats(_entry) {
-        this.persistHealthSnapshot(this.getLogs());
     },
 
     /**
@@ -479,9 +271,10 @@ const Logger = {
      */
     getHealthStats() {
         try {
-            const stats = this.buildHealthStats(this.getLogs());
-            localStorage.setItem(this.HEALTH_KEY, JSON.stringify(stats));
-            return stats;
+            const stored = localStorage.getItem(this.HEALTH_KEY);
+            if (stored) {
+                return JSON.parse(stored);
+            }
         } catch (_e) {
             // Return default
         }
@@ -594,13 +387,8 @@ const Logger = {
      * @param {object} data - Event data
      */
     logSync(event, data = {}) {
-        const normalized = this.normalizeSyncPayload(event, data);
-        this.persist(this.createEntry(
-            normalized.level,
-            this.CATEGORY.SYNC,
-            normalized.message,
-            normalized.data
-        ));
+        const level = event.includes('failed') ? this.LEVEL.ERROR : this.LEVEL.INFO;
+        this.persist(this.createEntry(level, this.CATEGORY.SYNC, event, data));
     },
 
     /**

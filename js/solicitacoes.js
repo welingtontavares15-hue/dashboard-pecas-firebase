@@ -17,100 +17,12 @@ const Solicitacoes = {
     // Current solicitation being edited
     currentSolicitation: null,
     autocompleteInstance: null,
-    _hasRenderedSnapshot: false,
-
-    resolvePageState(snapshot) {
-        const syncState = String(DataManager?.getSyncStatus?.().state || 'idle').toLowerCase();
-
-        if (snapshot === null || snapshot === undefined) {
-            if (syncState === 'failed' || syncState === 'error') {
-                return {
-                    status: 'error',
-                    title: 'Falha ao carregar solicitações',
-                    message: 'Os dados da lista não puderam ser sincronizados.'
-                };
-            }
-
-            if (syncState === 'saving' || syncState === 'start' || syncState === 'pending') {
-                return {
-                    status: 'retrying',
-                    title: 'Sincronizando solicitações',
-                    message: 'A lista está sendo atualizada. Aguarde ou tente novamente.'
-                };
-            }
-
-            return {
-                status: 'loading',
-                title: 'Carregando solicitações',
-                message: 'Buscando dados mais recentes para esta tela.'
-            };
-        }
-
-        if (!Array.isArray(snapshot)) {
-            return {
-                status: 'error',
-                title: 'Falha ao interpretar solicitações',
-                message: 'O formato dos dados recebidos é inválido.'
-            };
-        }
-
-        if (snapshot.length === 0) {
-            return {
-                status: 'empty',
-                title: 'Nenhuma solicitação encontrada',
-                message: 'Não existem solicitações disponíveis no momento.'
-            };
-        }
-
-        return { status: 'success' };
-    },
-
-    renderPageState(state) {
-        const configByStatus = {
-            loading: { icon: 'fa-spinner fa-spin', tone: 'info' },
-            retrying: { icon: 'fa-rotate-right fa-spin', tone: 'warning' },
-            empty: { icon: 'fa-inbox', tone: 'muted' },
-            error: { icon: 'fa-circle-xmark', tone: 'danger' }
-        };
-        const config = configByStatus[state?.status] || configByStatus.loading;
-        const canCreate = Auth.hasPermission('solicitacoes', 'create');
-
-        return `
-            <div class="empty-state ${config.tone}">
-                <i class="fas ${config.icon}"></i>
-                <h4>${Utils.escapeHtml(state?.title || 'Carregando')}</h4>
-                <p>${Utils.escapeHtml(state?.message || 'Aguarde alguns instantes.')}</p>
-                <div class="page-fallback-actions">
-                    <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
-                        <i class="fas fa-rotate-right"></i> Tentar novamente
-                    </button>
-                    ${state?.status === 'empty' && canCreate ? `
-                        <button class="btn btn-success" onclick="Solicitacoes.openForm()">
-                            <i class="fas fa-plus"></i> Nova Solicitação
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    },
 
     /**
      * Render solicitations list
      */
     render() {
         const content = document.getElementById('content-area');
-        if (!content) {
-            return;
-        }
-        const snapshot = (typeof DataManager?.loadData === 'function' && DataManager?.KEYS?.SOLICITATIONS)
-            ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
-            : DataManager.getSolicitations();
-        const pageState = this.resolvePageState(snapshot);
-        if (pageState.status !== 'success') {
-            content.innerHTML = this.renderPageState(pageState);
-            return;
-        }
-        this._hasRenderedSnapshot = true;
         const canCreate = Auth.hasPermission('solicitacoes', 'create');
         const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
         const isTecnico = Auth.getRole() === 'tecnico';
@@ -1258,7 +1170,7 @@ const Solicitacoes = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
 
-        const success = await DataManager.updateSolicitationStatus(id, 'em-transito', {
+        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
             trackingCode,
             trackingUpdatedAt: Date.now(),
             trackingBy: userName,
@@ -1285,21 +1197,13 @@ const Solicitacoes = {
             return;
         }
 
-        const effectKey = `email:tracking:technician:${solicitation?.id || solicitation?.numero}:${trackingCode}`;
-        DataManager.runIdempotentEffect(effectKey, async () => {
-            return Utils.sendTrackingNotificationToTechnician({
-                solicitation,
-                trackingCode,
-                updatedBy
-            });
-        }).then((dedupeResult) => {
-            if (dedupeResult?.reason === 'duplicate') {
-                return;
-            }
-
-            const result = dedupeResult?.result;
-            const sent = result === true || result?.success === true;
-            if (sent) {
+        Utils.sendTrackingNotificationToTechnician({
+            solicitation,
+            trackingCode,
+            updatedBy
+        }).then((result) => {
+                const sent = result === true || result?.success === true;
+                if (sent) {
                 Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
                 return;
             }
@@ -1324,6 +1228,7 @@ const Solicitacoes = {
             Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
         });
     },
+
     /**
      * Confirm delivery by technician
      */
@@ -1357,7 +1262,7 @@ const Solicitacoes = {
         const userName = currentUser?.name || 'Sistema';
 
         const deliveredAt = Date.now();
-        const success = await DataManager.updateSolicitationStatus(id, 'finalizada', {
+        const success = DataManager.updateSolicitationStatus(id, 'finalizada', {
             deliveredAt,
             deliveredBy: userName,
             finalizedAt: deliveredAt,
@@ -1655,7 +1560,7 @@ const Solicitacoes = {
     /**
      * Save solicitation
      */
-    async saveSolicitation(status = 'pendente') {
+    saveSolicitation(status = 'pendente') {
         const tecnicoId = document.getElementById('sol-tecnico').value;
         const dataInput = document.getElementById('sol-data').value;
         const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
@@ -1743,7 +1648,7 @@ const Solicitacoes = {
             });
         }
 
-        const result = await DataManager.saveSolicitation(solicitation);
+        const result = DataManager.saveSolicitation(solicitation);
         const saved = result === true || (result && result.success !== false && !result.error);
 
         if (!saved) {
@@ -1770,26 +1675,26 @@ const Solicitacoes = {
                 ? Utils.getManagerNotificationEmail()
                 : 'wbastostavares@solenis.com';
 
-            const effectKey = `email:manager:new_request:${persistedSolicitation?.id || persistedSolicitation?.numero || Date.now()}`;
-            const dedupeResult = await DataManager.runIdempotentEffect(effectKey, async () => {
-                return Utils.sendSolicitationApprovalEmail({
-                    solicitation: persistedSolicitation,
-                    submittedBy: userName,
-                    recipient
-                });
-            });
+            Utils.sendSolicitationApprovalEmail({
+                solicitation: persistedSolicitation,
+                submittedBy: userName,
+                recipient
+            }).then((result) => {
+                const sent = result === true || result?.success === true;
+                if (sent) {
+                    Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
+                    return;
+                }
 
-            const mailResult = dedupeResult?.result;
-            const sent = mailResult === true || mailResult?.success === true;
-            if (sent) {
-                Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
-            } else if (dedupeResult?.reason === 'duplicate') {
-                // silencioso para evitar ruído em retries
-            } else if (mailResult?.reason === 'invalid_recipient') {
-                Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
-            } else {
+                if (result?.reason === 'invalid_recipient') {
+                    Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
+                    return;
+                }
+
                 Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
-            }
+            }).catch(() => {
+                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+            });
         }
     },
 
@@ -1898,7 +1803,7 @@ const Solicitacoes = {
                     return;
                 }
 
-                const result = await DataManager.restoreSolicitationsBackup(payload);
+                const result = DataManager.restoreSolicitationsBackup(payload);
                 if (result?.success) {
                     Utils.showToast(`${result.restoredCount} solicitações restauradas`, 'success');
                     this.currentPage = 1;
@@ -1941,12 +1846,7 @@ const Solicitacoes = {
         );
         
         if (confirmed) {
-            const deleted = await DataManager.deleteSolicitation(id);
-            if (!deleted) {
-                Utils.showToast('Não foi possível excluir a solicitação no momento', 'error');
-                return;
-            }
-
+            DataManager.deleteSolicitation(id);
             Utils.showToast('Solicitação excluída com sucesso', 'success');
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
@@ -1988,7 +1888,52 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
-if (typeof window !== 'undefined') {
-    window.Solicitacoes = Solicitacoes;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

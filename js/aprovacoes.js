@@ -11,7 +11,6 @@ const Aprovacoes = {
     isApproveSubmitting: false,
     isRejectSubmitting: false,
     isBatchApproveSubmitting: false,
-    _hasRenderedSnapshot: false,
     filters: {
         minValue: '',
         tecnico: '',
@@ -19,90 +18,11 @@ const Aprovacoes = {
         prioridade: ''
     },
 
-    resolvePageState(snapshot) {
-        const syncState = String(DataManager?.getSyncStatus?.().state || 'idle').toLowerCase();
-
-        if (snapshot === null || snapshot === undefined) {
-            if (syncState === 'failed' || syncState === 'error') {
-                return {
-                    status: 'error',
-                    title: 'Falha ao carregar aprovações',
-                    message: 'A fila de aprovação não pôde ser sincronizada.'
-                };
-            }
-
-            if (syncState === 'saving' || syncState === 'start' || syncState === 'pending') {
-                return {
-                    status: 'retrying',
-                    title: 'Atualizando fila de aprovação',
-                    message: 'Os dados estão sendo sincronizados. Aguarde ou tente novamente.'
-                };
-            }
-
-            return {
-                status: 'loading',
-                title: 'Carregando aprovações',
-                message: 'Buscando solicitações pendentes no servidor.'
-            };
-        }
-
-        if (!Array.isArray(snapshot)) {
-            return {
-                status: 'error',
-                title: 'Dados de aprovação inválidos',
-                message: 'O conteúdo retornado para a fila de aprovação é inválido.'
-            };
-        }
-
-        if (snapshot.length === 0) {
-            return {
-                status: 'empty',
-                title: 'Nenhuma solicitação para aprovar',
-                message: 'Não há solicitações carregadas para análise neste momento.'
-            };
-        }
-
-        return { status: 'success' };
-    },
-
-    renderPageState(state) {
-        const configByStatus = {
-            loading: { icon: 'fa-spinner fa-spin' },
-            retrying: { icon: 'fa-rotate-right fa-spin' },
-            empty: { icon: 'fa-inbox' },
-            error: { icon: 'fa-circle-xmark' }
-        };
-        const config = configByStatus[state?.status] || configByStatus.loading;
-
-        return `
-            <div class="empty-state">
-                <i class="fas ${config.icon}"></i>
-                <h4>${Utils.escapeHtml(state?.title || 'Carregando')}</h4>
-                <p>${Utils.escapeHtml(state?.message || 'Aguarde alguns instantes.')}</p>
-                <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
-                    <i class="fas fa-rotate-right"></i> Tentar novamente
-                </button>
-            </div>
-        `;
-    },
-
     /**
      * Render approvals page
      */
     render() {
         const content = document.getElementById('content-area');
-        if (!content) {
-            return;
-        }
-        const snapshot = (typeof DataManager?.loadData === 'function' && DataManager?.KEYS?.SOLICITATIONS)
-            ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
-            : DataManager.getSolicitations();
-        const pageState = this.resolvePageState(snapshot);
-        if (pageState.status !== 'success') {
-            content.innerHTML = this.renderPageState(pageState);
-            return;
-        }
-        this._hasRenderedSnapshot = true;
         const pending = DataManager.getPendingSolicitations();
 
         content.innerHTML = `
@@ -703,7 +623,7 @@ const Aprovacoes = {
     /**
      * Confirm approval
      */
-    async confirmApprove() {
+    confirmApprove() {
         if (this.isApproveSubmitting) {
             return;
         }
@@ -738,7 +658,7 @@ const Aprovacoes = {
             const currentUser = Auth.getCurrentUser();
             const userName = currentUser?.name || 'Sistema';
 
-            const success = await DataManager.updateSolicitationStatus(id, 'aprovada', {
+            const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
                 fornecedorId,
                 approvedAt: Date.now(),
                 approvedBy: userName,
@@ -755,26 +675,20 @@ const Aprovacoes = {
                 Utils.showToast('Solicitação aprovada com sucesso', 'success');
                 Utils.closeModal();
 
+                // Generate PDF automatically
                 const updatedSol = DataManager.getSolicitationById(id);
                 if (updatedSol) {
-                    await DataManager.runIdempotentEffect(`pdf:approval:${updatedSol.id}`, async () => {
-                        Utils.generatePDF(updatedSol);
-                        if (window.SheetIntegration) {
-                            const sheetConfig = DataManager.getSettings().sheetIntegration;
-                            const recorded = SheetIntegration.recordApproval(updatedSol, { approver: userName, comment: approveComment, config: sheetConfig });
-                            if (!recorded) {
-                                console.warn('SheetIntegration: failed to record approval for', updatedSol.id);
-                            }
+                    Utils.generatePDF(updatedSol);
+                    if (window.SheetIntegration) {
+                        const sheetConfig = DataManager.getSettings().sheetIntegration;
+                        const recorded = SheetIntegration.recordApproval(updatedSol, { approver: userName, comment: approveComment, config: sheetConfig });
+                        if (!recorded) {
+                            console.warn('SheetIntegration: failed to record approval for', updatedSol.id);
                         }
-                        return true;
-                    });
+                    }
 
-                    await DataManager.runIdempotentEffect(`email:approval:technician:${updatedSol.id}`, async () => {
-                        return this.sendTechnicianApprovalNotification(updatedSol, userName, { silent: false });
-                    });
-                    await DataManager.runIdempotentEffect(`email:approval:supplier:${updatedSol.id}`, async () => {
-                        return this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
-                    });
+                    this.sendTechnicianApprovalNotification(updatedSol, userName, { silent: false });
+                    this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
                 }
 
                 // Refresh views
@@ -1038,7 +952,7 @@ const Aprovacoes = {
     /**
      * Confirm rejection
      */
-    async confirmReject() {
+    confirmReject() {
         if (this.isRejectSubmitting) {
             return;
         }
@@ -1058,7 +972,7 @@ const Aprovacoes = {
             const currentUser = Auth.getCurrentUser();
             const userName = currentUser?.name || 'Sistema';
 
-            const success = await DataManager.updateSolicitationStatus(id, 'rejeitada', {
+            const success = DataManager.updateSolicitationStatus(id, 'rejeitada', {
                 rejectionReason: reason,
                 rejectedAt: Date.now(),
                 rejectedBy: userName,
@@ -1071,9 +985,7 @@ const Aprovacoes = {
 
                 const updatedSol = DataManager.getSolicitationById(id);
                 if (updatedSol) {
-                    await DataManager.runIdempotentEffect(`email:rejection:technician:${updatedSol.id}`, async () => {
-                        return this.sendTechnicianRejectionNotification(updatedSol, userName, reason, { silent: false });
-                    });
+                    this.sendTechnicianRejectionNotification(updatedSol, userName, reason, { silent: false });
                 }
 
                 this.refreshTable();
@@ -1132,7 +1044,7 @@ const Aprovacoes = {
     /**
      * Confirm batch approve
      */
-    async confirmBatchApprove() {
+    confirmBatchApprove() {
         if (this.isBatchApproveSubmitting) {
             return;
         }
@@ -1154,8 +1066,8 @@ const Aprovacoes = {
 
             let approved = 0;
 
-            for (const id of this.selectedIds) {
-                const success = await DataManager.updateSolicitationStatus(id, 'aprovada', {
+            this.selectedIds.forEach(id => {
+                const success = DataManager.updateSolicitationStatus(id, 'aprovada', {
                     fornecedorId,
                     approvedAt: Date.now(),
                     approvedBy: userName,
@@ -1163,54 +1075,35 @@ const Aprovacoes = {
                     approvalComment: 'Aprovação em lote'
                 });
 
-                if (!success) {
-                    continue;
-                }
+                if (success) {
+                    approved++;
 
-                approved++;
-                const sol = DataManager.getSolicitationById(id);
-                if (!sol) {
-                    continue;
-                }
-
-                await DataManager.runIdempotentEffect(`pdf:approval:${sol.id}`, async () => {
-                    Utils.generatePDF(sol);
-                    if (window.SheetIntegration) {
-                        const sheetConfig = DataManager.getSettings().sheetIntegration;
-                        const recorded = SheetIntegration.recordApproval(sol, { approver: userName, comment: 'Aprovação em lote', config: sheetConfig });
-                        if (!recorded) {
-                            console.warn('SheetIntegration: failed to record approval for', sol.id);
+                    // Generate PDF for each
+                    const sol = DataManager.getSolicitationById(id);
+                    if (sol) {
+                        Utils.generatePDF(sol);
+                        if (window.SheetIntegration) {
+                            const sheetConfig = DataManager.getSettings().sheetIntegration;
+                            const recorded = SheetIntegration.recordApproval(sol, { approver: userName, comment: 'Aprovação em lote', config: sheetConfig });
+                            if (!recorded) {
+                                console.warn('SheetIntegration: failed to record approval for', sol.id);
+                            }
                         }
-                    }
-                    return true;
-                });
 
-                emailPromises.push(
-                    DataManager.runIdempotentEffect(`email:approval:technician:${sol.id}`, async () => {
-                        return this.sendTechnicianApprovalNotification(sol, userName, { silent: true });
-                    }),
-                    DataManager.runIdempotentEffect(`email:approval:supplier:${sol.id}`, async () => {
-                        return this.sendSupplierApprovalNotification(sol, userName, { silent: true });
-                    })
-                );
-            }
+                        emailPromises.push(this.sendTechnicianApprovalNotification(sol, userName, { silent: true }));
+                        emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
+                    }
+                }
+            });
 
             Utils.showToast(`${approved} solicitações aprovadas com sucesso`, 'success');
-
             if (emailPromises.length > 0) {
                 Promise.allSettled(emailPromises).then((results) => {
                     const summary = results.reduce((acc, result) => {
-                        const dedupeResult = (result.status === 'fulfilled') ? result.value : null;
-                        const payload = dedupeResult?.result;
-
-                        if (payload) {
-                            acc.sentCount += Number(payload.sentCount) || 0;
-                            acc.failedCount += Number(payload.failedCount) || 0;
-                            acc.totalRecipients += Number(payload.totalRecipients) || 0;
-                            return acc;
-                        }
-
-                        if (dedupeResult?.reason === 'duplicate') {
+                        if (result.status === 'fulfilled' && result.value) {
+                            acc.sentCount += Number(result.value.sentCount) || 0;
+                            acc.failedCount += Number(result.value.failedCount) || 0;
+                            acc.totalRecipients += Number(result.value.totalRecipients) || 0;
                             return acc;
                         }
 
@@ -1220,6 +1113,7 @@ const Aprovacoes = {
                     }, { sentCount: 0, failedCount: 0, totalRecipients: 0 });
 
                     if (summary.totalRecipients === 0) {
+                        Utils.showToast('Aprovações concluídas. Nenhum destinatário válido para notificação.', 'warning');
                         return;
                     }
 
@@ -1231,8 +1125,8 @@ const Aprovacoes = {
                     }
                 });
             }
-
             Utils.closeModal();
+
             this.selectedIds = [];
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
@@ -1242,7 +1136,32 @@ const Aprovacoes = {
         }
     }
 };
-if (typeof window !== 'undefined') {
-    window.Aprovacoes = Aprovacoes;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

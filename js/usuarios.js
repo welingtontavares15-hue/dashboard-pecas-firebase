@@ -12,7 +12,3 @@
         }
     }
 };
-if (typeof window !== 'undefined') {
-    window.Usuarios = Usuarios;
-}
-

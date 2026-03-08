@@ -7,18 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260308i">
+    <link rel="stylesheet" href="css/style.css?v=20260308a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script>
-        window.__APP_BUILD_VERSION__ = '20260308i';
-        window.__APP_CACHE_VERSION__ = 'v15';
-    </script>
-    <script type="module" src="./js/firebase-init.js?v=20260308i"></script>
+    <script type="module" src="./js/firebase-init.js"></script>
 </head>
 <body class="light-mode" data-theme="light">
     <!-- Login Screen -->
@@ -146,10 +142,6 @@
                         <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
                             <i class="fas fa-sync-alt"></i>
                         </button>
-                        <div id="sync-indicator" class="sync-indicator sync-idle" title="Estado da sincronização">
-                            <i class="fas fa-circle"></i>
-                            <span>Sem atividade</span>
-                        </div>
                         <div id="pending-badge" class="notification-badge hidden" title="Itens pendentes">
                             <i class="fas fa-bell"></i>
                             <span id="pending-count">0</span>
@@ -205,27 +197,22 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/config.js?v=20260308i"></script>
-    <script src="js/firebase-config.js?v=20260308i"></script>
-    <script src="js/pwa.js?v=20260308i"></script>
-    <script src="js/utils.js?v=20260308i"></script>
-    <script src="js/logger.js?v=20260308i"></script>
-    <script src="js/indexeddb-storage.js?v=20260308i"></script>
-    <script src="js/sheets.js?v=20260308i"></script>
-    <script src="js/onedrive.js?v=20260308i"></script>
-    <script src="js/storage.js?v=20260308i"></script>
-    <script src="js/data.js?v=20260308i"></script>
-    <script src="js/auth.js?v=20260308i"></script>
-    <script src="js/audit-log.js?v=20260308i"></script>
-    <script src="js/app.js?v=20260308i"></script>
-    <script src="js/ui-modern.js?v=20260308i"></script>
+    <script src="js/config.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/pwa.js"></script>
+    <script src="js/utils.js?v=20260308d"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/indexeddb-storage.js"></script>
+    <script src="js/sheets.js"></script>
+    <script src="js/onedrive.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/audit-log.js"></script>
+    <script src="js/app.js?v=20260308a"></script>
+    <script src="js/ui-modern.js?v=20260308a"></script>
 </body>
 </html>
-
-
-
-
-
 
 
 

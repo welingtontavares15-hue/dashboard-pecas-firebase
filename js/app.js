@@ -4,75 +4,28 @@
  */
 
 const CHART_INIT_DELAY_MS = 100;
-const PAGE_RENDER_TIMEOUT_MS = 15000;
-const BOOTSTRAP_TIMEOUT_MS = 20000;
-const MODULE_LOAD_RETRY_LIMIT = 2;
-const APP_BUILD_VERSION = (typeof window !== 'undefined' && window.__APP_BUILD_VERSION__)
-    ? String(window.__APP_BUILD_VERSION__)
-    : '20260308i';
-const APP_CACHE_VERSION = (typeof window !== 'undefined' && window.__APP_CACHE_VERSION__)
-    ? String(window.__APP_CACHE_VERSION__)
-    : 'v15';
-const MODULE_REGISTRY = {
-    dashboard: {
-        routeIds: ['dashboard'],
-        lazyModule: `./js/pages/dashboard.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`, `js/solicitacoes.js?v=${APP_BUILD_VERSION}`, `js/aprovacoes.js?v=${APP_BUILD_VERSION}`, `js/dashboard.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Dashboard'],
-        primaryGlobal: 'Dashboard'
-    },
-    solicitacoes: {
-        routeIds: ['solicitacoes', 'minhas-solicitacoes', 'nova-solicitacao'],
-        lazyModule: `./js/pages/solicitacoes.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`, `js/solicitacoes.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Solicitacoes'],
-        primaryGlobal: 'Solicitacoes'
-    },
-    aprovacoes: {
-        routeIds: ['aprovacoes'],
-        lazyModule: `./js/pages/aprovacoes.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/solicitacoes.js?v=${APP_BUILD_VERSION}`, `js/aprovacoes.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Aprovacoes'],
-        primaryGlobal: 'Aprovacoes'
-    },
-    pecas: {
-        routeIds: ['pecas', 'catalogo'],
-        lazyModule: `./js/pages/pecas.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Pecas'],
-        primaryGlobal: 'Pecas'
-    },
-    relatorios: {
-        routeIds: ['relatorios'],
-        lazyModule: `./js/pages/relatorios.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/relatorios.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Relatorios'],
-        primaryGlobal: 'Relatorios'
-    },
-    fornecedor: {
-        routeIds: ['fornecedor'],
-        lazyModule: `./js/pages/fornecedor.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/fornecedor.js?v=${APP_BUILD_VERSION}`],
-        globals: ['FornecedorPortal'],
-        primaryGlobal: 'FornecedorPortal'
-    },
-    usuarios: {
-        routeIds: ['tecnicos', 'fornecedores', 'usuarios'],
-        lazyModule: `./js/pages/usuarios.js?v=${APP_BUILD_VERSION}`,
-        fallbackScripts: [`js/tecnicos.js?v=${APP_BUILD_VERSION}`, `js/fornecedores.js?v=${APP_BUILD_VERSION}`, `js/usuarios.js?v=${APP_BUILD_VERSION}`],
-        globals: ['Tecnicos', 'Fornecedores', 'Usuarios'],
-        primaryGlobal: 'Usuarios'
-    }
-};
 
 const App = {
     currentPage: null,
-    moduleRegistry: MODULE_REGISTRY,
-    lazyModules: Object.fromEntries(Object.entries(MODULE_REGISTRY).map(([key, descriptor]) => [key, descriptor.lazyModule])),
-    fallbackScripts: Object.fromEntries(Object.entries(MODULE_REGISTRY).map(([key, descriptor]) => [key, descriptor.fallbackScripts.slice()])),
+    lazyModules: {
+        dashboard: './js/pages/dashboard.js?v=20260307h',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260307h',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
+        pecas: './js/pages/pecas.js?v=20260307h',
+        relatorios: './js/pages/relatorios.js?v=20260307h',
+        fornecedor: './js/pages/fornecedor.js?v=20260307h',
+        usuarios: './js/pages/usuarios.js?v=20260307h'
+    },
+    fallbackScripts: {
+        dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
+        solicitacoes: ['js/pecas.js', 'js/solicitacoes.js'],
+        aprovacoes: ['js/solicitacoes.js', 'js/aprovacoes.js'],
+        pecas: ['js/pecas.js'],
+        relatorios: ['js/relatorios.js'],
+        fornecedor: ['js/fornecedor.js'],
+        usuarios: ['js/tecnicos.js', 'js/fornecedores.js', 'js/usuarios.js']
+    },
     _lazyLoaded: {},
-    _navigationBound: false,
-    _lastRenderToken: 0,
 
     /**
      * Get default landing page based on role
@@ -94,77 +47,19 @@ const App = {
     async init() {
         // Set up event listeners FIRST to prevent form from submitting before handlers are attached
         this.setupEventListeners();
-
-        let initialized = false;
-        try {
-            initialized = await this.runWithTimeout(
-                DataManager.init(),
-                BOOTSTRAP_TIMEOUT_MS,
-                'bootstrap_timeout'
-            );
-        } catch (error) {
-            initialized = false;
-            this.logUiFailure('bootstrap_failed', {
-                requestId: 'bootstrap:init',
-                action: 'bootstrap',
-                stage: 'bootstrap',
-                route: 'init',
-                module: 'app',
-                source: 'app',
-                errorCode: error?.code || error?.message || 'bootstrap_failed',
-                originalError: error?.message || String(error || 'bootstrap_failed'),
-                retryCount: 0
-            });
-            this.showBootstrapFailure(error);
-            return false;
-        }
-
-        if (!initialized) {
-            this.logUiFailure('bootstrap_failed', {
-                requestId: 'bootstrap:init',
-                action: 'bootstrap',
-                stage: 'bootstrap',
-                route: 'init',
-                module: 'app',
-                source: 'app',
-                errorCode: 'bootstrap_failed',
-                originalError: 'data_manager_init_failed',
-                retryCount: 0
-            });
-            this.showBootstrapFailure(new Error('bootstrap_failed'));
-            return false;
-        }
-
+        
+        // Initialize data (now async for cloud storage)
+        await DataManager.init();
+        
+        // Check if user is logged in
         if (Auth.init()) {
             this.showApp();
         } else {
             this.showLogin();
         }
-
+        
+        // Apply saved theme
         this.applyTheme();
-        return true;
-    },
-
-    showBootstrapFailure(error) {
-        const code = error?.code || error?.message || 'bootstrap_failed';
-        const message = code === 'bootstrap_timeout'
-            ? 'A inicialização excedeu o tempo limite. Recarregue a página para buscar a versão correta dos arquivos.'
-            : 'A aplicação não conseguiu concluir o bootstrap. Recarregue a página e tente novamente.';
-
-        this.showLogin();
-
-        const errorDiv = document.getElementById('login-error');
-        if (errorDiv) {
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-
-        if (typeof Utils !== 'undefined' && typeof Utils.hideLoading === 'function') {
-            Utils.hideLoading(true);
-        }
-        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
-            Utils.showToast(message, 'error');
-        }
     },
 
     /**
@@ -272,36 +167,6 @@ const App = {
         window.addEventListener('data:updated', (event) => {
             this.refreshActiveView(event?.detail?.keys || []);
         });
-
-        window.addEventListener('sync:operation', (event) => {
-            this.updateSyncIndicator(event?.detail || {});
-            const dashboardModule = this.getGlobalModule('Dashboard');
-            if (this.currentPage === 'dashboard' && dashboardModule && typeof dashboardModule.render === 'function') {
-                const state = String(event?.detail?.state || '').toLowerCase();
-                if (['saving', 'synced', 'failed', 'pending', 'error'].includes(state)) {
-                    dashboardModule.render();
-                }
-            }
-        });
-
-        window.addEventListener('sync:status', (event) => {
-            this.updateSyncIndicator(event?.detail || {});
-        });
-
-        window.addEventListener('ui:loading-timeout', (event) => {
-            const activePage = this.currentPage || this.getDefaultPage();
-            const timeoutContext = event?.detail?.context || activePage;
-            const timeoutReason = event?.detail?.reason || 'ui_loading_timeout';
-            this.renderPageFallback(
-                activePage,
-                `A leitura da tela demorou mais que o esperado (${timeoutContext}).`,
-                timeoutReason
-            );
-        });
-
-        if (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function') {
-            this.updateSyncIndicator(DataManager.getSyncStatus());
-        }
     },
 
     /**
@@ -414,27 +279,13 @@ const App = {
         
         // Set up navigation click handlers
         this.setupNavigation();
-
-        if (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function') {
-            this.updateSyncIndicator(DataManager.getSyncStatus());
-        }
     },
 
     /**
      * Set up navigation handlers
      */
     setupNavigation() {
-        if (this._navigationBound) {
-            return;
-        }
-
-        const sidebarNav = document.getElementById('sidebar-nav');
-        if (!sidebarNav) {
-            return;
-        }
-
-        this._navigationBound = true;
-        sidebarNav.addEventListener('click', (e) => {
+        document.getElementById('sidebar-nav').addEventListener('click', (e) => {
             const navItem = e.target.closest('.nav-item');
             if (navItem) {
                 const pageId = navItem.dataset.page;
@@ -470,283 +321,107 @@ const App = {
         this.updateBreadcrumb(pageId);
 
         // Render page content
-        const renderToken = ++this._lastRenderToken;
-        await this.renderPage(pageId, renderToken);
+        await this.renderPage(pageId);
     },
-
     resolveLazyModuleKey(pageId) {
-        const targetRoute = String(pageId || '').trim().toLowerCase();
-        const entry = Object.entries(this.moduleRegistry).find(([, descriptor]) => (
-            Array.isArray(descriptor?.routeIds) && descriptor.routeIds.includes(targetRoute)
-        ));
-        if (entry) {
-            return entry[0];
+        if (pageId === 'dashboard') {
+            return 'dashboard';
+        }
+        if (pageId === 'solicitacoes' || pageId === 'minhas-solicitacoes' || pageId === 'nova-solicitacao') {
+            return 'solicitacoes';
+        }
+        if (pageId === 'aprovacoes') {
+            return 'aprovacoes';
+        }
+        if (pageId === 'pecas' || pageId === 'catalogo') {
+            return 'pecas';
+        }
+        if (pageId === 'relatorios') {
+            return 'relatorios';
+        }
+        if (pageId === 'fornecedor') {
+            return 'fornecedor';
+        }
+        if (pageId === 'tecnicos' || pageId === 'fornecedores' || pageId === 'usuarios') {
+            return 'usuarios';
         }
         return null;
     },
 
-    getModuleDescriptor(keyOrPageId) {
-        const directKey = String(keyOrPageId || '').trim();
-        const key = this.moduleRegistry[directKey]
-            ? directKey
-            : this.resolveLazyModuleKey(directKey);
-        if (!key || !this.moduleRegistry[key]) {
-            return null;
-        }
-        return {
-            key,
-            ...this.moduleRegistry[key]
-        };
-    },
-
     isLazyKeyReady(key) {
-        const descriptor = this.getModuleDescriptor(key);
-        if (!descriptor) {
-            return true;
-        }
-        return (descriptor.globals || []).every((globalName) => !!this.getGlobalModule(globalName));
-    },
-
-    normalizeAssetUrl(value) {
-        try {
-            return new URL(String(value || ''), window.location.href).href;
-        } catch (_error) {
-            return String(value || '');
-        }
-    },
-
-    buildRetryAssetUrl(value, retryCount = 0) {
-        try {
-            const url = new URL(String(value || ''), window.location.href);
-            if (retryCount > 0) {
-                url.searchParams.set('__retry', String(retryCount));
-                url.searchParams.set('__build', this.getBuildVersion());
-            }
-            return url.href;
-        } catch (_error) {
-            return String(value || '');
-        }
-    },
-
-    getBuildVersion() {
-        return APP_BUILD_VERSION;
-    },
-
-    getCacheVersion() {
-        return APP_CACHE_VERSION;
-    },
-
-    createModuleError(code, details = {}) {
-        const error = new Error(details?.message || code);
-        error.code = code;
-        Object.assign(error, details);
-        return error;
-    },
-
-    async loadTrackedScript(baseSrc, options = {}) {
-        const actualSrc = options?.actualSrc || baseSrc;
-        const selectorBase = options?.selectorBase || 'data-fallback-base';
-        const selectorSrc = options?.selectorSrc || 'data-fallback-src';
-        const normalizedBaseSrc = this.normalizeAssetUrl(baseSrc);
-        const normalizedActualSrc = this.normalizeAssetUrl(actualSrc);
-        const selector = `script[${selectorBase}="${normalizedBaseSrc}"]`;
-
-        const removeNode = (node) => {
-            if (node && node.parentNode) {
-                node.parentNode.removeChild(node);
-            }
+        const checks = {
+            dashboard: () => typeof Dashboard !== 'undefined',
+            solicitacoes: () => typeof Solicitacoes !== 'undefined',
+            aprovacoes: () => typeof Aprovacoes !== 'undefined',
+            pecas: () => typeof Pecas !== 'undefined',
+            relatorios: () => typeof Relatorios !== 'undefined',
+            fornecedor: () => typeof FornecedorPortal !== 'undefined',
+            usuarios: () => typeof Tecnicos !== 'undefined' && typeof Fornecedores !== 'undefined' && typeof Usuarios !== 'undefined'
         };
+        return checks[key] ? checks[key]() : true;
+    },
 
-        return new Promise((resolve, reject) => {
-            let timeoutHandle = null;
-
-            const clearTimeoutHandle = () => {
-                if (timeoutHandle) {
-                    clearTimeout(timeoutHandle);
-                    timeoutHandle = null;
-                }
-            };
-
-            const fail = (code, message, originalError = null, scriptNode = null) => {
-                clearTimeoutHandle();
-                if (scriptNode) {
-                    scriptNode.dataset.loadState = 'error';
-                }
-                reject(this.createModuleError(code, {
-                    message,
-                    originalError,
-                    src: normalizedBaseSrc,
-                    actualSrc: normalizedActualSrc
-                }));
-            };
-
-            let existing = document.querySelector(selector)
-                || document.querySelector(`script[${selectorSrc}="${normalizedBaseSrc}"]`);
-
-            if (existing) {
-                const state = String(existing.dataset.loadState || '');
-                if (existing.dataset.loaded === 'true') {
-                    resolve();
+    async loadFallbackScripts(key) {
+        const scripts = this.fallbackScripts[key] || [];
+        for (const src of scripts) {
+            await new Promise((resolve, reject) => {
+                const existing = document.querySelector(`script[data-fallback-src="${src}"]`);
+                if (existing) {
+                    if (existing.dataset.loaded === 'true') {
+                        resolve();
+                        return;
+                    }
+                    existing.addEventListener('load', () => resolve(), { once: true });
+                    existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
                     return;
                 }
-                if (state === 'error') {
-                    removeNode(existing);
-                    existing = null;
-                }
-            }
 
-            if (existing) {
-                existing.addEventListener('load', () => {
-                    clearTimeoutHandle();
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.dataset.fallbackSrc = src;
+                script.onload = () => {
+                    script.dataset.loaded = 'true';
                     resolve();
-                }, { once: true });
-                existing.addEventListener('error', (event) => {
-                    fail(`module_load_failed:${normalizedBaseSrc}`, `Falha ao carregar ${normalizedBaseSrc}`, event, existing);
-                }, { once: true });
-                timeoutHandle = setTimeout(() => {
-                    fail(`module_load_timeout:${normalizedBaseSrc}`, `Timeout ao carregar ${normalizedBaseSrc}`, null, existing);
-                }, PAGE_RENDER_TIMEOUT_MS);
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = normalizedActualSrc;
-            script.async = true;
-            script.dataset.fallbackBase = normalizedBaseSrc;
-            script.dataset.fallbackSrc = normalizedActualSrc;
-            script.dataset.loaded = 'false';
-            script.dataset.loadState = 'loading';
-            script.onload = () => {
-                clearTimeoutHandle();
-                script.dataset.loaded = 'true';
-                script.dataset.loadState = 'loaded';
-                resolve();
-            };
-            script.onerror = (event) => {
-                fail(`module_load_failed:${normalizedBaseSrc}`, `Falha ao carregar ${normalizedBaseSrc}`, event, script);
-            };
-
-            timeoutHandle = setTimeout(() => {
-                fail(`module_load_timeout:${normalizedBaseSrc}`, `Timeout ao carregar ${normalizedBaseSrc}`, null, script);
-            }, PAGE_RENDER_TIMEOUT_MS);
-
-            document.head.appendChild(script);
-        });
-    },
-
-    clearTrackedScripts(sources = []) {
-        const stripQuery = (value) => String(value || '').replace(/[?#].*$/, '');
-        const candidates = (Array.isArray(sources) ? sources : [])
-            .reduce((acc, source) => acc.concat([source, stripQuery(source)]), [])
-            .filter((value, index, arr) => value && arr.indexOf(value) === index);
-
-        candidates.forEach((source) => {
-            const normalized = this.normalizeAssetUrl(source);
-            document.querySelectorAll(`script[data-fallback-base="${normalized}"]`).forEach((node) => {
-                if (node.parentNode) {
-                    node.parentNode.removeChild(node);
-                }
+                };
+                script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+                document.head.appendChild(script);
             });
-        });
-    },
-
-    async loadFallbackScripts(keyOrPageId) {
-        const descriptor = this.getModuleDescriptor(keyOrPageId);
-        if (!descriptor) {
-            throw this.createModuleError(`module_registry_missing:${keyOrPageId}`, {
-                route: keyOrPageId,
-                module: keyOrPageId
-            });
-        }
-
-        const scripts = descriptor.fallbackScripts || [];
-        const stripQuery = (value) => String(value || '').replace(/[?#].*$/, '');
-
-        for (const originalSrc of scripts) {
-            const sourceCandidates = [originalSrc, stripQuery(originalSrc)]
-                .filter((value, index, arr) => value && arr.indexOf(value) === index);
-            let lastError = null;
-            let loaded = false;
-
-            for (let attempt = 0; attempt < MODULE_LOAD_RETRY_LIMIT; attempt += 1) {
-                for (const srcCandidate of sourceCandidates) {
-                    try {
-                        await this.loadTrackedScript(srcCandidate, {
-                            actualSrc: this.buildRetryAssetUrl(srcCandidate, attempt)
-                        });
-                        loaded = true;
-                        break;
-                    } catch (error) {
-                        lastError = error;
-                    }
-                }
-                if (loaded) {
-                    break;
-                }
-            }
-
-            if (!loaded && lastError) {
-                throw lastError;
-            }
-        }
-
-        if (!this.isLazyKeyReady(descriptor.key)) {
-            this.clearTrackedScripts(scripts);
         }
     },
 
     async ensurePageModule(pageId) {
-        const descriptor = this.getModuleDescriptor(pageId);
-        if (!descriptor) {
+        const key = this.resolveLazyModuleKey(pageId);
+        if (!key) {
             return;
         }
 
-        const { key, lazyModule, primaryGlobal } = descriptor;
         const dashboardNeedsModernPatch = key === 'dashboard' && typeof window.Dashboard !== 'undefined' && !window.Dashboard.__saasModernized;
         if (this._lazyLoaded[key] || (this.isLazyKeyReady(key) && !dashboardNeedsModernPatch)) {
             this._lazyLoaded[key] = true;
             return;
         }
 
-        if (!lazyModule) {
-            throw this.createModuleError(`module_registry_missing:${primaryGlobal || key}`, {
-                route: pageId,
-                module: primaryGlobal || key
-            });
+        const modulePath = this.lazyModules[key];
+        if (!modulePath) {
+            return;
         }
 
-        let lastError = null;
-        for (let attempt = 0; attempt < MODULE_LOAD_RETRY_LIMIT; attempt += 1) {
-            try {
-                const moduleUrl = this.buildRetryAssetUrl(lazyModule, attempt);
-                const mod = await import(moduleUrl);
-                if (mod && typeof mod.ensureLoaded === 'function') {
-                    await mod.ensureLoaded();
-                }
-            } catch (error) {
-                lastError = error;
+        try {
+            const mod = await import(modulePath);
+            if (mod && typeof mod.ensureLoaded === 'function') {
+                await mod.ensureLoaded();
             }
-
-            if (!this.isLazyKeyReady(key)) {
-                try {
-                    await this.loadFallbackScripts(key);
-                } catch (error) {
-                    lastError = error;
-                }
-            }
-
-            if (this.isLazyKeyReady(key)) {
-                this._lazyLoaded[key] = true;
-                return;
-            }
+        } catch (error) {
+            console.warn('Lazy load falhou, aplicando fallback clássico:', key, error);
+            await this.loadFallbackScripts(key);
         }
 
-        throw this.createModuleError(`module_load_failed:${primaryGlobal || key}`, {
-            route: pageId,
-            module: primaryGlobal || key,
-            moduleKey: key,
-            originalError: lastError?.code || lastError?.message || 'module_load_failed'
-        });
+        if (!this.isLazyKeyReady(key)) {
+            await this.loadFallbackScripts(key);
+        }
+
+        this._lazyLoaded[key] = true;
     },
 
     /**
@@ -777,277 +452,82 @@ const App = {
         breadcrumb.innerHTML = `<span>${labels[pageId] || pageId}</span>`;
     },
     /**
-     * Execute asynchronous operation with timeout guard.
-     */
-    async runWithTimeout(operationPromise, timeoutMs = PAGE_RENDER_TIMEOUT_MS, timeoutCode = 'operation_timeout') {
-        let timeoutHandle = null;
-        const safeTimeout = Math.max(1000, Number(timeoutMs) || PAGE_RENDER_TIMEOUT_MS);
-        try {
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutHandle = setTimeout(() => {
-                    const timeoutError = new Error(timeoutCode);
-                    timeoutError.code = timeoutCode;
-                    reject(timeoutError);
-                }, safeTimeout);
-            });
-            return await Promise.race([operationPromise, timeoutPromise]);
-        } finally {
-            if (timeoutHandle) {
-                clearTimeout(timeoutHandle);
-            }
-        }
-    },
-
-    getGlobalModule(moduleName) {
-        if (!moduleName || typeof window === 'undefined') {
-            return null;
-        }
-
-        if (typeof window[moduleName] !== 'undefined' && window[moduleName] !== null) {
-            return window[moduleName];
-        }
-
-        try {
-            const resolved = Function(`return (typeof ${moduleName} !== 'undefined') ? ${moduleName} : null;`)();
-            if (typeof resolved !== 'undefined' && resolved !== null) {
-                window[moduleName] = resolved;
-                return resolved;
-            }
-        } catch (_error) {
-            // Ignore fallback evaluation errors and keep null response.
-        }
-
-        return null;
-    },
-
-    requireGlobalModule(moduleName, pageId) {
-        const moduleRef = this.getGlobalModule(moduleName);
-        if (!moduleRef) {
-            throw this.createModuleError(`module_registry_missing:${moduleName}`, {
-                route: pageId,
-                module: moduleName
-            });
-        }
-        return moduleRef;
-    },
-
-    logUiFailure(message, data = {}) {
-        const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function')
-            ? Auth.getCurrentUser()
-            : null;
-        const payload = {
-            ...data,
-            userId: data?.userId || currentUser?.id || null,
-            route: data?.route || this.currentPage || null,
-            source: data?.source || 'app',
-            cacheVersion: data?.cacheVersion || this.getCacheVersion(),
-            buildVersion: data?.buildVersion || this.getBuildVersion(),
-            retryCount: Number(data?.retryCount || 0)
-        };
-
-        if (typeof Logger !== 'undefined' && typeof Logger.error === 'function') {
-            Logger.error((Logger.CATEGORY && Logger.CATEGORY.UI) || 'ui', message, payload);
-        }
-    },
-
-    /**
-     * Execute page-specific render function.
-     */
-    executePageRender(pageId) {
-        switch (pageId) {
-        case 'dashboard': {
-            const dashboardModule = this.requireGlobalModule('Dashboard', pageId);
-            dashboardModule.render();
-            break;
-        }
-
-        case 'solicitacoes':
-        case 'minhas-solicitacoes': {
-            const solicitacoesModule = this.requireGlobalModule('Solicitacoes', pageId);
-            solicitacoesModule.render();
-            break;
-        }
-
-        case 'nova-solicitacao': {
-            const solicitacoesModule = this.requireGlobalModule('Solicitacoes', pageId);
-            solicitacoesModule.openForm();
-            solicitacoesModule.render();
-            break;
-        }
-
-        case 'aprovacoes': {
-            const aprovacoesModule = this.requireGlobalModule('Aprovacoes', pageId);
-            aprovacoesModule.render();
-            break;
-        }
-
-        case 'tecnicos': {
-            const tecnicosModule = this.requireGlobalModule('Tecnicos', pageId);
-            tecnicosModule.render();
-            break;
-        }
-
-        case 'fornecedores': {
-            const fornecedoresModule = this.requireGlobalModule('Fornecedores', pageId);
-            fornecedoresModule.render();
-            break;
-        }
-
-        case 'fornecedor': {
-            const fornecedorModule = this.requireGlobalModule('FornecedorPortal', pageId);
-            fornecedorModule.render();
-            break;
-        }
-
-        case 'pecas':
-        case 'catalogo': {
-            const pecasModule = this.requireGlobalModule('Pecas', pageId);
-            pecasModule.render();
-            break;
-        }
-
-        case 'relatorios': {
-            const relatoriosModule = this.requireGlobalModule('Relatorios', pageId);
-            relatoriosModule.render();
-            setTimeout(() => relatoriosModule.initCharts(), CHART_INIT_DELAY_MS);
-            break;
-        }
-
-        case 'configuracoes':
-            this.renderConfiguracoes();
-            break;
-
-        case 'ajuda':
-            this.renderAjuda();
-            break;
-
-        case 'perfil':
-            this.renderPerfil();
-            break;
-
-        default:
-            this.renderNotFound();
-        }
-    },
-
-    /**
-     * Render controlled fallback when page load fails.
-     */
-    renderPageFallback(pageId, reasonMessage = '', reasonCode = 'page_render_failed') {
-        const content = document.getElementById('content-area');
-        if (!content) {
-            return;
-        }
-
-        const safeReasonCode = String(reasonCode || '').toLowerCase();
-        const isSyncIssue = /sync_|sync|cloud|offline|read_failed|write_failed/.test(safeReasonCode);
-        const isCacheIssue = /stale_cache|asset_version_mismatch|cache/.test(safeReasonCode);
-        const title = isCacheIssue
-            ? 'Versão inconsistente de arquivos detectada'
-            : (isSyncIssue ? 'Falha ao sincronizar dados desta tela' : 'Falha ao carregar esta tela');
-        const message = reasonMessage
-            || (isCacheIssue
-                ? 'Os arquivos da aplicação ficaram fora de versão. Recarregue para baixar os assets corretos.'
-                : (isSyncIssue
-                ? 'Não foi possível concluir a sincronização inicial. Tente novamente.'
-                : 'Ocorreu um erro ao montar a tela solicitada.'));
-
-        content.innerHTML = `
-            <div class="page-fallback card">
-                <div class="card-body">
-                    <div class="page-fallback-icon ${isSyncIssue || isCacheIssue ? 'warning' : 'danger'}">
-                        <i class="fas ${isSyncIssue || isCacheIssue ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
-                    </div>
-                    <h3>${Utils.escapeHtml(title)}</h3>
-                    <p>${Utils.escapeHtml(message)}</p>
-                    <div class="page-fallback-actions">
-                        <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
-                            <i class="fas fa-rotate-right"></i> Tentar novamente
-                        </button>
-                        <button class="btn btn-outline" onclick="App.navigate('${Utils.escapeHtml(pageId || this.getDefaultPage())}')">
-                            <i class="fas fa-house"></i> Recarregar tela
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    },
-
-    /**
-     * Retry rendering the current page with optional sync first.
-     */
-    async retryCurrentPage(options = {}) {
-        const activePage = this.currentPage || this.getDefaultPage();
-        const shouldSyncFirst = options?.syncFirst !== false;
-        if (shouldSyncFirst) {
-            await this.syncData();
-        }
-        await this.navigate(activePage);
-    },
-
-    /**
      * Render page content
      */
-    async renderPage(pageId, renderToken = this._lastRenderToken) {
-        Utils.showLoading(`render:${pageId}`);
+    async renderPage(pageId) {
+        Utils.showLoading();
 
         try {
-            await this.runWithTimeout((async () => {
-                if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
-                    return;
-                }
-                await this.ensurePageModule(pageId);
-                if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
-                    return;
-                }
-                this.executePageRender(pageId);
-            })(), PAGE_RENDER_TIMEOUT_MS, `page_render_timeout:${pageId}`);
-        } catch (error) {
-            if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
-                return;
-            }
-            console.error('Erro ao carregar módulo da página', pageId, error);
-            const descriptor = this.getModuleDescriptor(pageId);
-            if (descriptor?.key) {
-                this._lazyLoaded[descriptor.key] = false;
-            }
-            const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
-                ? DataManager.getSyncStatus()
-                : {};
-            const reasonCode = error?.code || error?.message || 'page_render_failed';
-            const syncFailed = ['failed', 'error'].includes(String(syncStatus?.state || '').toLowerCase());
-            const normalizedReasonCode = String(reasonCode || '').toLowerCase();
-            const timeoutError = normalizedReasonCode.includes('timeout');
-            const cacheIssue = /stale_cache|asset_version_mismatch|cache/.test(normalizedReasonCode);
-            const routeIssue = normalizedReasonCode.startsWith('route_resolution_failed');
-            const registryIssue = normalizedReasonCode.startsWith('module_registry_missing');
-            const moduleLoadIssue = normalizedReasonCode.startsWith('module_load_failed');
-            const reasonMessage = cacheIssue
-                ? 'Arquivos desatualizados foram detectados. Recarregue a página para baixar a versão correta.'
-                : (timeoutError
-                    ? 'Tempo de resposta excedido durante a leitura da página. Verifique a conexão e tente novamente.'
-                    : (syncFailed
-                        ? 'A sincronização falhou e os dados desta tela não puderam ser carregados.'
-                        : (routeIssue
-                            ? 'A rota solicitada não pôde ser resolvida.'
-                            : ((registryIssue || moduleLoadIssue)
-                                ? 'Não foi possível carregar este módulo agora.'
-                                : 'Falha ao montar a tela solicitada.'))));
+            await this.ensurePageModule(pageId);
 
-            this.logUiFailure(reasonCode, {
-                requestId: `ui_render:${pageId}:${renderToken}`,
-                action: 'render_page',
-                stage: 'ui_render',
-                entityId: pageId,
-                route: pageId,
-                module: descriptor?.primaryGlobal || descriptor?.module || descriptor?.key || pageId,
-                source: 'app',
-                originalError: error?.originalError || error?.message || String(error || reasonCode),
-                retryCount: 0
+            // Simulate async loading for UX
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    switch (pageId) {
+                    case 'dashboard':
+                        Dashboard.render();
+                        break;
+
+                    case 'solicitacoes':
+                    case 'minhas-solicitacoes':
+                        Solicitacoes.render();
+                        break;
+
+                    case 'nova-solicitacao':
+                        Solicitacoes.openForm();
+                        // Navigate to solicitations after modal closes
+                        Solicitacoes.render();
+                        break;
+
+                    case 'aprovacoes':
+                        Aprovacoes.render();
+                        break;
+
+                    case 'tecnicos':
+                        Tecnicos.render();
+                        break;
+
+                    case 'fornecedores':
+                        Fornecedores.render();
+                        break;
+
+                    case 'fornecedor':
+                        FornecedorPortal.render();
+                        break;
+
+                    case 'pecas':
+                    case 'catalogo':
+                        Pecas.render();
+                        break;
+
+                    case 'relatorios':
+                        Relatorios.render();
+                        setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+                        break;
+
+                    case 'configuracoes':
+                        this.renderConfiguracoes();
+                        break;
+
+                    case 'ajuda':
+                        this.renderAjuda();
+                        break;
+
+                    case 'perfil':
+                        this.renderPerfil();
+                        break;
+
+                    default:
+                        this.renderNotFound();
+                    }
+
+                    resolve();
+                }, 100);
             });
-
-            Utils.showToast(reasonMessage, 'error');
-            this.renderPageFallback(pageId, reasonMessage, reasonCode);
+        } catch (error) {
+            console.error('Erro ao carregar módulo da página', pageId, error);
+            Utils.showToast('Não foi possível carregar este módulo agora.', 'error');
+            this.renderNotFound();
         } finally {
             Utils.hideLoading();
         }
@@ -1139,16 +619,10 @@ const App = {
         
         // Refresh charts if on dashboard or reports
         if (this.currentPage === 'dashboard') {
-            const dashboardModule = this.getGlobalModule('Dashboard');
-            if (dashboardModule && typeof dashboardModule.render === 'function') {
-                dashboardModule.render();
-            }
+            Dashboard.render();
         } else if (this.currentPage === 'relatorios') {
-            const relatoriosModule = this.getGlobalModule('Relatorios');
-            if (relatoriosModule && typeof relatoriosModule.render === 'function') {
-                relatoriosModule.render();
-                setTimeout(() => relatoriosModule.initCharts(), 100);
-            }
+            Relatorios.render();
+            setTimeout(() => Relatorios.initCharts(), 100);
         }
     },
 
@@ -1203,29 +677,18 @@ const App = {
         const content = document.getElementById('content-area');
         const settings = DataManager.getSettings();
         const canEdit = Auth.hasPermission('configuracoes', 'edit');
-        const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
-            ? DataManager.getSyncStatus()
-            : { state: 'idle' };
-        const cloudReady = DataManager.isCloudReady();
+        const firebaseUser = typeof window !== 'undefined' ? window.firebaseUser : null;
+        const syncStarted = !!window.__firebaseSyncStarted;
+        const syncStatus = window.__cloudSyncStatus;
+        const cloudReady = (firebaseUser && syncStarted) || DataManager.isCloudReady();
         const isConnecting = (!cloudReady) && DataManager.isCloudConnecting();
         const isCloudAvailable = cloudReady || DataManager.isCloudAvailable();
-        const syncStateLabelMap = {
-            idle: 'ociosa',
-            saving: 'salvando',
-            synced: 'sincronizada',
-            pending: 'com pendências',
-            failed: 'com falha',
-            start: 'em progresso',
-            done: 'sincronizada',
-            error: 'com falha'
-        };
-        const syncStateLabel = syncStateLabelMap[syncStatus?.state] || 'ociosa';
-        const cloudStatusLabel = cloudReady ? 'Sincronização em nuvem: ATIVA' : (isConnecting ? 'Conectando à nuvem...' : 'Sincronização indisponível');
+        const cloudStatusLabel = cloudReady ? 'Sincronização em nuvem: ATIVA' : (isConnecting ? 'Conectando à nuvem...' : 'Armazenamento Local');
         const cloudStatusDesc = cloudReady
-            ? `Dados sincronizados automaticamente via Firebase (estado atual: ${syncStateLabel}).`
+            ? `Dados sincronizados automaticamente via Firebase${syncStatus ? ` (status: ${syncStatus})` : ''}.`
             : (isConnecting
                 ? 'Aguardando autenticação e conexão segura com a nuvem.'
-                : 'A sincronização em nuvem está indisponível. Operações críticas serão enfileiradas para retry.');
+                : 'Os dados estão sendo salvos apenas neste dispositivo. A sincronização em nuvem não está disponível.');
         const canManageGestores = Auth.getRole() === 'administrador';
         
         content.innerHTML = `
@@ -1746,27 +1209,15 @@ const App = {
             </tr>
         `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum evento registrado</td></tr>';
 
-        const errorRows = recentErrors.map(err => {
-            const action = err?.data?.action || err?.data?.operation || '-';
-            const entityId = err?.data?.entityId || err?.data?.key || '-';
-            const stage = err?.data?.stage || err?.data?.status || '-';
-            const origin = err?.data?.origin || '-';
-            const errorCode = err?.data?.errorCode || err?.data?.error || err?.data?.reason || '-';
-            return `
+        const errorRows = recentErrors.map(err => `
             <tr>
                 <td><small>${Utils.formatDate(err.timestamp, true)}</small></td>
                 <td><code>${Utils.escapeHtml(err.requestId || '-')}</code></td>
                 <td><span class="badge badge-${err.level === 'error' ? 'danger' : 'warning'}">${Utils.escapeHtml(err.level)}</span></td>
                 <td>${Utils.escapeHtml(err.category || '-')}</td>
                 <td>${Utils.escapeHtml(err.message || '-')}</td>
-                <td>
-                    <div><strong>${Utils.escapeHtml(action)}</strong></div>
-                    <small class="text-muted">Etapa: ${Utils.escapeHtml(stage)} | Origem: ${Utils.escapeHtml(origin)}</small><br>
-                    <small class="text-muted">Entidade: ${Utils.escapeHtml(String(entityId))} | Motivo: ${Utils.escapeHtml(String(errorCode))}</small>
-                </td>
             </tr>
-        `;
-        }).join('') || '<tr><td colspan="6" class="text-muted">Nenhum erro recente</td></tr>';
+        `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum erro recente</td></tr>';
 
         return `
             <div class="card mt-3">
@@ -1812,7 +1263,6 @@ const App = {
                                     <th>Nível</th>
                                     <th>Categoria</th>
                                     <th>Mensagem</th>
-                                    <th>Contexto</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1927,70 +1377,46 @@ const App = {
 
         switch (this.currentPage) {
         case 'dashboard':
-            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                const dashboardModule = this.getGlobalModule('Dashboard');
-                if (dashboardModule && typeof dashboardModule.render === 'function') {
-                    dashboardModule.render();
-                }
+            if (typeof Dashboard !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Dashboard.render();
             }
             break;
         case 'solicitacoes':
         case 'minhas-solicitacoes':
-            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                const solicitacoesModule = this.getGlobalModule('Solicitacoes');
-                if (solicitacoesModule && typeof solicitacoesModule.render === 'function') {
-                    solicitacoesModule.render();
-                }
+            if (typeof Solicitacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Solicitacoes.render();
             }
             break;
         case 'aprovacoes':
-            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                const aprovacoesModule = this.getGlobalModule('Aprovacoes');
-                if (aprovacoesModule && typeof aprovacoesModule.render === 'function') {
-                    aprovacoesModule.render();
-                }
+            if (typeof Aprovacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Aprovacoes.render();
             }
             break;
         case 'pecas':
         case 'catalogo':
-            if (shouldUpdate(DataManager?.KEYS?.PARTS)) {
-                const pecasModule = this.getGlobalModule('Pecas');
-                if (pecasModule && typeof pecasModule.render === 'function') {
-                    pecasModule.render();
-                }
+            if (typeof Pecas !== 'undefined' && shouldUpdate(DataManager?.KEYS?.PARTS)) {
+                Pecas.render();
             }
             break;
         case 'relatorios':
-            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                const relatoriosModule = this.getGlobalModule('Relatorios');
-                if (relatoriosModule && typeof relatoriosModule.render === 'function') {
-                    relatoriosModule.render();
-                    setTimeout(() => relatoriosModule.initCharts(), CHART_INIT_DELAY_MS);
-                }
+            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                Relatorios.render();
+                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
             }
             break;
         case 'tecnicos':
-            if (shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
-                const tecnicosModule = this.getGlobalModule('Tecnicos');
-                if (tecnicosModule && typeof tecnicosModule.render === 'function') {
-                    tecnicosModule.render();
-                }
+            if (typeof Tecnicos !== 'undefined' && shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
+                Tecnicos.render();
             }
             break;
         case 'fornecedores':
-            if (shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                const fornecedoresModule = this.getGlobalModule('Fornecedores');
-                if (fornecedoresModule && typeof fornecedoresModule.render === 'function') {
-                    fornecedoresModule.render();
-                }
+            if (typeof Fornecedores !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                Fornecedores.render();
             }
             break;
         case 'fornecedor':
-            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                const fornecedorModule = this.getGlobalModule('FornecedorPortal');
-                if (fornecedorModule && typeof fornecedorModule.render === 'function') {
-                    fornecedorModule.render();
-                }
+            if (typeof FornecedorPortal !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                FornecedorPortal.render();
             }
             break;
         case 'configuracoes':
@@ -2029,13 +1455,8 @@ const App = {
             const synced = typeof DataManager !== 'undefined'
                 ? await DataManager.syncAll('manual')
                 : false;
-            const syncDetail = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
-                ? DataManager.getSyncStatus()
-                : {};
-            const queueCount = this.getOutboxPendingCount();
-            const effectiveState = this.getEffectiveSyncState(syncDetail, queueCount);
 
-            if (synced && effectiveState !== 'pending') {
+            if (synced) {
                 emitSyncStatus('done');
                 window.dispatchEvent(new CustomEvent('data:updated', {
                     detail: {
@@ -2046,16 +1467,6 @@ const App = {
                     Utils.showToast('Sincronizado', 'success');
                 }
                 this.refreshActiveView();
-            } else if (effectiveState === 'pending') {
-                emitSyncStatus('pending');
-                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
-                    Utils.showToast(
-                        queueCount > 0
-                            ? `Sincronização pendente: ${queueCount} operação(ões) aguardando confirmação`
-                            : 'Sincronização pendente: houve escrita sem confirmação final',
-                        'warning'
-                    );
-                }
             } else {
                 emitSyncStatus('error');
                 if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
@@ -2074,58 +1485,6 @@ const App = {
                 syncBtn.classList.remove('rotating');
             }
         }
-    },
-
-    getOutboxPendingCount() {
-        if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.getOutboxPendingCount === 'function') {
-            return CloudStorage.getOutboxPendingCount();
-        }
-        try {
-            const queue = JSON.parse(localStorage.getItem('cloud_sync_queue') || '[]');
-            return Array.isArray(queue) ? queue.length : 0;
-        } catch (_error) {
-            return 0;
-        }
-    },
-
-    getEffectiveSyncState(detail = {}, queueCount = this.getOutboxPendingCount()) {
-        const rawState = String(detail?.state || detail?.status || 'idle').toLowerCase();
-        if (queueCount > 0 && ['idle', 'synced', 'done', 'success'].includes(rawState)) {
-            return 'pending';
-        }
-        return rawState;
-    },
-
-    updateSyncIndicator(detail = {}) {
-        const indicator = document.getElementById('sync-indicator');
-        if (!indicator) {
-            return;
-        }
-
-        const queueCount = this.getOutboxPendingCount();
-        const state = this.getEffectiveSyncState(detail, queueCount);
-        const updatedAt = Number(detail?.updatedAt || Date.now());
-
-        const stateConfig = {
-            idle: { css: 'sync-idle', icon: 'fa-circle', label: 'Sem atividade' },
-            saving: { css: 'sync-saving', icon: 'fa-cloud-upload-alt', label: 'Salvando...' },
-            start: { css: 'sync-saving', icon: 'fa-cloud-upload-alt', label: 'Sincronizando...' },
-            synced: { css: 'sync-synced', icon: 'fa-check-circle', label: 'Sincronizado' },
-            done: { css: 'sync-synced', icon: 'fa-check-circle', label: 'Sincronizado' },
-            pending: { css: 'sync-pending', icon: 'fa-clock', label: 'Pendente de envio' },
-            failed: { css: 'sync-failed', icon: 'fa-exclamation-triangle', label: 'Falha de sincronização' },
-            error: { css: 'sync-failed', icon: 'fa-exclamation-triangle', label: 'Falha de sincronização' }
-        };
-
-        const config = stateConfig[state] || stateConfig.idle;
-        indicator.classList.remove('sync-idle', 'sync-saving', 'sync-synced', 'sync-pending', 'sync-failed');
-        indicator.classList.add(config.css);
-        indicator.setAttribute('data-sync-state', state);
-
-        const formattedTime = new Date(updatedAt).toLocaleString('pt-BR');
-        const queueSuffix = queueCount > 0 ? ` | pendências: ${queueCount}` : '';
-        indicator.title = `Estado: ${config.label} | Última atualização: ${formattedTime}${queueSuffix}`;
-        indicator.innerHTML = `<i class="fas ${config.icon}"></i><span>${config.label}</span>`;
     },
 
     /**
@@ -2341,9 +1700,7 @@ const App = {
             Utils.showToast('Sessão expirada. Faça login novamente.', 'error');
             return;
         }
-        const usersSnapshot = DataManager.getUsers();
-        const previousUsers = JSON.parse(JSON.stringify(usersSnapshot || []));
-        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
+        const users = DataManager.getUsers();
         const dbUser = users.find(u => u.id === user.id);
         
         if (!dbUser) {
@@ -2373,22 +1730,7 @@ const App = {
             return;
         }
         delete dbUser.password;
-
-        const saveResult = await DataManager.saveDataAsync(DataManager.KEYS.USERS, users, {
-            allowQueue: true,
-            action: 'change_password_self',
-            reason: 'profile_password_change',
-            entityId: dbUser.id,
-            previousData: previousUsers
-        });
-
-        if (saveResult?.success !== true) {
-            const pendingMessage = saveResult?.pending
-                ? 'Não foi possível confirmar a alteração agora. A operação entrou em fila para retry.'
-                : 'Não foi possível confirmar a alteração da senha na nuvem.';
-            Utils.showToast(pendingMessage, saveResult?.pending ? 'warning' : 'error');
-            return;
-        }
+        DataManager.saveData(DataManager.KEYS.USERS, users);
         
         Utils.showToast('Senha alterada com sucesso', 'success');
         
@@ -2415,33 +1757,39 @@ const App = {
     }
 };
 
+const APP_FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
+
+// Start cloud synchronization once Firebase is ready
+window.addEventListener('firebase-ready', async () => {
+    try {
+        const mod = await import(APP_FIREBASE_SYNC_MODULE_PATH);
+        await mod.startFirebaseSync();
+    } catch (error) {
+        console.warn('Falha ao iniciar sincronização com Firebase', error);
+    }
+});
+
+// Refresh settings UI when sync status changes
+['cloud-sync-applied', 'cloud-sync-pushed', 'cloud-sync-status'].forEach((evt) => {
+    window.addEventListener(evt, () => {
+        if (App.currentPage === 'configuracoes') {
+            App.renderConfiguracoes();
+        }
+    });
+});
+
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         await App.init();
     } catch (error) {
         console.error('Application initialization error:', error);
-        App.logUiFailure(error?.code || 'bootstrap_failed', {
-            requestId: 'bootstrap:dom_content_loaded',
-            action: 'bootstrap',
-            stage: 'bootstrap',
-            route: 'init',
-            module: 'app',
-            source: 'app',
-            originalError: error?.message || String(error || 'bootstrap_failed')
-        });
-        App.showBootstrapFailure(error);
+        // Show error message to user
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast('Erro ao inicializar aplicação', 'error');
+        }
     }
 });
-
-
-
-
-
-
-
-
-
 
 
 

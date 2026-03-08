@@ -1,4 +1,4 @@
-import { ensureClassicScript } from '../lazy/load-script.js?v=20260308i';
+﻿import { ensureClassicScript } from '../lazy/load-script.js';
 
 let ready = false;
 
@@ -7,7 +7,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../fornecedor.js?v=20260308i', import.meta.url).href, 'FornecedorPortal');
+    await ensureClassicScript(new URL('../fornecedor.js', import.meta.url).href, 'FornecedorPortal');
     ready = true;
 }
 
@@ -16,7 +16,3 @@ export function render() {
         window.FornecedorPortal.render();
     }
 }
-
-
-
-

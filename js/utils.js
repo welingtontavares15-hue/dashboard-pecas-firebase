@@ -23,9 +23,6 @@ const Utils = {
     OP_EMAIL_TEMPLATE: 'box',
     PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),
-    _loadingDepth: 0,
-    _loadingWatchdog: null,
-    _loadingTimeoutMs: 25000,
 
     /**
      * Hash string with SHA-256 using Web Crypto (falls back to base64)
@@ -1502,67 +1499,15 @@ const Utils = {
     /**
      * Show loading overlay
      */
-    showLoading(context = 'global') {
-        const overlay = document.getElementById('loading-overlay');
-        if (!overlay) {
-            return;
-        }
-
-        this._loadingDepth = Math.max(0, Number(this._loadingDepth) || 0) + 1;
-        overlay.dataset.loadingDepth = String(this._loadingDepth);
-        overlay.classList.remove('hidden');
-
-        if (this._loadingWatchdog) {
-            clearTimeout(this._loadingWatchdog);
-        }
-
-        this._loadingWatchdog = setTimeout(() => {
-            const activeDepth = Math.max(0, Number(this._loadingDepth) || 0);
-            if (activeDepth <= 0) {
-                return;
-            }
-
-            console.warn(`[UI] Loading watchdog triggered after ${this._loadingTimeoutMs}ms`, { context, depth: activeDepth });
-            this._loadingDepth = 0;
-            overlay.dataset.loadingDepth = '0';
-            overlay.classList.add('hidden');
-
-            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-                window.dispatchEvent(new CustomEvent('ui:loading-timeout', {
-                    detail: {
-                        context,
-                        reason: 'loading_timeout',
-                        timeoutMs: this._loadingTimeoutMs
-                    }
-                }));
-            }
-        }, Math.max(5000, Number(this._loadingTimeoutMs) || 25000));
+    showLoading() {
+        document.getElementById('loading-overlay').classList.remove('hidden');
     },
 
     /**
      * Hide loading overlay
      */
-    hideLoading(force = false) {
-        const overlay = document.getElementById('loading-overlay');
-        if (!overlay) {
-            return;
-        }
-
-        if (force === true) {
-            this._loadingDepth = 0;
-        } else {
-            this._loadingDepth = Math.max(0, (Number(this._loadingDepth) || 0) - 1);
-        }
-
-        overlay.dataset.loadingDepth = String(this._loadingDepth);
-
-        if (this._loadingDepth <= 0) {
-            overlay.classList.add('hidden');
-            if (this._loadingWatchdog) {
-                clearTimeout(this._loadingWatchdog);
-                this._loadingWatchdog = null;
-            }
-        }
+    hideLoading() {
+        document.getElementById('loading-overlay').classList.add('hidden');
     },
 
     /**

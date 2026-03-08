@@ -1409,7 +1409,37 @@ const Relatorios = {
         `;
     }
 };
-if (typeof window !== 'undefined') {
-    window.Relatorios = Relatorios;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

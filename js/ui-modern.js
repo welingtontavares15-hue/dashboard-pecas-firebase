@@ -174,16 +174,16 @@
             originalCloseModal();
         };
 
-        Utils.showLoading = function (...args) {
-            originalShowLoading(...args);
+        Utils.showLoading = function () {
+            originalShowLoading();
             const overlay = document.getElementById('loading-overlay');
             if (overlay) {
                 overlay.classList.add('loading-modern');
             }
         };
 
-        Utils.hideLoading = function (...args) {
-            originalHideLoading(...args);
+        Utils.hideLoading = function () {
+            originalHideLoading();
             const overlay = document.getElementById('loading-overlay');
             if (overlay) {
                 overlay.classList.remove('loading-modern');

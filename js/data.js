@@ -168,7 +168,14 @@ const STATS_CONFIG = {
     OUTLIER_PERCENTILE_THRESHOLD: 0.95
 };
 
-// Snapshot sync module disabled: CloudStorage is the official sync engine.
+const FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
+const firebaseSyncModuleRef = { promise: null };
+function loadFirebaseSyncModule() {
+    if (!firebaseSyncModuleRef.promise) {
+        firebaseSyncModuleRef.promise = import(FIREBASE_SYNC_MODULE_PATH);
+    }
+    return firebaseSyncModuleRef.promise;
+}
 
 const DataManager = {
     // Storage keys
@@ -282,8 +289,6 @@ const DataManager = {
     // Online-only mode: Track connection status
     _isOnline: true,
     _connectionToastMemory: {},
-    _syncStatus: { state: 'idle', updatedAt: 0 },
-    _effectDedupKey: 'diversey_effect_dedupe',
 
     /**
      * Initialize data manager - Online-only mode
@@ -479,17 +484,8 @@ const DataManager = {
                 this._sessionCache[this.KEYS.USERS] = users;
 
                 if (typeof Auth !== 'undefined' && Auth.currentUser && Array.isArray(users)) {
-                    const currentUserId = Auth.currentUser?.id || null;
-                    const currentUsername = this.normalizeUsername(Auth.currentUser?.username || '');
-                    let latestUser = null;
-
-                    if (currentUserId) {
-                        latestUser = users.find((u) => u?.id === currentUserId) || null;
-                    }
-
-                    if (!latestUser && currentUsername) {
-                        latestUser = users.find((u) => this.normalizeUsername(u?.username) === currentUsername) || null;
-                    }
+                    const currentUsername = this.normalizeUsername(Auth.currentUser.username);
+                    const latestUser = users.find(u => this.normalizeUsername(u.username) === currentUsername);
                     if (!latestUser || latestUser.disabled) {
                         Auth.logout();
                         if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
@@ -577,125 +573,32 @@ const DataManager = {
         }));
     },
 
-    emitSyncOperation(state = 'idle', payload = {}) {
-        const timestamp = Date.now();
-        this._syncStatus = {
-            state,
-            updatedAt: timestamp,
-            ...payload
-        };
-
-        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-            window.dispatchEvent(new CustomEvent('sync:operation', {
-                detail: {
-                    state,
-                    updatedAt: timestamp,
-                    ...payload
-                }
-            }));
-        }
-    },
-
-    getSyncStatus() {
-        return { ...(this._syncStatus || { state: 'idle', updatedAt: 0 }) };
-    },
-
-    getOutboxPendingCount() {
-        if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.getOutboxPendingCount === 'function') {
-            return CloudStorage.getOutboxPendingCount();
-        }
-        try {
-            const queue = JSON.parse(localStorage.getItem('cloud_sync_queue') || '[]');
-            return Array.isArray(queue) ? queue.length : 0;
-        } catch (_error) {
-            return 0;
-        }
-    },
-
-    async withTimeout(operationPromise, timeoutMs = 10000, timeoutCode = 'operation_timeout') {
-        let timeoutHandle = null;
-        const safeTimeout = Math.max(1000, Number(timeoutMs) || 10000);
-        try {
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutHandle = setTimeout(() => {
-                    const timeoutError = new Error(timeoutCode);
-                    timeoutError.code = timeoutCode;
-                    reject(timeoutError);
-                }, safeTimeout);
-            });
-            return await Promise.race([operationPromise, timeoutPromise]);
-        } finally {
-            if (timeoutHandle) {
-                clearTimeout(timeoutHandle);
+    async _persistCollectionToCloud(key, data) {
+        if (!this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.init === 'function') {
+            try {
+                this.cloudInitialized = await CloudStorage.init();
+            } catch (_e) {
+                // fall through to availability check
             }
         }
-    },
 
-    getEffectDedupMap() {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+            return false;
+        }
+
+        if (typeof CloudStorage.waitForCloudReady === 'function') {
+            const ready = await CloudStorage.waitForCloudReady(10000);
+            if (!ready) {
+                return false;
+            }
+        }
+
         try {
-            const raw = localStorage.getItem(this._effectDedupKey);
-            const parsed = raw ? JSON.parse(raw) : {};
-            return (parsed && typeof parsed === 'object') ? parsed : {};
-        } catch (_error) {
-            return {};
-        }
-    },
-
-    persistEffectDedupMap(map) {
-        try {
-            localStorage.setItem(this._effectDedupKey, JSON.stringify(map || {}));
-            return true;
-        } catch (_error) {
+            return await CloudStorage.saveData(key, data);
+        } catch (e) {
+            console.warn(`Erro ao salvar ${key} na nuvem`, e);
             return false;
         }
-    },
-
-    hasProcessedEffect(effectKey) {
-        if (!effectKey) {
-            return false;
-        }
-        const map = this.getEffectDedupMap();
-        return !!map[effectKey];
-    },
-
-    markProcessedEffect(effectKey) {
-        if (!effectKey) {
-            return false;
-        }
-        const map = this.getEffectDedupMap();
-        map[effectKey] = Date.now();
-        return this.persistEffectDedupMap(map);
-    },
-
-    async runIdempotentEffect(effectKey, effectFn) {
-        if (!effectKey || typeof effectFn !== 'function') {
-            return { executed: false, skipped: true };
-        }
-
-        if (this.hasProcessedEffect(effectKey)) {
-            return { executed: false, skipped: true, reason: 'duplicate' };
-        }
-
-        const result = await effectFn();
-        this.markProcessedEffect(effectKey);
-        return { executed: true, skipped: false, result };
-    },
-    async _persistCollectionToCloud(key, data, options = {}) {
-        const payload = {
-            silent: options?.silent !== false,
-            allowQueue: options?.allowQueue === true,
-            reason: options?.reason || 'persist_collection',
-            opId: options?.opId,
-            entityId: options?.entityId,
-            action: options?.action
-        };
-
-        if (Object.prototype.hasOwnProperty.call(options || {}, 'previousData')) {
-            payload.previousData = options.previousData;
-        }
-
-        const result = await this.saveDataAsync(key, data, payload);
-        return result?.success === true;
     },
 
     /**
@@ -721,20 +624,8 @@ const DataManager = {
 
         this._syncPromise = (async () => {
             this.syncInProgress = true;
-            this.emitSyncOperation('saving', {
-                action: 'sync_all',
-                reason,
-                status: 'saving'
-            });
-
             try {
                 if (typeof CloudStorage === 'undefined') {
-                    this.emitSyncOperation('failed', {
-                        action: 'sync_all',
-                        reason,
-                        status: 'fail',
-                        error: 'cloud_storage_unavailable'
-                    });
                     return false;
                 }
 
@@ -748,76 +639,15 @@ const DataManager = {
 
                 if (!cloudReady) {
                     console.warn(`[SYNC] Cloud not ready for sync (${reason})`);
-                    this.emitSyncOperation('pending', {
-                        action: 'sync_all',
-                        reason,
-                        status: 'pending',
-                        error: 'cloud_not_ready'
-                    });
                     return false;
                 }
 
-                await this.withTimeout(
-                    CloudStorage.syncFromCloud(),
-                    12000,
-                    'sync_from_cloud_timeout'
-                );
-                await this.withTimeout(
-                    this._loadInitialDataFromCloud(),
-                    12000,
-                    'load_initial_data_timeout'
-                );
-                let outboxFlushed = true;
-                let outboxError = null;
-                if (typeof CloudStorage.flushQueue === 'function') {
-                    try {
-                        outboxFlushed = await this.withTimeout(
-                            CloudStorage.flushQueue({ force: reason === 'manual' }),
-                            12000,
-                            'flush_outbox_timeout'
-                        );
-                    } catch (flushError) {
-                        outboxFlushed = false;
-                        outboxError = flushError;
-                    }
-                }
-                const pendingCount = this.getOutboxPendingCount();
+                await CloudStorage.syncFromCloud();
+                await this._loadInitialDataFromCloud();
                 this._registerRealtimeSubscriptions();
-                this.emitDataUpdated([
-                    this.KEYS.USERS,
-                    this.KEYS.TECHNICIANS,
-                    this.KEYS.SUPPLIERS,
-                    this.KEYS.PARTS,
-                    this.KEYS.SOLICITATIONS,
-                    this.KEYS.SETTINGS
-                ], 'sync_all');
-
-                if (!outboxFlushed || pendingCount > 0) {
-                    this.emitSyncOperation('pending', {
-                        action: 'sync_all',
-                        reason,
-                        status: 'pending',
-                        error: outboxError?.code || outboxError?.message || (pendingCount > 0 ? 'outbox_pending' : 'outbox_flush_incomplete'),
-                        pendingCount
-                    });
-                    return false;
-                }
-
-                this.emitSyncOperation('synced', {
-                    action: 'sync_all',
-                    reason,
-                    status: 'success',
-                    pendingCount: 0
-                });
                 return true;
             } catch (error) {
                 console.warn('syncAll failed', error);
-                this.emitSyncOperation('failed', {
-                    action: 'sync_all',
-                    reason,
-                    status: 'fail',
-                    error: error?.message || 'sync_all_failed'
-                });
                 return false;
             } finally {
                 this.syncInProgress = false;
@@ -832,7 +662,7 @@ const DataManager = {
      * Load initial data from cloud into session cache
      */
     async _loadInitialDataFromCloud() {
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
             return;
         }
         
@@ -847,11 +677,7 @@ const DataManager = {
         
         for (const key of keys) {
             try {
-                const data = await this.withTimeout(
-                    CloudStorage.loadData(key),
-                    8000,
-                    `load_timeout:${key}`
-                );
+                const data = await CloudStorage.loadData(key);
                 if (data !== null && data !== undefined) {
                     this._sessionCache[key] = data;
                 }
@@ -865,7 +691,7 @@ const DataManager = {
      * Ensure cloud has initial data (first deployment seeding)
      */
     async _ensureCloudDataExists() {
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
             return;
         }
         
@@ -983,359 +809,65 @@ const DataManager = {
     },
 
     /**
-     * Detached non-blocking save helper.
-     * Prefer saveDataAsync() for commit-confirmed writes.
+     * Save data to cloud storage - Online-only mode
+     * Blocks write operations when offline.
      */
-    saveData(key, data, options = {}) {
+    saveData(key, data) {
         if (this.isWriteBlocked()) {
             console.warn('[ONLINE-ONLY] Write blocked - no connection');
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Sem conexão: não foi possível salvar. Reconecte à internet.', 'error');
+            }
             return false;
         }
 
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
             console.warn('[ONLINE-ONLY] Cloud not available for save operation');
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Serviço de dados indisponível no momento. Tente novamente em instantes.', 'error');
+            }
             return false;
-        }
-
-        this.saveDataAsync(key, data, {
-            silent: true,
-            allowQueue: options?.allowQueue === true,
-            action: options?.action || 'detached_save',
-            reason: options?.reason || 'detached_save',
-            previousData: options?.previousData,
-            opId: options?.opId,
-            entityId: options?.entityId
-        }).catch((error) => {
-            console.warn('Detached saveData async failure', error);
-        });
-
-        return true;
-    },
-
-    /**
-     * Save data with real commit confirmation.
-     * Returns success only after cloud persistence is completed.
-     */
-    async saveDataAsync(key, data, options = {}) {
-        const user = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function')
-            ? Auth.getCurrentUser()
-            : null;
-        const isEntityCollection = (
-            typeof CloudStorage !== 'undefined'
-            && typeof CloudStorage.isEntityKey === 'function'
-            && CloudStorage.isEntityKey(key)
-            && Array.isArray(data)
-        );
-        const hasExplicitPreviousData = Object.prototype.hasOwnProperty.call(options || {}, 'previousData');
-        let previousData = hasExplicitPreviousData ? options.previousData : undefined;
-
-        if (!hasExplicitPreviousData && isEntityCollection) {
-            if (this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.loadData === 'function') {
-                try {
-                    const cloudSnapshot = await CloudStorage.loadData(key);
-                    if (cloudSnapshot !== null && cloudSnapshot !== undefined) {
-                        previousData = JSON.parse(JSON.stringify(cloudSnapshot));
-                    }
-                } catch (_error) {
-                    // fallback below
-                }
-            }
-
-            if (previousData === undefined) {
-                previousData = JSON.parse(JSON.stringify(this.loadData(key) || []));
-            }
-        }
-
-        const opId = options?.opId
-            || (typeof CloudStorage !== 'undefined' && typeof CloudStorage.generateOpId === 'function'
-                ? CloudStorage.generateOpId(key)
-                : `${key}:${Date.now()}`);
-
-        const operation = {
-            opId,
-            key,
-            entityId: options?.entityId || null,
-            action: options?.action || 'save',
-            reason: options?.reason || 'manual',
-            userId: user?.id || null,
-            userName: user?.username || user?.name || null,
-            startedAt: Date.now()
-        };
-
-        const buildSyncLogContext = (extra = {}) => ({
-            ...operation,
-            requestId: opId,
-            opId,
-            origin: 'data_manager',
-            stage: extra?.stage || 'save_data',
-            action: extra?.action || operation.action,
-            operation: extra?.action || operation.action,
-            status: extra?.status || 'pending',
-            ...extra
-        });
-
-        const emitLog = (event, extra = {}) => {
-            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
-                Logger.logSync(event, buildSyncLogContext(extra));
-            }
-        };
-
-        const queueOperation = async (errorReason) => {
-            if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.enqueueOperation === 'function') {
-                await CloudStorage.enqueueOperation(
-                    key,
-                    data,
-                    new Error(errorReason || 'save_failed'),
-                    opId,
-                    {
-                        action: operation.action,
-                        entityId: operation.entityId
-                    }
-                );
-            }
-            this.emitSyncOperation('pending', {
-                ...operation,
-                status: 'pending',
-                error: errorReason || 'queued'
-            });
-            emitLog('operation_pending', {
-                status: 'pending',
-                stage: 'enqueue_outbox',
-                errorCode: errorReason || 'queued',
-                errorOriginal: errorReason || 'queued'
-            });
-            return {
-                success: false,
-                pending: true,
-                queued: true,
-                opId,
-                error: errorReason || 'queued'
-            };
-        };
-
-        if (this.isWriteBlocked()) {
-            if (options?.allowQueue === true) {
-                return queueOperation('offline');
-            }
-            this.emitSyncOperation('failed', {
-                ...operation,
-                status: 'fail',
-                error: 'offline'
-            });
-            emitLog('operation_failed', {
-                status: 'fail',
-                stage: 'preflight',
-                errorCode: 'offline',
-                errorOriginal: 'offline'
-            });
-            return { success: false, pending: false, opId, error: 'offline' };
-        }
-
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
-            if (options?.allowQueue === true) {
-                return queueOperation('cloud_unavailable');
-            }
-            this.emitSyncOperation('failed', {
-                ...operation,
-                status: 'fail',
-                error: 'cloud_unavailable'
-            });
-            emitLog('operation_failed', {
-                status: 'fail',
-                stage: 'preflight',
-                errorCode: 'cloud_unavailable',
-                errorOriginal: 'cloud_unavailable'
-            });
-            return { success: false, pending: false, opId, error: 'cloud_unavailable' };
         }
 
         if (typeof this.isCloudReady === 'function' && !this.isCloudReady()) {
-            if (options?.allowQueue === true) {
-                return queueOperation('cloud_not_ready');
+            console.warn('[ONLINE-ONLY] Cloud not ready for save operation');
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Sincronização indisponível no momento. Aguarde reconexão para salvar.', 'warning');
             }
-            this.emitSyncOperation('failed', {
-                ...operation,
-                status: 'fail',
-                error: 'cloud_not_ready'
-            });
-            emitLog('operation_failed', {
-                status: 'fail',
-                stage: 'preflight',
-                errorCode: 'cloud_not_ready',
-                errorOriginal: 'cloud_not_ready'
-            });
-            return { success: false, pending: false, opId, error: 'cloud_not_ready' };
+            return false;
         }
-
-        this.emitSyncOperation('saving', {
-            ...operation,
-            status: 'saving'
-        });
-        emitLog('operation_started', {
-            status: 'running',
-            stage: 'write_cloud'
-        });
 
         try {
-            const saved = await CloudStorage.saveData(key, data, {
-                opId,
-                previousData,
-                action: operation.action,
-                entityId: operation.entityId
-            });
-
-            if (!saved) {
-                if (options?.allowQueue === true) {
-                    return queueOperation('save_failed');
-                }
-                this.emitSyncOperation('failed', {
-                    ...operation,
-                    status: 'fail',
-                    error: 'save_failed'
-                });
-                emitLog('operation_failed', {
-                    status: 'fail',
-                    stage: 'write_cloud',
-                    errorCode: 'write_failed',
-                    errorOriginal: 'save_failed'
-                });
-                return { success: false, pending: false, opId, error: 'save_failed' };
-            }
-
             this._sessionCache[key] = data;
-            this.emitDataUpdated([key], 'commit');
-            this.emitSyncOperation('synced', {
-                ...operation,
-                status: 'success',
-                completedAt: Date.now()
-            });
-            emitLog('operation_success', {
-                status: 'success',
-                stage: 'commit',
-                completedAt: Date.now()
-            });
+            this.emitDataUpdated([key], 'local');
 
-            if (typeof CloudStorage.flushQueue === 'function') {
-                CloudStorage.flushQueue().catch(() => {});
+            // Sync snapshot to Firebase RTDB (shared state)
+            try {
+                loadFirebaseSyncModule().then((mod) => {
+                    if (!mod || typeof mod.shouldSkipCloudWrite !== 'function' || mod.shouldSkipCloudWrite()) {
+                        return;
+                    }
+                    const snapshot = (typeof mod.captureLocalSnapshot === 'function') ? mod.captureLocalSnapshot() : null;
+                    if (snapshot && typeof mod.pushToCloud === 'function') {
+                        mod.pushToCloud(snapshot);
+                    }
+                }).catch(() => {});
+            } catch (_e) {
+                // ignore sync errors to avoid blocking UI
             }
 
-            return {
-                success: true,
-                pending: false,
-                opId
-            };
-        } catch (error) {
-            if (options?.allowQueue === true) {
-                return queueOperation(error?.message || 'save_exception');
-            }
-            this.emitSyncOperation('failed', {
-                ...operation,
-                status: 'fail',
-                error: error?.message || 'save_exception'
-            });
-            emitLog('operation_failed', {
-                status: 'fail',
-                stage: 'write_cloud',
-                errorCode: error?.code || 'save_exception',
-                errorOriginal: error?.message || 'save_exception'
-            });
-            return {
-                success: false,
-                pending: false,
-                opId,
-                error: error?.message || 'save_exception'
-            };
-        }
-    },
-
-    updateDetachedPersistState(key, entityId, state, extra = {}) {
-        if (!key || !entityId) {
-            return null;
-        }
-
-        const timestamp = Date.now();
-        let nextData = null;
-
-        if (key === this.KEYS.EXPORT_LOG) {
-            const currentLogs = Array.isArray(this.loadData(key)) ? this.loadData(key) : [];
-            nextData = currentLogs.map((entry) => {
-                if (!entry || entry.id !== entityId) {
-                    return entry;
+            CloudStorage.saveData(key, data).catch((e) => {
+                console.warn('Cloud save failed:', e);
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Falha ao sincronizar alteracao com a nuvem. Tente novamente.', 'warning');
                 }
-                return {
-                    ...entry,
-                    syncState: state,
-                    cloudSynced: state === 'synced',
-                    cloudSyncedAt: state === 'synced' ? timestamp : (entry.cloudSyncedAt || null),
-                    lastSyncError: state === 'error' ? (extra?.error || 'sync_write_failed') : null
-                };
             });
-        } else if (key === this.KEYS.EXPORT_FILES) {
-            const currentArtifacts = this.loadData(key);
-            if (currentArtifacts && typeof currentArtifacts === 'object') {
-                nextData = {
-                    ...currentArtifacts,
-                    [entityId]: currentArtifacts[entityId]
-                        ? {
-                            ...currentArtifacts[entityId],
-                            syncState: state,
-                            cloudSynced: state === 'synced',
-                            cloudSyncedAt: state === 'synced' ? timestamp : (currentArtifacts[entityId].cloudSyncedAt || null),
-                            lastSyncError: state === 'error' ? (extra?.error || 'sync_write_failed') : null
-                        }
-                        : currentArtifacts[entityId]
-                };
-            }
+
+            return true;
+        } catch (e) {
+            console.error('Error saving data:', e);
+            return false;
         }
-
-        if (nextData !== null) {
-            this._sessionCache[key] = nextData;
-            this.emitDataUpdated([key], 'detached_persist_state');
-        }
-
-        return nextData;
-    },
-
-    persistDetachedCollection(key, data, options = {}) {
-        this._sessionCache[key] = data;
-        this.emitDataUpdated([key], options?.source || 'detached_save');
-
-        const entityId = options?.entityId || null;
-        return this.saveDataAsync(key, data, {
-            allowQueue: options?.allowQueue !== false,
-            action: options?.action || 'detached_save',
-            reason: options?.reason || options?.action || 'detached_save',
-            entityId,
-            opId: options?.opId,
-            previousData: options?.previousData
-        }).then((result) => {
-            if (entityId) {
-                const nextState = result?.success === true ? 'synced' : (result?.pending ? 'pending' : 'error');
-                const nextData = this.updateDetachedPersistState(key, entityId, nextState, {
-                    error: result?.error || null
-                });
-                if (result?.success === true && options?.commitFinalStateOnSuccess === true && nextData !== null) {
-                    this.saveDataAsync(key, nextData, {
-                        allowQueue: false,
-                        action: `${options?.action || 'detached_save'}_confirm`,
-                        reason: `${options?.reason || options?.action || 'detached_save'}_confirm`,
-                        entityId,
-                        opId: `${options?.opId || entityId}:confirm`,
-                        previousData: data
-                    }).catch((error) => {
-                        console.warn('Detached save confirmation failed', error);
-                    });
-                }
-            }
-            return result;
-        }).catch((error) => {
-            if (entityId) {
-                this.updateDetachedPersistState(key, entityId, 'error', {
-                    error: error?.message || 'sync_write_failed'
-                });
-            }
-            throw error;
-        });
     },
 
     /**
@@ -1708,8 +1240,8 @@ const DataManager = {
         return { duplicateUsernameUser, duplicateEmailUser };
     },
 
-    async _persistUsersToCloud(users, options = {}) {
-        return this._persistCollectionToCloud(this.KEYS.USERS, users, options);
+    async _persistUsersToCloud(users) {
+        return this._persistCollectionToCloud(this.KEYS.USERS, users);
     },
 
     handlePostUserRemoval(removedUsers = []) {
@@ -1763,8 +1295,7 @@ const DataManager = {
             return { success: false, error: 'Informe uma nova senha com pelo menos 4 caracteres.' };
         }
 
-        const usersSnapshot = JSON.parse(JSON.stringify(this.getUsers() || []));
-        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
+        const users = this.getUsers();
         const index = users.findIndex((u) => u.id === userId);
         if (index < 0) {
             return { success: false, error: 'Usuário não encontrado.' };
@@ -1831,7 +1362,7 @@ const DataManager = {
 
         const uniqueAffectedUserIds = Array.from(new Set(affectedUserIds.filter(Boolean)));
 
-        const saved = await this._persistUsersToCloud(users, { previousData: usersSnapshot });
+        const saved = await this._persistUsersToCloud(users);
         if (!saved) {
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_cloud_save_failed', {
@@ -1954,8 +1485,7 @@ const DataManager = {
             return { success: false, error: 'Usuário inválido' };
         }
 
-        const usersSnapshot = JSON.parse(JSON.stringify(this.getUsers() || []));
-        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
+        const users = this.getUsers();
         const candidate = {
             ...user,
             username: String(user.username || '').trim(),
@@ -2022,7 +1552,7 @@ const DataManager = {
             users.push(normalizedUser);
         }
 
-        const saved = await this._persistUsersToCloud(users, { previousData: usersSnapshot });
+        const saved = await this._persistUsersToCloud(users);
         if (!saved) {
             return { success: false, error: 'Não foi possível salvar o usuário na nuvem. Tente novamente.' };
         }
@@ -2864,12 +2394,11 @@ const DataManager = {
         );
     },
 
-    async saveSolicitation(solicitation) {
+    saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(solicitation);
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
 
         const solicitations = this.getSolicitations();
-        const previousSnapshot = JSON.parse(JSON.stringify(solicitations || []));
         const index = solicitations.findIndex(s => s.id === normalizedSolicitation.id);
         let persistedSolicitation;
         const now = Date.now();
@@ -2881,6 +2410,8 @@ const DataManager = {
             const incomingVersion = normalizedSolicitation.audit?.version;
             const existingStatus = this.normalizeWorkflowStatus(existing.status || this.STATUS.PENDENTE);
 
+            // If incoming has version and it doesn't match, there's a conflict
+            // Use Number() for type-safe comparison
             if (incomingVersion !== undefined && Number(incomingVersion) !== existingVersion) {
                 console.warn(`Conflito de versão: esperado ${existingVersion}, recebido ${incomingVersion}`);
                 return { success: false, error: 'conflict', message: 'Versão desatualizada. Recarregue os dados.' };
@@ -2891,6 +2422,7 @@ const DataManager = {
                 return { success: false, error: 'invalid_transition', message: 'Fluxo de status inválido.' };
             }
 
+            // Update with new version
             normalizedSolicitation.audit = {
                 ...normalizedSolicitation.audit,
                 version: existingVersion + 1,
@@ -2910,6 +2442,7 @@ const DataManager = {
             normalizedSolicitation.createdAt = now;
             normalizedSolicitation.updatedAt = now;
 
+            // Initialize audit trail for new solicitation
             normalizedSolicitation.audit = {
                 version: 1,
                 createdAt: now,
@@ -2918,6 +2451,7 @@ const DataManager = {
                 lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
             };
 
+            // Initialize timeline array for tracking events
             if (!normalizedSolicitation.timeline) {
                 normalizedSolicitation.timeline = [];
             }
@@ -2927,6 +2461,7 @@ const DataManager = {
                 by: normalizedSolicitation.createdBy || 'Sistema'
             });
 
+            // Initialize approvals array for approval history
             if (!normalizedSolicitation.approvals) {
                 normalizedSolicitation.approvals = [];
             }
@@ -2935,15 +2470,7 @@ const DataManager = {
             persistedSolicitation = normalizedSolicitation;
         }
 
-        const result = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
-            allowQueue: true,
-            action: index >= 0 ? 'update_solicitation' : 'create_solicitation',
-            reason: index >= 0 ? 'solicitation_update' : 'solicitation_create',
-            entityId: persistedSolicitation?.id,
-            previousData: previousSnapshot
-        });
-
-        const saved = result?.success === true;
+        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
         if (saved && persistedSolicitation) {
             this.queueOneDriveBackup(persistedSolicitation);
             this.createSolicitationsBackup({ download: false, reason: index >= 0 ? 'auto-update' : 'auto-create', silent: true });
@@ -2951,10 +2478,9 @@ const DataManager = {
 
         return saved;
     },
-
-    async updateSolicitationStatus(id, status, extra = {}) {
+    
+    updateSolicitationStatus(id, status, extra = {}) {
         const solicitations = this.getSolicitations();
-        const previousSnapshot = JSON.parse(JSON.stringify(solicitations || []));
         const index = solicitations.findIndex(s => s.id === id);
 
         if (index >= 0) {
@@ -2985,14 +2511,7 @@ const DataManager = {
                         Object.assign(solicitation, payload);
                         solicitation.updatedAt = now;
 
-                        const trackingSaveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
-                            allowQueue: true,
-                            action: 'update_tracking',
-                            reason: 'tracking_update',
-                            entityId: solicitation?.id,
-                            previousData: previousSnapshot
-                        });
-                        const savedTrackingUpdate = trackingSaveResult?.success === true;
+                        const savedTrackingUpdate = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
                         if (savedTrackingUpdate) {
                             this.queueOneDriveBackup(solicitation);
                             this.createSolicitationsBackup({ download: false, reason: 'auto-tracking-update', silent: true });
@@ -3023,10 +2542,12 @@ const DataManager = {
             if (nextStatus === this.STATUS.FINALIZADA) {
                 payload.deliveredAt = payload.deliveredAt || now;
                 payload.finalizedAt = payload.finalizedAt || now;
-                payload.deliveredBy = payload.deliveredBy || payload.by || 'Sistema';
-                payload.finalizedBy = payload.finalizedBy || payload.by || 'Sistema';
             }
 
+            solicitation.status = nextStatus;
+            solicitation.updatedAt = now;
+
+            // Update audit version
             const currentVersion = solicitation.audit?.version || 0;
             solicitation.audit = {
                 ...solicitation.audit,
@@ -3035,6 +2556,18 @@ const DataManager = {
                 lastUpdatedBy: payload.by || 'Sistema'
             };
 
+            // Maintain statusHistory for backward compatibility
+            if (!solicitation.statusHistory) {
+                solicitation.statusHistory = [];
+            }
+
+            solicitation.statusHistory.push({
+                status: nextStatus,
+                at: now,
+                by: payload.by || 'Sistema'
+            });
+
+            // Add to timeline for comprehensive event tracking
             if (!solicitation.timeline) {
                 solicitation.timeline = [];
             }
@@ -3047,6 +2580,7 @@ const DataManager = {
                 comment: payload.approvalComment || payload.rejectionReason || null
             });
 
+            // Track approvals separately for the approvals trail
             if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
                 if (!solicitation.approvals) {
                     solicitation.approvals = [];
@@ -3059,19 +2593,13 @@ const DataManager = {
                 });
             }
 
+            // Merge extra data
             delete payload.status;
             Object.assign(solicitation, payload);
             solicitation.status = nextStatus;
             solicitation.updatedAt = now;
 
-            const statusSaveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
-                allowQueue: true,
-                action: 'update_status',
-                reason: `status_${nextStatus}`,
-                entityId: solicitation?.id,
-                previousData: previousSnapshot
-            });
-            const saved = statusSaveResult?.success === true;
+            const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
             if (saved) {
                 this.queueOneDriveBackup(solicitation);
                 this.createSolicitationsBackup({ download: false, reason: 'auto-status-change', silent: true });
@@ -3081,9 +2609,8 @@ const DataManager = {
         return false;
     },
 
-    async deleteSolicitation(id) {
+    deleteSolicitation(id) {
         const currentSolicitations = this.getSolicitations();
-        const previousSnapshot = JSON.parse(JSON.stringify(currentSolicitations || []));
         this.createSolicitationsBackup({
             download: false,
             reason: 'auto-delete',
@@ -3091,14 +2618,7 @@ const DataManager = {
             solicitations: currentSolicitations
         });
         const solicitations = currentSolicitations.filter(s => s.id !== id);
-        const result = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
-            allowQueue: true,
-            action: 'delete_solicitation',
-            reason: 'solicitation_delete',
-            entityId: id,
-            previousData: previousSnapshot
-        });
-        const saved = result?.success === true;
+        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
         if (saved) {
             this.createSolicitationsBackup({ download: false, reason: 'post-delete', silent: true });
         }
@@ -3177,7 +2697,7 @@ const DataManager = {
         }).success;
     },
 
-    async restoreSolicitationsBackup(payload) {
+    restoreSolicitationsBackup(payload) {
         try {
             const incoming = Array.isArray(payload)
                 ? payload
@@ -3210,13 +2730,8 @@ const DataManager = {
             });
 
             const mergedSolicitations = Array.from(merged.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-            const saveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, mergedSolicitations, {
-                allowQueue: true,
-                action: 'restore_backup',
-                reason: 'solicitation_restore',
-                previousData: current
-            });
-            if (saveResult?.success === true) {
+            const saved = this.saveData(this.KEYS.SOLICITATIONS, mergedSolicitations);
+            if (saved) {
                 this.createSolicitationsBackup({ download: false, reason: 'post-restore', silent: true });
                 return { success: true, restoredCount, total: mergedSolicitations.length };
             }
@@ -3313,10 +2828,8 @@ const DataManager = {
                         ? navigator.platform 
                         : 'unknown'
                 },
-                syncState: 'pending',
-                cloudSynced: false,
-                cloudSyncedAt: null,
-                lastSyncError: null
+                // Cloud-first: mark as pending cloud sync
+                cloudSynced: false
             };
             
             const logs = this.getExportLogs();
@@ -3324,17 +2837,8 @@ const DataManager = {
             
             // Keep only the most recent entries
             const trimmedLogs = logs.slice(0, this.EXPORT_LOG_LIMIT);
-            this.persistDetachedCollection(this.KEYS.EXPORT_LOG, trimmedLogs, {
-                allowQueue: true,
-                action: 'export_log_persist',
-                reason: 'export_log_persist',
-                entityId: entry.id,
-                opId: `export-log:${entry.id}`,
-                source: 'export_log',
-                commitFinalStateOnSuccess: true
-            }).catch((error) => {
-                console.warn('Failed to persist export log:', error);
-            });
+            
+            this.saveData(this.KEYS.EXPORT_LOG, trimmedLogs);
             
             // Integrate with structured Logger for health panel
             if (typeof Logger !== 'undefined') {
@@ -3381,23 +2885,10 @@ const DataManager = {
                 contentType: artifact.contentType || 'application/octet-stream',
                 payloadBase64: artifact.payloadBase64,
                 source: artifact.source || entry.source || 'unknown',
-                createdAt: entry.timestamp || Date.now(),
-                syncState: 'pending',
-                cloudSynced: false,
-                cloudSyncedAt: null,
-                lastSyncError: null
+                createdAt: entry.timestamp || Date.now()
             };
-            this.persistDetachedCollection(this.KEYS.EXPORT_FILES, artifacts, {
-                allowQueue: true,
-                action: 'export_artifact_persist',
-                reason: 'export_artifact_persist',
-                entityId: entry.id,
-                opId: `export-artifact:${opId}`,
-                source: 'export_artifact',
-                commitFinalStateOnSuccess: true
-            }).catch((error) => {
-                console.warn('Failed to persist export artifact:', error);
-            });
+            
+            this.saveData(this.KEYS.EXPORT_FILES, artifacts);
             return artifacts[entry.id];
         } catch (e) {
             console.warn('Failed to persist export artifact:', e);
@@ -3647,32 +3138,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
