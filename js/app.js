@@ -5,27 +5,71 @@
 
 const CHART_INIT_DELAY_MS = 100;
 const PAGE_RENDER_TIMEOUT_MS = 15000;
+const BOOTSTRAP_TIMEOUT_MS = 20000;
+const MODULE_LOAD_RETRY_LIMIT = 2;
+const APP_BUILD_VERSION = (typeof window !== 'undefined' && window.__APP_BUILD_VERSION__)
+    ? String(window.__APP_BUILD_VERSION__)
+    : '20260308i';
+const APP_CACHE_VERSION = (typeof window !== 'undefined' && window.__APP_CACHE_VERSION__)
+    ? String(window.__APP_CACHE_VERSION__)
+    : 'v15';
+const MODULE_REGISTRY = {
+    dashboard: {
+        routeIds: ['dashboard'],
+        lazyModule: `./js/pages/dashboard.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`, `js/solicitacoes.js?v=${APP_BUILD_VERSION}`, `js/aprovacoes.js?v=${APP_BUILD_VERSION}`, `js/dashboard.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Dashboard'],
+        primaryGlobal: 'Dashboard'
+    },
+    solicitacoes: {
+        routeIds: ['solicitacoes', 'minhas-solicitacoes', 'nova-solicitacao'],
+        lazyModule: `./js/pages/solicitacoes.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`, `js/solicitacoes.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Solicitacoes'],
+        primaryGlobal: 'Solicitacoes'
+    },
+    aprovacoes: {
+        routeIds: ['aprovacoes'],
+        lazyModule: `./js/pages/aprovacoes.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/solicitacoes.js?v=${APP_BUILD_VERSION}`, `js/aprovacoes.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Aprovacoes'],
+        primaryGlobal: 'Aprovacoes'
+    },
+    pecas: {
+        routeIds: ['pecas', 'catalogo'],
+        lazyModule: `./js/pages/pecas.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/pecas.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Pecas'],
+        primaryGlobal: 'Pecas'
+    },
+    relatorios: {
+        routeIds: ['relatorios'],
+        lazyModule: `./js/pages/relatorios.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/relatorios.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Relatorios'],
+        primaryGlobal: 'Relatorios'
+    },
+    fornecedor: {
+        routeIds: ['fornecedor'],
+        lazyModule: `./js/pages/fornecedor.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/fornecedor.js?v=${APP_BUILD_VERSION}`],
+        globals: ['FornecedorPortal'],
+        primaryGlobal: 'FornecedorPortal'
+    },
+    usuarios: {
+        routeIds: ['tecnicos', 'fornecedores', 'usuarios'],
+        lazyModule: `./js/pages/usuarios.js?v=${APP_BUILD_VERSION}`,
+        fallbackScripts: [`js/tecnicos.js?v=${APP_BUILD_VERSION}`, `js/fornecedores.js?v=${APP_BUILD_VERSION}`, `js/usuarios.js?v=${APP_BUILD_VERSION}`],
+        globals: ['Tecnicos', 'Fornecedores', 'Usuarios'],
+        primaryGlobal: 'Usuarios'
+    }
+};
 
 const App = {
     currentPage: null,
-    lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260308h',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260308h',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260308h',
-        pecas: './js/pages/pecas.js?v=20260308h',
-        relatorios: './js/pages/relatorios.js?v=20260308h',
-        fornecedor: './js/pages/fornecedor.js?v=20260308h',
-        usuarios: './js/pages/usuarios.js?v=20260308h'
-    },
-    fallbackScripts: {
-        dashboard: ['js/pecas.js?v=20260308h', 'js/solicitacoes.js?v=20260308h', 'js/aprovacoes.js?v=20260308h', 'js/dashboard.js?v=20260308h'],
-        solicitacoes: ['js/pecas.js?v=20260308h', 'js/solicitacoes.js?v=20260308h'],
-        aprovacoes: ['js/solicitacoes.js?v=20260308h', 'js/aprovacoes.js?v=20260308h'],
-        pecas: ['js/pecas.js?v=20260308h'],
-        relatorios: ['js/relatorios.js?v=20260308h'],
-        fornecedor: ['js/fornecedor.js?v=20260308h'],
-        usuarios: ['js/tecnicos.js?v=20260308h', 'js/fornecedores.js?v=20260308h', 'js/usuarios.js?v=20260308h']
-    },
+    moduleRegistry: MODULE_REGISTRY,
+    lazyModules: Object.fromEntries(Object.entries(MODULE_REGISTRY).map(([key, descriptor]) => [key, descriptor.lazyModule])),
+    fallbackScripts: Object.fromEntries(Object.entries(MODULE_REGISTRY).map(([key, descriptor]) => [key, descriptor.fallbackScripts.slice()])),
     _lazyLoaded: {},
     _navigationBound: false,
     _lastRenderToken: 0,
@@ -50,19 +94,77 @@ const App = {
     async init() {
         // Set up event listeners FIRST to prevent form from submitting before handlers are attached
         this.setupEventListeners();
-        
-        // Initialize data (now async for cloud storage)
-        await DataManager.init();
-        
-        // Check if user is logged in
+
+        let initialized = false;
+        try {
+            initialized = await this.runWithTimeout(
+                DataManager.init(),
+                BOOTSTRAP_TIMEOUT_MS,
+                'bootstrap_timeout'
+            );
+        } catch (error) {
+            initialized = false;
+            this.logUiFailure('bootstrap_failed', {
+                requestId: 'bootstrap:init',
+                action: 'bootstrap',
+                stage: 'bootstrap',
+                route: 'init',
+                module: 'app',
+                source: 'app',
+                errorCode: error?.code || error?.message || 'bootstrap_failed',
+                originalError: error?.message || String(error || 'bootstrap_failed'),
+                retryCount: 0
+            });
+            this.showBootstrapFailure(error);
+            return false;
+        }
+
+        if (!initialized) {
+            this.logUiFailure('bootstrap_failed', {
+                requestId: 'bootstrap:init',
+                action: 'bootstrap',
+                stage: 'bootstrap',
+                route: 'init',
+                module: 'app',
+                source: 'app',
+                errorCode: 'bootstrap_failed',
+                originalError: 'data_manager_init_failed',
+                retryCount: 0
+            });
+            this.showBootstrapFailure(new Error('bootstrap_failed'));
+            return false;
+        }
+
         if (Auth.init()) {
             this.showApp();
         } else {
             this.showLogin();
         }
-        
-        // Apply saved theme
+
         this.applyTheme();
+        return true;
+    },
+
+    showBootstrapFailure(error) {
+        const code = error?.code || error?.message || 'bootstrap_failed';
+        const message = code === 'bootstrap_timeout'
+            ? 'A inicialização excedeu o tempo limite. Recarregue a página para buscar a versão correta dos arquivos.'
+            : 'A aplicação não conseguiu concluir o bootstrap. Recarregue a página e tente novamente.';
+
+        this.showLogin();
+
+        const errorDiv = document.getElementById('login-error');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        if (typeof Utils !== 'undefined' && typeof Utils.hideLoading === 'function') {
+            Utils.hideLoading(true);
+        }
+        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+            Utils.showToast(message, 'error');
+        }
     },
 
     /**
@@ -371,53 +473,193 @@ const App = {
         const renderToken = ++this._lastRenderToken;
         await this.renderPage(pageId, renderToken);
     },
+
     resolveLazyModuleKey(pageId) {
-        if (pageId === 'dashboard') {
-            return 'dashboard';
-        }
-        if (pageId === 'solicitacoes' || pageId === 'minhas-solicitacoes' || pageId === 'nova-solicitacao') {
-            return 'solicitacoes';
-        }
-        if (pageId === 'aprovacoes') {
-            return 'aprovacoes';
-        }
-        if (pageId === 'pecas' || pageId === 'catalogo') {
-            return 'pecas';
-        }
-        if (pageId === 'relatorios') {
-            return 'relatorios';
-        }
-        if (pageId === 'fornecedor') {
-            return 'fornecedor';
-        }
-        if (pageId === 'tecnicos' || pageId === 'fornecedores' || pageId === 'usuarios') {
-            return 'usuarios';
+        const targetRoute = String(pageId || '').trim().toLowerCase();
+        const entry = Object.entries(this.moduleRegistry).find(([, descriptor]) => (
+            Array.isArray(descriptor?.routeIds) && descriptor.routeIds.includes(targetRoute)
+        ));
+        if (entry) {
+            return entry[0];
         }
         return null;
     },
 
-    isLazyKeyReady(key) {
-        const checks = {
-            dashboard: () => !!this.getGlobalModule('Dashboard'),
-            solicitacoes: () => !!this.getGlobalModule('Solicitacoes'),
-            aprovacoes: () => !!this.getGlobalModule('Aprovacoes'),
-            pecas: () => !!this.getGlobalModule('Pecas'),
-            relatorios: () => !!this.getGlobalModule('Relatorios'),
-            fornecedor: () => !!this.getGlobalModule('FornecedorPortal'),
-            usuarios: () => !!this.getGlobalModule('Tecnicos') && !!this.getGlobalModule('Fornecedores') && !!this.getGlobalModule('Usuarios')
+    getModuleDescriptor(keyOrPageId) {
+        const directKey = String(keyOrPageId || '').trim();
+        const key = this.moduleRegistry[directKey]
+            ? directKey
+            : this.resolveLazyModuleKey(directKey);
+        if (!key || !this.moduleRegistry[key]) {
+            return null;
+        }
+        return {
+            key,
+            ...this.moduleRegistry[key]
         };
-        return checks[key] ? checks[key]() : true;
     },
 
-    async loadFallbackScripts(key) {
-        const scripts = this.fallbackScripts[key] || [];
-        const normalizeSrc = (value) => {
-            try {
-                return new URL(String(value || ''), window.location.href).href;
-            } catch (_error) {
-                return String(value || '');
+    isLazyKeyReady(key) {
+        const descriptor = this.getModuleDescriptor(key);
+        if (!descriptor) {
+            return true;
+        }
+        return (descriptor.globals || []).every((globalName) => !!this.getGlobalModule(globalName));
+    },
+
+    normalizeAssetUrl(value) {
+        try {
+            return new URL(String(value || ''), window.location.href).href;
+        } catch (_error) {
+            return String(value || '');
+        }
+    },
+
+    buildRetryAssetUrl(value, retryCount = 0) {
+        try {
+            const url = new URL(String(value || ''), window.location.href);
+            if (retryCount > 0) {
+                url.searchParams.set('__retry', String(retryCount));
+                url.searchParams.set('__build', this.getBuildVersion());
+            }
+            return url.href;
+        } catch (_error) {
+            return String(value || '');
+        }
+    },
+
+    getBuildVersion() {
+        return APP_BUILD_VERSION;
+    },
+
+    getCacheVersion() {
+        return APP_CACHE_VERSION;
+    },
+
+    createModuleError(code, details = {}) {
+        const error = new Error(details?.message || code);
+        error.code = code;
+        Object.assign(error, details);
+        return error;
+    },
+
+    async loadTrackedScript(baseSrc, options = {}) {
+        const actualSrc = options?.actualSrc || baseSrc;
+        const selectorBase = options?.selectorBase || 'data-fallback-base';
+        const selectorSrc = options?.selectorSrc || 'data-fallback-src';
+        const normalizedBaseSrc = this.normalizeAssetUrl(baseSrc);
+        const normalizedActualSrc = this.normalizeAssetUrl(actualSrc);
+        const selector = `script[${selectorBase}="${normalizedBaseSrc}"]`;
+
+        const removeNode = (node) => {
+            if (node && node.parentNode) {
+                node.parentNode.removeChild(node);
             }
         };
+
+        return new Promise((resolve, reject) => {
+            let timeoutHandle = null;
+
+            const clearTimeoutHandle = () => {
+                if (timeoutHandle) {
+                    clearTimeout(timeoutHandle);
+                    timeoutHandle = null;
+                }
+            };
+
+            const fail = (code, message, originalError = null, scriptNode = null) => {
+                clearTimeoutHandle();
+                if (scriptNode) {
+                    scriptNode.dataset.loadState = 'error';
+                }
+                reject(this.createModuleError(code, {
+                    message,
+                    originalError,
+                    src: normalizedBaseSrc,
+                    actualSrc: normalizedActualSrc
+                }));
+            };
+
+            let existing = document.querySelector(selector)
+                || document.querySelector(`script[${selectorSrc}="${normalizedBaseSrc}"]`);
+
+            if (existing) {
+                const state = String(existing.dataset.loadState || '');
+                if (existing.dataset.loaded === 'true') {
+                    resolve();
+                    return;
+                }
+                if (state === 'error') {
+                    removeNode(existing);
+                    existing = null;
+                }
+            }
+
+            if (existing) {
+                existing.addEventListener('load', () => {
+                    clearTimeoutHandle();
+                    resolve();
+                }, { once: true });
+                existing.addEventListener('error', (event) => {
+                    fail(`module_load_failed:${normalizedBaseSrc}`, `Falha ao carregar ${normalizedBaseSrc}`, event, existing);
+                }, { once: true });
+                timeoutHandle = setTimeout(() => {
+                    fail(`module_load_timeout:${normalizedBaseSrc}`, `Timeout ao carregar ${normalizedBaseSrc}`, null, existing);
+                }, PAGE_RENDER_TIMEOUT_MS);
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = normalizedActualSrc;
+            script.async = true;
+            script.dataset.fallbackBase = normalizedBaseSrc;
+            script.dataset.fallbackSrc = normalizedActualSrc;
+            script.dataset.loaded = 'false';
+            script.dataset.loadState = 'loading';
+            script.onload = () => {
+                clearTimeoutHandle();
+                script.dataset.loaded = 'true';
+                script.dataset.loadState = 'loaded';
+                resolve();
+            };
+            script.onerror = (event) => {
+                fail(`module_load_failed:${normalizedBaseSrc}`, `Falha ao carregar ${normalizedBaseSrc}`, event, script);
+            };
+
+            timeoutHandle = setTimeout(() => {
+                fail(`module_load_timeout:${normalizedBaseSrc}`, `Timeout ao carregar ${normalizedBaseSrc}`, null, script);
+            }, PAGE_RENDER_TIMEOUT_MS);
+
+            document.head.appendChild(script);
+        });
+    },
+
+    clearTrackedScripts(sources = []) {
+        const stripQuery = (value) => String(value || '').replace(/[?#].*$/, '');
+        const candidates = (Array.isArray(sources) ? sources : [])
+            .reduce((acc, source) => acc.concat([source, stripQuery(source)]), [])
+            .filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+        candidates.forEach((source) => {
+            const normalized = this.normalizeAssetUrl(source);
+            document.querySelectorAll(`script[data-fallback-base="${normalized}"]`).forEach((node) => {
+                if (node.parentNode) {
+                    node.parentNode.removeChild(node);
+                }
+            });
+        });
+    },
+
+    async loadFallbackScripts(keyOrPageId) {
+        const descriptor = this.getModuleDescriptor(keyOrPageId);
+        if (!descriptor) {
+            throw this.createModuleError(`module_registry_missing:${keyOrPageId}`, {
+                route: keyOrPageId,
+                module: keyOrPageId
+            });
+        }
+
+        const scripts = descriptor.fallbackScripts || [];
         const stripQuery = (value) => String(value || '').replace(/[?#].*$/, '');
 
         for (const originalSrc of scripts) {
@@ -426,36 +668,20 @@ const App = {
             let lastError = null;
             let loaded = false;
 
-            for (const srcCandidate of sourceCandidates) {
-                const normalizedSrc = normalizeSrc(srcCandidate);
-                try {
-                    await new Promise((resolve, reject) => {
-                        const existing = document.querySelector(`script[data-fallback-src="${normalizedSrc}"]`);
-                        if (existing) {
-                            if (existing.dataset.loaded === 'true') {
-                                resolve();
-                                return;
-                            }
-                            existing.addEventListener('load', () => resolve(), { once: true });
-                            existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${normalizedSrc}`)), { once: true });
-                            return;
-                        }
-
-                        const script = document.createElement('script');
-                        script.src = normalizedSrc;
-                        script.async = true;
-                        script.dataset.fallbackSrc = normalizedSrc;
-                        script.onload = () => {
-                            script.dataset.loaded = 'true';
-                            resolve();
-                        };
-                        script.onerror = () => reject(new Error(`Falha ao carregar ${normalizedSrc}`));
-                        document.head.appendChild(script);
-                    });
-                    loaded = true;
+            for (let attempt = 0; attempt < MODULE_LOAD_RETRY_LIMIT; attempt += 1) {
+                for (const srcCandidate of sourceCandidates) {
+                    try {
+                        await this.loadTrackedScript(srcCandidate, {
+                            actualSrc: this.buildRetryAssetUrl(srcCandidate, attempt)
+                        });
+                        loaded = true;
+                        break;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+                if (loaded) {
                     break;
-                } catch (error) {
-                    lastError = error;
                 }
             }
 
@@ -463,40 +689,64 @@ const App = {
                 throw lastError;
             }
         }
+
+        if (!this.isLazyKeyReady(descriptor.key)) {
+            this.clearTrackedScripts(scripts);
+        }
     },
 
     async ensurePageModule(pageId) {
-        const key = this.resolveLazyModuleKey(pageId);
-        if (!key) {
+        const descriptor = this.getModuleDescriptor(pageId);
+        if (!descriptor) {
             return;
         }
 
+        const { key, lazyModule, primaryGlobal } = descriptor;
         const dashboardNeedsModernPatch = key === 'dashboard' && typeof window.Dashboard !== 'undefined' && !window.Dashboard.__saasModernized;
         if (this._lazyLoaded[key] || (this.isLazyKeyReady(key) && !dashboardNeedsModernPatch)) {
             this._lazyLoaded[key] = true;
             return;
         }
 
-        const modulePath = this.lazyModules[key];
-        if (!modulePath) {
-            return;
+        if (!lazyModule) {
+            throw this.createModuleError(`module_registry_missing:${primaryGlobal || key}`, {
+                route: pageId,
+                module: primaryGlobal || key
+            });
         }
 
-        try {
-            const mod = await import(modulePath);
-            if (mod && typeof mod.ensureLoaded === 'function') {
-                await mod.ensureLoaded();
+        let lastError = null;
+        for (let attempt = 0; attempt < MODULE_LOAD_RETRY_LIMIT; attempt += 1) {
+            try {
+                const moduleUrl = this.buildRetryAssetUrl(lazyModule, attempt);
+                const mod = await import(moduleUrl);
+                if (mod && typeof mod.ensureLoaded === 'function') {
+                    await mod.ensureLoaded();
+                }
+            } catch (error) {
+                lastError = error;
             }
-        } catch (error) {
-            console.warn('Lazy load falhou, aplicando fallback clássico:', key, error);
-            await this.loadFallbackScripts(key);
+
+            if (!this.isLazyKeyReady(key)) {
+                try {
+                    await this.loadFallbackScripts(key);
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            if (this.isLazyKeyReady(key)) {
+                this._lazyLoaded[key] = true;
+                return;
+            }
         }
 
-        if (!this.isLazyKeyReady(key)) {
-            await this.loadFallbackScripts(key);
-        }
-
-        this._lazyLoaded[key] = true;
+        throw this.createModuleError(`module_load_failed:${primaryGlobal || key}`, {
+            route: pageId,
+            module: primaryGlobal || key,
+            moduleKey: key,
+            originalError: lastError?.code || lastError?.message || 'module_load_failed'
+        });
     },
 
     /**
@@ -573,12 +823,31 @@ const App = {
     requireGlobalModule(moduleName, pageId) {
         const moduleRef = this.getGlobalModule(moduleName);
         if (!moduleRef) {
-            const moduleError = new Error(`module_missing:${moduleName}`);
-            moduleError.code = `module_missing:${moduleName}`;
-            moduleError.pageId = pageId;
-            throw moduleError;
+            throw this.createModuleError(`module_registry_missing:${moduleName}`, {
+                route: pageId,
+                module: moduleName
+            });
         }
         return moduleRef;
+    },
+
+    logUiFailure(message, data = {}) {
+        const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function')
+            ? Auth.getCurrentUser()
+            : null;
+        const payload = {
+            ...data,
+            userId: data?.userId || currentUser?.id || null,
+            route: data?.route || this.currentPage || null,
+            source: data?.source || 'app',
+            cacheVersion: data?.cacheVersion || this.getCacheVersion(),
+            buildVersion: data?.buildVersion || this.getBuildVersion(),
+            retryCount: Number(data?.retryCount || 0)
+        };
+
+        if (typeof Logger !== 'undefined' && typeof Logger.error === 'function') {
+            Logger.error((Logger.CATEGORY && Logger.CATEGORY.UI) || 'ui', message, payload);
+        }
     },
 
     /**
@@ -670,18 +939,24 @@ const App = {
             return;
         }
 
-        const isSyncIssue = /sync|cloud|offline|timeout|load/i.test(String(reasonCode || ''));
-        const title = isSyncIssue ? 'Falha ao sincronizar dados desta tela' : 'Falha ao carregar esta tela';
+        const safeReasonCode = String(reasonCode || '').toLowerCase();
+        const isSyncIssue = /sync_|sync|cloud|offline|read_failed|write_failed/.test(safeReasonCode);
+        const isCacheIssue = /stale_cache|asset_version_mismatch|cache/.test(safeReasonCode);
+        const title = isCacheIssue
+            ? 'Versão inconsistente de arquivos detectada'
+            : (isSyncIssue ? 'Falha ao sincronizar dados desta tela' : 'Falha ao carregar esta tela');
         const message = reasonMessage
-            || (isSyncIssue
+            || (isCacheIssue
+                ? 'Os arquivos da aplicação ficaram fora de versão. Recarregue para baixar os assets corretos.'
+                : (isSyncIssue
                 ? 'Não foi possível concluir a sincronização inicial. Tente novamente.'
-                : 'Ocorreu um erro ao montar a tela solicitada.');
+                : 'Ocorreu um erro ao montar a tela solicitada.'));
 
         content.innerHTML = `
             <div class="page-fallback card">
                 <div class="card-body">
-                    <div class="page-fallback-icon ${isSyncIssue ? 'warning' : 'danger'}">
-                        <i class="fas ${isSyncIssue ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
+                    <div class="page-fallback-icon ${isSyncIssue || isCacheIssue ? 'warning' : 'danger'}">
+                        <i class="fas ${isSyncIssue || isCacheIssue ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
                     </div>
                     <h3>${Utils.escapeHtml(title)}</h3>
                     <p>${Utils.escapeHtml(message)}</p>
@@ -732,30 +1007,44 @@ const App = {
                 return;
             }
             console.error('Erro ao carregar módulo da página', pageId, error);
+            const descriptor = this.getModuleDescriptor(pageId);
+            if (descriptor?.key) {
+                this._lazyLoaded[descriptor.key] = false;
+            }
             const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
                 ? DataManager.getSyncStatus()
                 : {};
             const reasonCode = error?.code || error?.message || 'page_render_failed';
             const syncFailed = ['failed', 'error'].includes(String(syncStatus?.state || '').toLowerCase());
-            const timeoutError = String(reasonCode).includes('timeout');
-            const reasonMessage = timeoutError
-                ? 'Tempo de resposta excedido durante a leitura da página. Verifique a conexão e tente novamente.'
-                : (syncFailed
-                    ? 'A sincronização falhou e os dados desta tela não puderam ser carregados.'
-                    : 'Não foi possível carregar este módulo agora.');
+            const normalizedReasonCode = String(reasonCode || '').toLowerCase();
+            const timeoutError = normalizedReasonCode.includes('timeout');
+            const cacheIssue = /stale_cache|asset_version_mismatch|cache/.test(normalizedReasonCode);
+            const routeIssue = normalizedReasonCode.startsWith('route_resolution_failed');
+            const registryIssue = normalizedReasonCode.startsWith('module_registry_missing');
+            const moduleLoadIssue = normalizedReasonCode.startsWith('module_load_failed');
+            const reasonMessage = cacheIssue
+                ? 'Arquivos desatualizados foram detectados. Recarregue a página para baixar a versão correta.'
+                : (timeoutError
+                    ? 'Tempo de resposta excedido durante a leitura da página. Verifique a conexão e tente novamente.'
+                    : (syncFailed
+                        ? 'A sincronização falhou e os dados desta tela não puderam ser carregados.'
+                        : (routeIssue
+                            ? 'A rota solicitada não pôde ser resolvida.'
+                            : ((registryIssue || moduleLoadIssue)
+                                ? 'Não foi possível carregar este módulo agora.'
+                                : 'Falha ao montar a tela solicitada.'))));
 
-            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
-                Logger.logSync('page_render_failed', {
-                    requestId: `ui:${pageId}:${Date.now()}`,
-                    action: 'render_page',
-                    entityId: pageId,
-                    stage: 'ui_render',
-                    origin: 'app',
-                    status: 'fail',
-                    errorCode: reasonCode,
-                    errorOriginal: error?.message || String(error || reasonCode)
-                });
-            }
+            this.logUiFailure(reasonCode, {
+                requestId: `ui_render:${pageId}:${renderToken}`,
+                action: 'render_page',
+                stage: 'ui_render',
+                entityId: pageId,
+                route: pageId,
+                module: descriptor?.primaryGlobal || descriptor?.module || descriptor?.key || pageId,
+                source: 'app',
+                originalError: error?.originalError || error?.message || String(error || reasonCode),
+                retryCount: 0
+            });
 
             Utils.showToast(reasonMessage, 'error');
             this.renderPageFallback(pageId, reasonMessage, reasonCode);
@@ -1740,8 +2029,13 @@ const App = {
             const synced = typeof DataManager !== 'undefined'
                 ? await DataManager.syncAll('manual')
                 : false;
+            const syncDetail = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
+                ? DataManager.getSyncStatus()
+                : {};
+            const queueCount = this.getOutboxPendingCount();
+            const effectiveState = this.getEffectiveSyncState(syncDetail, queueCount);
 
-            if (synced) {
+            if (synced && effectiveState !== 'pending') {
                 emitSyncStatus('done');
                 window.dispatchEvent(new CustomEvent('data:updated', {
                     detail: {
@@ -1752,6 +2046,16 @@ const App = {
                     Utils.showToast('Sincronizado', 'success');
                 }
                 this.refreshActiveView();
+            } else if (effectiveState === 'pending') {
+                emitSyncStatus('pending');
+                if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                    Utils.showToast(
+                        queueCount > 0
+                            ? `Sincronização pendente: ${queueCount} operação(ões) aguardando confirmação`
+                            : 'Sincronização pendente: houve escrita sem confirmação final',
+                        'warning'
+                    );
+                }
             } else {
                 emitSyncStatus('error');
                 if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
@@ -1773,6 +2077,9 @@ const App = {
     },
 
     getOutboxPendingCount() {
+        if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.getOutboxPendingCount === 'function') {
+            return CloudStorage.getOutboxPendingCount();
+        }
         try {
             const queue = JSON.parse(localStorage.getItem('cloud_sync_queue') || '[]');
             return Array.isArray(queue) ? queue.length : 0;
@@ -1781,15 +2088,23 @@ const App = {
         }
     },
 
+    getEffectiveSyncState(detail = {}, queueCount = this.getOutboxPendingCount()) {
+        const rawState = String(detail?.state || detail?.status || 'idle').toLowerCase();
+        if (queueCount > 0 && ['idle', 'synced', 'done', 'success'].includes(rawState)) {
+            return 'pending';
+        }
+        return rawState;
+    },
+
     updateSyncIndicator(detail = {}) {
         const indicator = document.getElementById('sync-indicator');
         if (!indicator) {
             return;
         }
 
-        const state = String(detail?.state || detail?.status || 'idle');
-        const updatedAt = Number(detail?.updatedAt || Date.now());
         const queueCount = this.getOutboxPendingCount();
+        const state = this.getEffectiveSyncState(detail, queueCount);
+        const updatedAt = Number(detail?.updatedAt || Date.now());
 
         const stateConfig = {
             idle: { css: 'sync-idle', icon: 'fa-circle', label: 'Sem atividade' },
@@ -2106,10 +2421,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         await App.init();
     } catch (error) {
         console.error('Application initialization error:', error);
-        // Show error message to user
-        if (typeof Utils !== 'undefined' && Utils.showToast) {
-            Utils.showToast('Erro ao inicializar aplicação', 'error');
-        }
+        App.logUiFailure(error?.code || 'bootstrap_failed', {
+            requestId: 'bootstrap:dom_content_loaded',
+            action: 'bootstrap',
+            stage: 'bootstrap',
+            route: 'init',
+            module: 'app',
+            source: 'app',
+            originalError: error?.message || String(error || 'bootstrap_failed')
+        });
+        App.showBootstrapFailure(error);
     }
 });
 

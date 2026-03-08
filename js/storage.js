@@ -799,7 +799,16 @@ const CloudStorage = {
         return Date.now() + delay;
     },
 
-    async flushQueue() {
+    getOutboxPendingCount() {
+        try {
+            const queue = JSON.parse(localStorage.getItem(this.queueLocalKey) || '[]');
+            return Array.isArray(queue) ? queue.length : 0;
+        } catch (_error) {
+            return 0;
+        }
+    },
+
+    async flushQueue(options = {}) {
         if (!this.isCloudAvailable()) {
             return false;
         }
@@ -811,13 +820,14 @@ const CloudStorage = {
 
         const now = Date.now();
         const remaining = [];
+        const forceFlush = options?.force === true;
 
         for (const item of queue) {
             if (!item || !item.key || !item.opId) {
                 continue;
             }
 
-            if (Number(item.nextRetryAt || 0) > now) {
+            if (!forceFlush && Number(item.nextRetryAt || 0) > now) {
                 remaining.push(item);
                 continue;
             }

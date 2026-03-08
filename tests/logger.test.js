@@ -116,6 +116,24 @@ describe('Logger Module', () => {
             expect(logs[0].message).toBe('Test info message');
         });
 
+        it('deduplicates repeated logs using request and sync context', () => {
+            Logger.error('ui', 'module_load_failed:Solicitacoes', {
+                requestId: 'ui:solicitacoes:1',
+                action: 'render_page',
+                stage: 'ui_render',
+                entityId: 'solicitacoes'
+            });
+            Logger.error('ui', 'module_load_failed:Solicitacoes', {
+                requestId: 'ui:solicitacoes:1',
+                action: 'render_page',
+                stage: 'ui_render',
+                entityId: 'solicitacoes'
+            });
+
+            const logs = Logger.getLogs();
+            expect(logs.length).toBe(1);
+        });
+
         it('persists warn log', () => {
             Logger.warn('auth', 'Test warning');
             const logs = Logger.getLogs();
@@ -189,6 +207,42 @@ describe('Logger Module', () => {
         it('tracks errors in health stats', () => {
             Logger.error('sync', 'Sync failed');
             const stats = Logger.getHealthStats();
+            expect(stats.byCategory.sync.errors).toBe(1);
+            expect(stats.totalErrors).toBe(1);
+        });
+
+        it('rebuilds health stats from deduplicated logs instead of stale counters', () => {
+            const duplicateLogs = [
+                {
+                    id: '1',
+                    timestamp: new Date().toISOString(),
+                    level: 'error',
+                    category: 'sync',
+                    message: 'sync_write_failed',
+                    requestId: 'sync:1',
+                    data: { action: 'write_cloud', stage: 'commit', entityId: 'solicitacoes' }
+                },
+                {
+                    id: '2',
+                    timestamp: new Date().toISOString(),
+                    level: 'error',
+                    category: 'sync',
+                    message: 'sync_write_failed',
+                    requestId: 'sync:1',
+                    data: { action: 'write_cloud', stage: 'commit', entityId: 'solicitacoes' }
+                }
+            ];
+
+            localStorage.setItem(Logger.LOG_KEY, JSON.stringify(duplicateLogs));
+            localStorage.setItem(Logger.HEALTH_KEY, JSON.stringify({
+                byCategory: { sync: { total: 999, errors: 999, lastHour: 999, lastDay: 999 } },
+                totalErrors: 999,
+                recentEvents: [{ timestamp: Date.now(), category: 'sync', level: 'error' }],
+                lastUpdated: Date.now()
+            }));
+
+            const stats = Logger.getHealthStats();
+            expect(stats.byCategory.sync.total).toBe(1);
             expect(stats.byCategory.sync.errors).toBe(1);
             expect(stats.totalErrors).toBe(1);
         });

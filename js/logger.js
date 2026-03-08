@@ -34,7 +34,9 @@ const Logger = {
         EXPORT: 'export',
         REQUEST: 'request',
         SYSTEM: 'system',
-        APPROVAL: 'approval'
+        APPROVAL: 'approval',
+        UI: 'ui',
+        CACHE: 'cache'
     },
 
     /**
@@ -93,11 +95,27 @@ const Logger = {
     createEntry(level, category, message, data = {}) {
         const context = this.getRequestContext();
         const user = this.getCurrentUser();
+        const normalizedData = { ...(data || {}) };
         const explicitRequestId = data?.requestId || data?.opId || data?.operationId;
         const requestId = explicitRequestId
             ? String(explicitRequestId)
             : this.generateRequestId();
         const startReference = Number(data?.startedAt || context.startTime || Date.now());
+
+        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'userId')) {
+            normalizedData.userId = user?.id || null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'route')) {
+            normalizedData.route = (typeof window !== 'undefined' && window.location)
+                ? (window.location.hash || window.location.pathname || null)
+                : null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'buildVersion') && typeof window !== 'undefined') {
+            normalizedData.buildVersion = window.__APP_BUILD_VERSION__ || null;
+        }
+        if (!Object.prototype.hasOwnProperty.call(normalizedData, 'cacheVersion') && typeof window !== 'undefined') {
+            normalizedData.cacheVersion = window.__APP_CACHE_VERSION__ || null;
+        }
 
         return {
             id: this.generateRequestId(),
@@ -108,7 +126,7 @@ const Logger = {
             requestId,
             duration: Math.max(0, Date.now() - startReference),
             user: user ? { id: user.id, username: user.username, role: user.role } : null,
-            data,
+            data: normalizedData,
             device: this.getDeviceInfo()
         };
     },
@@ -223,17 +241,15 @@ const Logger = {
         const stage = data.stage || data.status || '';
         const entityId = data.entityId || data.key || '';
         const errorCode = data.errorCode || data.error || data.reason || '';
-        const attempts = data.attempts || data.attempt || '';
+        const requestId = entry?.requestId || data.requestId || `${entry?.category || ''}:${action}:${stage}:${entityId}:${errorCode}`;
         return [
             entry?.level || '',
             entry?.category || '',
-            entry?.requestId || '',
-            entry?.message || '',
+            requestId,
             action,
             stage,
             entityId,
-            errorCode,
-            attempts
+            errorCode
         ].join('|');
     },
 
@@ -386,67 +402,75 @@ const Logger = {
         return this.getLogsByLevel([this.LEVEL.ERROR, this.LEVEL.WARN], limit);
     },
 
-    /**
-     * Update health statistics
-     * @param {object} entry - Log entry
-     */
-    updateHealthStats(entry) {
-        try {
-            const stats = this.getHealthStats();
-            const now = Date.now();
-            const hourAgo = now - (60 * 60 * 1000);
-            const dayAgo = now - (24 * 60 * 60 * 1000);
+    buildHealthStats(logs = []) {
+        const now = Date.now();
+        const hourAgo = now - (60 * 60 * 1000);
+        const dayAgo = now - (24 * 60 * 60 * 1000);
+        const stats = {
+            byCategory: {},
+            totalErrors: 0,
+            recentEvents: [],
+            lastUpdated: now
+        };
 
-            // Initialize category stats if needed
+        logs.forEach((entry) => {
+            if (!entry || !entry.category) {
+                return;
+            }
+
             if (!stats.byCategory[entry.category]) {
-                stats.byCategory[entry.category] = { total: 0, errors: 0, lastHour: 0, lastDay: 0 };
+                stats.byCategory[entry.category] = {
+                    total: 0,
+                    errors: 0,
+                    warns: 0,
+                    lastHour: 0,
+                    lastDay: 0
+                };
             }
 
-            // Update counters
-            stats.byCategory[entry.category].total++;
-            if (entry.level === 'error') {
-                stats.byCategory[entry.category].errors++;
-                stats.totalErrors++;
-            }
+            const bucket = stats.byCategory[entry.category];
+            const entryTs = Date.parse(entry.timestamp) || now;
+            bucket.total += 1;
 
-            // Add to time series for recent window tracking
-            if (!stats.recentEvents) {
-                stats.recentEvents = [];
+            if (entry.level === this.LEVEL.ERROR) {
+                bucket.errors += 1;
+                stats.totalErrors += 1;
             }
-            stats.recentEvents.unshift({
-                timestamp: now,
-                category: entry.category,
-                level: entry.level
-            });
-            
-            // Keep only last 1000 events for time-window calculations
-            stats.recentEvents = stats.recentEvents.slice(0, 1000);
-
-            // Recalculate hourly/daily counts efficiently with single pass
-            // Reset counts first
-            Object.keys(stats.byCategory).forEach(cat => {
-                stats.byCategory[cat].lastHour = 0;
-                stats.byCategory[cat].lastDay = 0;
-            });
-            
-            // Single pass through recentEvents
-            for (const event of stats.recentEvents) {
-                const cat = event.category;
-                if (stats.byCategory[cat]) {
-                    if (event.timestamp > hourAgo) {
-                        stats.byCategory[cat].lastHour++;
-                    }
-                    if (event.timestamp > dayAgo) {
-                        stats.byCategory[cat].lastDay++;
-                    }
-                }
+            if (entry.level === this.LEVEL.WARN) {
+                bucket.warns += 1;
             }
+            if (entryTs > hourAgo) {
+                bucket.lastHour += 1;
+            }
+            if (entryTs > dayAgo) {
+                bucket.lastDay += 1;
+                stats.recentEvents.push({
+                    timestamp: entryTs,
+                    category: entry.category,
+                    level: entry.level
+                });
+            }
+        });
 
-            stats.lastUpdated = now;
+        stats.recentEvents.sort((a, b) => b.timestamp - a.timestamp);
+        return stats;
+    },
+
+    persistHealthSnapshot(logs = []) {
+        try {
+            const stats = this.buildHealthStats(logs);
             localStorage.setItem(this.HEALTH_KEY, JSON.stringify(stats));
         } catch (_e) {
             console.warn('Health stats update failed:', _e);
         }
+    },
+
+    /**
+     * Update health statistics
+     * @param {object} _entry - Unused incremental entry; health is rebuilt from compacted logs.
+     */
+    updateHealthStats(_entry) {
+        this.persistHealthSnapshot(this.getLogs());
     },
 
     /**
@@ -455,10 +479,9 @@ const Logger = {
      */
     getHealthStats() {
         try {
-            const stored = localStorage.getItem(this.HEALTH_KEY);
-            if (stored) {
-                return JSON.parse(stored);
-            }
+            const stats = this.buildHealthStats(this.getLogs());
+            localStorage.setItem(this.HEALTH_KEY, JSON.stringify(stats));
+            return stats;
         } catch (_e) {
             // Return default
         }

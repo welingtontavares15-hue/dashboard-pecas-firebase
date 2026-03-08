@@ -31,7 +31,8 @@ describe('App.syncData', () => {
                 USERS: 'users',
                 SOLICITATIONS: 'solicitacoes'
             },
-            syncAll: jest.fn().mockResolvedValue(true)
+            syncAll: jest.fn().mockResolvedValue(true),
+            getSyncStatus: jest.fn().mockReturnValue({ state: 'synced', updatedAt: Date.now() })
         };
 
         global.Dashboard = { render: jest.fn() };
@@ -48,6 +49,7 @@ describe('App.syncData', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        localStorage.clear();
         document.body.innerHTML = '';
     });
 
@@ -81,6 +83,7 @@ describe('App.syncData', () => {
 
     it('does not navigate when sync is unavailable', async () => {
         DataManager.syncAll.mockResolvedValue(false);
+        DataManager.getSyncStatus.mockReturnValue({ state: 'error', updatedAt: Date.now() });
         App.currentPage = 'pecas';
         App.refreshActiveView = jest.fn();
 
@@ -97,6 +100,28 @@ describe('App.syncData', () => {
         expect(App.currentPage).toBe('pecas');
         expect(App.refreshActiveView).not.toHaveBeenCalled();
         expect(Utils.showToast).toHaveBeenCalledWith('Sincronização em nuvem não disponível', 'warning');
+        expect(syncButton.classList.contains('rotating')).toBe(false);
+    });
+
+    it('does not report success when outbox is still pending', async () => {
+        DataManager.syncAll.mockResolvedValue(false);
+        DataManager.getSyncStatus.mockReturnValue({ state: 'pending', updatedAt: Date.now() });
+        localStorage.setItem('cloud_sync_queue', JSON.stringify([{ opId: 'pending-1' }]));
+
+        const syncStatuses = [];
+        const syncStatusListener = (event) => syncStatuses.push(event.detail.state);
+        window.addEventListener('sync:status', syncStatusListener);
+
+        await App.syncData();
+
+        window.removeEventListener('sync:status', syncStatusListener);
+
+        expect(syncStatuses).toContain('pending');
+        expect(Utils.showToast).toHaveBeenCalledWith(
+            'Sincronização pendente: 1 operação(ões) aguardando confirmação',
+            'warning'
+        );
+        expect(Utils.showToast).not.toHaveBeenCalledWith('Sincronizado', 'success');
         expect(syncButton.classList.contains('rotating')).toBe(false);
     });
 });

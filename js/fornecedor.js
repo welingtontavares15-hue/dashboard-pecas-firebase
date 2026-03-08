@@ -11,9 +11,76 @@ const FornecedorPortal = {
     currentPage: 1,
     itemsPerPage: 10,
     activeDetailId: null,
+    _hasRenderedSnapshot: false,
     filters: {
         search: '',
         status: ''
+    },
+
+    resolvePageState(snapshot) {
+        const syncState = String(DataManager?.getSyncStatus?.().state || 'idle').toLowerCase();
+
+        if (snapshot === null || snapshot === undefined) {
+            if (syncState === 'failed' || syncState === 'error') {
+                return {
+                    status: 'error',
+                    title: 'Falha ao carregar pedidos do fornecedor',
+                    message: 'Os pedidos não puderam ser sincronizados.'
+                };
+            }
+
+            if (syncState === 'saving' || syncState === 'start' || syncState === 'pending') {
+                return {
+                    status: 'retrying',
+                    title: 'Atualizando pedidos',
+                    message: 'Os pedidos estão sendo sincronizados. Aguarde ou tente novamente.'
+                };
+            }
+
+            return {
+                status: 'loading',
+                title: 'Carregando pedidos',
+                message: 'Buscando solicitações aprovadas para o fornecedor.'
+            };
+        }
+
+        if (!Array.isArray(snapshot)) {
+            return {
+                status: 'error',
+                title: 'Dados do fornecedor inválidos',
+                message: 'O retorno da operação do fornecedor está inconsistente.'
+            };
+        }
+
+        if (snapshot.length === 0) {
+            return {
+                status: 'empty',
+                title: 'Nenhum pedido disponível',
+                message: 'Não existem solicitações carregadas para o fornecedor neste momento.'
+            };
+        }
+
+        return { status: 'success' };
+    },
+
+    renderPageState(state) {
+        const iconByStatus = {
+            loading: 'fa-spinner fa-spin',
+            retrying: 'fa-rotate-right fa-spin',
+            empty: 'fa-inbox',
+            error: 'fa-circle-xmark'
+        };
+
+        return `
+            <div class="empty-state">
+                <i class="fas ${iconByStatus[state?.status] || iconByStatus.loading}"></i>
+                <h4>${Utils.escapeHtml(state?.title || 'Carregando')}</h4>
+                <p>${Utils.escapeHtml(state?.message || 'Aguarde alguns instantes.')}</p>
+                <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
+                    <i class="fas fa-rotate-right"></i> Tentar novamente
+                </button>
+            </div>
+        `;
     },
 
     render() {
@@ -32,6 +99,16 @@ const FornecedorPortal = {
             `;
             return;
         }
+
+        const snapshot = (typeof DataManager?.loadData === 'function' && DataManager?.KEYS?.SOLICITATIONS)
+            ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
+            : DataManager.getSolicitations();
+        const pageState = this.resolvePageState(snapshot);
+        if (pageState.status !== 'success') {
+            content.innerHTML = this.renderPageState(pageState);
+            return;
+        }
+        this._hasRenderedSnapshot = true;
 
         content.innerHTML = `
             <div class="page-header supplier-header">

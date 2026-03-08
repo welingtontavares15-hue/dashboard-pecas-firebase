@@ -17,12 +17,100 @@ const Solicitacoes = {
     // Current solicitation being edited
     currentSolicitation: null,
     autocompleteInstance: null,
+    _hasRenderedSnapshot: false,
+
+    resolvePageState(snapshot) {
+        const syncState = String(DataManager?.getSyncStatus?.().state || 'idle').toLowerCase();
+
+        if (snapshot === null || snapshot === undefined) {
+            if (syncState === 'failed' || syncState === 'error') {
+                return {
+                    status: 'error',
+                    title: 'Falha ao carregar solicitações',
+                    message: 'Os dados da lista não puderam ser sincronizados.'
+                };
+            }
+
+            if (syncState === 'saving' || syncState === 'start' || syncState === 'pending') {
+                return {
+                    status: 'retrying',
+                    title: 'Sincronizando solicitações',
+                    message: 'A lista está sendo atualizada. Aguarde ou tente novamente.'
+                };
+            }
+
+            return {
+                status: 'loading',
+                title: 'Carregando solicitações',
+                message: 'Buscando dados mais recentes para esta tela.'
+            };
+        }
+
+        if (!Array.isArray(snapshot)) {
+            return {
+                status: 'error',
+                title: 'Falha ao interpretar solicitações',
+                message: 'O formato dos dados recebidos é inválido.'
+            };
+        }
+
+        if (snapshot.length === 0) {
+            return {
+                status: 'empty',
+                title: 'Nenhuma solicitação encontrada',
+                message: 'Não existem solicitações disponíveis no momento.'
+            };
+        }
+
+        return { status: 'success' };
+    },
+
+    renderPageState(state) {
+        const configByStatus = {
+            loading: { icon: 'fa-spinner fa-spin', tone: 'info' },
+            retrying: { icon: 'fa-rotate-right fa-spin', tone: 'warning' },
+            empty: { icon: 'fa-inbox', tone: 'muted' },
+            error: { icon: 'fa-circle-xmark', tone: 'danger' }
+        };
+        const config = configByStatus[state?.status] || configByStatus.loading;
+        const canCreate = Auth.hasPermission('solicitacoes', 'create');
+
+        return `
+            <div class="empty-state ${config.tone}">
+                <i class="fas ${config.icon}"></i>
+                <h4>${Utils.escapeHtml(state?.title || 'Carregando')}</h4>
+                <p>${Utils.escapeHtml(state?.message || 'Aguarde alguns instantes.')}</p>
+                <div class="page-fallback-actions">
+                    <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
+                        <i class="fas fa-rotate-right"></i> Tentar novamente
+                    </button>
+                    ${state?.status === 'empty' && canCreate ? `
+                        <button class="btn btn-success" onclick="Solicitacoes.openForm()">
+                            <i class="fas fa-plus"></i> Nova Solicitação
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    },
 
     /**
      * Render solicitations list
      */
     render() {
         const content = document.getElementById('content-area');
+        if (!content) {
+            return;
+        }
+        const snapshot = (typeof DataManager?.loadData === 'function' && DataManager?.KEYS?.SOLICITATIONS)
+            ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
+            : DataManager.getSolicitations();
+        const pageState = this.resolvePageState(snapshot);
+        if (pageState.status !== 'success') {
+            content.innerHTML = this.renderPageState(pageState);
+            return;
+        }
+        this._hasRenderedSnapshot = true;
         const canCreate = Auth.hasPermission('solicitacoes', 'create');
         const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
         const isTecnico = Auth.getRole() === 'tecnico';

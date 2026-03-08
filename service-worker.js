@@ -1,6 +1,7 @@
 ﻿// Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v14';
+const BUILD_VERSION = '20260308i';
+const CACHE_VERSION = 'v15';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -18,39 +19,64 @@ const PRECACHE = {
     './index.html',
     './offline.html',
     './clear-cache.html',
+    './BUILD_INFO.txt',
     './css/style.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './js/config.js',
     './health/firebase-healthcheck.html',
     './js/firebase-config.js',
+    './js/firebase-init.js',
     './js/utils.js',
     './js/pwa.js',
+    './js/logger.js',
     './js/indexeddb-storage.js',
     './js/storage.js',
     './js/data.js',
-    './js/app.js'
+    './js/auth.js',
+    './js/audit-log.js',
+    './js/app.js',
+    './js/ui-modern.js',
+    './js/pages/dashboard.js',
+    './js/pages/solicitacoes.js',
+    './js/pages/aprovacoes.js',
+    './js/pages/fornecedor.js',
+    './js/pages/pecas.js',
+    './js/pages/relatorios.js',
+    './js/pages/usuarios.js',
+    './js/lazy/load-script.js'
   ],
   dashboard: [
     './js/dashboard.js',
     './js/sheets.js',
     './js/onedrive.js',
     './js/relatorios.js',
-    './js/vendor/chart.umd.js'
+    './js/vendor/chart.umd.js',
+    './js/components/dashboard-modern.js',
+    './js/components/reports-modern.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
     './js/aprovacoes.js',
     './js/fornecedor.js',
-    './js/auth.js',
-    './js/tecnicos.js'
+    './js/tecnicos.js',
+    './js/fornecedores.js',
+    './js/usuarios.js',
+    './js/pecas.js'
   ],
   catalogo: [
-    './js/pecas.js',
-    './js/fornecedores.js'
+    './js/components/data-table.js',
+    './js/components/filters.js',
+    './js/components/badge-status.js',
+    './js/components/status-badge.js'
   ],
   relatorios: [
-    './js/relatorios.js'
+    './js/components/header.js',
+    './js/components/kpi-card.js',
+    './js/components/loader.js',
+    './js/components/modal.js',
+    './js/components/sidebar.js',
+    './js/components/toast.js'
   ]
 };
 
@@ -201,7 +227,13 @@ self.addEventListener('fetch', (event) => {
   const isNavigation = event.request.mode === 'navigate' || destination === 'document';
   const isScriptRequest = destination === 'script' || /\.m?js$/i.test(normalizedPathname || '');
   const isCoreShell = normalizedPathname === '/' || /\/index\.html$/i.test(normalizedPathname || '');
-  const preferNetwork = isNavigation || isScriptRequest || isCoreShell;
+  const isBuildInfo = /\/BUILD_INFO\.txt$/i.test(normalizedPathname || '');
+  const preferNetwork = isNavigation
+    || isScriptRequest
+    || isCoreShell
+    || isBuildInfo
+    || event.request.cache === 'no-store'
+    || event.request.cache === 'reload';
 
   event.respondWith(
     preferNetwork
@@ -222,5 +254,9 @@ self.addEventListener('fetch', (event) => {
 
 async function notifyClientsUpdated() {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
-  clients.forEach((client) => client.postMessage({ type: 'CACHE_UPDATED', version: CACHE_VERSION }));
+  clients.forEach((client) => client.postMessage({
+    type: 'CACHE_UPDATED',
+    version: CACHE_VERSION,
+    buildVersion: BUILD_VERSION
+  }));
 }

@@ -600,6 +600,18 @@ const DataManager = {
         return { ...(this._syncStatus || { state: 'idle', updatedAt: 0 }) };
     },
 
+    getOutboxPendingCount() {
+        if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.getOutboxPendingCount === 'function') {
+            return CloudStorage.getOutboxPendingCount();
+        }
+        try {
+            const queue = JSON.parse(localStorage.getItem('cloud_sync_queue') || '[]');
+            return Array.isArray(queue) ? queue.length : 0;
+        } catch (_error) {
+            return 0;
+        }
+    },
+
     async withTimeout(operationPromise, timeoutMs = 10000, timeoutCode = 'operation_timeout') {
         let timeoutHandle = null;
         const safeTimeout = Math.max(1000, Number(timeoutMs) || 10000);
@@ -755,6 +767,21 @@ const DataManager = {
                     12000,
                     'load_initial_data_timeout'
                 );
+                let outboxFlushed = true;
+                let outboxError = null;
+                if (typeof CloudStorage.flushQueue === 'function') {
+                    try {
+                        outboxFlushed = await this.withTimeout(
+                            CloudStorage.flushQueue({ force: reason === 'manual' }),
+                            12000,
+                            'flush_outbox_timeout'
+                        );
+                    } catch (flushError) {
+                        outboxFlushed = false;
+                        outboxError = flushError;
+                    }
+                }
+                const pendingCount = this.getOutboxPendingCount();
                 this._registerRealtimeSubscriptions();
                 this.emitDataUpdated([
                     this.KEYS.USERS,
@@ -765,10 +792,22 @@ const DataManager = {
                     this.KEYS.SETTINGS
                 ], 'sync_all');
 
+                if (!outboxFlushed || pendingCount > 0) {
+                    this.emitSyncOperation('pending', {
+                        action: 'sync_all',
+                        reason,
+                        status: 'pending',
+                        error: outboxError?.code || outboxError?.message || (pendingCount > 0 ? 'outbox_pending' : 'outbox_flush_incomplete'),
+                        pendingCount
+                    });
+                    return false;
+                }
+
                 this.emitSyncOperation('synced', {
                     action: 'sync_all',
                     reason,
-                    status: 'success'
+                    status: 'success',
+                    pendingCount: 0
                 });
                 return true;
             } catch (error) {
@@ -944,7 +983,7 @@ const DataManager = {
     },
 
     /**
-     * Legacy non-blocking save helper.
+     * Detached non-blocking save helper.
      * Prefer saveDataAsync() for commit-confirmed writes.
      */
     saveData(key, data, options = {}) {
@@ -961,13 +1000,13 @@ const DataManager = {
         this.saveDataAsync(key, data, {
             silent: true,
             allowQueue: options?.allowQueue === true,
-            action: options?.action || 'legacy_save',
-            reason: options?.reason || 'legacy_save',
+            action: options?.action || 'detached_save',
+            reason: options?.reason || 'detached_save',
             previousData: options?.previousData,
             opId: options?.opId,
             entityId: options?.entityId
         }).catch((error) => {
-            console.warn('Legacy saveData async failure', error);
+            console.warn('Detached saveData async failure', error);
         });
 
         return true;
@@ -1132,8 +1171,8 @@ const DataManager = {
             ...operation,
             status: 'saving'
         });
-        emitLog('operation_pending', {
-            status: 'pending',
+        emitLog('operation_started', {
+            status: 'running',
             stage: 'write_cloud'
         });
 
@@ -1207,6 +1246,96 @@ const DataManager = {
                 error: error?.message || 'save_exception'
             };
         }
+    },
+
+    updateDetachedPersistState(key, entityId, state, extra = {}) {
+        if (!key || !entityId) {
+            return null;
+        }
+
+        const timestamp = Date.now();
+        let nextData = null;
+
+        if (key === this.KEYS.EXPORT_LOG) {
+            const currentLogs = Array.isArray(this.loadData(key)) ? this.loadData(key) : [];
+            nextData = currentLogs.map((entry) => {
+                if (!entry || entry.id !== entityId) {
+                    return entry;
+                }
+                return {
+                    ...entry,
+                    syncState: state,
+                    cloudSynced: state === 'synced',
+                    cloudSyncedAt: state === 'synced' ? timestamp : (entry.cloudSyncedAt || null),
+                    lastSyncError: state === 'error' ? (extra?.error || 'sync_write_failed') : null
+                };
+            });
+        } else if (key === this.KEYS.EXPORT_FILES) {
+            const currentArtifacts = this.loadData(key);
+            if (currentArtifacts && typeof currentArtifacts === 'object') {
+                nextData = {
+                    ...currentArtifacts,
+                    [entityId]: currentArtifacts[entityId]
+                        ? {
+                            ...currentArtifacts[entityId],
+                            syncState: state,
+                            cloudSynced: state === 'synced',
+                            cloudSyncedAt: state === 'synced' ? timestamp : (currentArtifacts[entityId].cloudSyncedAt || null),
+                            lastSyncError: state === 'error' ? (extra?.error || 'sync_write_failed') : null
+                        }
+                        : currentArtifacts[entityId]
+                };
+            }
+        }
+
+        if (nextData !== null) {
+            this._sessionCache[key] = nextData;
+            this.emitDataUpdated([key], 'detached_persist_state');
+        }
+
+        return nextData;
+    },
+
+    persistDetachedCollection(key, data, options = {}) {
+        this._sessionCache[key] = data;
+        this.emitDataUpdated([key], options?.source || 'detached_save');
+
+        const entityId = options?.entityId || null;
+        return this.saveDataAsync(key, data, {
+            allowQueue: options?.allowQueue !== false,
+            action: options?.action || 'detached_save',
+            reason: options?.reason || options?.action || 'detached_save',
+            entityId,
+            opId: options?.opId,
+            previousData: options?.previousData
+        }).then((result) => {
+            if (entityId) {
+                const nextState = result?.success === true ? 'synced' : (result?.pending ? 'pending' : 'error');
+                const nextData = this.updateDetachedPersistState(key, entityId, nextState, {
+                    error: result?.error || null
+                });
+                if (result?.success === true && options?.commitFinalStateOnSuccess === true && nextData !== null) {
+                    this.saveDataAsync(key, nextData, {
+                        allowQueue: false,
+                        action: `${options?.action || 'detached_save'}_confirm`,
+                        reason: `${options?.reason || options?.action || 'detached_save'}_confirm`,
+                        entityId,
+                        opId: `${options?.opId || entityId}:confirm`,
+                        previousData: data
+                    }).catch((error) => {
+                        console.warn('Detached save confirmation failed', error);
+                    });
+                }
+            }
+            return result;
+        }).catch((error) => {
+            if (entityId) {
+                this.updateDetachedPersistState(key, entityId, 'error', {
+                    error: error?.message || 'sync_write_failed'
+                });
+            }
+            throw error;
+        });
     },
 
     /**
@@ -3184,8 +3313,10 @@ const DataManager = {
                         ? navigator.platform 
                         : 'unknown'
                 },
-                // Cloud-first: mark as pending cloud sync
-                cloudSynced: false
+                syncState: 'pending',
+                cloudSynced: false,
+                cloudSyncedAt: null,
+                lastSyncError: null
             };
             
             const logs = this.getExportLogs();
@@ -3193,8 +3324,17 @@ const DataManager = {
             
             // Keep only the most recent entries
             const trimmedLogs = logs.slice(0, this.EXPORT_LOG_LIMIT);
-            
-            this.saveData(this.KEYS.EXPORT_LOG, trimmedLogs);
+            this.persistDetachedCollection(this.KEYS.EXPORT_LOG, trimmedLogs, {
+                allowQueue: true,
+                action: 'export_log_persist',
+                reason: 'export_log_persist',
+                entityId: entry.id,
+                opId: `export-log:${entry.id}`,
+                source: 'export_log',
+                commitFinalStateOnSuccess: true
+            }).catch((error) => {
+                console.warn('Failed to persist export log:', error);
+            });
             
             // Integrate with structured Logger for health panel
             if (typeof Logger !== 'undefined') {
@@ -3241,10 +3381,23 @@ const DataManager = {
                 contentType: artifact.contentType || 'application/octet-stream',
                 payloadBase64: artifact.payloadBase64,
                 source: artifact.source || entry.source || 'unknown',
-                createdAt: entry.timestamp || Date.now()
+                createdAt: entry.timestamp || Date.now(),
+                syncState: 'pending',
+                cloudSynced: false,
+                cloudSyncedAt: null,
+                lastSyncError: null
             };
-            
-            this.saveData(this.KEYS.EXPORT_FILES, artifacts);
+            this.persistDetachedCollection(this.KEYS.EXPORT_FILES, artifacts, {
+                allowQueue: true,
+                action: 'export_artifact_persist',
+                reason: 'export_artifact_persist',
+                entityId: entry.id,
+                opId: `export-artifact:${opId}`,
+                source: 'export_artifact',
+                commitFinalStateOnSuccess: true
+            }).catch((error) => {
+                console.warn('Failed to persist export artifact:', error);
+            });
             return artifacts[entry.id];
         } catch (e) {
             console.warn('Failed to persist export artifact:', e);

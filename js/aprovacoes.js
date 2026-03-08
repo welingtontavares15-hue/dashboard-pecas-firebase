@@ -11,6 +11,7 @@ const Aprovacoes = {
     isApproveSubmitting: false,
     isRejectSubmitting: false,
     isBatchApproveSubmitting: false,
+    _hasRenderedSnapshot: false,
     filters: {
         minValue: '',
         tecnico: '',
@@ -18,11 +19,90 @@ const Aprovacoes = {
         prioridade: ''
     },
 
+    resolvePageState(snapshot) {
+        const syncState = String(DataManager?.getSyncStatus?.().state || 'idle').toLowerCase();
+
+        if (snapshot === null || snapshot === undefined) {
+            if (syncState === 'failed' || syncState === 'error') {
+                return {
+                    status: 'error',
+                    title: 'Falha ao carregar aprovações',
+                    message: 'A fila de aprovação não pôde ser sincronizada.'
+                };
+            }
+
+            if (syncState === 'saving' || syncState === 'start' || syncState === 'pending') {
+                return {
+                    status: 'retrying',
+                    title: 'Atualizando fila de aprovação',
+                    message: 'Os dados estão sendo sincronizados. Aguarde ou tente novamente.'
+                };
+            }
+
+            return {
+                status: 'loading',
+                title: 'Carregando aprovações',
+                message: 'Buscando solicitações pendentes no servidor.'
+            };
+        }
+
+        if (!Array.isArray(snapshot)) {
+            return {
+                status: 'error',
+                title: 'Dados de aprovação inválidos',
+                message: 'O conteúdo retornado para a fila de aprovação é inválido.'
+            };
+        }
+
+        if (snapshot.length === 0) {
+            return {
+                status: 'empty',
+                title: 'Nenhuma solicitação para aprovar',
+                message: 'Não há solicitações carregadas para análise neste momento.'
+            };
+        }
+
+        return { status: 'success' };
+    },
+
+    renderPageState(state) {
+        const configByStatus = {
+            loading: { icon: 'fa-spinner fa-spin' },
+            retrying: { icon: 'fa-rotate-right fa-spin' },
+            empty: { icon: 'fa-inbox' },
+            error: { icon: 'fa-circle-xmark' }
+        };
+        const config = configByStatus[state?.status] || configByStatus.loading;
+
+        return `
+            <div class="empty-state">
+                <i class="fas ${config.icon}"></i>
+                <h4>${Utils.escapeHtml(state?.title || 'Carregando')}</h4>
+                <p>${Utils.escapeHtml(state?.message || 'Aguarde alguns instantes.')}</p>
+                <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
+                    <i class="fas fa-rotate-right"></i> Tentar novamente
+                </button>
+            </div>
+        `;
+    },
+
     /**
      * Render approvals page
      */
     render() {
         const content = document.getElementById('content-area');
+        if (!content) {
+            return;
+        }
+        const snapshot = (typeof DataManager?.loadData === 'function' && DataManager?.KEYS?.SOLICITATIONS)
+            ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
+            : DataManager.getSolicitations();
+        const pageState = this.resolvePageState(snapshot);
+        if (pageState.status !== 'success') {
+            content.innerHTML = this.renderPageState(pageState);
+            return;
+        }
+        this._hasRenderedSnapshot = true;
         const pending = DataManager.getPendingSolicitations();
 
         content.innerHTML = `
