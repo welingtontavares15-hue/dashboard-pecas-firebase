@@ -13,17 +13,34 @@
         dateTo: ''
     },
     chartWarningShown: false,
+    _hasEverRenderedWithData: false,
 
     /**
      * Render dashboard
      */
     render() {
-        const pending = DataManager.getPendingSolicitations();
-        const currentRange = this.getRangeDays();
         const content = document.getElementById('content-area');
-        const dashboardData = this.buildDashboardMetrics(DataManager.getSolicitations(), currentRange);
+        if (!content) {
+            return;
+        }
 
-        content.innerHTML = `
+        try {
+            const snapshot = (typeof DataManager?.loadData === 'function')
+                ? DataManager.loadData(DataManager.KEYS.SOLICITATIONS)
+                : null;
+            const dashboardState = this.resolveDashboardState(snapshot);
+            const currentRange = this.getRangeDays();
+
+            if (dashboardState.status !== 'success') {
+                content.innerHTML = this.renderStatePanel(dashboardState);
+                return;
+            }
+
+            const solicitations = Array.isArray(snapshot) ? snapshot.slice() : DataManager.getSolicitations();
+            const pending = solicitations.filter((sol) => DataManager.normalizeWorkflowStatus(sol?.status) === DataManager.STATUS.PENDENTE);
+            const dashboardData = this.buildDashboardMetrics(solicitations, currentRange);
+
+            content.innerHTML = `
             <div class="page-header">
                 <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
                 <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
@@ -146,8 +163,149 @@
             </div>
         `;
 
-        this.bindRecentFilters();
-        setTimeout(() => this.initCharts(dashboardData), 50);
+            this.bindRecentFilters();
+            setTimeout(() => this.initCharts(dashboardData), 50);
+            this._hasEverRenderedWithData = true;
+        } catch (error) {
+            console.error('Falha ao renderizar dashboard', error);
+            content.innerHTML = this.renderStatePanel({
+                status: 'error',
+                reason: 'dashboard_render_failed',
+                message: error?.message || 'Falha inesperada ao carregar o painel.',
+                syncState: (typeof DataManager?.getSyncStatus === 'function') ? DataManager.getSyncStatus().state : 'unknown'
+            });
+        }
+    },
+
+    resolveDashboardState(snapshot) {
+        const syncStatus = (typeof DataManager?.getSyncStatus === 'function')
+            ? DataManager.getSyncStatus()
+            : { state: 'idle' };
+        const syncState = String(syncStatus?.state || 'idle').toLowerCase();
+        const hasSnapshot = snapshot !== null && snapshot !== undefined;
+
+        if (!hasSnapshot) {
+            if (syncState === 'pending') {
+                return {
+                    status: 'retrying',
+                    reason: 'sync_pending',
+                    message: 'Sincronização em andamento. Tentaremos novamente automaticamente.',
+                    syncState
+                };
+            }
+            if (syncState === 'failed' || syncState === 'error') {
+                return {
+                    status: 'error',
+                    reason: 'sync_failed_before_load',
+                    message: 'Não foi possível carregar os dados do painel devido a falha de sincronização.',
+                    syncState
+                };
+            }
+            return {
+                status: 'loading',
+                reason: 'initial_read',
+                message: 'Carregando dados reais do período...',
+                syncState
+            };
+        }
+
+        if (!Array.isArray(snapshot)) {
+            return {
+                status: 'error',
+                reason: 'invalid_snapshot',
+                message: 'Foi recebido um formato inválido de dados do painel.',
+                syncState
+            };
+        }
+
+        if (snapshot.length === 0) {
+            if ((syncState === 'failed' || syncState === 'error') && !this._hasEverRenderedWithData) {
+                return {
+                    status: 'error',
+                    reason: 'sync_failed_no_data',
+                    message: 'A sincronização falhou antes de carregar registros do período.',
+                    syncState
+                };
+            }
+            return {
+                status: 'empty',
+                reason: 'no_records_in_period',
+                message: 'Não há solicitações no período selecionado.',
+                syncState
+            };
+        }
+
+        return {
+            status: 'success',
+            reason: '',
+            message: '',
+            syncState
+        };
+    },
+
+    renderStatePanel(state) {
+        const safeState = state || {};
+        const status = safeState.status || 'loading';
+        const message = safeState.message || 'Aguarde enquanto carregamos os dados.';
+        const syncState = safeState.syncState || 'idle';
+
+        const configs = {
+            loading: {
+                icon: 'fa-spinner fa-spin',
+                title: 'Carregando dados do painel',
+                css: 'info',
+                actions: `<button class="btn btn-outline" onclick="Dashboard.retryLoad(true)"><i class="fas fa-rotate-right"></i> Tentar novamente</button>`
+            },
+            retrying: {
+                icon: 'fa-rotate-right fa-spin',
+                title: 'Sincronização em andamento',
+                css: 'warning',
+                actions: `<button class="btn btn-outline" onclick="Dashboard.retryLoad(true)"><i class="fas fa-rotate-right"></i> Atualizar agora</button>`
+            },
+            empty: {
+                icon: 'fa-inbox',
+                title: 'Sem dados reais no período',
+                css: 'neutral',
+                actions: `<button class="btn btn-outline" onclick="Dashboard.retryLoad(false)"><i class="fas fa-rotate-right"></i> Recarregar painel</button>`
+            },
+            error: {
+                icon: 'fa-triangle-exclamation',
+                title: 'Erro ao carregar o painel',
+                css: 'danger',
+                actions: `
+                    <button class="btn btn-primary" onclick="Dashboard.retryLoad(true)">
+                        <i class="fas fa-rotate-right"></i> Tentar novamente
+                    </button>
+                    <button class="btn btn-outline" onclick="App.navigate('dashboard')">
+                        <i class="fas fa-house"></i> Reabrir painel
+                    </button>
+                `
+            }
+        };
+
+        const config = configs[status] || configs.loading;
+        return `
+            <div class="dashboard-state dashboard-state-${config.css}">
+                <div class="dashboard-state-icon">
+                    <i class="fas ${config.icon}"></i>
+                </div>
+                <div class="dashboard-state-content">
+                    <h3>${config.title}</h3>
+                    <p>${Utils.escapeHtml(message)}</p>
+                    <small class="text-muted">Estado de sincronização: ${Utils.escapeHtml(syncState)}</small>
+                </div>
+                <div class="dashboard-state-actions">
+                    ${config.actions}
+                </div>
+            </div>
+        `;
+    },
+
+    async retryLoad(syncFirst = true) {
+        if (syncFirst && typeof App !== 'undefined' && typeof App.syncData === 'function') {
+            await App.syncData();
+        }
+        this.render();
     },
     renderPrimaryKpis(dashboardData) {
         const cards = [

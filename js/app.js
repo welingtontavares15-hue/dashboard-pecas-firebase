@@ -4,17 +4,18 @@
  */
 
 const CHART_INIT_DELAY_MS = 100;
+const PAGE_RENDER_TIMEOUT_MS = 15000;
 
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260307h',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260307h',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
-        pecas: './js/pages/pecas.js?v=20260307h',
-        relatorios: './js/pages/relatorios.js?v=20260307h',
-        fornecedor: './js/pages/fornecedor.js?v=20260307h',
-        usuarios: './js/pages/usuarios.js?v=20260307h'
+        dashboard: './js/pages/dashboard.js?v=20260308e',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260308e',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260308e',
+        pecas: './js/pages/pecas.js?v=20260308e',
+        relatorios: './js/pages/relatorios.js?v=20260308e',
+        fornecedor: './js/pages/fornecedor.js?v=20260308e',
+        usuarios: './js/pages/usuarios.js?v=20260308e'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -170,10 +171,27 @@ const App = {
 
         window.addEventListener('sync:operation', (event) => {
             this.updateSyncIndicator(event?.detail || {});
+            if (this.currentPage === 'dashboard' && typeof Dashboard !== 'undefined' && typeof Dashboard.render === 'function') {
+                const state = String(event?.detail?.state || '').toLowerCase();
+                if (['saving', 'synced', 'failed', 'pending', 'error'].includes(state)) {
+                    Dashboard.render();
+                }
+            }
         });
 
         window.addEventListener('sync:status', (event) => {
             this.updateSyncIndicator(event?.detail || {});
+        });
+
+        window.addEventListener('ui:loading-timeout', (event) => {
+            const activePage = this.currentPage || this.getDefaultPage();
+            const timeoutContext = event?.detail?.context || activePage;
+            const timeoutReason = event?.detail?.reason || 'ui_loading_timeout';
+            this.renderPageFallback(
+                activePage,
+                `A leitura da tela demorou mais que o esperado (${timeoutContext}).`,
+                timeoutReason
+            );
         });
 
         if (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function') {
@@ -468,84 +486,180 @@ const App = {
         breadcrumb.innerHTML = `<span>${labels[pageId] || pageId}</span>`;
     },
     /**
+     * Execute asynchronous operation with timeout guard.
+     */
+    async runWithTimeout(operationPromise, timeoutMs = PAGE_RENDER_TIMEOUT_MS, timeoutCode = 'operation_timeout') {
+        let timeoutHandle = null;
+        const safeTimeout = Math.max(1000, Number(timeoutMs) || PAGE_RENDER_TIMEOUT_MS);
+        try {
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    const timeoutError = new Error(timeoutCode);
+                    timeoutError.code = timeoutCode;
+                    reject(timeoutError);
+                }, safeTimeout);
+            });
+            return await Promise.race([operationPromise, timeoutPromise]);
+        } finally {
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+            }
+        }
+    },
+
+    /**
+     * Execute page-specific render function.
+     */
+    executePageRender(pageId) {
+        switch (pageId) {
+        case 'dashboard':
+            Dashboard.render();
+            break;
+
+        case 'solicitacoes':
+        case 'minhas-solicitacoes':
+            Solicitacoes.render();
+            break;
+
+        case 'nova-solicitacao':
+            Solicitacoes.openForm();
+            Solicitacoes.render();
+            break;
+
+        case 'aprovacoes':
+            Aprovacoes.render();
+            break;
+
+        case 'tecnicos':
+            Tecnicos.render();
+            break;
+
+        case 'fornecedores':
+            Fornecedores.render();
+            break;
+
+        case 'fornecedor':
+            FornecedorPortal.render();
+            break;
+
+        case 'pecas':
+        case 'catalogo':
+            Pecas.render();
+            break;
+
+        case 'relatorios':
+            Relatorios.render();
+            setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+            break;
+
+        case 'configuracoes':
+            this.renderConfiguracoes();
+            break;
+
+        case 'ajuda':
+            this.renderAjuda();
+            break;
+
+        case 'perfil':
+            this.renderPerfil();
+            break;
+
+        default:
+            this.renderNotFound();
+        }
+    },
+
+    /**
+     * Render controlled fallback when page load fails.
+     */
+    renderPageFallback(pageId, reasonMessage = '', reasonCode = 'page_render_failed') {
+        const content = document.getElementById('content-area');
+        if (!content) {
+            return;
+        }
+
+        const isSyncIssue = /sync|cloud|offline|timeout|load/i.test(String(reasonCode || ''));
+        const title = isSyncIssue ? 'Falha ao sincronizar dados desta tela' : 'Falha ao carregar esta tela';
+        const message = reasonMessage
+            || (isSyncIssue
+                ? 'Não foi possível concluir a sincronização inicial. Tente novamente.'
+                : 'Ocorreu um erro ao montar a tela solicitada.');
+
+        content.innerHTML = `
+            <div class="page-fallback card">
+                <div class="card-body">
+                    <div class="page-fallback-icon ${isSyncIssue ? 'warning' : 'danger'}">
+                        <i class="fas ${isSyncIssue ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}"></i>
+                    </div>
+                    <h3>${Utils.escapeHtml(title)}</h3>
+                    <p>${Utils.escapeHtml(message)}</p>
+                    <div class="page-fallback-actions">
+                        <button class="btn btn-primary" onclick="App.retryCurrentPage({ syncFirst: true })">
+                            <i class="fas fa-rotate-right"></i> Tentar novamente
+                        </button>
+                        <button class="btn btn-outline" onclick="App.navigate('${Utils.escapeHtml(pageId || this.getDefaultPage())}')">
+                            <i class="fas fa-house"></i> Recarregar tela
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Retry rendering the current page with optional sync first.
+     */
+    async retryCurrentPage(options = {}) {
+        const activePage = this.currentPage || this.getDefaultPage();
+        const shouldSyncFirst = options?.syncFirst !== false;
+        if (shouldSyncFirst) {
+            await this.syncData();
+        }
+        await this.navigate(activePage);
+    },
+
+    /**
      * Render page content
      */
     async renderPage(pageId) {
-        Utils.showLoading();
+        Utils.showLoading(`render:${pageId}`);
 
         try {
-            await this.ensurePageModule(pageId);
-
-            // Simulate async loading for UX
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    switch (pageId) {
-                    case 'dashboard':
-                        Dashboard.render();
-                        break;
-
-                    case 'solicitacoes':
-                    case 'minhas-solicitacoes':
-                        Solicitacoes.render();
-                        break;
-
-                    case 'nova-solicitacao':
-                        Solicitacoes.openForm();
-                        // Navigate to solicitations after modal closes
-                        Solicitacoes.render();
-                        break;
-
-                    case 'aprovacoes':
-                        Aprovacoes.render();
-                        break;
-
-                    case 'tecnicos':
-                        Tecnicos.render();
-                        break;
-
-                    case 'fornecedores':
-                        Fornecedores.render();
-                        break;
-
-                    case 'fornecedor':
-                        FornecedorPortal.render();
-                        break;
-
-                    case 'pecas':
-                    case 'catalogo':
-                        Pecas.render();
-                        break;
-
-                    case 'relatorios':
-                        Relatorios.render();
-                        setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
-                        break;
-
-                    case 'configuracoes':
-                        this.renderConfiguracoes();
-                        break;
-
-                    case 'ajuda':
-                        this.renderAjuda();
-                        break;
-
-                    case 'perfil':
-                        this.renderPerfil();
-                        break;
-
-                    default:
-                        this.renderNotFound();
-                    }
-
-                    resolve();
-                }, 100);
-            });
+            await this.runWithTimeout((async () => {
+                await this.ensurePageModule(pageId);
+                this.executePageRender(pageId);
+            })(), PAGE_RENDER_TIMEOUT_MS, `page_render_timeout:${pageId}`);
         } catch (error) {
             console.error('Erro ao carregar módulo da página', pageId, error);
-            Utils.showToast('Não foi possível carregar este módulo agora.', 'error');
-            this.renderNotFound();
+            const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
+                ? DataManager.getSyncStatus()
+                : {};
+            const reasonCode = error?.code || error?.message || 'page_render_failed';
+            const syncFailed = ['failed', 'error'].includes(String(syncStatus?.state || '').toLowerCase());
+            const timeoutError = String(reasonCode).includes('timeout');
+            const reasonMessage = timeoutError
+                ? 'Tempo de resposta excedido durante a leitura da página. Verifique a conexão e tente novamente.'
+                : (syncFailed
+                    ? 'A sincronização falhou e os dados desta tela não puderam ser carregados.'
+                    : 'Não foi possível carregar este módulo agora.');
+
+            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                Logger.logSync('page_render_failed', {
+                    requestId: `ui:${pageId}:${Date.now()}`,
+                    action: 'render_page',
+                    entityId: pageId,
+                    stage: 'ui_render',
+                    origin: 'app',
+                    status: 'fail',
+                    errorCode: reasonCode,
+                    errorOriginal: error?.message || String(error || reasonCode)
+                });
+            }
+
+            Utils.showToast(reasonMessage, 'error');
+            this.renderPageFallback(pageId, reasonMessage, reasonCode);
         } finally {
-            Utils.hideLoading();
+            Utils.hideLoading(true);
         }
     },
 
@@ -1236,15 +1350,27 @@ const App = {
             </tr>
         `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum evento registrado</td></tr>';
 
-        const errorRows = recentErrors.map(err => `
+        const errorRows = recentErrors.map(err => {
+            const action = err?.data?.action || err?.data?.operation || '-';
+            const entityId = err?.data?.entityId || err?.data?.key || '-';
+            const stage = err?.data?.stage || err?.data?.status || '-';
+            const origin = err?.data?.origin || '-';
+            const errorCode = err?.data?.errorCode || err?.data?.error || err?.data?.reason || '-';
+            return `
             <tr>
                 <td><small>${Utils.formatDate(err.timestamp, true)}</small></td>
                 <td><code>${Utils.escapeHtml(err.requestId || '-')}</code></td>
                 <td><span class="badge badge-${err.level === 'error' ? 'danger' : 'warning'}">${Utils.escapeHtml(err.level)}</span></td>
                 <td>${Utils.escapeHtml(err.category || '-')}</td>
                 <td>${Utils.escapeHtml(err.message || '-')}</td>
+                <td>
+                    <div><strong>${Utils.escapeHtml(action)}</strong></div>
+                    <small class="text-muted">Etapa: ${Utils.escapeHtml(stage)} | Origem: ${Utils.escapeHtml(origin)}</small><br>
+                    <small class="text-muted">Entidade: ${Utils.escapeHtml(String(entityId))} | Motivo: ${Utils.escapeHtml(String(errorCode))}</small>
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum erro recente</td></tr>';
+        `;
+        }).join('') || '<tr><td colspan="6" class="text-muted">Nenhum erro recente</td></tr>';
 
         return `
             <div class="card mt-3">
@@ -1290,6 +1416,7 @@ const App = {
                                     <th>Nível</th>
                                     <th>Categoria</th>
                                     <th>Mensagem</th>
+                                    <th>Contexto</th>
                                 </tr>
                             </thead>
                             <tbody>

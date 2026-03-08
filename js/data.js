@@ -600,6 +600,25 @@ const DataManager = {
         return { ...(this._syncStatus || { state: 'idle', updatedAt: 0 }) };
     },
 
+    async withTimeout(operationPromise, timeoutMs = 10000, timeoutCode = 'operation_timeout') {
+        let timeoutHandle = null;
+        const safeTimeout = Math.max(1000, Number(timeoutMs) || 10000);
+        try {
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    const timeoutError = new Error(timeoutCode);
+                    timeoutError.code = timeoutCode;
+                    reject(timeoutError);
+                }, safeTimeout);
+            });
+            return await Promise.race([operationPromise, timeoutPromise]);
+        } finally {
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+            }
+        }
+    },
+
     getEffectDedupMap() {
         try {
             const raw = localStorage.getItem(this._effectDedupKey);
@@ -726,9 +745,25 @@ const DataManager = {
                     return false;
                 }
 
-                await CloudStorage.syncFromCloud();
-                await this._loadInitialDataFromCloud();
+                await this.withTimeout(
+                    CloudStorage.syncFromCloud(),
+                    12000,
+                    'sync_from_cloud_timeout'
+                );
+                await this.withTimeout(
+                    this._loadInitialDataFromCloud(),
+                    12000,
+                    'load_initial_data_timeout'
+                );
                 this._registerRealtimeSubscriptions();
+                this.emitDataUpdated([
+                    this.KEYS.USERS,
+                    this.KEYS.TECHNICIANS,
+                    this.KEYS.SUPPLIERS,
+                    this.KEYS.PARTS,
+                    this.KEYS.SOLICITATIONS,
+                    this.KEYS.SETTINGS
+                ], 'sync_all');
 
                 this.emitSyncOperation('synced', {
                     action: 'sync_all',
@@ -773,7 +808,11 @@ const DataManager = {
         
         for (const key of keys) {
             try {
-                const data = await CloudStorage.loadData(key);
+                const data = await this.withTimeout(
+                    CloudStorage.loadData(key),
+                    8000,
+                    `load_timeout:${key}`
+                );
                 if (data !== null && data !== undefined) {
                     this._sessionCache[key] = data;
                 }
@@ -984,12 +1023,21 @@ const DataManager = {
             startedAt: Date.now()
         };
 
+        const buildSyncLogContext = (extra = {}) => ({
+            ...operation,
+            requestId: opId,
+            opId,
+            origin: 'data_manager',
+            stage: extra?.stage || 'save_data',
+            action: extra?.action || operation.action,
+            operation: extra?.action || operation.action,
+            status: extra?.status || 'pending',
+            ...extra
+        });
+
         const emitLog = (event, extra = {}) => {
             if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
-                Logger.logSync(event, {
-                    ...operation,
-                    ...extra
-                });
+                Logger.logSync(event, buildSyncLogContext(extra));
             }
         };
 
@@ -1013,7 +1061,9 @@ const DataManager = {
             });
             emitLog('operation_pending', {
                 status: 'pending',
-                error: errorReason || 'queued'
+                stage: 'enqueue_outbox',
+                errorCode: errorReason || 'queued',
+                errorOriginal: errorReason || 'queued'
             });
             return {
                 success: false,
@@ -1033,7 +1083,12 @@ const DataManager = {
                 status: 'fail',
                 error: 'offline'
             });
-            emitLog('operation_failed', { status: 'fail', error: 'offline' });
+            emitLog('operation_failed', {
+                status: 'fail',
+                stage: 'preflight',
+                errorCode: 'offline',
+                errorOriginal: 'offline'
+            });
             return { success: false, pending: false, opId, error: 'offline' };
         }
 
@@ -1046,7 +1101,12 @@ const DataManager = {
                 status: 'fail',
                 error: 'cloud_unavailable'
             });
-            emitLog('operation_failed', { status: 'fail', error: 'cloud_unavailable' });
+            emitLog('operation_failed', {
+                status: 'fail',
+                stage: 'preflight',
+                errorCode: 'cloud_unavailable',
+                errorOriginal: 'cloud_unavailable'
+            });
             return { success: false, pending: false, opId, error: 'cloud_unavailable' };
         }
 
@@ -1059,7 +1119,12 @@ const DataManager = {
                 status: 'fail',
                 error: 'cloud_not_ready'
             });
-            emitLog('operation_failed', { status: 'fail', error: 'cloud_not_ready' });
+            emitLog('operation_failed', {
+                status: 'fail',
+                stage: 'preflight',
+                errorCode: 'cloud_not_ready',
+                errorOriginal: 'cloud_not_ready'
+            });
             return { success: false, pending: false, opId, error: 'cloud_not_ready' };
         }
 
@@ -1067,7 +1132,10 @@ const DataManager = {
             ...operation,
             status: 'saving'
         });
-        emitLog('operation_pending', { status: 'pending' });
+        emitLog('operation_pending', {
+            status: 'pending',
+            stage: 'write_cloud'
+        });
 
         try {
             const saved = await CloudStorage.saveData(key, data, {
@@ -1086,7 +1154,12 @@ const DataManager = {
                     status: 'fail',
                     error: 'save_failed'
                 });
-                emitLog('operation_failed', { status: 'fail', error: 'save_failed' });
+                emitLog('operation_failed', {
+                    status: 'fail',
+                    stage: 'write_cloud',
+                    errorCode: 'write_failed',
+                    errorOriginal: 'save_failed'
+                });
                 return { success: false, pending: false, opId, error: 'save_failed' };
             }
 
@@ -1099,6 +1172,7 @@ const DataManager = {
             });
             emitLog('operation_success', {
                 status: 'success',
+                stage: 'commit',
                 completedAt: Date.now()
             });
 
@@ -1122,7 +1196,9 @@ const DataManager = {
             });
             emitLog('operation_failed', {
                 status: 'fail',
-                error: error?.message || 'save_exception'
+                stage: 'write_cloud',
+                errorCode: error?.code || 'save_exception',
+                errorOriginal: error?.message || 'save_exception'
             });
             return {
                 success: false,
