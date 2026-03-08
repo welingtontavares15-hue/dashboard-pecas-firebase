@@ -279,7 +279,7 @@ const FornecedorPortal = {
                             <th>Valor total</th>
                             <th>Situação do envio</th>
                             <th>Rastreio</th>
-                            <th>Histórico</th>
+                            <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -296,7 +296,7 @@ const FornecedorPortal = {
                                 <td>${this.renderTrackingCell(sol, scope)}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.openHistory('${sol.id}')">
-                                        <i class="fas fa-clock-rotate-left"></i> Ver
+                                        <i class="fas fa-eye"></i> Ver itens
                                     </button>
                                 </td>
                             </tr>
@@ -467,10 +467,32 @@ const FornecedorPortal = {
         }
 
         const entries = this.buildHistoryEntries(sol);
+        const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
+        const items = Array.isArray(sol.itens) ? sol.itens : [];
+        const itemsRows = items.length > 0
+            ? items.map((item) => {
+                const quantity = Number(item.quantidade) || 0;
+                const unitValue = Number(item.valorUnit) || 0;
+                const totalValue = quantity * unitValue;
+                return `
+                    <tr>
+                        <td><strong>${Utils.escapeHtml(item.codigo || '-')}</strong></td>
+                        <td>${Utils.escapeHtml(item.descricao || '-')}</td>
+                        <td>${Utils.formatNumber(quantity)}</td>
+                        <td>${Utils.formatCurrency(unitValue)}</td>
+                        <td>${Utils.formatCurrency(totalValue)}</td>
+                    </tr>
+                `;
+            }).join('')
+            : `
+                <tr>
+                    <td colspan="5" class="text-muted">Nenhum item informado para esta solicitação.</td>
+                </tr>
+            `;
 
         const content = `
             <div class="modal-header">
-                <h3>Histórico da Solicitação #${Utils.escapeHtml(sol.numero || '-')}</h3>
+                <h3>Detalhes da Solicitação #${Utils.escapeHtml(sol.numero || '-')}</h3>
                 <button class="modal-close" onclick="Utils.closeModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -478,8 +500,24 @@ const FornecedorPortal = {
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Solicitação</label>
+                        <p><strong>#${Utils.escapeHtml(sol.numero || '-')}</strong></p>
+                    </div>
+                    <div class="form-group">
                         <label>Status atual</label>
                         <p>${Utils.renderStatusBadge(sol.status)}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Técnico</label>
+                        <p><strong>${Utils.escapeHtml(this.getTechnicianName(sol))}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <p><strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Data</label>
+                        <p><strong>${Utils.formatDate(sol.data || sol.createdAt)}</strong></p>
                     </div>
                     <div class="form-group">
                         <label>Situação do envio</label>
@@ -487,6 +525,42 @@ const FornecedorPortal = {
                     </div>
                 </div>
 
+                <div class="form-row">
+                    ${supplier ? `
+                        <div class="form-group">
+                            <label>Fornecedor</label>
+                            <p><strong>${Utils.escapeHtml(supplier.nome || 'Não informado')}</strong></p>
+                        </div>
+                    ` : ''}
+                    <div class="form-group">
+                        <label>Rastreio</label>
+                        <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio'}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor total</label>
+                        <p><strong>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</strong></p>
+                    </div>
+                </div>
+
+                <h4 class="mt-3 mb-2">Itens solicitados</h4>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Qtd</th>
+                                <th>Valor unitário</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="mt-3 mb-2">Histórico do fluxo</h4>
                 <div class="supplier-history-list">
                     ${entries.map(item => `
                         <div class="supplier-history-item">
@@ -498,15 +572,44 @@ const FornecedorPortal = {
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-outline" onclick="FornecedorPortal.generateSolicitationPdf('${sol.id}')">
+                    <i class="fas fa-file-pdf"></i> Gerar PDF
+                </button>
                 <button class="btn btn-primary" onclick="Utils.closeModal()">Fechar</button>
             </div>
         `;
 
         Utils.showModal(content, { size: 'md' });
+    },
+
+    generateSolicitationPdf(id) {
+        if (Auth.getRole() !== 'fornecedor') {
+            Utils.showToast('Apenas fornecedores podem gerar PDF nesta área', 'warning');
+            return;
+        }
+
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            Utils.showToast('Solicitação não encontrada', 'error');
+            return;
+        }
+
+        const scope = this.getSupplierScope();
+        if (!FORNECEDOR_VISIBLE_STATUSES.includes(sol.status) || !this.belongsToCurrentSupplier(sol, scope)) {
+            Utils.showToast('Você não tem acesso a esta solicitação', 'error');
+            return;
+        }
+
+        if (typeof Utils.generatePDF !== 'function') {
+            Utils.showToast('Função de PDF indisponível no momento', 'error');
+            return;
+        }
+
+        const filename = Utils.generatePDF(sol, { source: 'fornecedor' });
+        if (filename) {
+            Utils.showToast('PDF gerado com sucesso', 'success');
+        }
     }
 };
-
-
-
 
 
