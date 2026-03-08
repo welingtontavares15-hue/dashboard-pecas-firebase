@@ -509,7 +509,8 @@ const Tecnicos = {
                 to: normalizedEmail,
                 username,
                 password,
-                name: nome
+                name: nome,
+                roleLabel: 'técnico'
             });
             if (sent) {
                 Utils.showToast('E-mail com nova senha preparado para envio', 'info');
@@ -627,7 +628,8 @@ const Tecnicos = {
                     to: tech.email,
                     username: user.username,
                     password: sanitizedPassword,
-                    name: tech.nome
+                    name: tech.nome,
+                    roleLabel: 'técnico'
                 });
             }
         }
@@ -643,6 +645,8 @@ const Tecnicos = {
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
     }
 };
+
+
 
 
 

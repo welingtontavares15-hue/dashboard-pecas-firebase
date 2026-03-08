@@ -21,6 +21,7 @@ const Utils = {
     OP_EMAIL_MAX_RETRIES: 2,
     OP_EMAIL_RETRY_DELAY_MS: 1200,
     OP_EMAIL_TEMPLATE: 'box',
+    PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),
 
     /**
@@ -291,7 +292,7 @@ const Utils = {
     /**
      * Prepare an email with login credentials
      */
-    sendCredentialsEmail({ to, username, password, name }) {
+    sendCredentialsEmail({ to, username, password, name, roleLabel = 'usuário' }) {
         if (typeof window === 'undefined') {
             return false;
         }
@@ -301,17 +302,24 @@ const Utils = {
 
         const greeting = name ? `Olá ${name}` : 'Olá';
         const subject = 'Nova senha de acesso - Dashboard de Peças';
-        const body = `${greeting},
-
-Sua senha foi redefinida pelo administrador.
-
-Login: ${username}
-Nova senha: ${password}
-
-Recomendamos alterar a senha após o primeiro acesso.
-
-Atenciosamente,
-Equipe Diversey`;
+        const safeRole = String(roleLabel || 'usuário').trim();
+        const accessLink = this.PASSWORD_RESET_SYSTEM_LINK;
+        const body = [
+            `${greeting},`,
+            '',
+            'Sua senha foi redefinida pelo administrador.',
+            '',
+            `Nome: ${name || '-'}`,
+            `Perfil: ${safeRole}`,
+            `Usuário/Login: ${username}`,
+            `Nova senha: ${password}`,
+            `Link de acesso ao sistema: ${accessLink}`,
+            '',
+            'Acesse o sistema e altere a senha após o primeiro login.',
+            '',
+            'Atenciosamente,',
+            'Equipe Diversey'
+        ].join('\n');
 
         const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         window.open(mailto, '_blank');
@@ -329,14 +337,19 @@ Equipe Diversey`;
         const safeRole = String(roleLabel || 'usuário').trim().toLowerCase();
         const greeting = name ? `Olá ${name}` : 'Olá';
         const subject = `Redefinição de senha - ${safeRole}`;
+        const accessLink = this.PASSWORD_RESET_SYSTEM_LINK;
         const message = [
             `${greeting},`,
             '',
-            `A senha do perfil ${safeRole} foi redefinida pelo administrador.`,
-            `Usuário: ${username}`,
-            `Nova senha: ${password}`,
+            'Informamos que sua senha foi redefinida pelo administrador.',
             '',
-            'Recomendamos alterar a senha após o primeiro acesso.'
+            `Nome: ${name || '-'}`,
+            `Perfil: ${safeRole}`,
+            `Usuário/Login: ${username}`,
+            `Nova senha: ${password}`,
+            `Link de acesso ao sistema: ${accessLink}`,
+            '',
+            'Acesse o sistema e altere sua senha após o primeiro login.'
         ].join('\n');
 
         return this.sendOperationalEmail({
@@ -347,7 +360,8 @@ Equipe Diversey`;
                 usuario: username,
                 perfil: safeRole,
                 nova_senha: password,
-                nome: name || ''
+                nome: name || '',
+                link_sistema: accessLink
             },
             eventLabel: 'password_reset_email'
         });
@@ -2675,6 +2689,11 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
+
+
+
 
 
 

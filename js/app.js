@@ -1075,7 +1075,8 @@ const App = {
                     to: gestor.email,
                     username: gestor.username,
                     password: sanitizedPassword,
-                    name: gestor.name
+                    name: gestor.name,
+                    roleLabel: 'gestor'
                 });
             }
         }
@@ -1750,6 +1751,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

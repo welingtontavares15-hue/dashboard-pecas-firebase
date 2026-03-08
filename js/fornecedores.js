@@ -424,7 +424,8 @@ const Fornecedores = {
                 to: normalizedEmail,
                 username,
                 password,
-                name: nome
+                name: nome,
+                roleLabel: 'fornecedor'
             });
             if (sent) {
                 Utils.showToast('E-mail com as credenciais preparado para envio', 'info');
@@ -495,7 +496,8 @@ const Fornecedores = {
                     to: supplier.email,
                     username: user.username,
                     password: sanitizedPassword,
-                    name: supplier.nome
+                    name: supplier.nome,
+                    roleLabel: 'fornecedor'
                 });
             }
         }
@@ -542,6 +544,7 @@ const Fornecedores = {
         this.refreshTable();
     }
 };
+
 
 
 
