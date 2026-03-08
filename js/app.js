@@ -167,6 +167,18 @@ const App = {
         window.addEventListener('data:updated', (event) => {
             this.refreshActiveView(event?.detail?.keys || []);
         });
+
+        window.addEventListener('sync:operation', (event) => {
+            this.updateSyncIndicator(event?.detail || {});
+        });
+
+        window.addEventListener('sync:status', (event) => {
+            this.updateSyncIndicator(event?.detail || {});
+        });
+
+        if (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function') {
+            this.updateSyncIndicator(DataManager.getSyncStatus());
+        }
     },
 
     /**
@@ -279,6 +291,10 @@ const App = {
         
         // Set up navigation click handlers
         this.setupNavigation();
+
+        if (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function') {
+            this.updateSyncIndicator(DataManager.getSyncStatus());
+        }
     },
 
     /**
@@ -677,18 +693,29 @@ const App = {
         const content = document.getElementById('content-area');
         const settings = DataManager.getSettings();
         const canEdit = Auth.hasPermission('configuracoes', 'edit');
-        const firebaseUser = typeof window !== 'undefined' ? window.firebaseUser : null;
-        const syncStarted = !!window.__firebaseSyncStarted;
-        const syncStatus = window.__cloudSyncStatus;
-        const cloudReady = (firebaseUser && syncStarted) || DataManager.isCloudReady();
+        const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
+            ? DataManager.getSyncStatus()
+            : { state: 'idle' };
+        const cloudReady = DataManager.isCloudReady();
         const isConnecting = (!cloudReady) && DataManager.isCloudConnecting();
         const isCloudAvailable = cloudReady || DataManager.isCloudAvailable();
-        const cloudStatusLabel = cloudReady ? 'Sincronização em nuvem: ATIVA' : (isConnecting ? 'Conectando à nuvem...' : 'Armazenamento Local');
+        const syncStateLabelMap = {
+            idle: 'ociosa',
+            saving: 'salvando',
+            synced: 'sincronizada',
+            pending: 'com pendências',
+            failed: 'com falha',
+            start: 'em progresso',
+            done: 'sincronizada',
+            error: 'com falha'
+        };
+        const syncStateLabel = syncStateLabelMap[syncStatus?.state] || 'ociosa';
+        const cloudStatusLabel = cloudReady ? 'Sincronização em nuvem: ATIVA' : (isConnecting ? 'Conectando à nuvem...' : 'Sincronização indisponível');
         const cloudStatusDesc = cloudReady
-            ? `Dados sincronizados automaticamente via Firebase${syncStatus ? ` (status: ${syncStatus})` : ''}.`
+            ? `Dados sincronizados automaticamente via Firebase (estado atual: ${syncStateLabel}).`
             : (isConnecting
                 ? 'Aguardando autenticação e conexão segura com a nuvem.'
-                : 'Os dados estão sendo salvos apenas neste dispositivo. A sincronização em nuvem não está disponível.');
+                : 'A sincronização em nuvem está indisponível. Operações críticas serão enfileiradas para retry.');
         const canManageGestores = Auth.getRole() === 'administrador';
         
         content.innerHTML = `
@@ -1487,6 +1514,47 @@ const App = {
         }
     },
 
+    getOutboxPendingCount() {
+        try {
+            const queue = JSON.parse(localStorage.getItem('cloud_sync_queue') || '[]');
+            return Array.isArray(queue) ? queue.length : 0;
+        } catch (_error) {
+            return 0;
+        }
+    },
+
+    updateSyncIndicator(detail = {}) {
+        const indicator = document.getElementById('sync-indicator');
+        if (!indicator) {
+            return;
+        }
+
+        const state = String(detail?.state || detail?.status || 'idle');
+        const updatedAt = Number(detail?.updatedAt || Date.now());
+        const queueCount = this.getOutboxPendingCount();
+
+        const stateConfig = {
+            idle: { css: 'sync-idle', icon: 'fa-circle', label: 'Sem atividade' },
+            saving: { css: 'sync-saving', icon: 'fa-cloud-upload-alt', label: 'Salvando...' },
+            start: { css: 'sync-saving', icon: 'fa-cloud-upload-alt', label: 'Sincronizando...' },
+            synced: { css: 'sync-synced', icon: 'fa-check-circle', label: 'Sincronizado' },
+            done: { css: 'sync-synced', icon: 'fa-check-circle', label: 'Sincronizado' },
+            pending: { css: 'sync-pending', icon: 'fa-clock', label: 'Pendente de envio' },
+            failed: { css: 'sync-failed', icon: 'fa-exclamation-triangle', label: 'Falha de sincronização' },
+            error: { css: 'sync-failed', icon: 'fa-exclamation-triangle', label: 'Falha de sincronização' }
+        };
+
+        const config = stateConfig[state] || stateConfig.idle;
+        indicator.classList.remove('sync-idle', 'sync-saving', 'sync-synced', 'sync-pending', 'sync-failed');
+        indicator.classList.add(config.css);
+        indicator.setAttribute('data-sync-state', state);
+
+        const formattedTime = new Date(updatedAt).toLocaleString('pt-BR');
+        const queueSuffix = queueCount > 0 ? ` | pendências: ${queueCount}` : '';
+        indicator.title = `Estado: ${config.label} | Última atualização: ${formattedTime}${queueSuffix}`;
+        indicator.innerHTML = `<i class="fas ${config.icon}"></i><span>${config.label}</span>`;
+    },
+
     /**
      * Clear all data
      */
@@ -1700,7 +1768,9 @@ const App = {
             Utils.showToast('Sessão expirada. Faça login novamente.', 'error');
             return;
         }
-        const users = DataManager.getUsers();
+        const usersSnapshot = DataManager.getUsers();
+        const previousUsers = JSON.parse(JSON.stringify(usersSnapshot || []));
+        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
         const dbUser = users.find(u => u.id === user.id);
         
         if (!dbUser) {
@@ -1730,7 +1800,22 @@ const App = {
             return;
         }
         delete dbUser.password;
-        DataManager.saveData(DataManager.KEYS.USERS, users);
+
+        const saveResult = await DataManager.saveDataAsync(DataManager.KEYS.USERS, users, {
+            allowQueue: true,
+            action: 'change_password_self',
+            reason: 'profile_password_change',
+            entityId: dbUser.id,
+            previousData: previousUsers
+        });
+
+        if (saveResult?.success !== true) {
+            const pendingMessage = saveResult?.pending
+                ? 'Não foi possível confirmar a alteração agora. A operação entrou em fila para retry.'
+                : 'Não foi possível confirmar a alteração da senha na nuvem.';
+            Utils.showToast(pendingMessage, saveResult?.pending ? 'warning' : 'error');
+            return;
+        }
         
         Utils.showToast('Senha alterada com sucesso', 'success');
         
@@ -1757,27 +1842,6 @@ const App = {
     }
 };
 
-const APP_FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
-
-// Start cloud synchronization once Firebase is ready
-window.addEventListener('firebase-ready', async () => {
-    try {
-        const mod = await import(APP_FIREBASE_SYNC_MODULE_PATH);
-        await mod.startFirebaseSync();
-    } catch (error) {
-        console.warn('Falha ao iniciar sincronização com Firebase', error);
-    }
-});
-
-// Refresh settings UI when sync status changes
-['cloud-sync-applied', 'cloud-sync-pushed', 'cloud-sync-status'].forEach((evt) => {
-    window.addEventListener(evt, () => {
-        if (App.currentPage === 'configuracoes') {
-            App.renderConfiguracoes();
-        }
-    });
-});
-
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -1790,6 +1854,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+
+
+
+
+
+
 
 
 

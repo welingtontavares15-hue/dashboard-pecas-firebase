@@ -5588,3 +5588,62 @@ body.dark-mode .status-filter-option:hover {
     }
 }
 
+
+/* ===== Sync Consistency Indicator ===== */
+.sync-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.32rem 0.62rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.sync-indicator i {
+    font-size: 0.72rem;
+}
+
+.sync-indicator.sync-idle {
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+
+.sync-indicator.sync-saving {
+    color: #2563eb;
+    border-color: rgba(37, 99, 235, 0.35);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.sync-indicator.sync-synced {
+    color: #15803d;
+    border-color: rgba(21, 128, 61, 0.35);
+    background: rgba(21, 128, 61, 0.08);
+}
+
+.sync-indicator.sync-pending {
+    color: #b45309;
+    border-color: rgba(180, 83, 9, 0.35);
+    background: rgba(180, 83, 9, 0.08);
+}
+
+.sync-indicator.sync-failed {
+    color: #b91c1c;
+    border-color: rgba(185, 28, 28, 0.35);
+    background: rgba(185, 28, 28, 0.08);
+}
+
+@media (max-width: 1200px) {
+    .sync-indicator span {
+        display: none;
+    }
+
+    .sync-indicator {
+        padding: 0.38rem;
+    }
+}

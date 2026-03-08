@@ -168,14 +168,7 @@ const STATS_CONFIG = {
     OUTLIER_PERCENTILE_THRESHOLD: 0.95
 };
 
-const FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
-const firebaseSyncModuleRef = { promise: null };
-function loadFirebaseSyncModule() {
-    if (!firebaseSyncModuleRef.promise) {
-        firebaseSyncModuleRef.promise = import(FIREBASE_SYNC_MODULE_PATH);
-    }
-    return firebaseSyncModuleRef.promise;
-}
+// Snapshot sync module disabled: CloudStorage is the official sync engine.
 
 const DataManager = {
     // Storage keys
@@ -289,6 +282,8 @@ const DataManager = {
     // Online-only mode: Track connection status
     _isOnline: true,
     _connectionToastMemory: {},
+    _syncStatus: { state: 'idle', updatedAt: 0 },
+    _effectDedupKey: 'diversey_effect_dedupe',
 
     /**
      * Initialize data manager - Online-only mode
@@ -484,8 +479,17 @@ const DataManager = {
                 this._sessionCache[this.KEYS.USERS] = users;
 
                 if (typeof Auth !== 'undefined' && Auth.currentUser && Array.isArray(users)) {
-                    const currentUsername = this.normalizeUsername(Auth.currentUser.username);
-                    const latestUser = users.find(u => this.normalizeUsername(u.username) === currentUsername);
+                    const currentUserId = Auth.currentUser?.id || null;
+                    const currentUsername = this.normalizeUsername(Auth.currentUser?.username || '');
+                    let latestUser = null;
+
+                    if (currentUserId) {
+                        latestUser = users.find((u) => u?.id === currentUserId) || null;
+                    }
+
+                    if (!latestUser && currentUsername) {
+                        latestUser = users.find((u) => this.normalizeUsername(u?.username) === currentUsername) || null;
+                    }
                     if (!latestUser || latestUser.disabled) {
                         Auth.logout();
                         if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
@@ -573,32 +577,94 @@ const DataManager = {
         }));
     },
 
-    async _persistCollectionToCloud(key, data) {
-        if (!this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.init === 'function') {
-            try {
-                this.cloudInitialized = await CloudStorage.init();
-            } catch (_e) {
-                // fall through to availability check
-            }
-        }
+    emitSyncOperation(state = 'idle', payload = {}) {
+        const timestamp = Date.now();
+        this._syncStatus = {
+            state,
+            updatedAt: timestamp,
+            ...payload
+        };
 
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
-            return false;
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('sync:operation', {
+                detail: {
+                    state,
+                    updatedAt: timestamp,
+                    ...payload
+                }
+            }));
         }
+    },
 
-        if (typeof CloudStorage.waitForCloudReady === 'function') {
-            const ready = await CloudStorage.waitForCloudReady(10000);
-            if (!ready) {
-                return false;
-            }
-        }
+    getSyncStatus() {
+        return { ...(this._syncStatus || { state: 'idle', updatedAt: 0 }) };
+    },
 
+    getEffectDedupMap() {
         try {
-            return await CloudStorage.saveData(key, data);
-        } catch (e) {
-            console.warn(`Erro ao salvar ${key} na nuvem`, e);
+            const raw = localStorage.getItem(this._effectDedupKey);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch (_error) {
+            return {};
+        }
+    },
+
+    persistEffectDedupMap(map) {
+        try {
+            localStorage.setItem(this._effectDedupKey, JSON.stringify(map || {}));
+            return true;
+        } catch (_error) {
             return false;
         }
+    },
+
+    hasProcessedEffect(effectKey) {
+        if (!effectKey) {
+            return false;
+        }
+        const map = this.getEffectDedupMap();
+        return !!map[effectKey];
+    },
+
+    markProcessedEffect(effectKey) {
+        if (!effectKey) {
+            return false;
+        }
+        const map = this.getEffectDedupMap();
+        map[effectKey] = Date.now();
+        return this.persistEffectDedupMap(map);
+    },
+
+    async runIdempotentEffect(effectKey, effectFn) {
+        if (!effectKey || typeof effectFn !== 'function') {
+            return { executed: false, skipped: true };
+        }
+
+        if (this.hasProcessedEffect(effectKey)) {
+            return { executed: false, skipped: true, reason: 'duplicate' };
+        }
+
+        const result = await effectFn();
+        this.markProcessedEffect(effectKey);
+        return { executed: true, skipped: false, result };
+    },
+    async _persistCollectionToCloud(key, data, options = {}) {
+        const payload = {
+            silent: options?.silent !== false,
+            allowQueue: options?.allowQueue === true,
+            reason: options?.reason || 'persist_collection',
+            opId: options?.opId,
+            entityId: options?.entityId,
+            action: options?.action
+        };
+
+        if (Object.prototype.hasOwnProperty.call(options || {}, 'previousData')) {
+            payload.previousData = options.previousData;
+        }
+
+        const result = await this.saveDataAsync(key, data, payload);
+        return result?.success === true;
     },
 
     /**
@@ -624,8 +690,20 @@ const DataManager = {
 
         this._syncPromise = (async () => {
             this.syncInProgress = true;
+            this.emitSyncOperation('saving', {
+                action: 'sync_all',
+                reason,
+                status: 'saving'
+            });
+
             try {
                 if (typeof CloudStorage === 'undefined') {
+                    this.emitSyncOperation('failed', {
+                        action: 'sync_all',
+                        reason,
+                        status: 'fail',
+                        error: 'cloud_storage_unavailable'
+                    });
                     return false;
                 }
 
@@ -639,15 +717,33 @@ const DataManager = {
 
                 if (!cloudReady) {
                     console.warn(`[SYNC] Cloud not ready for sync (${reason})`);
+                    this.emitSyncOperation('pending', {
+                        action: 'sync_all',
+                        reason,
+                        status: 'pending',
+                        error: 'cloud_not_ready'
+                    });
                     return false;
                 }
 
                 await CloudStorage.syncFromCloud();
                 await this._loadInitialDataFromCloud();
                 this._registerRealtimeSubscriptions();
+
+                this.emitSyncOperation('synced', {
+                    action: 'sync_all',
+                    reason,
+                    status: 'success'
+                });
                 return true;
             } catch (error) {
                 console.warn('syncAll failed', error);
+                this.emitSyncOperation('failed', {
+                    action: 'sync_all',
+                    reason,
+                    status: 'fail',
+                    error: error?.message || 'sync_all_failed'
+                });
                 return false;
             } finally {
                 this.syncInProgress = false;
@@ -662,7 +758,7 @@ const DataManager = {
      * Load initial data from cloud into session cache
      */
     async _loadInitialDataFromCloud() {
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
             return;
         }
         
@@ -691,7 +787,7 @@ const DataManager = {
      * Ensure cloud has initial data (first deployment seeding)
      */
     async _ensureCloudDataExists() {
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
             return;
         }
         
@@ -809,64 +905,231 @@ const DataManager = {
     },
 
     /**
-     * Save data to cloud storage - Online-only mode
-     * Blocks write operations when offline.
+     * Legacy non-blocking save helper.
+     * Prefer saveDataAsync() for commit-confirmed writes.
      */
-    saveData(key, data) {
+    saveData(key, data, options = {}) {
         if (this.isWriteBlocked()) {
             console.warn('[ONLINE-ONLY] Write blocked - no connection');
-            if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Sem conexão: não foi possível salvar. Reconecte à internet.', 'error');
-            }
             return false;
         }
 
-        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
             console.warn('[ONLINE-ONLY] Cloud not available for save operation');
-            if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Serviço de dados indisponível no momento. Tente novamente em instantes.', 'error');
-            }
             return false;
+        }
+
+        this.saveDataAsync(key, data, {
+            silent: true,
+            allowQueue: options?.allowQueue === true,
+            action: options?.action || 'legacy_save',
+            reason: options?.reason || 'legacy_save',
+            previousData: options?.previousData,
+            opId: options?.opId,
+            entityId: options?.entityId
+        }).catch((error) => {
+            console.warn('Legacy saveData async failure', error);
+        });
+
+        return true;
+    },
+
+    /**
+     * Save data with real commit confirmation.
+     * Returns success only after cloud persistence is completed.
+     */
+    async saveDataAsync(key, data, options = {}) {
+        const user = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function')
+            ? Auth.getCurrentUser()
+            : null;
+        const isEntityCollection = (
+            typeof CloudStorage !== 'undefined'
+            && typeof CloudStorage.isEntityKey === 'function'
+            && CloudStorage.isEntityKey(key)
+            && Array.isArray(data)
+        );
+        const hasExplicitPreviousData = Object.prototype.hasOwnProperty.call(options || {}, 'previousData');
+        let previousData = hasExplicitPreviousData ? options.previousData : undefined;
+
+        if (!hasExplicitPreviousData && isEntityCollection) {
+            if (this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.loadData === 'function') {
+                try {
+                    const cloudSnapshot = await CloudStorage.loadData(key);
+                    if (cloudSnapshot !== null && cloudSnapshot !== undefined) {
+                        previousData = JSON.parse(JSON.stringify(cloudSnapshot));
+                    }
+                } catch (_error) {
+                    // fallback below
+                }
+            }
+
+            if (previousData === undefined) {
+                previousData = JSON.parse(JSON.stringify(this.loadData(key) || []));
+            }
+        }
+
+        const opId = options?.opId
+            || (typeof CloudStorage !== 'undefined' && typeof CloudStorage.generateOpId === 'function'
+                ? CloudStorage.generateOpId(key)
+                : `${key}:${Date.now()}`);
+
+        const operation = {
+            opId,
+            key,
+            entityId: options?.entityId || null,
+            action: options?.action || 'save',
+            reason: options?.reason || 'manual',
+            userId: user?.id || null,
+            userName: user?.username || user?.name || null,
+            startedAt: Date.now()
+        };
+
+        const emitLog = (event, extra = {}) => {
+            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                Logger.logSync(event, {
+                    ...operation,
+                    ...extra
+                });
+            }
+        };
+
+        const queueOperation = async (errorReason) => {
+            if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.enqueueOperation === 'function') {
+                await CloudStorage.enqueueOperation(
+                    key,
+                    data,
+                    new Error(errorReason || 'save_failed'),
+                    opId,
+                    {
+                        action: operation.action,
+                        entityId: operation.entityId
+                    }
+                );
+            }
+            this.emitSyncOperation('pending', {
+                ...operation,
+                status: 'pending',
+                error: errorReason || 'queued'
+            });
+            emitLog('operation_pending', {
+                status: 'pending',
+                error: errorReason || 'queued'
+            });
+            return {
+                success: false,
+                pending: true,
+                queued: true,
+                opId,
+                error: errorReason || 'queued'
+            };
+        };
+
+        if (this.isWriteBlocked()) {
+            if (options?.allowQueue === true) {
+                return queueOperation('offline');
+            }
+            this.emitSyncOperation('failed', {
+                ...operation,
+                status: 'fail',
+                error: 'offline'
+            });
+            emitLog('operation_failed', { status: 'fail', error: 'offline' });
+            return { success: false, pending: false, opId, error: 'offline' };
+        }
+
+        if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
+            if (options?.allowQueue === true) {
+                return queueOperation('cloud_unavailable');
+            }
+            this.emitSyncOperation('failed', {
+                ...operation,
+                status: 'fail',
+                error: 'cloud_unavailable'
+            });
+            emitLog('operation_failed', { status: 'fail', error: 'cloud_unavailable' });
+            return { success: false, pending: false, opId, error: 'cloud_unavailable' };
         }
 
         if (typeof this.isCloudReady === 'function' && !this.isCloudReady()) {
-            console.warn('[ONLINE-ONLY] Cloud not ready for save operation');
-            if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Sincronização indisponível no momento. Aguarde reconexão para salvar.', 'warning');
+            if (options?.allowQueue === true) {
+                return queueOperation('cloud_not_ready');
             }
-            return false;
+            this.emitSyncOperation('failed', {
+                ...operation,
+                status: 'fail',
+                error: 'cloud_not_ready'
+            });
+            emitLog('operation_failed', { status: 'fail', error: 'cloud_not_ready' });
+            return { success: false, pending: false, opId, error: 'cloud_not_ready' };
         }
 
+        this.emitSyncOperation('saving', {
+            ...operation,
+            status: 'saving'
+        });
+        emitLog('operation_pending', { status: 'pending' });
+
         try {
-            this._sessionCache[key] = data;
-            this.emitDataUpdated([key], 'local');
-
-            // Sync snapshot to Firebase RTDB (shared state)
-            try {
-                loadFirebaseSyncModule().then((mod) => {
-                    if (!mod || typeof mod.shouldSkipCloudWrite !== 'function' || mod.shouldSkipCloudWrite()) {
-                        return;
-                    }
-                    const snapshot = (typeof mod.captureLocalSnapshot === 'function') ? mod.captureLocalSnapshot() : null;
-                    if (snapshot && typeof mod.pushToCloud === 'function') {
-                        mod.pushToCloud(snapshot);
-                    }
-                }).catch(() => {});
-            } catch (_e) {
-                // ignore sync errors to avoid blocking UI
-            }
-
-            CloudStorage.saveData(key, data).catch((e) => {
-                console.warn('Cloud save failed:', e);
-                if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('Falha ao sincronizar alteracao com a nuvem. Tente novamente.', 'warning');
-                }
+            const saved = await CloudStorage.saveData(key, data, {
+                opId,
+                previousData,
+                action: operation.action,
+                entityId: operation.entityId
             });
 
-            return true;
-        } catch (e) {
-            console.error('Error saving data:', e);
-            return false;
+            if (!saved) {
+                if (options?.allowQueue === true) {
+                    return queueOperation('save_failed');
+                }
+                this.emitSyncOperation('failed', {
+                    ...operation,
+                    status: 'fail',
+                    error: 'save_failed'
+                });
+                emitLog('operation_failed', { status: 'fail', error: 'save_failed' });
+                return { success: false, pending: false, opId, error: 'save_failed' };
+            }
+
+            this._sessionCache[key] = data;
+            this.emitDataUpdated([key], 'commit');
+            this.emitSyncOperation('synced', {
+                ...operation,
+                status: 'success',
+                completedAt: Date.now()
+            });
+            emitLog('operation_success', {
+                status: 'success',
+                completedAt: Date.now()
+            });
+
+            if (typeof CloudStorage.flushQueue === 'function') {
+                CloudStorage.flushQueue().catch(() => {});
+            }
+
+            return {
+                success: true,
+                pending: false,
+                opId
+            };
+        } catch (error) {
+            if (options?.allowQueue === true) {
+                return queueOperation(error?.message || 'save_exception');
+            }
+            this.emitSyncOperation('failed', {
+                ...operation,
+                status: 'fail',
+                error: error?.message || 'save_exception'
+            });
+            emitLog('operation_failed', {
+                status: 'fail',
+                error: error?.message || 'save_exception'
+            });
+            return {
+                success: false,
+                pending: false,
+                opId,
+                error: error?.message || 'save_exception'
+            };
         }
     },
 
@@ -1240,8 +1503,8 @@ const DataManager = {
         return { duplicateUsernameUser, duplicateEmailUser };
     },
 
-    async _persistUsersToCloud(users) {
-        return this._persistCollectionToCloud(this.KEYS.USERS, users);
+    async _persistUsersToCloud(users, options = {}) {
+        return this._persistCollectionToCloud(this.KEYS.USERS, users, options);
     },
 
     handlePostUserRemoval(removedUsers = []) {
@@ -1295,7 +1558,8 @@ const DataManager = {
             return { success: false, error: 'Informe uma nova senha com pelo menos 4 caracteres.' };
         }
 
-        const users = this.getUsers();
+        const usersSnapshot = JSON.parse(JSON.stringify(this.getUsers() || []));
+        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
         const index = users.findIndex((u) => u.id === userId);
         if (index < 0) {
             return { success: false, error: 'Usuário não encontrado.' };
@@ -1362,7 +1626,7 @@ const DataManager = {
 
         const uniqueAffectedUserIds = Array.from(new Set(affectedUserIds.filter(Boolean)));
 
-        const saved = await this._persistUsersToCloud(users);
+        const saved = await this._persistUsersToCloud(users, { previousData: usersSnapshot });
         if (!saved) {
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_cloud_save_failed', {
@@ -1485,7 +1749,8 @@ const DataManager = {
             return { success: false, error: 'Usuário inválido' };
         }
 
-        const users = this.getUsers();
+        const usersSnapshot = JSON.parse(JSON.stringify(this.getUsers() || []));
+        const users = JSON.parse(JSON.stringify(usersSnapshot || []));
         const candidate = {
             ...user,
             username: String(user.username || '').trim(),
@@ -1552,7 +1817,7 @@ const DataManager = {
             users.push(normalizedUser);
         }
 
-        const saved = await this._persistUsersToCloud(users);
+        const saved = await this._persistUsersToCloud(users, { previousData: usersSnapshot });
         if (!saved) {
             return { success: false, error: 'Não foi possível salvar o usuário na nuvem. Tente novamente.' };
         }
@@ -2394,11 +2659,12 @@ const DataManager = {
         );
     },
 
-    saveSolicitation(solicitation) {
+    async saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(solicitation);
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
 
         const solicitations = this.getSolicitations();
+        const previousSnapshot = JSON.parse(JSON.stringify(solicitations || []));
         const index = solicitations.findIndex(s => s.id === normalizedSolicitation.id);
         let persistedSolicitation;
         const now = Date.now();
@@ -2410,8 +2676,6 @@ const DataManager = {
             const incomingVersion = normalizedSolicitation.audit?.version;
             const existingStatus = this.normalizeWorkflowStatus(existing.status || this.STATUS.PENDENTE);
 
-            // If incoming has version and it doesn't match, there's a conflict
-            // Use Number() for type-safe comparison
             if (incomingVersion !== undefined && Number(incomingVersion) !== existingVersion) {
                 console.warn(`Conflito de versão: esperado ${existingVersion}, recebido ${incomingVersion}`);
                 return { success: false, error: 'conflict', message: 'Versão desatualizada. Recarregue os dados.' };
@@ -2422,7 +2686,6 @@ const DataManager = {
                 return { success: false, error: 'invalid_transition', message: 'Fluxo de status inválido.' };
             }
 
-            // Update with new version
             normalizedSolicitation.audit = {
                 ...normalizedSolicitation.audit,
                 version: existingVersion + 1,
@@ -2442,7 +2705,6 @@ const DataManager = {
             normalizedSolicitation.createdAt = now;
             normalizedSolicitation.updatedAt = now;
 
-            // Initialize audit trail for new solicitation
             normalizedSolicitation.audit = {
                 version: 1,
                 createdAt: now,
@@ -2451,7 +2713,6 @@ const DataManager = {
                 lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
             };
 
-            // Initialize timeline array for tracking events
             if (!normalizedSolicitation.timeline) {
                 normalizedSolicitation.timeline = [];
             }
@@ -2461,7 +2722,6 @@ const DataManager = {
                 by: normalizedSolicitation.createdBy || 'Sistema'
             });
 
-            // Initialize approvals array for approval history
             if (!normalizedSolicitation.approvals) {
                 normalizedSolicitation.approvals = [];
             }
@@ -2470,7 +2730,15 @@ const DataManager = {
             persistedSolicitation = normalizedSolicitation;
         }
 
-        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
+        const result = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
+            allowQueue: true,
+            action: index >= 0 ? 'update_solicitation' : 'create_solicitation',
+            reason: index >= 0 ? 'solicitation_update' : 'solicitation_create',
+            entityId: persistedSolicitation?.id,
+            previousData: previousSnapshot
+        });
+
+        const saved = result?.success === true;
         if (saved && persistedSolicitation) {
             this.queueOneDriveBackup(persistedSolicitation);
             this.createSolicitationsBackup({ download: false, reason: index >= 0 ? 'auto-update' : 'auto-create', silent: true });
@@ -2478,9 +2746,10 @@ const DataManager = {
 
         return saved;
     },
-    
-    updateSolicitationStatus(id, status, extra = {}) {
+
+    async updateSolicitationStatus(id, status, extra = {}) {
         const solicitations = this.getSolicitations();
+        const previousSnapshot = JSON.parse(JSON.stringify(solicitations || []));
         const index = solicitations.findIndex(s => s.id === id);
 
         if (index >= 0) {
@@ -2511,7 +2780,14 @@ const DataManager = {
                         Object.assign(solicitation, payload);
                         solicitation.updatedAt = now;
 
-                        const savedTrackingUpdate = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
+                        const trackingSaveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
+                            allowQueue: true,
+                            action: 'update_tracking',
+                            reason: 'tracking_update',
+                            entityId: solicitation?.id,
+                            previousData: previousSnapshot
+                        });
+                        const savedTrackingUpdate = trackingSaveResult?.success === true;
                         if (savedTrackingUpdate) {
                             this.queueOneDriveBackup(solicitation);
                             this.createSolicitationsBackup({ download: false, reason: 'auto-tracking-update', silent: true });
@@ -2542,12 +2818,10 @@ const DataManager = {
             if (nextStatus === this.STATUS.FINALIZADA) {
                 payload.deliveredAt = payload.deliveredAt || now;
                 payload.finalizedAt = payload.finalizedAt || now;
+                payload.deliveredBy = payload.deliveredBy || payload.by || 'Sistema';
+                payload.finalizedBy = payload.finalizedBy || payload.by || 'Sistema';
             }
 
-            solicitation.status = nextStatus;
-            solicitation.updatedAt = now;
-
-            // Update audit version
             const currentVersion = solicitation.audit?.version || 0;
             solicitation.audit = {
                 ...solicitation.audit,
@@ -2556,18 +2830,6 @@ const DataManager = {
                 lastUpdatedBy: payload.by || 'Sistema'
             };
 
-            // Maintain statusHistory for backward compatibility
-            if (!solicitation.statusHistory) {
-                solicitation.statusHistory = [];
-            }
-
-            solicitation.statusHistory.push({
-                status: nextStatus,
-                at: now,
-                by: payload.by || 'Sistema'
-            });
-
-            // Add to timeline for comprehensive event tracking
             if (!solicitation.timeline) {
                 solicitation.timeline = [];
             }
@@ -2580,7 +2842,6 @@ const DataManager = {
                 comment: payload.approvalComment || payload.rejectionReason || null
             });
 
-            // Track approvals separately for the approvals trail
             if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
                 if (!solicitation.approvals) {
                     solicitation.approvals = [];
@@ -2593,13 +2854,19 @@ const DataManager = {
                 });
             }
 
-            // Merge extra data
             delete payload.status;
             Object.assign(solicitation, payload);
             solicitation.status = nextStatus;
             solicitation.updatedAt = now;
 
-            const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
+            const statusSaveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
+                allowQueue: true,
+                action: 'update_status',
+                reason: `status_${nextStatus}`,
+                entityId: solicitation?.id,
+                previousData: previousSnapshot
+            });
+            const saved = statusSaveResult?.success === true;
             if (saved) {
                 this.queueOneDriveBackup(solicitation);
                 this.createSolicitationsBackup({ download: false, reason: 'auto-status-change', silent: true });
@@ -2609,8 +2876,9 @@ const DataManager = {
         return false;
     },
 
-    deleteSolicitation(id) {
+    async deleteSolicitation(id) {
         const currentSolicitations = this.getSolicitations();
+        const previousSnapshot = JSON.parse(JSON.stringify(currentSolicitations || []));
         this.createSolicitationsBackup({
             download: false,
             reason: 'auto-delete',
@@ -2618,7 +2886,14 @@ const DataManager = {
             solicitations: currentSolicitations
         });
         const solicitations = currentSolicitations.filter(s => s.id !== id);
-        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
+        const result = await this.saveDataAsync(this.KEYS.SOLICITATIONS, solicitations, {
+            allowQueue: true,
+            action: 'delete_solicitation',
+            reason: 'solicitation_delete',
+            entityId: id,
+            previousData: previousSnapshot
+        });
+        const saved = result?.success === true;
         if (saved) {
             this.createSolicitationsBackup({ download: false, reason: 'post-delete', silent: true });
         }
@@ -2697,7 +2972,7 @@ const DataManager = {
         }).success;
     },
 
-    restoreSolicitationsBackup(payload) {
+    async restoreSolicitationsBackup(payload) {
         try {
             const incoming = Array.isArray(payload)
                 ? payload
@@ -2730,8 +3005,13 @@ const DataManager = {
             });
 
             const mergedSolicitations = Array.from(merged.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-            const saved = this.saveData(this.KEYS.SOLICITATIONS, mergedSolicitations);
-            if (saved) {
+            const saveResult = await this.saveDataAsync(this.KEYS.SOLICITATIONS, mergedSolicitations, {
+                allowQueue: true,
+                action: 'restore_backup',
+                reason: 'solicitation_restore',
+                previousData: current
+            });
+            if (saveResult?.success === true) {
                 this.createSolicitationsBackup({ download: false, reason: 'post-restore', silent: true });
                 return { success: true, restoredCount, total: mergedSolicitations.length };
             }
@@ -3138,6 +3418,32 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

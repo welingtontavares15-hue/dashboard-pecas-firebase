@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260308a">
+    <link rel="stylesheet" href="css/style.css?v=20260308b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
@@ -142,6 +142,10 @@
                         <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <div id="sync-indicator" class="sync-indicator sync-idle" title="Estado da sincronização">
+                            <i class="fas fa-circle"></i>
+                            <span>Sem atividade</span>
+                        </div>
                         <div id="pending-badge" class="notification-badge hidden" title="Itens pendentes">
                             <i class="fas fa-bell"></i>
                             <span id="pending-count">0</span>
@@ -209,10 +213,12 @@
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20260308a"></script>
+    <script src="js/app.js?v=20260308b"></script>
     <script src="js/ui-modern.js?v=20260308a"></script>
 </body>
 </html>
+
+
 
 
 

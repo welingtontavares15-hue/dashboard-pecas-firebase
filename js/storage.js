@@ -19,6 +19,14 @@ const CloudStorage = {
     retryDelay: 1000,
     queueStore: 'queue',
     queueLocalKey: 'cloud_sync_queue',
+    outboxMaxAttempts: 8,
+    outboxBackoffBaseMs: 2000,
+
+    // Keys persisted as record-per-entity to avoid collection-level overwrites.
+    entityConfig: {
+        diversey_users: { idField: 'id' },
+        diversey_solicitacoes: { idField: 'id' }
+    },
 
     /**
      * Initialize Firebase and cloud storage
@@ -170,23 +178,179 @@ const CloudStorage = {
         return false;
     },
 
+    isEntityKey(key) {
+        const sanitizedKey = this.sanitizeKey(key);
+        return Object.prototype.hasOwnProperty.call(this.entityConfig, sanitizedKey);
+    },
+
+    getEntityIdField(key) {
+        const sanitizedKey = this.sanitizeKey(key);
+        return this.entityConfig?.[sanitizedKey]?.idField || 'id';
+    },
+
+    getEntityCollectionPath(key) {
+        const sanitizedKey = this.sanitizeKey(key);
+        return `entities/${sanitizedKey}`;
+    },
+
+    getEntityRecordPath(key, entityId) {
+        const sanitizedKey = this.sanitizeKey(key);
+        const safeEntityId = this.sanitizeKey(String(entityId || '').trim());
+        return `entities/${sanitizedKey}/${safeEntityId}`;
+    },
+
+    normalizeEntityArray(key, items) {
+        if (!Array.isArray(items)) {
+            return [];
+        }
+
+        const idField = this.getEntityIdField(key);
+        return items
+            .filter(Boolean)
+            .map((item) => ({ ...item }))
+            .filter((item) => item && item[idField]);
+    },
+
+    collectionFromEntitySnapshot(key, rawCollection) {
+        if (!rawCollection || typeof rawCollection !== 'object') {
+            return [];
+        }
+
+        const list = [];
+        Object.keys(rawCollection).forEach((recordId) => {
+            const entry = rawCollection[recordId];
+            if (!entry || entry.data === undefined || entry.data === null) {
+                return;
+            }
+            const payload = { ...entry.data };
+            if (!payload.id) {
+                payload.id = recordId;
+            }
+            list.push(payload);
+        });
+
+        return list;
+    },
+
+    buildEntityDiff(key, previousItems, nextItems) {
+        const idField = this.getEntityIdField(key);
+        const previous = this.normalizeEntityArray(key, previousItems);
+        const next = this.normalizeEntityArray(key, nextItems);
+
+        const previousMap = new Map(previous.map((item) => [String(item[idField]), item]));
+        const nextMap = new Map(next.map((item) => [String(item[idField]), item]));
+
+        const upserts = [];
+        const deletes = [];
+
+        nextMap.forEach((nextItem, entityId) => {
+            const prevItem = previousMap.get(entityId);
+            const prevSerialized = prevItem ? JSON.stringify(prevItem) : null;
+            const nextSerialized = JSON.stringify(nextItem);
+            if (!prevItem || prevSerialized !== nextSerialized) {
+                upserts.push(nextItem);
+            }
+        });
+
+        previousMap.forEach((_prevItem, entityId) => {
+            if (!nextMap.has(entityId)) {
+                deletes.push(entityId);
+            }
+        });
+
+        return { upserts, deletes };
+    },
+
+    async writeEntityRecord(key, record, meta = {}) {
+        if (!record) {
+            return false;
+        }
+
+        const idField = this.getEntityIdField(key);
+        const entityId = record[idField];
+        if (!entityId) {
+            return false;
+        }
+
+        const { set } = window.firebaseModules;
+        const opId = meta.opId || this.generateOpId(`${key}:${entityId}`);
+        const now = Date.now();
+        const dataRef = FirebaseInit.getRef(this.getEntityRecordPath(key, entityId));
+
+        await set(dataRef, {
+            data: { ...record },
+            updatedAt: now,
+            updatedBy: this.getDeviceId(),
+            opId
+        });
+
+        return true;
+    },
+
+    async deleteEntityRecord(key, entityId, meta = {}) {
+        if (!entityId) {
+            return false;
+        }
+
+        const { set } = window.firebaseModules;
+        const dataRef = FirebaseInit.getRef(this.getEntityRecordPath(key, entityId));
+        await set(dataRef, null);
+
+        if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+            Logger.logSync('entity_record_deleted', {
+                key,
+                entityId,
+                opId: meta.opId || null
+            });
+        }
+
+        return true;
+    },
+
+    async saveEntityCollectionDiff(key, nextItems, previousItems = [], options = {}) {
+        const diff = this.buildEntityDiff(key, previousItems, nextItems);
+        const opId = options.opId || this.generateOpId(key);
+
+        try {
+            for (const item of diff.upserts) {
+                await this.writeEntityRecord(key, item, { opId });
+            }
+            for (const entityId of diff.deletes) {
+                await this.deleteEntityRecord(key, entityId, { opId });
+            }
+            return true;
+        } catch (error) {
+            console.error('Error saving entity diff:', error);
+            return false;
+        }
+    },
+
+    async loadEntityCollection(key) {
+        const { get } = window.firebaseModules;
+        const collectionRef = FirebaseInit.getRef(this.getEntityCollectionPath(key));
+        const snapshot = await get(collectionRef);
+        const value = snapshot.val();
+        return this.collectionFromEntitySnapshot(key, value);
+    },
     /**
      * Save data to cloud storage - Online-only mode
      * Requires cloud connection; does NOT fallback to local storage.
+     * For configured entity keys, applies record-level persistence/diff.
      * @param {string} key - Storage key
      * @param {any} data - Data to save
+     * @param {object} options - Persistence options
      * @returns {Promise<boolean>} - Success status
      */
-    async saveData(key, data) {
-        const opId = (data && data.opId) || this.generateOpId(key);
-        
+    async saveData(key, data, options = {}) {
+        const opId = options?.opId || (data && data.opId) || this.generateOpId(key);
+
         // Ensure Firebase is authenticated and initialized
         if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.isReady !== 'function' || !FirebaseInit.isReady()) {
             console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
             return false;
         }
 
-        // Online-only mode: Require cloud connection (optimized check order)
+        // Online-only mode: Require cloud connection
         if (!this.isInitialized || !this.database ||
             typeof FirebaseInit === 'undefined' ||
             typeof FirebaseInit.isRTDBConnected !== 'function' ||
@@ -195,19 +359,37 @@ const CloudStorage = {
             return false;
         }
 
-        // Save to cloud
         try {
-            const { set } = window.firebaseModules;
             const sanitizedKey = this.sanitizeKey(key);
+
+            if (this.isEntityKey(sanitizedKey) && Array.isArray(data)) {
+                let previous = Array.isArray(options?.previousData) ? options.previousData : null;
+                if (!Array.isArray(previous)) {
+                    try {
+                        previous = await this.loadEntityCollection(sanitizedKey);
+                    } catch (_error) {
+                        previous = [];
+                    }
+                }
+
+                const saved = await this.saveEntityCollectionDiff(sanitizedKey, data, previous || [], { opId });
+                if (saved) {
+                    console.log(`Entity collection diff saved to cloud: ${sanitizedKey}`);
+                }
+                return saved;
+            }
+
+            const { set } = window.firebaseModules;
             const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
-            
+
             await set(dataRef, {
-                data: data,
+                data,
                 updatedAt: Date.now(),
                 updatedBy: this.getDeviceId(),
                 opId
             });
-            console.log(`Data saved to cloud: ${key}`);
+
+            console.log(`Data saved to cloud: ${sanitizedKey}`);
             return true;
         } catch (error) {
             console.error('Error saving to cloud:', error);
@@ -218,123 +400,89 @@ const CloudStorage = {
     /**
      * Load data from cloud storage - Online-only mode
      * Loads directly from cloud; no local fallback.
+     * For configured entity keys, loads from record-per-entity path.
      * @param {string} key - Storage key
      * @returns {Promise<any>} - Retrieved data
      */
     async loadData(key) {
-        // Online-only mode: Load from cloud only
-        if (this.isInitialized && this.database && typeof FirebaseInit !== 'undefined' && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected()) {
-            try {
-                const { get } = window.firebaseModules;
-                const sanitizedKey = this.sanitizeKey(key);
-                const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
-                
-                const snapshot = await get(dataRef);
-                const cloudData = snapshot.val();
-                
-                if (cloudData && cloudData.data !== undefined) {
-                    return cloudData.data;
-                }
-            } catch (error) {
-                console.error('Error loading from cloud:', error);
-            }
+        if (!(this.isInitialized && this.database && typeof FirebaseInit !== 'undefined' && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected())) {
+            console.warn('[ONLINE-ONLY] Cloud not available for load operation');
+            return null;
         }
 
-        // Online-only mode: Return null if cloud not available (no local fallback)
-        console.warn('[ONLINE-ONLY] Cloud not available for load operation');
+        try {
+            const sanitizedKey = this.sanitizeKey(key);
+
+            if (this.isEntityKey(sanitizedKey)) {
+                const entityCollection = await this.loadEntityCollection(sanitizedKey);
+                if (Array.isArray(entityCollection) && entityCollection.length > 0) {
+                    return entityCollection;
+                }
+            }
+
+            const { get } = window.firebaseModules;
+            const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
+            const snapshot = await get(dataRef);
+            const cloudData = snapshot.val();
+
+            if (cloudData && cloudData.data !== undefined) {
+                return cloudData.data;
+            }
+        } catch (error) {
+            console.error('Error loading from cloud:', error);
+        }
+
         return null;
     },
 
     /**
      * Synchronize data from cloud - Online-only mode
-     * Does not persist locally; data is loaded into DataManager session cache.
-     * For users (gestores), implements merge logic to prevent data loss.
+     * Loads authoritative cloud data into DataManager session cache.
      */
     async syncFromCloud() {
-        // Early return if cloud is not initialized - this is not an error, just not ready yet
         if (!this.isInitialized || !this.database) {
             console.debug('CloudStorage not initialized, skipping sync');
             return;
         }
 
-        // Ensure Firebase is authenticated
         if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.isReady !== 'function' || !FirebaseInit.isReady()) {
             console.debug('Firebase not authenticated, skipping sync');
             return;
         }
 
-        // Validate DataManager is available and has session cache
         if (typeof DataManager === 'undefined' || !DataManager._sessionCache) {
             console.warn('DataManager not initialized, skipping sync');
             return;
         }
 
-        // Log sync start
-        if (typeof Logger !== 'undefined') {
+        if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
             Logger.logSync('sync_start', { direction: 'cloud_to_session' });
         }
 
         try {
-            const { get } = window.firebaseModules;
-            const dataRef = FirebaseInit.getRef('data');
-            
-            const snapshot = await get(dataRef);
-            const cloudData = snapshot.val();
-            
-            if (cloudData) {
-                let keysUpdated = 0;
-                for (const sanitizedKey in cloudData) {
-                    if (!Object.prototype.hasOwnProperty.call(cloudData, sanitizedKey)) {
-                        continue;
-                    }
-                    const originalKey = this.unsanitizeKey(sanitizedKey);
-                    const entry = cloudData[sanitizedKey];
-                    
-                    if (entry && entry.data !== undefined) {
-                        // Special merge logic for users to prevent data loss
-                        if (originalKey === 'diversey_users' && Array.isArray(entry.data)) {
-                            const localUsers = DataManager._sessionCache[originalKey] || [];
-                            const cloudUsers = entry.data;
-                            const mergedUsers = this.mergeUsers(localUsers, cloudUsers);
-                            const needsCloudUpdate = this.usersNeedCloudUpdate(cloudUsers, mergedUsers);
-                            DataManager._sessionCache[originalKey] = mergedUsers;
-                            keysUpdated++;
-                            console.log(`Merged users from cloud to session: ${mergedUsers.length} total users`);
-                            if (needsCloudUpdate) {
-                                this.saveData(originalKey, mergedUsers)
-                                    .then(() => console.log('Pushed merged users back to cloud to preserve local additions'))
-                                    .catch((pushErr) => console.warn('Failed to push merged users to cloud', pushErr));
-                            }
-                        } else {
-                            // For other data types, use direct replacement
-                            DataManager._sessionCache[originalKey] = entry.data;
-                            keysUpdated++;
-                            console.log(`Synced from cloud to session: ${originalKey}`);
-                        }
-                    }
+            const keys = Object.values(DataManager.KEYS || {});
+            let keysUpdated = 0;
+
+            for (const key of keys) {
+                if (!key || key === DataManager.KEYS.PARTS_VERSION) {
+                    continue;
                 }
-                
-                // Log sync complete
-                if (typeof Logger !== 'undefined') {
-                    Logger.logSync('sync_complete', { 
-                        direction: 'cloud_to_session',
-                        keysUpdated
-                    });
-                }
-            } else {
-                // No cloud data is not an error - could be first-time sync or empty Firebase collection
-                console.debug('Cloud sync completed: no data in cloud (first-time sync or empty collection)');
-                if (typeof Logger !== 'undefined') {
-                    Logger.logSync('sync_complete', { 
-                        direction: 'cloud_to_session',
-                        keysUpdated: 0
-                    });
+                const value = await this.loadData(key);
+                if (value !== null && value !== undefined) {
+                    DataManager._sessionCache[key] = value;
+                    keysUpdated++;
                 }
             }
+
+            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                Logger.logSync('sync_complete', {
+                    direction: 'cloud_to_session',
+                    keysUpdated
+                });
+            }
         } catch (error) {
-            // Log sync failure only for actual errors (not initialization issues)
-            if (typeof Logger !== 'undefined') {
-                Logger.logSync('sync_failed', { 
+            if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                Logger.logSync('sync_failed', {
                     direction: 'cloud_to_session',
                     error: error?.message || 'unknown',
                     errorCode: error?.code || 'unknown'
@@ -446,25 +594,35 @@ const CloudStorage = {
 
         const { onValue, off } = window.firebaseModules;
         const sanitizedKey = this.sanitizeKey(key);
-        const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
-        
-        // Remove existing listener
+        const refPath = this.isEntityKey(sanitizedKey)
+            ? this.getEntityCollectionPath(sanitizedKey)
+            : `data/${sanitizedKey}`;
+        const dataRef = FirebaseInit.getRef(refPath);
+
         if (this.listeners[key]) {
             off(dataRef, 'value', this.listeners[key]);
         }
 
-        // Add new listener - Online-only mode: No local persistence
         this.listeners[key] = onValue(dataRef, async (snapshot) => {
             const cloudData = snapshot.val();
-            if (cloudData && cloudData.data !== undefined) {
-                // Check if update came from different device
-                if (cloudData.updatedBy !== this.getDeviceId()) {
-                    // Online-only mode: Update DataManager session cache directly
-                    if (typeof DataManager !== 'undefined' && DataManager._sessionCache) {
-                        DataManager._sessionCache[key] = cloudData.data;
-                    }
-                    callback(cloudData.data);
+            if (cloudData === null || cloudData === undefined) {
+                return;
+            }
+
+            if (this.isEntityKey(sanitizedKey)) {
+                const collection = this.collectionFromEntitySnapshot(sanitizedKey, cloudData);
+                if (typeof DataManager !== 'undefined' && DataManager._sessionCache) {
+                    DataManager._sessionCache[key] = collection;
                 }
+                callback(collection);
+                return;
+            }
+
+            if (cloudData && cloudData.data !== undefined) {
+                if (typeof DataManager !== 'undefined' && DataManager._sessionCache) {
+                    DataManager._sessionCache[key] = cloudData.data;
+                }
+                callback(cloudData.data);
             }
         });
     },
@@ -480,8 +638,11 @@ const CloudStorage = {
 
         const { off } = window.firebaseModules;
         const sanitizedKey = this.sanitizeKey(key);
-        const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
-        
+        const refPath = this.isEntityKey(sanitizedKey)
+            ? this.getEntityCollectionPath(sanitizedKey)
+            : `data/${sanitizedKey}`;
+        const dataRef = FirebaseInit.getRef(refPath);
+
         if (this.listeners[key]) {
             off(dataRef, 'value', this.listeners[key]);
             delete this.listeners[key];
@@ -572,23 +733,136 @@ const CloudStorage = {
         return false;
     },
 
-    // Online-only mode: Queue operations disabled - writes fail immediately if offline
-    async enqueueOperation(_key, _data, _error, _opId = null) {
-        console.warn('[ONLINE-ONLY] enqueueOperation disabled - writes require connection');
+    // Queue/outbox operations for transient failures
+    async enqueueOperation(key, data, error, opId = null, options = {}) {
+        if (!key) {
+            return false;
+        }
+
+        const queue = await this.loadQueue();
+        const now = Date.now();
+        const operation = {
+            opId: opId || this.generateOpId(key),
+            key,
+            data,
+            options: { ...options, skipQueue: true },
+            attempts: 0,
+            createdAt: now,
+            updatedAt: now,
+            nextRetryAt: now,
+            lastError: error?.message || String(error || 'save_failed')
+        };
+
+        const existingIndex = queue.findIndex((item) => item?.opId === operation.opId);
+        if (existingIndex >= 0) {
+            queue[existingIndex] = operation;
+        } else {
+            queue.push(operation);
+        }
+
+        await this.persistQueue(queue);
+
+        if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+            Logger.logSync('outbox_queued', {
+                opId: operation.opId,
+                key,
+                nextRetryAt: operation.nextRetryAt,
+                reason: operation.lastError
+            });
+        }
+
+        return true;
     },
 
     async loadQueue() {
-        // Online-only mode: No offline queue
-        return [];
+        try {
+            const queue = JSON.parse(localStorage.getItem(this.queueLocalKey) || '[]');
+            return Array.isArray(queue) ? queue : [];
+        } catch (_error) {
+            return [];
+        }
     },
 
-    async persistQueue(_queue) {
-        // Online-only mode: No offline queue
+    async persistQueue(queue) {
+        try {
+            const safeQueue = Array.isArray(queue) ? queue : [];
+            localStorage.setItem(this.queueLocalKey, JSON.stringify(safeQueue));
+            return true;
+        } catch (_error) {
+            return false;
+        }
+    },
+
+    getOutboxRetryAt(attempts = 1) {
+        const exponent = Math.max(0, Number(attempts) - 1);
+        const delay = Math.min(5 * 60 * 1000, this.outboxBackoffBaseMs * Math.pow(2, exponent));
+        return Date.now() + delay;
     },
 
     async flushQueue() {
-        // Online-only mode: No offline queue
-        return true;
+        if (!this.isCloudAvailable()) {
+            return false;
+        }
+
+        const queue = await this.loadQueue();
+        if (!Array.isArray(queue) || queue.length === 0) {
+            return true;
+        }
+
+        const now = Date.now();
+        const remaining = [];
+
+        for (const item of queue) {
+            if (!item || !item.key || !item.opId) {
+                continue;
+            }
+
+            if (Number(item.nextRetryAt || 0) > now) {
+                remaining.push(item);
+                continue;
+            }
+
+            const saved = await this.saveData(item.key, item.data, {
+                ...(item.options || {}),
+                opId: item.opId,
+                skipQueue: true
+            });
+
+            if (saved) {
+                if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                    Logger.logSync('outbox_operation_success', {
+                        opId: item.opId,
+                        key: item.key,
+                        attempts: item.attempts || 0
+                    });
+                }
+                continue;
+            }
+
+            const attempts = Number(item.attempts || 0) + 1;
+            if (attempts >= this.outboxMaxAttempts) {
+                if (typeof Logger !== 'undefined' && typeof Logger.logSync === 'function') {
+                    Logger.logSync('outbox_operation_failed', {
+                        opId: item.opId,
+                        key: item.key,
+                        attempts,
+                        reason: 'max_attempts_reached'
+                    });
+                }
+                continue;
+            }
+
+            remaining.push({
+                ...item,
+                attempts,
+                updatedAt: Date.now(),
+                nextRetryAt: this.getOutboxRetryAt(attempts),
+                lastError: 'save_failed'
+            });
+        }
+
+        await this.persistQueue(remaining);
+        return remaining.length === 0;
     },
 
     /**
@@ -617,4 +891,13 @@ const CloudStorage = {
 
 // Export for use in other modules
 window.CloudStorage = CloudStorage;
+
+
+
+
+
+
+
+
+
 

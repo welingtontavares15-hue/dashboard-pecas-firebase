@@ -482,7 +482,7 @@ const FornecedorPortal = {
         return !!marker && !!modal && !modal.classList.contains('hidden');
     },
 
-    saveTracking(id, options = {}) {
+    async saveTracking(id, options = {}) {
         if (Auth.getRole() !== 'fornecedor') {
             Utils.showToast('Apenas fornecedores podem registrar rastreio', 'warning');
             return;
@@ -529,7 +529,7 @@ const FornecedorPortal = {
         const userName = currentUser?.name || 'Fornecedor';
         const now = Date.now();
 
-        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
+        const success = await DataManager.updateSolicitationStatus(id, 'em-transito', {
             trackingCode,
             trackingUpdatedAt: now,
             trackingBy: userName,
@@ -577,11 +577,19 @@ const FornecedorPortal = {
             return;
         }
 
-        Utils.sendTrackingNotificationToTechnician({
-            solicitation,
-            trackingCode,
-            updatedBy
-        }).then((result) => {
+        const effectKey = `email:tracking:technician:${solicitation?.id || solicitation?.numero}:${trackingCode}`;
+        DataManager.runIdempotentEffect(effectKey, async () => {
+            return Utils.sendTrackingNotificationToTechnician({
+                solicitation,
+                trackingCode,
+                updatedBy
+            });
+        }).then((dedupeResult) => {
+            if (dedupeResult?.reason === 'duplicate') {
+                return;
+            }
+
+            const result = dedupeResult?.result;
             if (result?.success) {
                 Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
                 return;
@@ -837,6 +845,8 @@ const FornecedorPortal = {
 if (typeof window !== 'undefined') {
     window.FornecedorPortal = FornecedorPortal;
 }
+
+
 
 
 

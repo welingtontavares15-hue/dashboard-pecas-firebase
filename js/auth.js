@@ -296,7 +296,8 @@ const Auth = {
             };
         }
 
-        const user = DataManager.getUserByUsername(inputUsername);
+        const storedUser = DataManager.getUserByUsername(inputUsername);
+        const user = storedUser ? { ...storedUser } : null;
         
         if (!user) {
             this.logAuthAttempt({
@@ -353,13 +354,21 @@ const Auth = {
                 storedHash = await this.hashPassword(user.password, canonicalUsername);
                 user.passwordHash = storedHash;
                 delete user.password;
+
+                const usersSnapshot = DataManager.getUsers();
+                const users = JSON.parse(JSON.stringify(usersSnapshot || []));
                 const targetUsername = DataManager.normalizeUsername(user.username);
-                const users = DataManager.getUsers();
-                const idx = users.findIndex(u => DataManager.normalizeUsername(u.username) === targetUsername);
+                const idx = users.findIndex((u) => DataManager.normalizeUsername(u.username) === targetUsername);
                 if (idx >= 0) {
-                    users[idx] = { ...user };
+                    users[idx] = { ...users[idx], passwordHash: storedHash, password: undefined, updatedAt: Date.now() };
+                    await DataManager.saveDataAsync(DataManager.KEYS.USERS, users, {
+                        allowQueue: true,
+                        action: 'auth_password_hash_migration',
+                        reason: 'login_hash_migration',
+                        entityId: users[idx].id,
+                        previousData: usersSnapshot
+                    });
                 }
-                DataManager.saveData(DataManager.KEYS.USERS, users);
             } catch (e) {
                 console.error('Falha ao migrar senha para hash seguro', e);
                 return { success: false, error: 'Erro ao validar credenciais' };
@@ -401,10 +410,21 @@ const Auth = {
             }
 
             try {
-                const users = DataManager.getUsers();
-                const updatedUsers = users.map(u => u.username === user.username ? { ...u, passwordHash, password: undefined } : u);
+                const usersSnapshot = DataManager.getUsers();
+                const updatedUsers = JSON.parse(JSON.stringify(usersSnapshot || [])).map((u) => (
+                    u.username === user.username
+                        ? { ...u, passwordHash, password: undefined, updatedAt: Date.now() }
+                        : u
+                ));
                 user.passwordHash = passwordHash;
-                DataManager.saveData(DataManager.KEYS.USERS, updatedUsers);
+                const targetUser = updatedUsers.find((u) => u.username === user.username);
+                await DataManager.saveDataAsync(DataManager.KEYS.USERS, updatedUsers, {
+                    allowQueue: true,
+                    action: 'auth_legacy_hash_migration',
+                    reason: 'login_legacy_hash_migration',
+                    entityId: targetUser?.id || null,
+                    previousData: usersSnapshot
+                });
             } catch (e) {
                 console.warn('Falha ao migrar hash legado', e);
             }
@@ -771,6 +791,7 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
+
 
 
 

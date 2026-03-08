@@ -1170,7 +1170,7 @@ const Solicitacoes = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
 
-        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
+        const success = await DataManager.updateSolicitationStatus(id, 'em-transito', {
             trackingCode,
             trackingUpdatedAt: Date.now(),
             trackingBy: userName,
@@ -1197,13 +1197,21 @@ const Solicitacoes = {
             return;
         }
 
-        Utils.sendTrackingNotificationToTechnician({
-            solicitation,
-            trackingCode,
-            updatedBy
-        }).then((result) => {
-                const sent = result === true || result?.success === true;
-                if (sent) {
+        const effectKey = `email:tracking:technician:${solicitation?.id || solicitation?.numero}:${trackingCode}`;
+        DataManager.runIdempotentEffect(effectKey, async () => {
+            return Utils.sendTrackingNotificationToTechnician({
+                solicitation,
+                trackingCode,
+                updatedBy
+            });
+        }).then((dedupeResult) => {
+            if (dedupeResult?.reason === 'duplicate') {
+                return;
+            }
+
+            const result = dedupeResult?.result;
+            const sent = result === true || result?.success === true;
+            if (sent) {
                 Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
                 return;
             }
@@ -1228,7 +1236,6 @@ const Solicitacoes = {
             Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
         });
     },
-
     /**
      * Confirm delivery by technician
      */
@@ -1262,7 +1269,7 @@ const Solicitacoes = {
         const userName = currentUser?.name || 'Sistema';
 
         const deliveredAt = Date.now();
-        const success = DataManager.updateSolicitationStatus(id, 'finalizada', {
+        const success = await DataManager.updateSolicitationStatus(id, 'finalizada', {
             deliveredAt,
             deliveredBy: userName,
             finalizedAt: deliveredAt,
@@ -1560,7 +1567,7 @@ const Solicitacoes = {
     /**
      * Save solicitation
      */
-    saveSolicitation(status = 'pendente') {
+    async saveSolicitation(status = 'pendente') {
         const tecnicoId = document.getElementById('sol-tecnico').value;
         const dataInput = document.getElementById('sol-data').value;
         const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
@@ -1648,7 +1655,7 @@ const Solicitacoes = {
             });
         }
 
-        const result = DataManager.saveSolicitation(solicitation);
+        const result = await DataManager.saveSolicitation(solicitation);
         const saved = result === true || (result && result.success !== false && !result.error);
 
         if (!saved) {
@@ -1675,26 +1682,26 @@ const Solicitacoes = {
                 ? Utils.getManagerNotificationEmail()
                 : 'wbastostavares@solenis.com';
 
-            Utils.sendSolicitationApprovalEmail({
-                solicitation: persistedSolicitation,
-                submittedBy: userName,
-                recipient
-            }).then((result) => {
-                const sent = result === true || result?.success === true;
-                if (sent) {
-                    Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
-                    return;
-                }
-
-                if (result?.reason === 'invalid_recipient') {
-                    Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
-                    return;
-                }
-
-                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
-            }).catch(() => {
-                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+            const effectKey = `email:manager:new_request:${persistedSolicitation?.id || persistedSolicitation?.numero || Date.now()}`;
+            const dedupeResult = await DataManager.runIdempotentEffect(effectKey, async () => {
+                return Utils.sendSolicitationApprovalEmail({
+                    solicitation: persistedSolicitation,
+                    submittedBy: userName,
+                    recipient
+                });
             });
+
+            const mailResult = dedupeResult?.result;
+            const sent = mailResult === true || mailResult?.success === true;
+            if (sent) {
+                Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
+            } else if (dedupeResult?.reason === 'duplicate') {
+                // silencioso para evitar ruído em retries
+            } else if (mailResult?.reason === 'invalid_recipient') {
+                Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
+            } else {
+                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+            }
         }
     },
 
@@ -1803,7 +1810,7 @@ const Solicitacoes = {
                     return;
                 }
 
-                const result = DataManager.restoreSolicitationsBackup(payload);
+                const result = await DataManager.restoreSolicitationsBackup(payload);
                 if (result?.success) {
                     Utils.showToast(`${result.restoredCount} solicitações restauradas`, 'success');
                     this.currentPage = 1;
@@ -1846,7 +1853,12 @@ const Solicitacoes = {
         );
         
         if (confirmed) {
-            DataManager.deleteSolicitation(id);
+            const deleted = await DataManager.deleteSolicitation(id);
+            if (!deleted) {
+                Utils.showToast('Não foi possível excluir a solicitação no momento', 'error');
+                return;
+            }
+
             Utils.showToast('Solicitação excluída com sucesso', 'success');
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
@@ -1888,6 +1900,11 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
+
+
+
+
+
 
 
 
