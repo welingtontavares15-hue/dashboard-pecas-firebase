@@ -355,6 +355,28 @@ Equipe Diversey`;
     },
 
     /**
+     * Fixed recipients for supplier approval notifications.
+     */
+    getSupplierNotificationRecipients() {
+        return [
+            'operacional@ebstecnologica.com.br',
+            'operacional2@ebstecnologica.com.br'
+        ];
+    },
+
+    /**
+     * Public link used in supplier notification e-mails.
+     */
+    getSystemPortalLink() {
+        if (typeof window === 'undefined' || !window.location) {
+            return 'Portal indisponível';
+        }
+
+        const { origin, pathname } = window.location;
+        return `${origin}${pathname || '/'}`;
+    },
+
+    /**
      * Build compact item summary for e-mail notifications.
      */
     buildItemsSummary(items = []) {
@@ -514,57 +536,124 @@ Equipe Diversey`;
         }
     },
 
-    async sendSupplierApprovalEmail({ solicitation, approvedBy, recipient } = {}) {
+    async sendSupplierApprovalEmail({ solicitation, approvedBy } = {}) {
         if (!solicitation) {
-            return false;
-        }
-
-        const supplierEmail = String(recipient || '').trim().toLowerCase();
-        if (!supplierEmail || !this.isValidEmail(supplierEmail)) {
-            return false;
+            return {
+                success: false,
+                sentCount: 0,
+                failedCount: 0,
+                totalRecipients: 0,
+                results: []
+            };
         }
 
         const number = solicitation.numero || '(sem número)';
+        const recipients = Array.from(new Set(this.getSupplierNotificationRecipients()
+            .map((email) => String(email || '').trim().toLowerCase())))
+            .filter((email) => this.isValidEmail(email));
+
+        if (recipients.length === 0) {
+            return {
+                success: false,
+                sentCount: 0,
+                failedCount: 0,
+                totalRecipients: 0,
+                results: []
+            };
+        }
+
         const technician = solicitation.tecnicoNome || 'Técnico não identificado';
         const client = solicitation.cliente || 'Não informado';
         const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
-        const total = this.formatCurrency(Number(solicitation.total) || 0);
+        const totalValue = (solicitation.total !== null && solicitation.total !== undefined && !Number.isNaN(Number(solicitation.total)))
+            ? this.formatCurrency(Number(solicitation.total))
+            : 'Não informado';
+        const totalQuantity = (solicitation.itens || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
         const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
+        const statusLabel = this.getStatusInfo(solicitation.status || 'aprovada').label;
         const approver = approvedBy || 'Gestor';
-        const sentAt = this.formatDate(Date.now(), true);
+        const portalLink = this.getSystemPortalLink();
+        const subject = 'Nova solicitação de peças aprovada para separação e envio';
 
-        const subject = `Solicitação aprovada e enviada para atendimento - ${number}`;
         const message = [
-            'Uma solicitação foi aprovada e já pode ser atendida pelo fornecedor.',
+            'Uma nova solicitação de peças acaba de ser enviada para atendimento.',
+            'Acesse o sistema pelo link abaixo para identificar o material a ser separado e enviado.',
+            'Após o envio, por favor informe no sistema o código de rastreio para atualização do fluxo.',
             '',
-            `Número: ${number}`,
+            `Link do sistema: ${portalLink}`,
+            '',
+            `Número da solicitação: ${number}`,
             `Técnico: ${technician}`,
             `Cliente: ${client}`,
             `Data: ${requestDate}`,
-            `Total: ${total}`,
-            `Itens: ${itemsLabel}`,
-            `Aprovado por: ${approver}`,
-            `Notificado em: ${sentAt}`,
-            '',
-            'Acesse o portal do fornecedor para registrar o rastreio do envio.'
+            `Itens/peças solicitadas: ${itemsLabel}`,
+            `Quantidade total: ${this.formatNumber(totalQuantity)}`,
+            `Valor total: ${totalValue}`,
+            `Status atual: ${statusLabel}`,
+            `Aprovado por: ${approver}`
         ].join('\n');
 
-        return this.sendOperationalEmail({
-            recipient: supplierEmail,
-            subject,
-            message,
-            fields: {
-                numero_solicitacao: number,
-                tecnico: technician,
-                cliente: client,
-                data_solicitacao: requestDate,
-                total,
-                itens: itemsLabel,
-                aprovado_por: approver,
-                notificado_em: sentAt
-            },
-            eventLabel: 'supplier_approval_email'
-        });
+        const results = [];
+
+        for (const supplierEmail of recipients) {
+            const timestamp = new Date().toISOString();
+            let sent = false;
+            let errorMessage = null;
+
+            try {
+                sent = await this.sendOperationalEmail({
+                    recipient: supplierEmail,
+                    subject,
+                    message,
+                    fields: {
+                        evento: 'aprovação para fornecedor',
+                        numero_solicitacao: number,
+                        tecnico: technician,
+                        cliente: client,
+                        data_solicitacao: requestDate,
+                        itens_pecas_solicitadas: itemsLabel,
+                        quantidade_total: this.formatNumber(totalQuantity),
+                        valor_total: totalValue,
+                        status_atual: statusLabel,
+                        link_sistema: portalLink,
+                        aprovado_por: approver
+                    },
+                    eventLabel: 'supplier_approval_email'
+                });
+            } catch (error) {
+                sent = false;
+                errorMessage = error?.message || 'unknown_error';
+            }
+
+            const logPayload = {
+                eventType: 'aprovacao_para_fornecedor',
+                solicitationNumber: number,
+                recipient: supplierEmail,
+                success: !!sent,
+                sentAt: timestamp,
+                status: statusLabel,
+                error: errorMessage
+            };
+
+            if (typeof Logger !== 'undefined') {
+                if (sent && typeof Logger.info === 'function') {
+                    Logger.info(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', logPayload);
+                } else if (!sent && typeof Logger.warn === 'function') {
+                    Logger.warn(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', logPayload);
+                }
+            }
+
+            results.push(logPayload);
+        }
+
+        const sentCount = results.filter(item => item.success).length;
+        return {
+            success: sentCount === recipients.length,
+            sentCount,
+            failedCount: recipients.length - sentCount,
+            totalRecipients: recipients.length,
+            results
+        };
     },
 
     /**
@@ -1920,6 +2009,10 @@ const AnalyticsHelper = {
         };
     }
 };
+
+
+
+
 
 
 

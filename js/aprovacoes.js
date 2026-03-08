@@ -654,22 +654,7 @@ const Aprovacoes = {
                     }
                 }
 
-                const supplier = DataManager.getSupplierById(fornecedorId);
-                if (supplier?.email && typeof Utils.sendSupplierApprovalEmail === 'function') {
-                    Utils.sendSupplierApprovalEmail({
-                        solicitation: updatedSol,
-                        approvedBy: userName,
-                        recipient: supplier.email
-                    }).then((sent) => {
-                        if (sent) {
-                            Utils.showToast(`Fornecedor notificado por e-mail (${supplier.email})`, 'info');
-                        } else {
-                            Utils.showToast('Solicitação aprovada, mas o e-mail do fornecedor não foi enviado.', 'warning');
-                        }
-                    }).catch(() => {
-                        Utils.showToast('Solicitação aprovada, mas o e-mail do fornecedor não foi enviado.', 'warning');
-                    });
-                }
+                this.sendSupplierApprovalNotification(updatedSol, userName, { silent: false });
             }
             
             // Refresh views
@@ -679,6 +664,71 @@ const Aprovacoes = {
         } else {
             Utils.showToast('Erro ao aprovar solicitação', 'error');
         }
+    },
+
+    sendSupplierApprovalNotification(solicitation, approvedBy, options = {}) {
+        if (!solicitation || typeof Utils.sendSupplierApprovalEmail !== 'function') {
+            return Promise.resolve({
+                success: false,
+                sentCount: 0,
+                failedCount: 0,
+                totalRecipients: 0,
+                results: []
+            });
+        }
+
+        const silent = options?.silent === true;
+        return Utils.sendSupplierApprovalEmail({
+            solicitation,
+            approvedBy
+        }).then((summary) => {
+            const sentCount = Number(summary?.sentCount) || 0;
+            const failedCount = Number(summary?.failedCount) || 0;
+            const totalRecipients = Number(summary?.totalRecipients) || (sentCount + failedCount);
+
+            if (!silent) {
+                if (totalRecipients === 0) {
+                    Utils.showToast('Aprovação concluída. Nenhum destinatário de fornecedor válido para notificação.', 'warning');
+                } else {
+                    if (sentCount > 0) {
+                        Utils.showToast(`${sentCount} destinatário(s) fornecedor notificado(s) por e-mail.`, 'info');
+                    }
+                    if (failedCount > 0) {
+                        Utils.showToast(`${failedCount} envio(s) de e-mail para fornecedor falharam. Verifique o log.`, 'warning');
+                    }
+                }
+            }
+
+            return {
+                success: failedCount === 0,
+                sentCount,
+                failedCount,
+                totalRecipients,
+                results: Array.isArray(summary?.results) ? summary.results : []
+            };
+        }).catch((error) => {
+            if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                Logger.warn(Logger.CATEGORY.APPROVAL, 'supplier_approval_email_dispatch', {
+                    eventType: 'aprovacao_para_fornecedor',
+                    solicitationNumber: solicitation?.numero || null,
+                    success: false,
+                    sentAt: new Date().toISOString(),
+                    error: error?.message || 'unknown_error'
+                });
+            }
+
+            if (!silent) {
+                Utils.showToast('Aprovação concluída. Falha ao processar notificação dos fornecedores por e-mail.', 'warning');
+            }
+
+            return {
+                success: false,
+                sentCount: 0,
+                failedCount: 1,
+                totalRecipients: 1,
+                results: []
+            };
+        });
     },
 
     /**
@@ -816,7 +866,6 @@ const Aprovacoes = {
         
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
-        const supplier = DataManager.getSupplierById(fornecedorId);
         const emailPromises = [];
         
         let approved = 0;
@@ -845,13 +894,7 @@ const Aprovacoes = {
                         }
                     }
 
-                    if (supplier?.email && typeof Utils.sendSupplierApprovalEmail === 'function') {
-                        emailPromises.push(Utils.sendSupplierApprovalEmail({
-                            solicitation: sol,
-                            approvedBy: userName,
-                            recipient: supplier.email
-                        }));
-                    }
+                    emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
                 }
             }
         });
@@ -859,13 +902,29 @@ const Aprovacoes = {
         Utils.showToast(`${approved} solicitações aprovadas com sucesso`, 'success');
         if (emailPromises.length > 0) {
             Promise.allSettled(emailPromises).then((results) => {
-                const sentCount = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
-                const failedCount = results.length - sentCount;
-                if (sentCount > 0) {
-                    Utils.showToast(`${sentCount} e-mail(s) enviados ao fornecedor`, 'info');
+                const summary = results.reduce((acc, result) => {
+                    if (result.status === 'fulfilled' && result.value) {
+                        acc.sentCount += Number(result.value.sentCount) || 0;
+                        acc.failedCount += Number(result.value.failedCount) || 0;
+                        acc.totalRecipients += Number(result.value.totalRecipients) || 0;
+                        return acc;
+                    }
+
+                    acc.failedCount += 1;
+                    acc.totalRecipients += 1;
+                    return acc;
+                }, { sentCount: 0, failedCount: 0, totalRecipients: 0 });
+
+                if (summary.totalRecipients === 0) {
+                    Utils.showToast('Aprovações concluídas. Nenhum destinatário de fornecedor válido para notificação.', 'warning');
+                    return;
                 }
-                if (failedCount > 0) {
-                    Utils.showToast(`${failedCount} e-mail(s) do fornecedor falharam`, 'warning');
+
+                if (summary.sentCount > 0) {
+                    Utils.showToast(`${summary.sentCount} envio(s) de e-mail para fornecedores realizado(s).`, 'info');
+                }
+                if (summary.failedCount > 0) {
+                    Utils.showToast(`${summary.failedCount} envio(s) de e-mail para fornecedores falharam. Verifique o log.`, 'warning');
                 }
             });
         }
@@ -876,6 +935,11 @@ const Aprovacoes = {
         Auth.renderMenu(App.currentPage);
     }
 };
+
+
+
+
+
 
 
 
