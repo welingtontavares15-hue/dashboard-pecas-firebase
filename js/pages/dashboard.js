@@ -1,4 +1,4 @@
-import { ensureClassicScript } from '../lazy/load-script.js';
+﻿import { ensureClassicScript } from '../lazy/load-script.js?v=20260308f';
 
 let ready = false;
 
@@ -7,11 +7,11 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../solicitacoes.js', import.meta.url).href, 'Solicitacoes');
-    await ensureClassicScript(new URL('../aprovacoes.js', import.meta.url).href, 'Aprovacoes');
-    await ensureClassicScript(new URL('../dashboard.js?v=20260308e', import.meta.url).href, 'Dashboard');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20260308f', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../aprovacoes.js?v=20260308f', import.meta.url).href, 'Aprovacoes');
+    await ensureClassicScript(new URL('../dashboard.js?v=20260308f', import.meta.url).href, 'Dashboard');
 
-    const patch = await import(new URL('../components/dashboard-modern.js?v=20260308e', import.meta.url).href);
+    const patch = await import(new URL('../components/dashboard-modern.js?v=20260308f', import.meta.url).href);
     if (patch && typeof patch.applyDashboardModernization === 'function') {
         patch.applyDashboardModernization();
     }
@@ -24,6 +24,8 @@ export function render() {
         window.Dashboard.render();
     }
 }
+
+
 
 
 

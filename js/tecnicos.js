@@ -688,17 +688,7 @@ const Tecnicos = {
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
+if (typeof window !== 'undefined') {
+    window.Tecnicos = Tecnicos;
+}
 

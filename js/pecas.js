@@ -728,5 +728,7 @@ const Pecas = {
         }
     }
 };
-
+if (typeof window !== 'undefined') {
+    window.Pecas = Pecas;
+}
 

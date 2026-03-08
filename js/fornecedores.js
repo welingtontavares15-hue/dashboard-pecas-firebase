@@ -587,10 +587,7 @@ const Fornecedores = {
         this.refreshTable();
     }
 };
-
-
-
-
-
-
+if (typeof window !== 'undefined') {
+    window.Fornecedores = Fornecedores;
+}
 

@@ -1,4 +1,4 @@
-﻿import { ensureClassicScript } from '../lazy/load-script.js';
+﻿import { ensureClassicScript } from '../lazy/load-script.js?v=20260308f';
 
 let ready = false;
 
@@ -7,7 +7,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../pecas.js', import.meta.url).href, 'Pecas');
+    await ensureClassicScript(new URL('../pecas.js?v=20260308f', import.meta.url).href, 'Pecas');
     ready = true;
 }
 
@@ -16,3 +16,4 @@ export function render() {
         window.Pecas.render();
     }
 }
+

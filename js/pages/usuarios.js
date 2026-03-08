@@ -1,4 +1,4 @@
-﻿import { ensureClassicScript } from '../lazy/load-script.js';
+﻿import { ensureClassicScript } from '../lazy/load-script.js?v=20260308f';
 
 let ready = false;
 
@@ -7,9 +7,9 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../tecnicos.js', import.meta.url).href, 'Tecnicos');
-    await ensureClassicScript(new URL('../fornecedores.js', import.meta.url).href, 'Fornecedores');
-    await ensureClassicScript(new URL('../usuarios.js', import.meta.url).href, 'Usuarios');
+    await ensureClassicScript(new URL('../tecnicos.js?v=20260308f', import.meta.url).href, 'Tecnicos');
+    await ensureClassicScript(new URL('../fornecedores.js?v=20260308f', import.meta.url).href, 'Fornecedores');
+    await ensureClassicScript(new URL('../usuarios.js?v=20260308f', import.meta.url).href, 'Usuarios');
 
     ready = true;
 }
@@ -23,3 +23,4 @@ export function render() {
         window.Tecnicos.render();
     }
 }
+

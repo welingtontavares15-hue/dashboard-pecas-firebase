@@ -9,22 +9,22 @@ const PAGE_RENDER_TIMEOUT_MS = 15000;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260308e',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260308e',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260308e',
-        pecas: './js/pages/pecas.js?v=20260308e',
-        relatorios: './js/pages/relatorios.js?v=20260308e',
-        fornecedor: './js/pages/fornecedor.js?v=20260308e',
-        usuarios: './js/pages/usuarios.js?v=20260308e'
+        dashboard: './js/pages/dashboard.js?v=20260308f',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260308f',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260308f',
+        pecas: './js/pages/pecas.js?v=20260308f',
+        relatorios: './js/pages/relatorios.js?v=20260308f',
+        fornecedor: './js/pages/fornecedor.js?v=20260308f',
+        usuarios: './js/pages/usuarios.js?v=20260308f'
     },
     fallbackScripts: {
-        dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
-        solicitacoes: ['js/pecas.js', 'js/solicitacoes.js'],
-        aprovacoes: ['js/solicitacoes.js', 'js/aprovacoes.js'],
-        pecas: ['js/pecas.js'],
-        relatorios: ['js/relatorios.js'],
-        fornecedor: ['js/fornecedor.js'],
-        usuarios: ['js/tecnicos.js', 'js/fornecedores.js', 'js/usuarios.js']
+        dashboard: ['js/pecas.js?v=20260308f', 'js/solicitacoes.js?v=20260308f', 'js/aprovacoes.js?v=20260308f', 'js/dashboard.js?v=20260308f'],
+        solicitacoes: ['js/pecas.js?v=20260308f', 'js/solicitacoes.js?v=20260308f'],
+        aprovacoes: ['js/solicitacoes.js?v=20260308f', 'js/aprovacoes.js?v=20260308f'],
+        pecas: ['js/pecas.js?v=20260308f'],
+        relatorios: ['js/relatorios.js?v=20260308f'],
+        fornecedor: ['js/fornecedor.js?v=20260308f'],
+        usuarios: ['js/tecnicos.js?v=20260308f', 'js/fornecedores.js?v=20260308f', 'js/usuarios.js?v=20260308f']
     },
     _lazyLoaded: {},
 
@@ -171,10 +171,11 @@ const App = {
 
         window.addEventListener('sync:operation', (event) => {
             this.updateSyncIndicator(event?.detail || {});
-            if (this.currentPage === 'dashboard' && typeof Dashboard !== 'undefined' && typeof Dashboard.render === 'function') {
+            const dashboardModule = this.getGlobalModule('Dashboard');
+            if (this.currentPage === 'dashboard' && dashboardModule && typeof dashboardModule.render === 'function') {
                 const state = String(event?.detail?.state || '').toLowerCase();
                 if (['saving', 'synced', 'failed', 'pending', 'error'].includes(state)) {
-                    Dashboard.render();
+                    dashboardModule.render();
                 }
             }
         });
@@ -384,13 +385,13 @@ const App = {
 
     isLazyKeyReady(key) {
         const checks = {
-            dashboard: () => typeof Dashboard !== 'undefined',
-            solicitacoes: () => typeof Solicitacoes !== 'undefined',
-            aprovacoes: () => typeof Aprovacoes !== 'undefined',
-            pecas: () => typeof Pecas !== 'undefined',
-            relatorios: () => typeof Relatorios !== 'undefined',
-            fornecedor: () => typeof FornecedorPortal !== 'undefined',
-            usuarios: () => typeof Tecnicos !== 'undefined' && typeof Fornecedores !== 'undefined' && typeof Usuarios !== 'undefined'
+            dashboard: () => !!this.getGlobalModule('Dashboard'),
+            solicitacoes: () => !!this.getGlobalModule('Solicitacoes'),
+            aprovacoes: () => !!this.getGlobalModule('Aprovacoes'),
+            pecas: () => !!this.getGlobalModule('Pecas'),
+            relatorios: () => !!this.getGlobalModule('Relatorios'),
+            fornecedor: () => !!this.getGlobalModule('FornecedorPortal'),
+            usuarios: () => !!this.getGlobalModule('Tecnicos') && !!this.getGlobalModule('Fornecedores') && !!this.getGlobalModule('Usuarios')
         };
         return checks[key] ? checks[key]() : true;
     },
@@ -507,50 +508,86 @@ const App = {
         }
     },
 
+    getGlobalModule(moduleName) {
+        if (!moduleName || typeof window === 'undefined') {
+            return null;
+        }
+        return window[moduleName] || null;
+    },
+
+    requireGlobalModule(moduleName, pageId) {
+        const moduleRef = this.getGlobalModule(moduleName);
+        if (!moduleRef) {
+            const moduleError = new Error(`module_missing:${moduleName}`);
+            moduleError.code = `module_missing:${moduleName}`;
+            moduleError.pageId = pageId;
+            throw moduleError;
+        }
+        return moduleRef;
+    },
+
     /**
      * Execute page-specific render function.
      */
     executePageRender(pageId) {
         switch (pageId) {
-        case 'dashboard':
-            Dashboard.render();
+        case 'dashboard': {
+            const dashboardModule = this.requireGlobalModule('Dashboard', pageId);
+            dashboardModule.render();
             break;
+        }
 
         case 'solicitacoes':
-        case 'minhas-solicitacoes':
-            Solicitacoes.render();
+        case 'minhas-solicitacoes': {
+            const solicitacoesModule = this.requireGlobalModule('Solicitacoes', pageId);
+            solicitacoesModule.render();
             break;
+        }
 
-        case 'nova-solicitacao':
-            Solicitacoes.openForm();
-            Solicitacoes.render();
+        case 'nova-solicitacao': {
+            const solicitacoesModule = this.requireGlobalModule('Solicitacoes', pageId);
+            solicitacoesModule.openForm();
+            solicitacoesModule.render();
             break;
+        }
 
-        case 'aprovacoes':
-            Aprovacoes.render();
+        case 'aprovacoes': {
+            const aprovacoesModule = this.requireGlobalModule('Aprovacoes', pageId);
+            aprovacoesModule.render();
             break;
+        }
 
-        case 'tecnicos':
-            Tecnicos.render();
+        case 'tecnicos': {
+            const tecnicosModule = this.requireGlobalModule('Tecnicos', pageId);
+            tecnicosModule.render();
             break;
+        }
 
-        case 'fornecedores':
-            Fornecedores.render();
+        case 'fornecedores': {
+            const fornecedoresModule = this.requireGlobalModule('Fornecedores', pageId);
+            fornecedoresModule.render();
             break;
+        }
 
-        case 'fornecedor':
-            FornecedorPortal.render();
+        case 'fornecedor': {
+            const fornecedorModule = this.requireGlobalModule('FornecedorPortal', pageId);
+            fornecedorModule.render();
             break;
+        }
 
         case 'pecas':
-        case 'catalogo':
-            Pecas.render();
+        case 'catalogo': {
+            const pecasModule = this.requireGlobalModule('Pecas', pageId);
+            pecasModule.render();
             break;
+        }
 
-        case 'relatorios':
-            Relatorios.render();
-            setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+        case 'relatorios': {
+            const relatoriosModule = this.requireGlobalModule('Relatorios', pageId);
+            relatoriosModule.render();
+            setTimeout(() => relatoriosModule.initCharts(), CHART_INIT_DELAY_MS);
             break;
+        }
 
         case 'configuracoes':
             this.renderConfiguracoes();
@@ -749,10 +786,16 @@ const App = {
         
         // Refresh charts if on dashboard or reports
         if (this.currentPage === 'dashboard') {
-            Dashboard.render();
+            const dashboardModule = this.getGlobalModule('Dashboard');
+            if (dashboardModule && typeof dashboardModule.render === 'function') {
+                dashboardModule.render();
+            }
         } else if (this.currentPage === 'relatorios') {
-            Relatorios.render();
-            setTimeout(() => Relatorios.initCharts(), 100);
+            const relatoriosModule = this.getGlobalModule('Relatorios');
+            if (relatoriosModule && typeof relatoriosModule.render === 'function') {
+                relatoriosModule.render();
+                setTimeout(() => relatoriosModule.initCharts(), 100);
+            }
         }
     },
 
@@ -1531,46 +1574,70 @@ const App = {
 
         switch (this.currentPage) {
         case 'dashboard':
-            if (typeof Dashboard !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Dashboard.render();
+            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                const dashboardModule = this.getGlobalModule('Dashboard');
+                if (dashboardModule && typeof dashboardModule.render === 'function') {
+                    dashboardModule.render();
+                }
             }
             break;
         case 'solicitacoes':
         case 'minhas-solicitacoes':
-            if (typeof Solicitacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Solicitacoes.render();
+            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                const solicitacoesModule = this.getGlobalModule('Solicitacoes');
+                if (solicitacoesModule && typeof solicitacoesModule.render === 'function') {
+                    solicitacoesModule.render();
+                }
             }
             break;
         case 'aprovacoes':
-            if (typeof Aprovacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Aprovacoes.render();
+            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                const aprovacoesModule = this.getGlobalModule('Aprovacoes');
+                if (aprovacoesModule && typeof aprovacoesModule.render === 'function') {
+                    aprovacoesModule.render();
+                }
             }
             break;
         case 'pecas':
         case 'catalogo':
-            if (typeof Pecas !== 'undefined' && shouldUpdate(DataManager?.KEYS?.PARTS)) {
-                Pecas.render();
+            if (shouldUpdate(DataManager?.KEYS?.PARTS)) {
+                const pecasModule = this.getGlobalModule('Pecas');
+                if (pecasModule && typeof pecasModule.render === 'function') {
+                    pecasModule.render();
+                }
             }
             break;
         case 'relatorios':
-            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Relatorios.render();
-                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                const relatoriosModule = this.getGlobalModule('Relatorios');
+                if (relatoriosModule && typeof relatoriosModule.render === 'function') {
+                    relatoriosModule.render();
+                    setTimeout(() => relatoriosModule.initCharts(), CHART_INIT_DELAY_MS);
+                }
             }
             break;
         case 'tecnicos':
-            if (typeof Tecnicos !== 'undefined' && shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
-                Tecnicos.render();
+            if (shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
+                const tecnicosModule = this.getGlobalModule('Tecnicos');
+                if (tecnicosModule && typeof tecnicosModule.render === 'function') {
+                    tecnicosModule.render();
+                }
             }
             break;
         case 'fornecedores':
-            if (typeof Fornecedores !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                Fornecedores.render();
+            if (shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                const fornecedoresModule = this.getGlobalModule('Fornecedores');
+                if (fornecedoresModule && typeof fornecedoresModule.render === 'function') {
+                    fornecedoresModule.render();
+                }
             }
             break;
         case 'fornecedor':
-            if (typeof FornecedorPortal !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                FornecedorPortal.render();
+            if (shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                const fornecedorModule = this.getGlobalModule('FornecedorPortal');
+                if (fornecedorModule && typeof fornecedorModule.render === 'function') {
+                    fornecedorModule.render();
+                }
             }
             break;
         case 'configuracoes':
