@@ -1,57 +1,118 @@
 ﻿const cache = new Map();
+const SCRIPT_LOAD_TIMEOUT_MS = 15000;
 
-export function ensureClassicScript(src, checkGlobalName = '') {
-    if (checkGlobalName && typeof window[checkGlobalName] !== 'undefined') {
-        return Promise.resolve(window[checkGlobalName]);
+function normalizeScriptSrc(src) {
+    try {
+        return new URL(src, window.location.href).href;
+    } catch (_error) {
+        return String(src || '');
+    }
+}
+
+function resolveGlobalSymbol(globalName) {
+    if (!globalName || typeof window === 'undefined') {
+        return null;
     }
 
-    if (cache.has(src)) {
-        return cache.get(src);
+    if (typeof window[globalName] !== 'undefined') {
+        return window[globalName];
+    }
+
+    try {
+        const resolved = Function(`return (typeof ${globalName} !== 'undefined') ? ${globalName} : null;`)();
+        if (typeof resolved !== 'undefined' && resolved !== null) {
+            window[globalName] = resolved;
+            return resolved;
+        }
+    } catch (_error) {
+        // Ignore unsafe evaluation issues and fallback to null.
+    }
+
+    return null;
+}
+
+export function ensureClassicScript(src, checkGlobalName = '') {
+    const normalizedSrc = normalizeScriptSrc(src);
+    const resolvedGlobal = checkGlobalName ? resolveGlobalSymbol(checkGlobalName) : null;
+    if (checkGlobalName && resolvedGlobal) {
+        return Promise.resolve(resolvedGlobal);
+    }
+
+    if (cache.has(normalizedSrc)) {
+        return cache.get(normalizedSrc);
     }
 
     const promise = new Promise((resolve, reject) => {
+        let timeoutHandle = null;
+
+        const clearLoadTimeout = () => {
+            if (timeoutHandle) {
+                clearTimeout(timeoutHandle);
+                timeoutHandle = null;
+            }
+        };
+
         const resolveOrRejectByGlobal = () => {
             if (!checkGlobalName) {
                 resolve(true);
                 return;
             }
 
-            if (typeof window[checkGlobalName] !== 'undefined') {
-                resolve(window[checkGlobalName]);
+            const moduleRef = resolveGlobalSymbol(checkGlobalName);
+            if (moduleRef) {
+                resolve(moduleRef);
                 return;
             }
 
-            reject(new Error(`Global ${checkGlobalName} indisponível após carregar ${src}`));
+            reject(new Error(`Global ${checkGlobalName} indisponível após carregar ${normalizedSrc}`));
         };
 
-        const existing = document.querySelector(`script[data-lazy-src="${src}"]`);
+        const existing = document.querySelector(`script[data-lazy-src="${normalizedSrc}"]`);
         if (existing) {
             if (existing.dataset.loaded === 'true') {
                 resolveOrRejectByGlobal();
                 return;
             }
-            existing.addEventListener('load', () => resolveOrRejectByGlobal(), { once: true });
-            existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
+            existing.addEventListener('load', () => {
+                clearLoadTimeout();
+                resolveOrRejectByGlobal();
+            }, { once: true });
+            existing.addEventListener('error', () => {
+                clearLoadTimeout();
+                reject(new Error(`Falha ao carregar ${normalizedSrc}`));
+            }, { once: true });
+            timeoutHandle = setTimeout(() => {
+                reject(new Error(`Timeout ao carregar ${normalizedSrc}`));
+            }, SCRIPT_LOAD_TIMEOUT_MS);
             return;
         }
 
         const script = document.createElement('script');
-        script.src = src;
+        script.src = normalizedSrc;
         script.async = true;
-        script.dataset.lazySrc = src;
+        script.dataset.lazySrc = normalizedSrc;
         script.onload = () => {
+            clearLoadTimeout();
             script.dataset.loaded = 'true';
             resolveOrRejectByGlobal();
         };
-        script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+        script.onerror = () => {
+            clearLoadTimeout();
+            reject(new Error(`Falha ao carregar ${normalizedSrc}`));
+        };
+
+        timeoutHandle = setTimeout(() => {
+            reject(new Error(`Timeout ao carregar ${normalizedSrc}`));
+        }, SCRIPT_LOAD_TIMEOUT_MS);
+
         document.head.appendChild(script);
     });
 
     const wrappedPromise = promise.catch((error) => {
-        cache.delete(src);
+        cache.delete(normalizedSrc);
         throw error;
     });
 
-    cache.set(src, wrappedPromise);
+    cache.set(normalizedSrc, wrappedPromise);
     return wrappedPromise;
 }

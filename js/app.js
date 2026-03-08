@@ -9,22 +9,22 @@ const PAGE_RENDER_TIMEOUT_MS = 15000;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260308g',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260308g',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260308g',
-        pecas: './js/pages/pecas.js?v=20260308g',
-        relatorios: './js/pages/relatorios.js?v=20260308g',
-        fornecedor: './js/pages/fornecedor.js?v=20260308g',
-        usuarios: './js/pages/usuarios.js?v=20260308g'
+        dashboard: './js/pages/dashboard.js?v=20260308h',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260308h',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260308h',
+        pecas: './js/pages/pecas.js?v=20260308h',
+        relatorios: './js/pages/relatorios.js?v=20260308h',
+        fornecedor: './js/pages/fornecedor.js?v=20260308h',
+        usuarios: './js/pages/usuarios.js?v=20260308h'
     },
     fallbackScripts: {
-        dashboard: ['js/pecas.js?v=20260308g', 'js/solicitacoes.js?v=20260308g', 'js/aprovacoes.js?v=20260308g', 'js/dashboard.js?v=20260308g'],
-        solicitacoes: ['js/pecas.js?v=20260308g', 'js/solicitacoes.js?v=20260308g'],
-        aprovacoes: ['js/solicitacoes.js?v=20260308g', 'js/aprovacoes.js?v=20260308g'],
-        pecas: ['js/pecas.js?v=20260308g'],
-        relatorios: ['js/relatorios.js?v=20260308g'],
-        fornecedor: ['js/fornecedor.js?v=20260308g'],
-        usuarios: ['js/tecnicos.js?v=20260308g', 'js/fornecedores.js?v=20260308g', 'js/usuarios.js?v=20260308g']
+        dashboard: ['js/pecas.js?v=20260308h', 'js/solicitacoes.js?v=20260308h', 'js/aprovacoes.js?v=20260308h', 'js/dashboard.js?v=20260308h'],
+        solicitacoes: ['js/pecas.js?v=20260308h', 'js/solicitacoes.js?v=20260308h'],
+        aprovacoes: ['js/solicitacoes.js?v=20260308h', 'js/aprovacoes.js?v=20260308h'],
+        pecas: ['js/pecas.js?v=20260308h'],
+        relatorios: ['js/relatorios.js?v=20260308h'],
+        fornecedor: ['js/fornecedor.js?v=20260308h'],
+        usuarios: ['js/tecnicos.js?v=20260308h', 'js/fornecedores.js?v=20260308h', 'js/usuarios.js?v=20260308h']
     },
     _lazyLoaded: {},
     _navigationBound: false,
@@ -411,30 +411,57 @@ const App = {
 
     async loadFallbackScripts(key) {
         const scripts = this.fallbackScripts[key] || [];
-        for (const src of scripts) {
-            await new Promise((resolve, reject) => {
-                const existing = document.querySelector(`script[data-fallback-src="${src}"]`);
-                if (existing) {
-                    if (existing.dataset.loaded === 'true') {
-                        resolve();
-                        return;
-                    }
-                    existing.addEventListener('load', () => resolve(), { once: true });
-                    existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
-                    return;
-                }
+        const normalizeSrc = (value) => {
+            try {
+                return new URL(String(value || ''), window.location.href).href;
+            } catch (_error) {
+                return String(value || '');
+            }
+        };
+        const stripQuery = (value) => String(value || '').replace(/[?#].*$/, '');
 
-                const script = document.createElement('script');
-                script.src = src;
-                script.async = true;
-                script.dataset.fallbackSrc = src;
-                script.onload = () => {
-                    script.dataset.loaded = 'true';
-                    resolve();
-                };
-                script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
-                document.head.appendChild(script);
-            });
+        for (const originalSrc of scripts) {
+            const sourceCandidates = [originalSrc, stripQuery(originalSrc)]
+                .filter((value, index, arr) => value && arr.indexOf(value) === index);
+            let lastError = null;
+            let loaded = false;
+
+            for (const srcCandidate of sourceCandidates) {
+                const normalizedSrc = normalizeSrc(srcCandidate);
+                try {
+                    await new Promise((resolve, reject) => {
+                        const existing = document.querySelector(`script[data-fallback-src="${normalizedSrc}"]`);
+                        if (existing) {
+                            if (existing.dataset.loaded === 'true') {
+                                resolve();
+                                return;
+                            }
+                            existing.addEventListener('load', () => resolve(), { once: true });
+                            existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${normalizedSrc}`)), { once: true });
+                            return;
+                        }
+
+                        const script = document.createElement('script');
+                        script.src = normalizedSrc;
+                        script.async = true;
+                        script.dataset.fallbackSrc = normalizedSrc;
+                        script.onload = () => {
+                            script.dataset.loaded = 'true';
+                            resolve();
+                        };
+                        script.onerror = () => reject(new Error(`Falha ao carregar ${normalizedSrc}`));
+                        document.head.appendChild(script);
+                    });
+                    loaded = true;
+                    break;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            if (!loaded && lastError) {
+                throw lastError;
+            }
         }
     },
 
@@ -525,7 +552,22 @@ const App = {
         if (!moduleName || typeof window === 'undefined') {
             return null;
         }
-        return window[moduleName] || null;
+
+        if (typeof window[moduleName] !== 'undefined' && window[moduleName] !== null) {
+            return window[moduleName];
+        }
+
+        try {
+            const resolved = Function(`return (typeof ${moduleName} !== 'undefined') ? ${moduleName} : null;`)();
+            if (typeof resolved !== 'undefined' && resolved !== null) {
+                window[moduleName] = resolved;
+                return resolved;
+            }
+        } catch (_error) {
+            // Ignore fallback evaluation errors and keep null response.
+        }
+
+        return null;
     },
 
     requireGlobalModule(moduleName, pageId) {
@@ -2070,6 +2112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 
