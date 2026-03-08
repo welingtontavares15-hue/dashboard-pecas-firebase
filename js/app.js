@@ -9,24 +9,26 @@ const PAGE_RENDER_TIMEOUT_MS = 15000;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260308f',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260308f',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260308f',
-        pecas: './js/pages/pecas.js?v=20260308f',
-        relatorios: './js/pages/relatorios.js?v=20260308f',
-        fornecedor: './js/pages/fornecedor.js?v=20260308f',
-        usuarios: './js/pages/usuarios.js?v=20260308f'
+        dashboard: './js/pages/dashboard.js?v=20260308g',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260308g',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260308g',
+        pecas: './js/pages/pecas.js?v=20260308g',
+        relatorios: './js/pages/relatorios.js?v=20260308g',
+        fornecedor: './js/pages/fornecedor.js?v=20260308g',
+        usuarios: './js/pages/usuarios.js?v=20260308g'
     },
     fallbackScripts: {
-        dashboard: ['js/pecas.js?v=20260308f', 'js/solicitacoes.js?v=20260308f', 'js/aprovacoes.js?v=20260308f', 'js/dashboard.js?v=20260308f'],
-        solicitacoes: ['js/pecas.js?v=20260308f', 'js/solicitacoes.js?v=20260308f'],
-        aprovacoes: ['js/solicitacoes.js?v=20260308f', 'js/aprovacoes.js?v=20260308f'],
-        pecas: ['js/pecas.js?v=20260308f'],
-        relatorios: ['js/relatorios.js?v=20260308f'],
-        fornecedor: ['js/fornecedor.js?v=20260308f'],
-        usuarios: ['js/tecnicos.js?v=20260308f', 'js/fornecedores.js?v=20260308f', 'js/usuarios.js?v=20260308f']
+        dashboard: ['js/pecas.js?v=20260308g', 'js/solicitacoes.js?v=20260308g', 'js/aprovacoes.js?v=20260308g', 'js/dashboard.js?v=20260308g'],
+        solicitacoes: ['js/pecas.js?v=20260308g', 'js/solicitacoes.js?v=20260308g'],
+        aprovacoes: ['js/solicitacoes.js?v=20260308g', 'js/aprovacoes.js?v=20260308g'],
+        pecas: ['js/pecas.js?v=20260308g'],
+        relatorios: ['js/relatorios.js?v=20260308g'],
+        fornecedor: ['js/fornecedor.js?v=20260308g'],
+        usuarios: ['js/tecnicos.js?v=20260308g', 'js/fornecedores.js?v=20260308g', 'js/usuarios.js?v=20260308g']
     },
     _lazyLoaded: {},
+    _navigationBound: false,
+    _lastRenderToken: 0,
 
     /**
      * Get default landing page based on role
@@ -320,7 +322,17 @@ const App = {
      * Set up navigation handlers
      */
     setupNavigation() {
-        document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+        if (this._navigationBound) {
+            return;
+        }
+
+        const sidebarNav = document.getElementById('sidebar-nav');
+        if (!sidebarNav) {
+            return;
+        }
+
+        this._navigationBound = true;
+        sidebarNav.addEventListener('click', (e) => {
             const navItem = e.target.closest('.nav-item');
             if (navItem) {
                 const pageId = navItem.dataset.page;
@@ -356,7 +368,8 @@ const App = {
         this.updateBreadcrumb(pageId);
 
         // Render page content
-        await this.renderPage(pageId);
+        const renderToken = ++this._lastRenderToken;
+        await this.renderPage(pageId, renderToken);
     },
     resolveLazyModuleKey(pageId) {
         if (pageId === 'dashboard') {
@@ -658,15 +671,24 @@ const App = {
     /**
      * Render page content
      */
-    async renderPage(pageId) {
+    async renderPage(pageId, renderToken = this._lastRenderToken) {
         Utils.showLoading(`render:${pageId}`);
 
         try {
             await this.runWithTimeout((async () => {
+                if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
+                    return;
+                }
                 await this.ensurePageModule(pageId);
+                if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
+                    return;
+                }
                 this.executePageRender(pageId);
             })(), PAGE_RENDER_TIMEOUT_MS, `page_render_timeout:${pageId}`);
         } catch (error) {
+            if (renderToken !== this._lastRenderToken || pageId !== this.currentPage) {
+                return;
+            }
             console.error('Erro ao carregar módulo da página', pageId, error);
             const syncStatus = (typeof DataManager !== 'undefined' && typeof DataManager.getSyncStatus === 'function')
                 ? DataManager.getSyncStatus()
@@ -696,7 +718,7 @@ const App = {
             Utils.showToast(reasonMessage, 'error');
             this.renderPageFallback(pageId, reasonMessage, reasonCode);
         } finally {
-            Utils.hideLoading(true);
+            Utils.hideLoading();
         }
     },
 
@@ -2048,6 +2070,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
 
 
 

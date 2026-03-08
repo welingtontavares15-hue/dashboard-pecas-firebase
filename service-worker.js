@@ -1,6 +1,6 @@
 ﻿// Cache version incremented to force refresh of cached assets after code changes
 // Update this version for every release to ensure users get the latest code
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v12';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -91,7 +91,12 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const requestUrl = new URL(event.request.url);
-  const matchedCache = ASSET_CACHE_MAP[requestUrl.href];
+  const normalizedAssetUrl = new URL(requestUrl.href);
+  normalizedAssetUrl.search = '';
+  normalizedAssetUrl.hash = '';
+
+  const matchedCache = ASSET_CACHE_MAP[requestUrl.href] || ASSET_CACHE_MAP[normalizedAssetUrl.href];
+  const normalizedAssetHref = ASSET_CACHE_MAP[normalizedAssetUrl.href] ? normalizedAssetUrl.href : null;
 
   if (!matchedCache) {
     if (event.request.mode === 'navigate') {
@@ -106,9 +111,28 @@ self.addEventListener('fetch', (event) => {
     caches.open(matchedCache).then((cache) =>
       cache.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
+        if (normalizedAssetHref) {
+          return cache.match(normalizedAssetHref).then((normalizedCachedResponse) => {
+            if (normalizedCachedResponse) {
+              return normalizedCachedResponse;
+            }
+            return fetch(event.request)
+              .then((networkResponse) => {
+                cache.put(event.request, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
+                if (normalizedAssetHref) {
+                  cache.put(normalizedAssetHref, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
+                }
+                return networkResponse;
+              })
+              .catch(() => caches.match(OFFLINE_URL));
+          });
+        }
         return fetch(event.request)
           .then((networkResponse) => {
             cache.put(event.request, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
+            if (normalizedAssetHref) {
+              cache.put(normalizedAssetHref, networkResponse.clone()).catch((err) => console.warn('Cache put failed', err));
+            }
             return networkResponse;
           })
           .catch(() => caches.match(OFFLINE_URL));

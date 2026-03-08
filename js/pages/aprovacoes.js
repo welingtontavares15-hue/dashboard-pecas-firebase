@@ -1,4 +1,4 @@
-﻿import { ensureClassicScript } from '../lazy/load-script.js?v=20260308f';
+﻿import { ensureClassicScript } from '../lazy/load-script.js?v=20260308g';
 
 let ready = false;
 
@@ -7,8 +7,8 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../solicitacoes.js?v=20260308f', import.meta.url).href, 'Solicitacoes');
-    await ensureClassicScript(new URL('../aprovacoes.js?v=20260308f', import.meta.url).href, 'Aprovacoes');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20260308g', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../aprovacoes.js?v=20260308g', import.meta.url).href, 'Aprovacoes');
 
     ready = true;
 }
@@ -18,4 +18,5 @@ export function render() {
         window.Aprovacoes.render();
     }
 }
+
 
