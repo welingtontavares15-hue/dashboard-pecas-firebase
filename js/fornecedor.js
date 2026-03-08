@@ -557,6 +557,10 @@ const FornecedorPortal = {
         }
 
         Utils.showToast('Rastreio salvo. Pedido atualizado para Em trânsito.', 'success');
+
+        const updatedSolicitation = DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
+        this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
+
         this.refreshTable();
 
         if (this.isDetailModalOpen(id)) {
@@ -568,6 +572,41 @@ const FornecedorPortal = {
         }
     },
 
+    notifyTechnicianTrackingEmail(solicitation, trackingCode, updatedBy) {
+        if (!solicitation || typeof Utils.sendTrackingNotificationToTechnician !== 'function') {
+            return;
+        }
+
+        Utils.sendTrackingNotificationToTechnician({
+            solicitation,
+            trackingCode,
+            updatedBy
+        }).then((result) => {
+            if (result?.success) {
+                Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
+                return;
+            }
+
+            if (result?.reason === 'missing_email') {
+                Utils.showToast('Rastreio salvo, mas o técnico solicitante está sem e-mail cadastrado na base de Técnicos.', 'warning');
+                return;
+            }
+
+            if (result?.reason === 'invalid_email') {
+                Utils.showToast('Rastreio salvo, mas o e-mail cadastrado do técnico é inválido. Atualize o cadastro de Técnicos.', 'warning');
+                return;
+            }
+
+            if (result?.reason === 'invalid_technician_link' || result?.reason === 'technician_not_found') {
+                Utils.showToast('Rastreio salvo, mas não foi possível validar o vínculo da solicitação com o técnico para envio de e-mail.', 'warning');
+                return;
+            }
+
+            Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
+        }).catch(() => {
+            Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
+        });
+    },
     getTimelineStatusLabel(status) {
         const map = {
             rascunho: 'Técnico abriu a solicitação',
@@ -798,5 +837,7 @@ const FornecedorPortal = {
 if (typeof window !== 'undefined') {
     window.FornecedorPortal = FornecedorPortal;
 }
+
+
 
 

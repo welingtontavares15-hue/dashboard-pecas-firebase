@@ -656,6 +656,222 @@ Equipe Diversey`;
         };
     },
 
+    async sendTrackingNotificationToTechnician({ solicitation, trackingCode, updatedBy } = {}) {
+        const eventType = 'rastreio_informado_ao_tecnico';
+        const sentAt = new Date().toISOString();
+
+        const logResult = ({ success, solicitationNumber, recipient, reason, error, tecnicoId }) => {
+            const payload = {
+                eventType,
+                solicitationNumber: solicitationNumber || null,
+                recipient: recipient || null,
+                success: !!success,
+                sentAt,
+                reason: reason || null,
+                error: error || null,
+                tecnicoId: tecnicoId || null
+            };
+
+            if (typeof Logger !== 'undefined') {
+                if (success && typeof Logger.info === 'function') {
+                    Logger.info(Logger.CATEGORY.REQUEST, 'tracking_notified_technician_email_dispatch', payload);
+                } else if (!success && typeof Logger.warn === 'function') {
+                    Logger.warn(Logger.CATEGORY.REQUEST, 'tracking_notified_technician_email_dispatch', payload);
+                }
+            }
+
+            return payload;
+        };
+
+        if (!solicitation) {
+            const payload = logResult({ success: false, reason: 'missing_solicitation' });
+            return {
+                success: false,
+                reason: 'missing_solicitation',
+                recipient: null,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const solicitationNumber = solicitation.numero || '(sem número)';
+        const technicianId = solicitation.tecnicoId || null;
+
+        if (!technicianId) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                reason: 'invalid_technician_link'
+            });
+            return {
+                success: false,
+                reason: 'invalid_technician_link',
+                recipient: null,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const technician = (typeof DataManager !== 'undefined' && typeof DataManager.getTechnicianById === 'function')
+            ? DataManager.getTechnicianById(technicianId)
+            : null;
+
+        if (!technician) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                reason: 'technician_not_found',
+                tecnicoId: technicianId
+            });
+            return {
+                success: false,
+                reason: 'technician_not_found',
+                recipient: null,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const recipientEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(technician.email || '')
+            : String(technician.email || '').trim().toLowerCase();
+
+        if (!recipientEmail) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                reason: 'missing_email',
+                tecnicoId: technicianId
+            });
+            return {
+                success: false,
+                reason: 'missing_email',
+                recipient: null,
+                sentAt,
+                log: payload
+            };
+        }
+
+        if (!this.isValidEmail(recipientEmail)) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                recipient: recipientEmail,
+                reason: 'invalid_email',
+                tecnicoId: technicianId
+            });
+            return {
+                success: false,
+                reason: 'invalid_email',
+                recipient: recipientEmail,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const technicianName = technician.nome || solicitation.tecnicoNome || 'Técnico não identificado';
+        const client = solicitation.cliente || 'Não informado';
+        const requestDate = this.formatDate(solicitation.data || solicitation.createdAt || Date.now());
+        const statusLabel = 'Em trânsito';
+        const itemsLabel = this.buildItemsSummary(solicitation.itens || []);
+        const totalQuantity = (solicitation.itens || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
+        const totalValue = (solicitation.total !== null && solicitation.total !== undefined && !Number.isNaN(Number(solicitation.total)))
+            ? this.formatCurrency(Number(solicitation.total))
+            : 'Não informado';
+        const trackingValue = String(trackingCode || solicitation.trackingCode || '').trim();
+        const portalLink = this.getSystemPortalLink();
+        const sender = updatedBy || 'Fornecedor';
+
+        if (!trackingValue) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                recipient: recipientEmail,
+                reason: 'missing_tracking_code',
+                tecnicoId: technicianId
+            });
+            return {
+                success: false,
+                reason: 'missing_tracking_code',
+                recipient: recipientEmail,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const subject = 'Rastreio informado para sua solicitação de peças';
+        const message = [
+            'Seu pedido já está em trânsito.',
+            'Acompanhe a entrega para planejar o recebimento do material.',
+            'Após receber o material, confirme no sistema para finalizar o fluxo.',
+            '',
+            `Número da solicitação: ${solicitationNumber}`,
+            `Técnico: ${technicianName}`,
+            `Cliente: ${client}`,
+            `Data: ${requestDate}`,
+            `Itens/peças solicitadas: ${itemsLabel}`,
+            `Quantidade total: ${this.formatNumber(totalQuantity)}`,
+            `Código de rastreio: ${trackingValue}`,
+            `Valor total: ${totalValue}`,
+            `Status atual: ${statusLabel}`,
+            `Link do sistema: ${portalLink}`,
+            `Atualizado por: ${sender}`
+        ].join('\n');
+
+        const sent = await this.sendOperationalEmail({
+            recipient: recipientEmail,
+            subject,
+            message,
+            fields: {
+                evento: 'rastreio informado ao técnico',
+                numero_solicitacao: solicitationNumber,
+                tecnico: technicianName,
+                cliente: client,
+                data_solicitacao: requestDate,
+                itens_pecas_solicitadas: itemsLabel,
+                quantidade_total: this.formatNumber(totalQuantity),
+                codigo_rastreio: trackingValue,
+                valor_total: totalValue,
+                status_atual: statusLabel,
+                link_sistema: portalLink,
+                atualizado_por: sender
+            },
+            eventLabel: 'tracking_technician_email'
+        });
+
+        if (!sent) {
+            const payload = logResult({
+                success: false,
+                solicitationNumber,
+                recipient: recipientEmail,
+                reason: 'send_failed',
+                tecnicoId: technicianId
+            });
+            return {
+                success: false,
+                reason: 'send_failed',
+                recipient: recipientEmail,
+                sentAt,
+                log: payload
+            };
+        }
+
+        const payload = logResult({
+            success: true,
+            solicitationNumber,
+            recipient: recipientEmail,
+            reason: null,
+            tecnicoId: technicianId
+        });
+
+        return {
+            success: true,
+            reason: null,
+            recipient: recipientEmail,
+            sentAt,
+            log: payload
+        };
+    },
     /**
      * Validate CNPJ format
      */
@@ -2009,6 +2225,7 @@ const AnalyticsHelper = {
         };
     }
 };
+
 
 
 
