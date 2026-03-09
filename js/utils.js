@@ -2588,6 +2588,13 @@ const AnalyticsHelper = {
         const explicitRangeDays = options.period && Object.prototype.hasOwnProperty.call(options.period, 'rangeDays')
             ? options.period.rangeDays
             : (Object.prototype.hasOwnProperty.call(options, 'rangeDays') ? options.rangeDays : undefined);
+        const hasExplicitPeriod = Boolean(
+            options.period?.dateFrom
+            || options.period?.dateTo
+            || options.dateFrom
+            || options.dateTo
+            || explicitRangeDays
+        );
 
         return this.engine.applyFilters(solicitations, {
             search: options.search || '',
@@ -2603,7 +2610,9 @@ const AnalyticsHelper = {
             rangeDays: explicitRangeDays
         }, {
             moduleKey: options.moduleKey || 'analytics',
-            useDefaultPeriod: options.useDefaultPeriod !== false,
+            useDefaultPeriod: typeof options.useDefaultPeriod === 'boolean'
+                ? options.useDefaultPeriod
+                : !hasExplicitPeriod,
             recordPredicate: options.recordPredicate || null
         });
     },
@@ -2622,7 +2631,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
 
 
 

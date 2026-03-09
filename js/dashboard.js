@@ -11,7 +11,8 @@
         tecnico: '',
         dateFrom: '',
         dateTo: '',
-        rangeDays: null
+        rangeDays: null,
+        useDefaultPeriod: true
     },
     chartWarningShown: false,
     _filtersInitialized: false,
@@ -43,48 +44,56 @@
         this.recentFilters = {
             ...defaults,
             ...restored,
-            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : [],
+            useDefaultPeriod: restored?.useDefaultPeriod !== false
         };
-        this.rangeDays = this.recentFilters.rangeDays || defaults.rangeDays;
+        this.rangeDays = Number(this.recentFilters.rangeDays || defaults.rangeDays) || defaults.rangeDays;
         this._filtersInitialized = true;
     },
 
     buildFilterState() {
         this.ensureFilters();
+        const useDefaultPeriod = this.recentFilters.useDefaultPeriod !== false;
         return AnalyticsHelper.buildFilterState({
             search: this.recentFilters.search,
             statuses: this.recentFilters.status,
             tecnico: this.recentFilters.tecnico,
             dateFrom: this.recentFilters.dateFrom,
             dateTo: this.recentFilters.dateTo,
-            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+            rangeDays: useDefaultPeriod ? (this.recentFilters.rangeDays || this.rangeDays) : '',
+            useDefaultPeriod
         }, {
             moduleKey: 'dashboard',
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod
         });
     },
 
     persistFilters() {
+        const useDefaultPeriod = this.recentFilters.useDefaultPeriod !== false;
         const persisted = AnalyticsHelper.persistModuleFilterState('dashboard', {
             search: this.recentFilters.search,
             statuses: this.recentFilters.status,
             tecnico: this.recentFilters.tecnico,
             dateFrom: this.recentFilters.dateFrom,
             dateTo: this.recentFilters.dateTo,
-            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+            rangeDays: useDefaultPeriod ? (this.recentFilters.rangeDays || this.rangeDays) : '',
+            useDefaultPeriod
         }, {
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod
         });
         this.recentFilters = {
             ...this.recentFilters,
             status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
             dateFrom: persisted?.dateFrom || '',
             dateTo: persisted?.dateTo || '',
-            rangeDays: persisted?.rangeDays || this.rangeDays
+            rangeDays: persisted?.rangeDays || '',
+            useDefaultPeriod: persisted?.useDefaultPeriod !== false
         };
-        this.rangeDays = this.recentFilters.rangeDays || this.rangeDays;
+        if (this.recentFilters.useDefaultPeriod !== false) {
+            this.rangeDays = Number(this.recentFilters.rangeDays || this.rangeDays) || this.rangeDays;
+        }
         return persisted;
     },
 
@@ -111,7 +120,7 @@
         const accessible = DataManager.getSolicitations().filter((solicitation) => this.canAccessDashboardRecord(solicitation));
         const dataset = AnalyticsHelper.buildDataset(accessible, filterState, {
             moduleKey: 'dashboard',
-            useDefaultPeriod: true,
+            useDefaultPeriod: filterState.useDefaultPeriod,
             cacheKey: `dashboard:${Auth.getRole() || 'anon'}`
         });
         const analysis = AnalyticsHelper.computeMetrics(dataset, {
@@ -384,6 +393,7 @@
             this.recentFilters.dateFrom = defaults.dateFrom;
             this.recentFilters.dateTo = defaults.dateTo;
             this.recentFilters.rangeDays = defaults.rangeDays;
+            this.recentFilters.useDefaultPeriod = true;
             this.rangeDays = defaults.rangeDays;
         } else if (key === 'tecnico') {
             this.recentFilters.tecnico = '';
@@ -805,26 +815,35 @@
         this.recentFilters.tecnico = document.getElementById('recent-tecnico')?.value || '';
         this.recentFilters.dateFrom = document.getElementById('recent-date-from')?.value || '';
         this.recentFilters.dateTo = document.getElementById('recent-date-to')?.value || '';
+        const hasManualPeriod = Boolean(this.recentFilters.dateFrom || this.recentFilters.dateTo);
+        this.recentFilters.useDefaultPeriod = !hasManualPeriod;
+        if (hasManualPeriod) {
+            this.recentFilters.rangeDays = '';
+        }
         const normalized = AnalyticsHelper.buildFilterState({
             search: this.recentFilters.search,
             statuses: this.recentFilters.status,
             tecnico: this.recentFilters.tecnico,
             dateFrom: this.recentFilters.dateFrom,
             dateTo: this.recentFilters.dateTo,
-            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+            rangeDays: this.recentFilters.useDefaultPeriod !== false ? (this.recentFilters.rangeDays || this.rangeDays) : '',
+            useDefaultPeriod: this.recentFilters.useDefaultPeriod
         }, {
             moduleKey: 'dashboard',
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod: this.recentFilters.useDefaultPeriod
         });
         this.recentFilters = {
             ...this.recentFilters,
             status: normalized.statuses,
             dateFrom: normalized.dateFrom,
             dateTo: normalized.dateTo,
-            rangeDays: normalized.rangeDays
+            rangeDays: normalized.useDefaultPeriod ? normalized.rangeDays : '',
+            useDefaultPeriod: normalized.useDefaultPeriod
         };
-        this.rangeDays = normalized.rangeDays;
+        if (normalized.useDefaultPeriod) {
+            this.rangeDays = normalized.rangeDays;
+        }
         this.persistFilters();
         this.render();
     },
@@ -1008,13 +1027,14 @@ setRange(days) {
         this.recentFilters.rangeDays = preferredPeriod.rangeDays;
         this.recentFilters.dateFrom = preferredPeriod.dateFrom;
         this.recentFilters.dateTo = preferredPeriod.dateTo;
+        this.recentFilters.useDefaultPeriod = true;
         this.persistFilters();
         this.render();
     },
 
     getRangeDays() {
         this.ensureFilters();
-        this.rangeDays = Number(this.recentFilters.rangeDays) || this.getDefaultFilters().rangeDays;
+        this.rangeDays = Number(this.rangeDays) || this.getDefaultFilters().rangeDays;
         return this.rangeDays;
     },
 
@@ -1091,8 +1111,6 @@ setRange(days) {
         }
     }
 };
-
-
 
 
 

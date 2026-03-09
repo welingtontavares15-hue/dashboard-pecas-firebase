@@ -12,7 +12,9 @@ const Relatorios = {
         status: [],
         tecnico: '',
         regiao: '',
-        cliente: ''
+        cliente: '',
+        rangeDays: '',
+        useDefaultPeriod: true
     },
     chartWarningShown: false,
     charts: {},
@@ -48,13 +50,15 @@ const Relatorios = {
         this.filters = {
             ...defaults,
             ...restored,
-            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : [],
+            useDefaultPeriod: restored?.useDefaultPeriod !== false
         };
         this._filtersInitialized = true;
     },
 
     buildFilterState() {
         this.ensureFilters();
+        const useDefaultPeriod = this.filters.useDefaultPeriod !== false;
         return AnalyticsHelper.buildFilterState({
             search: this.filters.search,
             statuses: this.filters.status,
@@ -63,15 +67,17 @@ const Relatorios = {
             cliente: this.filters.cliente,
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo,
-            rangeDays: this.filters.rangeDays
+            rangeDays: useDefaultPeriod ? this.filters.rangeDays : '',
+            useDefaultPeriod
         }, {
             moduleKey: 'relatorios',
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod
         });
     },
 
     persistFilters() {
+        const useDefaultPeriod = this.filters.useDefaultPeriod !== false;
         const persisted = AnalyticsHelper.persistModuleFilterState('relatorios', {
             search: this.filters.search,
             statuses: this.filters.status,
@@ -80,10 +86,11 @@ const Relatorios = {
             cliente: this.filters.cliente,
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo,
-            rangeDays: this.filters.rangeDays
+            rangeDays: useDefaultPeriod ? this.filters.rangeDays : '',
+            useDefaultPeriod
         }, {
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod
         });
         this.filters = {
             ...this.filters,
@@ -94,7 +101,8 @@ const Relatorios = {
             cliente: persisted?.cliente || '',
             dateFrom: persisted?.dateFrom || '',
             dateTo: persisted?.dateTo || '',
-            rangeDays: persisted?.rangeDays || this.filters.rangeDays
+            rangeDays: persisted?.rangeDays || '',
+            useDefaultPeriod: persisted?.useDefaultPeriod !== false
         };
         return persisted;
     },
@@ -104,7 +112,7 @@ const Relatorios = {
         const allSolicitations = DataManager.getSolicitations().slice();
         const dataset = AnalyticsHelper.buildDataset(allSolicitations, filterState, {
             moduleKey: 'relatorios',
-            useDefaultPeriod: true,
+            useDefaultPeriod: filterState.useDefaultPeriod,
             cacheKey: `relatorios:${this.currentReport}`
         });
         const analysis = AnalyticsHelper.computeMetrics(dataset, {
@@ -236,6 +244,7 @@ const Relatorios = {
             this.filters.dateFrom = defaults.dateFrom;
             this.filters.dateTo = defaults.dateTo;
             this.filters.rangeDays = defaults.rangeDays;
+            this.filters.useDefaultPeriod = true;
         } else if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
             this.filters[key] = '';
         }
@@ -737,20 +746,19 @@ const Relatorios = {
      */
     renderCostFilters() {
         const options = this.getAvailableCostFilters();
-        const periodLabel = AnalyticsHelper.getRangeLabel({
-            dateFrom: this.filters.dateFrom,
-            dateTo: this.filters.dateTo,
-            rangeDays: this.filters.rangeDays || AnalyticsHelper.getDefaultRangeDays()
-        });
+        const filterState = this.buildFilterState();
+        const defaults = this.getDefaultFilters();
+        const periodLabel = filterState.period ? AnalyticsHelper.getRangeLabel(filterState.period) : 'Todos os registros';
         const selectedStatuses = this.getSelectedStatusSummary();
         const hasActiveFilters = Boolean(
             this.filters.search ||
-            this.filters.dateFrom ||
-            this.filters.dateTo ||
             this.filters.tecnico ||
             this.filters.regiao ||
             this.filters.cliente ||
-            selectedStatuses.length > 0
+            selectedStatuses.length > 0 ||
+            this.filters.useDefaultPeriod === false ||
+            this.filters.dateFrom !== defaults.dateFrom ||
+            this.filters.dateTo !== defaults.dateTo
         );
 
         return `
@@ -979,6 +987,11 @@ const Relatorios = {
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
+        const hasManualPeriod = Boolean(this.filters.dateFrom || this.filters.dateTo);
+        this.filters.useDefaultPeriod = !hasManualPeriod;
+        if (hasManualPeriod) {
+            this.filters.rangeDays = '';
+        }
         const normalized = AnalyticsHelper.buildFilterState({
             search: this.filters.search,
             statuses: this.filters.status,
@@ -987,11 +1000,12 @@ const Relatorios = {
             cliente: this.filters.cliente,
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo,
-            rangeDays: this.filters.rangeDays
+            rangeDays: this.filters.useDefaultPeriod !== false ? this.filters.rangeDays : '',
+            useDefaultPeriod: this.filters.useDefaultPeriod
         }, {
             moduleKey: 'relatorios',
             defaults: this.getDefaultFilters(),
-            useDefaultPeriod: true
+            useDefaultPeriod: this.filters.useDefaultPeriod
         });
         this.filters = {
             ...this.filters,
@@ -1002,7 +1016,8 @@ const Relatorios = {
             cliente: normalized.cliente,
             dateFrom: normalized.dateFrom,
             dateTo: normalized.dateTo,
-            rangeDays: normalized.rangeDays
+            rangeDays: normalized.useDefaultPeriod ? normalized.rangeDays : '',
+            useDefaultPeriod: normalized.useDefaultPeriod
         };
         this.persistFilters();
 
@@ -1536,8 +1551,6 @@ const Relatorios = {
         `;
     }
 };
-
-
 
 
 

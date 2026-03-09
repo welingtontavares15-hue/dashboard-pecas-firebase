@@ -127,7 +127,7 @@ const Solicitacoes = {
             ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <details class="filter-panel" id="sol-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact" id="sol-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="sol-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
@@ -263,6 +263,9 @@ const Solicitacoes = {
             this.filters.search = '';
         } else if (key === 'status') {
             this.filters.status = (this.filters.status || []).filter((status) => status !== value);
+        } else if (key === 'period') {
+            this.filters.dateFrom = '';
+            this.filters.dateTo = '';
         } else if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
             this.filters[key] = '';
         }
@@ -2034,7 +2037,6 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
-
 
 
 

@@ -107,7 +107,7 @@ const FornecedorPortal = {
                 </div>
             </div>
 
-            <details class="filter-panel" id="supplier-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact" id="supplier-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="supplier-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar supplier-filters-bar filter-panel-body">
                 <div class="search-box">
@@ -270,7 +270,10 @@ const FornecedorPortal = {
     },
 
     removeFilterChip(key) {
-        if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+        if (key === 'period') {
+            this.filters.dateFrom = '';
+            this.filters.dateTo = '';
+        } else if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
             this.filters[key] = '';
         }
 
@@ -978,7 +981,6 @@ const FornecedorPortal = {
 if (typeof window !== 'undefined') {
     window.FornecedorPortal = FornecedorPortal;
 }
-
 
 
 

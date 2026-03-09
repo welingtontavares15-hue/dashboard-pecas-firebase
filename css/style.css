@@ -4417,17 +4417,68 @@ body {
 }
 
 .filters-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     align-items: flex-end;
     gap: 12px;
 }
 
 .filter-group {
-    min-width: 170px;
+    min-width: 0;
 }
 
 .filter-group .form-control,
 .filter-group select {
     min-height: 38px;
+}
+
+.filters-bar .search-box {
+    min-width: 0;
+    grid-column: span 2;
+}
+
+.filters-bar .search-box .form-control {
+    width: 100%;
+}
+
+.filters-bar > .btn,
+.filters-bar > .action-menu,
+.filters-bar > details {
+    align-self: flex-end;
+}
+
+.filter-panel {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: linear-gradient(180deg, rgba(12, 24, 42, 0.03), rgba(12, 24, 42, 0.015));
+}
+
+.filter-panel.compact {
+    min-width: 0;
+}
+
+.filter-panel-toggle {
+    padding: 0.8rem 1rem;
+    font-size: 0.76rem;
+}
+
+.filter-panel-body {
+    padding: 0 1rem 1rem;
+}
+
+.filter-context-summary {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.03);
+}
+
+.filter-chip {
+    padding: 0.36rem 0.62rem;
+    font-size: 0.76rem;
+}
+
+.filter-period-pill .helper-text {
+    padding-top: 0.45rem;
 }
 
 .table td,
@@ -4471,6 +4522,10 @@ body {
 @media (max-width: 900px) {
     .filters-bar .btn {
         width: 100%;
+    }
+
+    .filters-bar .search-box {
+        grid-column: span 1;
     }
 
     .table td .status-badge {
@@ -5637,4 +5692,3 @@ body.dark-mode .status-filter-option:hover {
         grid-template-columns: 1fr;
     }
 }
-

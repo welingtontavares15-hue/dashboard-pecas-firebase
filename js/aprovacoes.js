@@ -100,7 +100,7 @@ const Aprovacoes = {
                 </div>
             ` : ''}
 
-            <details class="filter-panel" id="approval-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact" id="approval-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="approval-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
@@ -1301,7 +1301,6 @@ const Aprovacoes = {
         }
     }
 };
-
 
 
 

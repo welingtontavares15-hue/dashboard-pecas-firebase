@@ -190,16 +190,120 @@ describe('AnalyticsEngine', () => {
         expect(state.dateTo).toBe('');
     });
 
+    it('treats a single explicit date as a same-day period instead of falling back to the default range', () => {
+        const state = AnalyticsEngine.buildFilterState({
+            dateFrom: '2026-03-09'
+        }, {
+            moduleKey: 'solicitacoes',
+            defaults: {
+                search: '',
+                statuses: [],
+                tecnico: '',
+                dateFrom: '',
+                dateTo: '',
+                useDefaultPeriod: false
+            },
+            useDefaultPeriod: false
+        });
+
+        expect(state.dateFrom).toBe('2026-03-09');
+        expect(state.dateTo).toBe('2026-03-09');
+        expect(state.rangeDays).toBe(1);
+    });
+
+    it('does not reapply the default range when operational analysis receives explicit dates', () => {
+        const records = [
+            {
+                id: 'req-in',
+                numero: 'REQ-201',
+                cliente: 'Cliente Dentro',
+                tecnicoId: 'tech1',
+                tecnicoNome: 'Carlos',
+                status: 'aprovada',
+                createdAt: new Date('2026-03-05T10:00:00Z').getTime(),
+                itens: [{ codigo: 'P1', descricao: 'Bomba', quantidade: 1, valorUnit: 100 }]
+            },
+            {
+                id: 'req-out',
+                numero: 'REQ-202',
+                cliente: 'Cliente Fora',
+                tecnicoId: 'tech2',
+                tecnicoNome: 'Marina',
+                status: 'aprovada',
+                createdAt: new Date('2026-02-27T10:00:00Z').getTime(),
+                itens: [{ codigo: 'P2', descricao: 'Filtro', quantidade: 1, valorUnit: 200 }]
+            }
+        ];
+
+        const analysis = AnalyticsEngine.buildOperationalAnalysis(records, {
+            moduleKey: 'dashboard-modern',
+            period: {
+                dateFrom: '2026-03-01',
+                dateTo: '2026-03-09'
+            }
+        });
+
+        expect(analysis.totalRequests).toBe(1);
+        expect(analysis.solicitations.map((record) => record.id)).toEqual(['req-in']);
+        expect(analysis.period.dateFrom).toBe('2026-03-01');
+        expect(analysis.period.dateTo).toBe('2026-03-09');
+    });
+
+    it('keeps a manual period when building datasets for dashboard-style modules', () => {
+        const records = [
+            {
+                id: 'req-in',
+                numero: 'REQ-301',
+                cliente: 'Cliente Dentro',
+                tecnicoId: 'tech1',
+                tecnicoNome: 'Carlos',
+                status: 'aprovada',
+                createdAt: new Date('2026-03-06T10:00:00Z').getTime(),
+                itens: [{ codigo: 'P1', descricao: 'Bomba', quantidade: 1, valorUnit: 100 }]
+            },
+            {
+                id: 'req-out',
+                numero: 'REQ-302',
+                cliente: 'Cliente Fora',
+                tecnicoId: 'tech2',
+                tecnicoNome: 'Marina',
+                status: 'aprovada',
+                createdAt: new Date('2026-02-27T10:00:00Z').getTime(),
+                itens: [{ codigo: 'P2', descricao: 'Filtro', quantidade: 1, valorUnit: 200 }]
+            }
+        ];
+
+        const filterState = AnalyticsEngine.buildFilterState({
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-09',
+            useDefaultPeriod: false
+        }, {
+            moduleKey: 'dashboard',
+            defaults: AnalyticsEngine.getModuleDefaults('dashboard'),
+            useDefaultPeriod: false
+        });
+        const dataset = AnalyticsEngine.buildDataset(records, filterState, {
+            moduleKey: 'dashboard',
+            useDefaultPeriod: filterState.useDefaultPeriod
+        });
+
+        expect(dataset.records.map((record) => record.id)).toEqual(['req-in']);
+        expect(dataset.filterState.dateFrom).toBe('2026-03-01');
+        expect(dataset.filterState.dateTo).toBe('2026-03-09');
+        expect(dataset.filterState.useDefaultPeriod).toBe(false);
+    });
+
     it('persists module filter state with app-version isolation and restores it', () => {
         const persisted = AnalyticsEngine.persistModuleFilterState('dashboard', {
             search: 'cliente premium',
             statuses: ['aprovada'],
             dateFrom: '2026-03-01',
             dateTo: '2026-03-31',
-            rangeDays: 31
+            rangeDays: '',
+            useDefaultPeriod: false
         }, {
             defaults: AnalyticsEngine.getModuleDefaults('dashboard'),
-            useDefaultPeriod: true
+            useDefaultPeriod: false
         });
 
         const restored = AnalyticsEngine.restoreModuleFilterState('dashboard', {
@@ -211,6 +315,7 @@ describe('AnalyticsEngine', () => {
         expect(restored.search).toBe('cliente premium');
         expect(restored.statuses).toEqual(['aprovada']);
         expect(restored.dateFrom).toBe('2026-03-01');
+        expect(restored.useDefaultPeriod).toBe(false);
         expect(sessionStorage.getItem('diversey_filter_state:test-version:dashboard')).toContain('cliente premium');
     });
 
