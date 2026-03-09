@@ -9,13 +9,13 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309g',
-        solicitacoes: './pages/solicitacoes.js?v=20260309g',
-        aprovacoes: './pages/aprovacoes.js?v=20260309g',
-        pecas: './pages/pecas.js?v=20260309g',
-        relatorios: './pages/relatorios.js?v=20260309g',
-        fornecedor: './pages/fornecedor.js?v=20260309g',
-        usuarios: './pages/usuarios.js?v=20260309g'
+        dashboard: './pages/dashboard.js?v=20260309h',
+        solicitacoes: './pages/solicitacoes.js?v=20260309h',
+        aprovacoes: './pages/aprovacoes.js?v=20260309h',
+        pecas: './pages/pecas.js?v=20260309h',
+        relatorios: './pages/relatorios.js?v=20260309h',
+        fornecedor: './pages/fornecedor.js?v=20260309h',
+        usuarios: './pages/usuarios.js?v=20260309h'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -402,7 +402,9 @@ const App = {
     isLazyKeyReady(key) {
         const checks = {
             dashboard: () => typeof window !== 'undefined' && typeof window.Dashboard !== 'undefined',
-            solicitacoes: () => typeof window !== 'undefined' && typeof window.Solicitacoes !== 'undefined',
+            solicitacoes: () => typeof window !== 'undefined'
+                && typeof window.Solicitacoes !== 'undefined'
+                && typeof window.Pecas !== 'undefined',
             aprovacoes: () => typeof window !== 'undefined' && typeof window.Aprovacoes !== 'undefined',
             pecas: () => typeof window !== 'undefined' && typeof window.Pecas !== 'undefined',
             relatorios: () => typeof window !== 'undefined' && typeof window.Relatorios !== 'undefined',
