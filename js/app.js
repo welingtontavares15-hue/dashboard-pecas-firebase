@@ -8,13 +8,13 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309b',
-        solicitacoes: './pages/solicitacoes.js?v=20260309b',
-        aprovacoes: './pages/aprovacoes.js?v=20260309b',
-        pecas: './pages/pecas.js?v=20260309b',
-        relatorios: './pages/relatorios.js?v=20260309b',
-        fornecedor: './pages/fornecedor.js?v=20260309b',
-        usuarios: './pages/usuarios.js?v=20260309b'
+        dashboard: './pages/dashboard.js?v=20260309c',
+        solicitacoes: './pages/solicitacoes.js?v=20260309c',
+        aprovacoes: './pages/aprovacoes.js?v=20260309c',
+        pecas: './pages/pecas.js?v=20260309c',
+        relatorios: './pages/relatorios.js?v=20260309c',
+        fornecedor: './pages/fornecedor.js?v=20260309c',
+        usuarios: './pages/usuarios.js?v=20260309c'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],

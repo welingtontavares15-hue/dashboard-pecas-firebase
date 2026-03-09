@@ -300,6 +300,7 @@ const DataManager = {
         this.initializing = true;
         this.initPromise = (async () => {
             let success = false;
+            let cloudReady = false;
             try {
                 // Initialize connection monitoring for online-only mode
                 this._initConnectionMonitoring();
@@ -308,8 +309,8 @@ const DataManager = {
                 if (typeof CloudStorage !== 'undefined') {
                     try {
                         this.cloudInitialized = await CloudStorage.init();
-                        const cloudReady = this.cloudInitialized && typeof CloudStorage.waitForCloudReady === 'function'
-                            ? await CloudStorage.waitForCloudReady(10000)
+                        cloudReady = this.cloudInitialized && typeof CloudStorage.waitForCloudReady === 'function'
+                            ? await CloudStorage.waitForCloudReady(15000)
                             : this.cloudInitialized;
                         
                         if (this.cloudInitialized) {
@@ -388,13 +389,30 @@ const DataManager = {
 
                 if ((typeof APP_CONFIG !== 'undefined' && typeof APP_CONFIG.isProduction === 'function' && APP_CONFIG.isProduction()) &&
                     this.getUsers().length === 0) {
-                    if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
-                        Logger.warn(Logger.CATEGORY.AUTH, 'no_provisioned_users_detected', {
-                            environment: APP_CONFIG.environment || 'production'
-                        });
+                    let verifiedEmptyProvisioning = false;
+
+                    if (cloudReady && typeof CloudStorage !== 'undefined' && typeof CloudStorage.loadData === 'function') {
+                        try {
+                            const cloudUsers = await CloudStorage.loadData(this.KEYS.USERS);
+                            if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+                                this._sessionCache[this.KEYS.USERS] = cloudUsers;
+                            } else if (Array.isArray(cloudUsers)) {
+                                verifiedEmptyProvisioning = true;
+                            }
+                        } catch (_error) {
+                            verifiedEmptyProvisioning = false;
+                        }
                     }
-                    if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
-                        Utils.showToast('Ambiente sem usuários provisionados na nuvem. Solicite a habilitação inicial ao administrador.', 'warning');
+
+                    if (verifiedEmptyProvisioning && this.getUsers().length === 0) {
+                        if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                            Logger.warn(Logger.CATEGORY.AUTH, 'no_provisioned_users_detected', {
+                                environment: APP_CONFIG.environment || 'production'
+                            });
+                        }
+                        if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                            Utils.showToast('Ambiente sem usuários provisionados na nuvem. Solicite a habilitação inicial ao administrador.', 'warning');
+                        }
                     }
                 }
 
@@ -608,6 +626,62 @@ const DataManager = {
         }
     },
 
+    async ensureCloudAccessSession(sessionUser = null, options = {}) {
+        const activeUser = sessionUser
+            || (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+                ? Auth.getCurrentUser()
+                : null);
+
+        if (!activeUser) {
+            return true;
+        }
+
+        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.persistAccessSession !== 'function') {
+            return false;
+        }
+
+        if (!this.cloudInitialized && typeof CloudStorage.init === 'function') {
+            try {
+                this.cloudInitialized = await CloudStorage.init();
+            } catch (_error) {
+                return false;
+            }
+        }
+
+        if (!this.cloudInitialized) {
+            return false;
+        }
+
+        const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 15000);
+        const retries = Math.max(1, Number(options.retries) || 3);
+
+        if (typeof CloudStorage.waitForCloudReady === 'function') {
+            const ready = await CloudStorage.waitForCloudReady(timeoutMs);
+            if (!ready) {
+                return false;
+            }
+        }
+
+        for (let attempt = 1; attempt <= retries; attempt += 1) {
+            try {
+                const persisted = await CloudStorage.persistAccessSession(activeUser);
+                if (persisted) {
+                    return true;
+                }
+            } catch (error) {
+                if (attempt >= retries) {
+                    console.warn('Erro ao garantir sessao de acesso na nuvem', error);
+                }
+            }
+
+            if (attempt < retries) {
+                await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+            }
+        }
+
+        return false;
+    },
+
     async clearCloudAccessSession() {
         if (typeof CloudStorage === 'undefined' || typeof CloudStorage.clearAccessSession !== 'function') {
             return false;
@@ -692,8 +766,18 @@ const DataManager = {
         }
 
         if (typeof CloudStorage.waitForCloudReady === 'function') {
-            const ready = await CloudStorage.waitForCloudReady(10000);
+            const ready = await CloudStorage.waitForCloudReady(15000);
             if (!ready) {
+                return false;
+            }
+        }
+
+        const activeUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+            ? Auth.getCurrentUser()
+            : null;
+        if (activeUser) {
+            const sessionReady = await this.ensureCloudAccessSession(activeUser, { timeoutMs: 15000, retries: 3 });
+            if (!sessionReady) {
                 return false;
             }
         }
@@ -1109,6 +1193,14 @@ const DataManager = {
                 this.cloudInitialized = await CloudStorage.init();
             } catch (initErr) {
                 console.warn('CloudStorage init failed during user sync', initErr);
+            }
+        }
+
+        if (this.cloudInitialized && typeof CloudStorage.waitForCloudReady === 'function') {
+            try {
+                await CloudStorage.waitForCloudReady(12000);
+            } catch (_error) {
+                // handled by availability guard below
             }
         }
 
@@ -3422,8 +3514,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
-
 
 
 

@@ -442,11 +442,17 @@ const Auth = {
         
         this.persistSession(this.currentUser);
         try {
-            if (typeof DataManager !== 'undefined' && typeof DataManager.persistCloudAccessSession === 'function') {
-                await DataManager.persistCloudAccessSession(this.currentUser);
+            if (typeof DataManager !== 'undefined' && typeof DataManager.ensureCloudAccessSession === 'function') {
+                syncInfo.sessionPersisted = await DataManager.ensureCloudAccessSession(this.currentUser, {
+                    timeoutMs: 15000,
+                    retries: 3
+                });
+            } else if (typeof DataManager !== 'undefined' && typeof DataManager.persistCloudAccessSession === 'function') {
+                syncInfo.sessionPersisted = await DataManager.persistCloudAccessSession(this.currentUser);
             }
         } catch (_error) {
             // Persistência de sessão em nuvem não pode quebrar o login já validado
+            syncInfo.sessionPersisted = false;
         }
 
         try {

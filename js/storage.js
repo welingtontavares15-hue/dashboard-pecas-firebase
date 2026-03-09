@@ -105,7 +105,7 @@ const CloudStorage = {
                 const timeout = setTimeout(() => {
                     console.warn('Firebase connection timeout');
                     resolve(false);
-                }, 5000);
+                }, 8000);
 
                 get(connectedRef).then((snapshot) => {
                     clearTimeout(timeout);
@@ -119,7 +119,7 @@ const CloudStorage = {
             // Wait for initial connection (not stored, just for initial sync check)
             const initiallyConnected = await connectionPromise;
             this.isInitialized = true;
-            this.cloudReady = await this.waitForCloudReady(10000);
+            this.cloudReady = await this.waitForCloudReady(15000);
             
             this.logSyncEvent('info', 'cloud_storage_initialized', {
                 initiallyConnected: initiallyConnected === true
@@ -435,6 +435,41 @@ const CloudStorage = {
         return true;
     },
 
+    async recoverAccessSession(reason = 'cloud_write_recovery', context = {}) {
+        const activeUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+            ? Auth.getCurrentUser()
+            : null;
+
+        if (!activeUser) {
+            return false;
+        }
+
+        try {
+            if (typeof FirebaseInit !== 'undefined' && typeof FirebaseInit.waitForCloudReady === 'function') {
+                const ready = await FirebaseInit.waitForCloudReady(8000);
+                if (!ready) {
+                    return false;
+                }
+            }
+
+            const persisted = await this.persistAccessSession(activeUser);
+            if (persisted) {
+                this.logSyncEvent('info', 'cloud_access_session_recovered', {
+                    reason,
+                    ...context
+                });
+            }
+            return persisted;
+        } catch (error) {
+            this.logSyncEvent('warn', 'cloud_access_session_recovery_failed', {
+                reason,
+                error: error?.message || 'session_recovery_failed',
+                ...context
+            });
+            return false;
+        }
+    },
+
     async clearAccessSession() {
         const uid = this.getFirebaseUserId();
         const { remove } = window.firebaseModules || {};
@@ -481,6 +516,12 @@ const CloudStorage = {
                     return true;
                 } catch (error) {
                     recordSaveError = error;
+                    if (this.isPermissionDeniedError(error)) {
+                        const recovered = await this.recoverAccessSession('record_collection_permission_denied', { key, opId, attempt });
+                        if (recovered) {
+                            continue;
+                        }
+                    }
                     if (attempt >= this.maxRetries || !this.isRetryableSaveError(error)) {
                         break;
                     }
@@ -509,6 +550,12 @@ const CloudStorage = {
                 return true;
             } catch (error) {
                 lastError = error;
+                if (this.isPermissionDeniedError(error)) {
+                    const recovered = await this.recoverAccessSession('collection_permission_denied', { key, opId, attempt });
+                    if (recovered) {
+                        continue;
+                    }
+                }
                 if (attempt >= this.maxRetries || !this.isRetryableSaveError(error)) {
                     break;
                 }
