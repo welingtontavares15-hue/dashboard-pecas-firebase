@@ -421,17 +421,26 @@ export function applyReportsModernization() {
 
     Relatorios.render = function renderModernReports() {
         this.currentReport = normalizeReport(window.__reportTarget || this.currentReport);
-        this.syncDateFiltersFromGlobal();
+        if (typeof this.ensureFilters === 'function') {
+            this.ensureFilters();
+        }
 
         const content = document.getElementById('content-area');
         if (!content) {
             return;
         }
 
-        const periodLabel = AnalyticsHelper.getRangeLabel({
-            dateFrom: this.filters.dateFrom,
-            dateTo: this.filters.dateTo,
-            rangeDays: AnalyticsHelper.getGlobalPeriodFilter().rangeDays
+        const filterState = typeof this.buildFilterState === 'function'
+            ? this.buildFilterState()
+            : {
+                dateFrom: this.filters.dateFrom,
+                dateTo: this.filters.dateTo,
+                rangeDays: this.filters.rangeDays
+            };
+        const periodLabel = AnalyticsHelper.getRangeLabel(filterState.period || {
+            dateFrom: filterState.dateFrom,
+            dateTo: filterState.dateTo,
+            rangeDays: filterState.rangeDays
         });
 
         content.innerHTML = `

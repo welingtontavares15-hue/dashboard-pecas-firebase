@@ -120,23 +120,22 @@
             if (hasDateFrom || hasDateTo) {
                 const normalizedDateFrom = hasDateFrom ? rawDateFrom : rawDateTo;
                 const normalizedDateTo = hasDateTo ? rawDateTo : rawDateFrom;
-                const parsedFrom = global.Utils?.parseAsLocalDate ? global.Utils.parseAsLocalDate(normalizedDateFrom) : new Date(normalizedDateFrom);
-                const parsedTo = global.Utils?.parseAsLocalDate ? global.Utils.parseAsLocalDate(normalizedDateTo) : new Date(normalizedDateTo);
+                const fromKey = normalizedDateFrom <= normalizedDateTo ? normalizedDateFrom : normalizedDateTo;
+                const toKey = normalizedDateFrom <= normalizedDateTo ? normalizedDateTo : normalizedDateFrom;
+                const parsedFrom = global.Utils?.parseAsLocalDate ? global.Utils.parseAsLocalDate(fromKey) : new Date(fromKey);
+                const parsedTo = global.Utils?.parseAsLocalDate ? global.Utils.parseAsLocalDate(toKey) : new Date(toKey);
 
                 if (!Number.isNaN(parsedFrom.getTime()) && !Number.isNaN(parsedTo.getTime())) {
                     parsedFrom.setHours(0, 0, 0, 0);
                     parsedTo.setHours(23, 59, 59, 999);
-
-                    const from = parsedFrom.getTime() <= parsedTo.getTime() ? parsedFrom : parsedTo;
-                    const to = parsedFrom.getTime() <= parsedTo.getTime() ? parsedTo : parsedFrom;
-                    const diffDays = Math.max(Math.floor((to.getTime() - from.getTime()) / 86400000) + 1, 1);
+                    const diffDays = Math.max(Math.floor((parsedTo.getTime() - parsedFrom.getTime()) / 86400000) + 1, 1);
 
                     return {
-                        dateFrom: global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(from) : from.toISOString().slice(0, 10),
-                        dateTo: global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(to) : to.toISOString().slice(0, 10),
+                        dateFrom: fromKey,
+                        dateTo: toKey,
                         rangeDays: diffDays,
-                        from,
-                        to,
+                        from: parsedFrom,
+                        to: parsedTo,
                         isCustom: true
                     };
                 }

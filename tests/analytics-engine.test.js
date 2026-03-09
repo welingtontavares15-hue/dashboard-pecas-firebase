@@ -211,6 +211,28 @@ describe('AnalyticsEngine', () => {
         expect(state.rangeDays).toBe(1);
     });
 
+    it('preserves explicit date boundaries without shifting the range backwards', () => {
+        const state = AnalyticsEngine.buildFilterState({
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-09'
+        }, {
+            moduleKey: 'solicitacoes',
+            defaults: {
+                search: '',
+                statuses: [],
+                tecnico: '',
+                dateFrom: '',
+                dateTo: '',
+                useDefaultPeriod: false
+            },
+            useDefaultPeriod: false
+        });
+
+        expect(state.dateFrom).toBe('2026-03-01');
+        expect(state.dateTo).toBe('2026-03-09');
+        expect(state.rangeDays).toBe(9);
+    });
+
     it('does not reapply the default range when operational analysis receives explicit dates', () => {
         const records = [
             {
