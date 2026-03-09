@@ -175,6 +175,57 @@ describe('CloudStorage Online-Only Mode', () => {
             expect(result).toBe(true);
             expect(setMock).toHaveBeenCalledWith('data/diversey_recent_parts/tech_24', ['CS068', 'CS065']);
         });
+
+        it('ignores permission denied while cleaning legacy fields for solicitation records', async () => {
+            const setMock = jest.fn().mockResolvedValue(true);
+            const removeMock = jest.fn((dbPath) => {
+                if (dbPath === 'data/diversey_solicitacoes/data') {
+                    return Promise.reject(new Error('PERMISSION_DENIED: Permission denied'));
+                }
+                return Promise.resolve(true);
+            });
+
+            global.DataManager = {
+                _sessionCache: {
+                    diversey_solicitacoes: []
+                }
+            };
+
+            global.window.firebaseModules = { set: setMock, remove: removeMock };
+            global.FirebaseInit = {
+                database: {},
+                waitForReady: jest.fn().mockResolvedValue(true),
+                waitForCloudReady: jest.fn().mockResolvedValue(true),
+                isReady: () => true,
+                isRTDBConnected: () => true,
+                getRef: jest.fn((dbPath) => dbPath)
+            };
+
+            CloudStorage.isInitialized = true;
+            CloudStorage.database = {};
+            CloudStorage.cloudReady = true;
+            CloudStorage.waitForCloudReady = jest.fn().mockResolvedValue(true);
+
+            const result = await CloudStorage.saveData('diversey_solicitacoes', [{
+                id: 'sol_1',
+                numero: '#REQ-TEST-1',
+                tecnicoId: 'tech_24',
+                status: 'pendente',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                itens: [{ codigo: 'CS068', quantidade: 1 }],
+                total: 100
+            }], {
+                changedIds: ['sol_1']
+            });
+
+            expect(result).toBe(true);
+            expect(setMock).toHaveBeenCalledWith('data/diversey_solicitacoes/sol_1', expect.objectContaining({
+                id: 'sol_1',
+                tecnicoId: 'tech_24',
+                status: 'pendente'
+            }));
+        });
     });
 
     describe('Local Persistence Disabled', () => {

@@ -9,13 +9,13 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309l',
-        solicitacoes: './pages/solicitacoes.js?v=20260309l',
-        aprovacoes: './pages/aprovacoes.js?v=20260309l',
-        pecas: './pages/pecas.js?v=20260309l',
-        relatorios: './pages/relatorios.js?v=20260309l',
-        fornecedor: './pages/fornecedor.js?v=20260309l',
-        usuarios: './pages/usuarios.js?v=20260309l'
+        dashboard: './pages/dashboard.js?v=20260309m',
+        solicitacoes: './pages/solicitacoes.js?v=20260309m',
+        aprovacoes: './pages/aprovacoes.js?v=20260309m',
+        pecas: './pages/pecas.js?v=20260309m',
+        relatorios: './pages/relatorios.js?v=20260309m',
+        fornecedor: './pages/fornecedor.js?v=20260309m',
+        usuarios: './pages/usuarios.js?v=20260309m'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1173,7 +1173,6 @@ const App = {
         }
 
         let resetEmailSent = false;
-        let resetFallbackPrepared = false;
 
         if (targetEmail) {
             try {
@@ -1190,15 +1189,6 @@ const App = {
                 resetEmailSent = false;
             }
 
-            if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
-                resetFallbackPrepared = Utils.sendCredentialsEmail({
-                    to: targetEmail,
-                    username: loginUsername,
-                    password: sanitizedPassword,
-                    name: displayName,
-                    roleLabel: 'gestor'
-                });
-            }
         }
 
         if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
@@ -1208,21 +1198,19 @@ const App = {
                 username: loginUsername,
                 recipient: targetEmail || null,
                 emailSent: resetEmailSent,
-                fallbackPrepared: resetFallbackPrepared,
+                fallbackPrepared: false,
                 hasRecipient: !!targetEmail
             });
         }
 
         if (resetEmailSent) {
             Utils.showToast(`E-mail de orientação enviado para ${targetEmail}`, 'info');
-        } else if (resetFallbackPrepared) {
-            Utils.showToast('Mensagem de orientação preparada para envio manual.', 'warning');
         } else if (targetEmail) {
-            Utils.showToast('Senha redefinida, mas não foi possível enviar a orientação por e-mail.', 'warning');
+            Utils.showToast('Senha redefinida, mas o provedor não confirmou o envio automático. Confira os dados exibidos.', 'warning');
         }
 
         Utils.showToast('Senha do gestor redefinida com sucesso', 'success');
-        if (typeof Utils.showCredentialDeliveryModal === 'function') {
+        if (!resetEmailSent && typeof Utils.showCredentialDeliveryModal === 'function') {
             Utils.showCredentialDeliveryModal({
                 title: 'Senha temporária do gestor',
                 username: loginUsername,

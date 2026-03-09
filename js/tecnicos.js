@@ -646,7 +646,6 @@ const Tecnicos = {
         }
 
         let resetEmailSent = false;
-        let resetFallbackPrepared = false;
 
         if (targetEmail) {
             try {
@@ -663,15 +662,6 @@ const Tecnicos = {
                 resetEmailSent = false;
             }
 
-            if (!resetEmailSent && typeof Utils.sendCredentialsEmail === 'function') {
-                resetFallbackPrepared = Utils.sendCredentialsEmail({
-                    to: targetEmail,
-                    username: loginUsername,
-                    password: sanitizedPassword,
-                    name: displayName,
-                    roleLabel: 'técnico'
-                });
-            }
         }
 
         if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
@@ -682,21 +672,19 @@ const Tecnicos = {
                 username: loginUsername,
                 recipient: targetEmail || null,
                 emailSent: resetEmailSent,
-                fallbackPrepared: resetFallbackPrepared,
+                fallbackPrepared: false,
                 hasRecipient: !!targetEmail
             });
         }
 
         if (resetEmailSent) {
             Utils.showToast(`E-mail de orientação enviado para ${targetEmail}`, 'info');
-        } else if (resetFallbackPrepared) {
-            Utils.showToast('Mensagem de orientação preparada para envio manual.', 'warning');
         } else if (targetEmail) {
-            Utils.showToast('Senha redefinida, mas não foi possível enviar a orientação por e-mail.', 'warning');
+            Utils.showToast('Senha redefinida, mas o provedor não confirmou o envio automático. Confira os dados exibidos.', 'warning');
         }
 
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
-        if (typeof Utils.showCredentialDeliveryModal === 'function') {
+        if (!resetEmailSent && typeof Utils.showCredentialDeliveryModal === 'function') {
             Utils.showCredentialDeliveryModal({
                 title: 'Senha temporária do técnico',
                 username: loginUsername,
@@ -712,8 +700,6 @@ const Tecnicos = {
 if (typeof window !== 'undefined') {
     window.Tecnicos = Tecnicos;
 }
-
-
 
 
 

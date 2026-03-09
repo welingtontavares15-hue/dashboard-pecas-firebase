@@ -658,7 +658,10 @@ const DataManager = {
         if (typeof CloudStorage.waitForCloudReady === 'function') {
             const ready = await CloudStorage.waitForCloudReady(timeoutMs);
             if (!ready) {
-                return false;
+                this.logOperationalEvent('info', 'sync', 'cloud_access_session_write_pending', {
+                    username: activeUser.username || null,
+                    role: activeUser.role || null
+                });
             }
         }
 
@@ -780,7 +783,9 @@ const DataManager = {
         if (typeof CloudStorage.waitForCloudReady === 'function') {
             const ready = await CloudStorage.waitForCloudReady(15000);
             if (!ready) {
-                return false;
+                this.logOperationalEvent('info', 'sync', 'critical_collection_cloud_ready_pending', {
+                    key
+                });
             }
         }
 
@@ -790,7 +795,11 @@ const DataManager = {
         if (activeUser) {
             const sessionReady = await this.ensureCloudAccessSession(activeUser, { timeoutMs: 15000, retries: 3 });
             if (!sessionReady) {
-                return false;
+                this.logOperationalEvent('info', 'sync', 'critical_collection_access_session_pending', {
+                    key,
+                    username: activeUser.username || null,
+                    role: activeUser.role || null
+                });
             }
         }
 
@@ -3566,8 +3575,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
-
 
 
 

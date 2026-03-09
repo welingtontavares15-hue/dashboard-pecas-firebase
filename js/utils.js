@@ -21,6 +21,9 @@ const Utils = {
     OP_EMAIL_MAX_RETRIES: 3,
     OP_EMAIL_RETRY_DELAY_MS: 1500,
     OP_EMAIL_TEMPLATE: 'box',
+    OP_EMAIL_GATEWAY_RECIPIENT: (typeof window !== 'undefined' && window.__FORM_SUBMIT_GATEWAY_RECIPIENT)
+        ? String(window.__FORM_SUBMIT_GATEWAY_RECIPIENT).trim().toLowerCase()
+        : 'welingtontavares61m@gmail.com',
     BRAND_NAME: 'Diversey',
     PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas WMW',
     BRAND_SIGNATURE: 'Equipe Diversey',
@@ -519,6 +522,11 @@ const Utils = {
         return Array.from(new Set(recipients));
     },
 
+    getOperationalEmailGatewayRecipient() {
+        const configured = String(this.OP_EMAIL_GATEWAY_RECIPIENT || '').trim().toLowerCase();
+        return this.isValidEmail(configured) ? configured : null;
+    },
+
     getSupplierApprovalRecipients(solicitation) {
         if (!solicitation?.fornecedorId || typeof DataManager === 'undefined') {
             return [];
@@ -964,7 +972,9 @@ const Utils = {
             return false;
         }
 
-        const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(to)}`;
+        const gatewayRecipient = this.getOperationalEmailGatewayRecipient();
+        const endpointRecipient = gatewayRecipient || to;
+        const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(endpointRecipient)}`;
         const timeoutMs = Math.max(3000, Number(this.OP_EMAIL_TIMEOUT_MS) || 12000);
         const maxRetries = Math.max(0, Number(this.OP_EMAIL_MAX_RETRIES) || 0);
         const retryDelay = Math.max(200, Number(this.OP_EMAIL_RETRY_DELAY_MS) || 1200);
@@ -985,6 +995,14 @@ const Utils = {
                         ...fields
                     };
 
+                    if (gatewayRecipient && gatewayRecipient !== to) {
+                        payload._cc = to;
+                        payload._replyto = to;
+                        payload.destinatario = to;
+                        payload.email = to;
+                        payload._autoresponse = normalizedMessage;
+                    }
+
                     const result = await this.executeOperationalEmailRequest(endpoint, payload, timeoutMs);
                     response = result?.response || null;
                     const parsedPayload = result?.payload || null;
@@ -998,6 +1016,7 @@ const Utils = {
                             const loggerFn = success ? Logger.info.bind(Logger) : Logger.warn.bind(Logger);
                             loggerFn(Logger.CATEGORY.REQUEST, eventLabel, {
                                 recipient: maskedRecipient,
+                                gatewayRecipient: this.maskEmailForLog(endpointRecipient),
                                 success,
                                 attempt: attempt + 1
                             });
@@ -1032,6 +1051,7 @@ const Utils = {
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.REQUEST, eventLabel, {
                     recipient: maskedRecipient,
+                    gatewayRecipient: this.maskEmailForLog(endpointRecipient),
                     success: false,
                     error: lastError?.message || 'send_failed'
                 });
@@ -2633,8 +2653,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
-
 
 
 
