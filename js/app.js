@@ -9,13 +9,13 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309f',
-        solicitacoes: './pages/solicitacoes.js?v=20260309f',
-        aprovacoes: './pages/aprovacoes.js?v=20260309f',
-        pecas: './pages/pecas.js?v=20260309f',
-        relatorios: './pages/relatorios.js?v=20260309f',
-        fornecedor: './pages/fornecedor.js?v=20260309f',
-        usuarios: './pages/usuarios.js?v=20260309f'
+        dashboard: './pages/dashboard.js?v=20260309g',
+        solicitacoes: './pages/solicitacoes.js?v=20260309g',
+        aprovacoes: './pages/aprovacoes.js?v=20260309g',
+        pecas: './pages/pecas.js?v=20260309g',
+        relatorios: './pages/relatorios.js?v=20260309g',
+        fornecedor: './pages/fornecedor.js?v=20260309g',
+        usuarios: './pages/usuarios.js?v=20260309g'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -401,13 +401,13 @@ const App = {
 
     isLazyKeyReady(key) {
         const checks = {
-            dashboard: () => typeof Dashboard !== 'undefined',
-            solicitacoes: () => typeof Solicitacoes !== 'undefined',
-            aprovacoes: () => typeof Aprovacoes !== 'undefined',
-            pecas: () => typeof Pecas !== 'undefined',
-            relatorios: () => typeof Relatorios !== 'undefined',
-            fornecedor: () => typeof FornecedorPortal !== 'undefined',
-            usuarios: () => typeof Tecnicos !== 'undefined' && typeof Fornecedores !== 'undefined' && typeof Usuarios !== 'undefined'
+            dashboard: () => typeof window !== 'undefined' && typeof window.Dashboard !== 'undefined',
+            solicitacoes: () => typeof window !== 'undefined' && typeof window.Solicitacoes !== 'undefined',
+            aprovacoes: () => typeof window !== 'undefined' && typeof window.Aprovacoes !== 'undefined',
+            pecas: () => typeof window !== 'undefined' && typeof window.Pecas !== 'undefined',
+            relatorios: () => typeof window !== 'undefined' && typeof window.Relatorios !== 'undefined',
+            fornecedor: () => typeof window !== 'undefined' && typeof window.FornecedorPortal !== 'undefined',
+            usuarios: () => typeof window !== 'undefined' && typeof window.Tecnicos !== 'undefined' && typeof window.Fornecedores !== 'undefined' && typeof window.Usuarios !== 'undefined'
         };
         return checks[key] ? checks[key]() : true;
     },
@@ -523,45 +523,45 @@ const App = {
 
             switch (pageId) {
             case 'dashboard':
-                Dashboard.render();
+                window.Dashboard.render();
                 break;
 
             case 'solicitacoes':
             case 'minhas-solicitacoes':
-                Solicitacoes.render();
+                window.Solicitacoes.render();
                 break;
 
             case 'nova-solicitacao':
-                Solicitacoes.openForm();
-                Solicitacoes.render();
+                window.Solicitacoes.openForm();
+                window.Solicitacoes.render();
                 break;
 
             case 'aprovacoes':
-                Aprovacoes.render();
+                window.Aprovacoes.render();
                 break;
 
             case 'tecnicos':
-                Tecnicos.render();
+                window.Tecnicos.render();
                 break;
 
             case 'fornecedores':
-                Fornecedores.render();
+                window.Fornecedores.render();
                 break;
 
             case 'fornecedor':
-                FornecedorPortal.render();
+                window.FornecedorPortal.render();
                 break;
 
             case 'pecas':
             case 'catalogo':
-                Pecas.render();
+                window.Pecas.render();
                 break;
 
             case 'relatorios':
-                Relatorios.render();
+                window.Relatorios.render();
                 setTimeout(() => {
                     if (!this.isStaleRender(renderSequence) && this.currentPage === 'relatorios') {
-                        Relatorios.initCharts();
+                        window.Relatorios.initCharts();
                     }
                 }, CHART_INIT_DELAY_MS);
                 break;
@@ -687,10 +687,14 @@ const App = {
         
         // Refresh charts if on dashboard or reports
         if (this.currentPage === 'dashboard') {
-            Dashboard.render();
+            if (window.Dashboard) {
+                window.Dashboard.render();
+            }
         } else if (this.currentPage === 'relatorios') {
-            Relatorios.render();
-            setTimeout(() => Relatorios.initCharts(), 100);
+            if (window.Relatorios) {
+                window.Relatorios.render();
+                setTimeout(() => window.Relatorios.initCharts(), 100);
+            }
         }
     },
 
@@ -1473,46 +1477,46 @@ const App = {
 
         switch (this.currentPage) {
         case 'dashboard':
-            if (typeof Dashboard !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Dashboard.render();
+            if (window.Dashboard && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                window.Dashboard.render();
             }
             break;
         case 'solicitacoes':
         case 'minhas-solicitacoes':
-            if (typeof Solicitacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Solicitacoes.render();
+            if (window.Solicitacoes && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                window.Solicitacoes.render();
             }
             break;
         case 'aprovacoes':
-            if (typeof Aprovacoes !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Aprovacoes.render();
+            if (window.Aprovacoes && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                window.Aprovacoes.render();
             }
             break;
         case 'pecas':
         case 'catalogo':
-            if (typeof Pecas !== 'undefined' && shouldUpdate(DataManager?.KEYS?.PARTS)) {
-                Pecas.render();
+            if (window.Pecas && shouldUpdate(DataManager?.KEYS?.PARTS)) {
+                window.Pecas.render();
             }
             break;
         case 'relatorios':
-            if (typeof Relatorios !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
-                Relatorios.render();
-                setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
+            if (window.Relatorios && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS)) {
+                window.Relatorios.render();
+                setTimeout(() => window.Relatorios.initCharts(), CHART_INIT_DELAY_MS);
             }
             break;
         case 'tecnicos':
-            if (typeof Tecnicos !== 'undefined' && shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
-                Tecnicos.render();
+            if (window.Tecnicos && shouldUpdate(DataManager?.KEYS?.TECHNICIANS, DataManager?.KEYS?.USERS)) {
+                window.Tecnicos.render();
             }
             break;
         case 'fornecedores':
-            if (typeof Fornecedores !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                Fornecedores.render();
+            if (window.Fornecedores && shouldUpdate(DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                window.Fornecedores.render();
             }
             break;
         case 'fornecedor':
-            if (typeof FornecedorPortal !== 'undefined' && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
-                FornecedorPortal.render();
+            if (window.FornecedorPortal && shouldUpdate(DataManager?.KEYS?.SOLICITATIONS, DataManager?.KEYS?.SUPPLIERS, DataManager?.KEYS?.USERS)) {
+                window.FornecedorPortal.render();
             }
             break;
         case 'configuracoes':

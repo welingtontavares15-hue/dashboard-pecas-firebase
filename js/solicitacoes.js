@@ -1542,7 +1542,13 @@ const Solicitacoes = {
         
         // Initialize auto-complete
         setTimeout(() => {
-            this.autocompleteInstance = Pecas.createAutocomplete('parts-autocomplete', {
+            const pecasModule = typeof window !== 'undefined' ? window.Pecas : null;
+            if (!pecasModule || typeof pecasModule.createAutocomplete !== 'function') {
+                Utils.showToast('Catálogo de peças ainda está carregando. Tente novamente em instantes.', 'warning');
+                return;
+            }
+
+            this.autocompleteInstance = pecasModule.createAutocomplete('parts-autocomplete', {
                 tecnicoId: this.currentSolicitation.tecnicoId,
                 onSelect: (part) => this.addItem(part)
             });
@@ -2041,7 +2047,6 @@ const Solicitacoes = {
 if (typeof window !== 'undefined') {
     window.Solicitacoes = Solicitacoes;
 }
-
 
 
 
