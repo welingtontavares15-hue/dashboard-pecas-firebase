@@ -1,6 +1,6 @@
 /**
  * Auth login compatibility tests
- * Ensures default admin accepts documented password alias
+ * Ensures default admin accepts documented username alias
  */
 
 const fs = require('fs');
@@ -57,8 +57,8 @@ describe('Auth login aliases', () => {
         Auth._rateLimitCache = {};
     });
 
-    it('allows admin login when the user enters the alias \"adim\" password', async () => {
-        const result = await Auth.login('admin', 'adim');
+    it('allows admin login when the user enters the alias \"adm\" as username', async () => {
+        const result = await Auth.login('adm', 'admin');
         expect(result.success).toBe(true);
         expect(result.user?.username).toBe('admin');
         expect(result.user?.role).toBe('administrador');

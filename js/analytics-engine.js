@@ -67,7 +67,7 @@
             const today = new Date();
             today.setHours(23, 59, 59, 999);
 
-            let rangeDays = Math.max(toFiniteNumber(period.rangeDays, fallbackRangeDays), 1);
+            const rangeDays = Math.max(toFiniteNumber(period.rangeDays, fallbackRangeDays), 1);
             let dateFrom = String(period.dateFrom || '').trim();
             let dateTo = String(period.dateTo || '').trim();
 

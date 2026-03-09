@@ -9,6 +9,8 @@
     "test:gestores-sync": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/gestores-sync.test.js",
     "lint": "eslint js/*.js --fix",
     "lint:check": "eslint js/*.js",
+    "firebase:rules:deploy": "npx firebase-tools deploy --only database",
+    "firebase:rules:list": "npx firebase-tools login:list",
     "healthcheck": "node healthcheck.js",
     "healthcheck:web": "npx http-server -p 8080 -o /firebase-healthcheck.html",
     "cleanup:dry-run": "node scripts/cleanup-test-data.mjs --dry-run",

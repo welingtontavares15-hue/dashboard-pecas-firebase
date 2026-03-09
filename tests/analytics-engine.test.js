@@ -57,7 +57,7 @@ global.DataManager = {
         const aliases = {
             aprovado: 'aprovada',
             aprovada: 'aprovada',
-            em-transito: 'em-transito',
+            'em-transito': 'em-transito',
             entregue: 'entregue',
             finalizada: 'finalizada',
             rejeitada: 'rejeitada',

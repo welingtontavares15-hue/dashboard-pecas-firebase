@@ -380,7 +380,9 @@ const App = {
             await new Promise((resolve, reject) => {
                 const existing = document.querySelector(`script[data-fallback-src="${src}"]`);
                 if (existing) {
-                    if (existing.dataset.loaded === 'true') {
+                    const readyState = String(existing.readyState || '').toLowerCase();
+                    if (existing.dataset.loaded === 'true' || readyState === 'loaded' || readyState === 'complete') {
+                        existing.dataset.loaded = 'true';
                         resolve();
                         return;
                     }

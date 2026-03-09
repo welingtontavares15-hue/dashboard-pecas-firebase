@@ -201,6 +201,25 @@ const Auth = {
                 // Always refresh session with latest profile/role data and renew expiration
                 this.currentUser = { ...this.buildSessionUser(latestUser) };
                 this.persistSession(this.currentUser);
+                if (typeof DataManager !== 'undefined') {
+                    Promise.resolve().then(async () => {
+                        try {
+                            if (typeof DataManager.persistCloudAccessSession === 'function') {
+                                await DataManager.persistCloudAccessSession(this.currentUser);
+                            }
+                        } catch (_error) {
+                            // Sessão em nuvem é best-effort durante restore
+                        }
+
+                        try {
+                            if (typeof DataManager.syncAll === 'function') {
+                                await DataManager.syncAll('session_restore');
+                            }
+                        } catch (_error) {
+                            // Sync pós-restore não deve invalidar a sessão local
+                        }
+                    });
+                }
                 return true;
             } catch (e) {
                 console.error('Erro ao restaurar sessão do usuário', e);
@@ -277,24 +296,6 @@ const Auth = {
         }
 
 
-
-        const syncRequiredButUnavailable = syncInfo.attempted && !syncInfo.succeeded;
-        if (syncRequiredButUnavailable) {
-            this.logAuthAttempt({
-                username: inputUsername,
-                normalizedUsername,
-                userRole: null,
-                statusCode: 503,
-                success: false,
-                reason: 'cloud_sync_unavailable',
-                message: 'Sincronização de usuários indisponível para autenticação segura',
-                syncInfo
-            });
-            return {
-                success: false,
-                error: 'Não foi possível validar o login com a base em nuvem agora. Aguarde a sincronização e tente novamente.'
-            };
-        }
 
         const userRecord = DataManager.getUserByUsername(inputUsername);
         const user = userRecord ? { ...userRecord } : null;
@@ -440,6 +441,21 @@ const Auth = {
         this.currentUser = this.buildSessionUser(user);
         
         this.persistSession(this.currentUser);
+        try {
+            if (typeof DataManager !== 'undefined' && typeof DataManager.persistCloudAccessSession === 'function') {
+                await DataManager.persistCloudAccessSession(this.currentUser);
+            }
+        } catch (_error) {
+            // Persistência de sessão em nuvem não pode quebrar o login já validado
+        }
+
+        try {
+            if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
+                await DataManager.syncAll('auth_login');
+            }
+        } catch (_error) {
+            // Sync pós-login é best-effort
+        }
         
         // Clear rate limit on successful login
         this.clearRateLimit(normalizedUsername);
@@ -462,6 +478,9 @@ const Auth = {
      * Logout
      */
     logout() {
+        if (typeof DataManager !== 'undefined' && typeof DataManager.clearCloudAccessSession === 'function') {
+            DataManager.clearCloudAccessSession().catch(() => {});
+        }
         this.currentUser = null;
         this.clearSession();
     },

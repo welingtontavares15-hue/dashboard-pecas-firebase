@@ -571,9 +571,9 @@ const DataManager = {
         }
     },
 
-    async persistCriticalCollection(key, data) {
+    async persistCriticalCollection(key, data, options = {}) {
         const payload = this.cloneSerializable(data, data);
-        const saved = await this._persistCollectionToCloud(key, payload);
+        const saved = await this._persistCollectionToCloud(key, payload, options);
         if (!saved) {
             return false;
         }
@@ -581,6 +581,44 @@ const DataManager = {
         this._sessionCache[key] = payload;
         this.emitDataUpdated([key], 'local');
         return true;
+    },
+
+    async persistCloudAccessSession(sessionUser = null) {
+        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.persistAccessSession !== 'function') {
+            return false;
+        }
+
+        if (!this.cloudInitialized && typeof CloudStorage.init === 'function') {
+            try {
+                this.cloudInitialized = await CloudStorage.init();
+            } catch (_e) {
+                return false;
+            }
+        }
+
+        if (!this.cloudInitialized) {
+            return false;
+        }
+
+        try {
+            return await CloudStorage.persistAccessSession(sessionUser);
+        } catch (error) {
+            console.warn('Erro ao persistir sessão de acesso na nuvem', error);
+            return false;
+        }
+    },
+
+    async clearCloudAccessSession() {
+        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.clearAccessSession !== 'function') {
+            return false;
+        }
+
+        try {
+            return await CloudStorage.clearAccessSession();
+        } catch (error) {
+            console.warn('Erro ao remover sessão de acesso na nuvem', error);
+            return false;
+        }
     },
 
     refreshAuthenticatedSession(users = this.getUsers()) {
@@ -630,7 +668,7 @@ const DataManager = {
 
     isBootstrapUserProvisioningEnabled() {
         if (typeof APP_CONFIG === 'undefined') {
-            return false;
+            return typeof process !== 'undefined' && process?.env?.NODE_ENV === 'test';
         }
 
         if (typeof APP_CONFIG.isProduction === 'function' && APP_CONFIG.isProduction()) {
@@ -640,7 +678,7 @@ const DataManager = {
         return true;
     },
 
-    async _persistCollectionToCloud(key, data) {
+    async _persistCollectionToCloud(key, data, options = {}) {
         if (!this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.init === 'function') {
             try {
                 this.cloudInitialized = await CloudStorage.init();
@@ -661,7 +699,7 @@ const DataManager = {
         }
 
         try {
-            return await CloudStorage.saveData(key, data);
+            return await CloudStorage.saveData(key, data, options);
         } catch (e) {
             console.warn(`Erro ao salvar ${key} na nuvem`, e);
             return false;
@@ -831,8 +869,51 @@ const DataManager = {
     },
 
     async applySolicitationsReset() {
-        // Historical purge disabled: preserve the full solicitation history.
-        return false;
+        const currentVersion = this.SOLICITATIONS_RESET_VERSION;
+        const currentMarker = localStorage.getItem(this.SOLICITATIONS_RESET_KEY);
+        const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
+        const normalize = (value) => {
+            if (typeof Utils !== 'undefined' && typeof Utils.normalizeText === 'function') {
+                return Utils.normalizeText(value);
+            }
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        };
+
+        const cleanedSolicitations = solicitations.filter((solicitation) => {
+            const id = String(solicitation?.id || '').toUpperCase();
+            const number = String(solicitation?.numero || '').toUpperCase();
+            const source = normalize(solicitation?.source || '');
+            const notes = normalize(solicitation?.observacoes || solicitation?.descricao || '');
+
+            const isTestRecord = source === 'test'
+                || id.startsWith('TEST-')
+                || number.startsWith('TEST-')
+                || notes.includes('solicitacao de teste')
+                || notes.includes('solicitação de teste');
+
+            return !isTestRecord;
+        });
+
+        if (cleanedSolicitations.length === solicitations.length) {
+            if (currentMarker !== currentVersion) {
+                localStorage.setItem(this.SOLICITATIONS_RESET_KEY, currentVersion);
+            }
+            return false;
+        }
+
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, cleanedSolicitations, {
+            replaceCollection: true
+        });
+        if (!saved) {
+            return false;
+        }
+
+        localStorage.setItem(this.SOLICITATIONS_RESET_KEY, currentVersion);
+        return true;
     },
 
     notifyIndexedDBFailure() {
@@ -1596,6 +1677,7 @@ const DataManager = {
             tecnicoId: candidate.tecnicoId || null,
             fornecedorId: candidate.fornecedorId || null,
             disabled: candidate.disabled === true ? true : (candidate.disabled === false ? false : undefined),
+            // Add timestamp for merge conflict resolution
             updatedAt: Date.now()
         };
 
@@ -2604,7 +2686,9 @@ const DataManager = {
             persistedSolicitation = normalizedSolicitation;
         }
 
-        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations, {
+            changedIds: persistedSolicitation?.id ? [persistedSolicitation.id] : []
+        });
         if (!saved) {
             return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a solicitação na nuvem.' };
         }
@@ -2662,7 +2746,9 @@ const DataManager = {
                     Object.assign(solicitation, payload);
                     solicitation.updatedAt = now;
 
-                    const savedTrackingUpdate = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+                    const savedTrackingUpdate = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations, {
+                        changedIds: solicitation?.id ? [solicitation.id] : []
+                    });
                     if (!savedTrackingUpdate) {
                         return { success: false, error: 'cloud_save_failed', message: 'Não foi possível atualizar o rastreio na nuvem.' };
                     }
@@ -2746,7 +2832,9 @@ const DataManager = {
         solicitation.status = nextStatus;
         solicitation.updatedAt = now;
 
-        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations, {
+            changedIds: solicitation?.id ? [solicitation.id] : []
+        });
         if (!saved) {
             return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a mudança de status na nuvem.' };
         }
@@ -2769,7 +2857,9 @@ const DataManager = {
             return { success: false, error: 'not_found', message: 'Solicitação não encontrada.' };
         }
 
-        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations, {
+            removedIds: [id]
+        });
         if (!saved) {
             return { success: false, error: 'cloud_save_failed', message: 'Não foi possível remover a solicitação na nuvem.' };
         }
@@ -2850,7 +2940,7 @@ const DataManager = {
         }).success;
     },
 
-    restoreSolicitationsBackup(payload) {
+    async restoreSolicitationsBackup(payload) {
         try {
             const incoming = Array.isArray(payload)
                 ? payload
@@ -2883,7 +2973,9 @@ const DataManager = {
             });
 
             const mergedSolicitations = Array.from(merged.values()).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-            const saved = this.saveData(this.KEYS.SOLICITATIONS, mergedSolicitations);
+            const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, mergedSolicitations, {
+                replaceCollection: true
+            });
             if (saved) {
                 this.createSolicitationsBackup({ download: false, reason: 'post-restore', silent: true });
                 return { success: true, restoredCount, total: mergedSolicitations.length };

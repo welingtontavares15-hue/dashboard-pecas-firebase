@@ -37,7 +37,8 @@ describe('Solicitações - limpeza de dados de teste', () => {
         ]);
         expect(saveData).toHaveBeenCalledWith(
             manager.KEYS.SOLICITATIONS,
-            expect.arrayContaining([expect.objectContaining({ id: 'REAL-001' })])
+            expect.arrayContaining([expect.objectContaining({ id: 'REAL-001' })]),
+            expect.objectContaining({ replaceCollection: true })
         );
         expect(localStorage.getItem(manager.SOLICITATIONS_RESET_KEY)).toBe(manager.SOLICITATIONS_RESET_VERSION);
     });

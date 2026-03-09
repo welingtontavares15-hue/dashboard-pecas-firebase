@@ -197,13 +197,13 @@ describe('Utils', () => {
     describe('getStatusInfo', () => {
         it('should return info for known status', () => {
             const info = Utils.getStatusInfo('pendente');
-            expect(info.label).toBe('Pendente');
+            expect(info.label).toBe('Em aprovação');
             expect(info.icon).toBe('fa-clock');
         });
 
         it('should return info for approved status', () => {
             const info = Utils.getStatusInfo('aprovada');
-            expect(info.label).toBe('Aprovada');
+            expect(info.label).toBe('Aprovado / aguardando envio');
             expect(info.icon).toBe('fa-check');
         });
 

@@ -1935,7 +1935,7 @@ const Solicitacoes = {
                     return;
                 }
 
-                const result = DataManager.restoreSolicitationsBackup(payload);
+                const result = await DataManager.restoreSolicitationsBackup(payload);
                 if (result?.success) {
                     Utils.showToast(`${result.restoredCount} solicitações restauradas`, 'success');
                     this.currentPage = 1;
