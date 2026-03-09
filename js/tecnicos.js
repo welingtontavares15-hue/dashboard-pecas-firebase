@@ -513,13 +513,23 @@ const Tecnicos = {
                 roleLabel: 'técnico'
             });
             if (sent) {
-                Utils.showToast('E-mail com nova senha preparado para envio', 'info');
+                Utils.showToast('E-mail de orientação preparado sem incluir a senha temporária', 'info');
             }
         }
 
         Utils.showToast(id ? 'Técnico atualizado com sucesso' : 'Técnico cadastrado com sucesso', 'success');
         Utils.closeModal();
         this.refreshTable();
+        if (password && typeof Utils.showCredentialDeliveryModal === 'function') {
+            Utils.showCredentialDeliveryModal({
+                title: id ? 'Credencial temporária do técnico' : 'Credencial inicial do técnico',
+                username,
+                password,
+                email: normalizedEmail,
+                name: nome,
+                roleLabel: 'técnico'
+            });
+        }
     },
 
     /**
@@ -678,14 +688,24 @@ const Tecnicos = {
         }
 
         if (resetEmailSent) {
-            Utils.showToast(`Senha redefinida e e-mail enviado para ${targetEmail}`, 'info');
+            Utils.showToast(`E-mail de orientação enviado para ${targetEmail}`, 'info');
         } else if (resetFallbackPrepared) {
-            Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
+            Utils.showToast('Mensagem de orientação preparada para envio manual.', 'warning');
         } else if (targetEmail) {
-            Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
+            Utils.showToast('Senha redefinida, mas não foi possível enviar a orientação por e-mail.', 'warning');
         }
 
         Utils.showToast('Senha do técnico redefinida com sucesso', 'success');
+        if (typeof Utils.showCredentialDeliveryModal === 'function') {
+            Utils.showCredentialDeliveryModal({
+                title: 'Senha temporária do técnico',
+                username: loginUsername,
+                password: sanitizedPassword,
+                email: targetEmail,
+                name: displayName,
+                roleLabel: 'técnico'
+            });
+        }
     }
 };
 

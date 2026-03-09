@@ -26,6 +26,9 @@ const App = {
         usuarios: ['js/tecnicos.js', 'js/fornecedores.js', 'js/usuarios.js']
     },
     _lazyLoaded: {},
+    _navigationBound: false,
+    _renderSequence: 0,
+    _activeRenderSequence: 0,
 
     /**
      * Get default landing page based on role
@@ -275,17 +278,20 @@ const App = {
         
         // Render menu and navigate to default page
         Auth.renderMenu(defaultPage);
-        this.navigate(defaultPage);
-        
-        // Set up navigation click handlers
         this.setupNavigation();
+        this.navigate(defaultPage);
     },
 
     /**
      * Set up navigation handlers
      */
     setupNavigation() {
-        document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+        const sidebarNav = document.getElementById('sidebar-nav');
+        if (!sidebarNav || this._navigationBound) {
+            return;
+        }
+
+        sidebarNav.addEventListener('click', (e) => {
             const navItem = e.target.closest('.nav-item');
             if (navItem) {
                 const pageId = navItem.dataset.page;
@@ -299,6 +305,7 @@ const App = {
                 }
             }
         });
+        this._navigationBound = true;
     },
     /**
      * Navigate to a page
@@ -311,6 +318,8 @@ const App = {
         }
 
         this.currentPage = pageId;
+        const renderSequence = ++this._renderSequence;
+        this._activeRenderSequence = renderSequence;
 
         // Update menu active state
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -321,7 +330,11 @@ const App = {
         this.updateBreadcrumb(pageId);
 
         // Render page content
-        await this.renderPage(pageId);
+        await this.renderPage(pageId, renderSequence);
+    },
+
+    isStaleRender(renderSequence) {
+        return Number.isFinite(renderSequence) && renderSequence !== this._activeRenderSequence;
     },
     resolveLazyModuleKey(pageId) {
         if (pageId === 'dashboard') {
@@ -454,82 +467,91 @@ const App = {
     /**
      * Render page content
      */
-    async renderPage(pageId) {
+    async renderPage(pageId, renderSequence = this._activeRenderSequence) {
         Utils.showLoading();
 
         try {
             await this.ensurePageModule(pageId);
+            if (this.isStaleRender(renderSequence)) {
+                return;
+            }
 
-            // Simulate async loading for UX
-            await new Promise((resolve) => {
+            await new Promise((resolve) => setTimeout(resolve, CHART_INIT_DELAY_MS));
+            if (this.isStaleRender(renderSequence)) {
+                return;
+            }
+
+            switch (pageId) {
+            case 'dashboard':
+                Dashboard.render();
+                break;
+
+            case 'solicitacoes':
+            case 'minhas-solicitacoes':
+                Solicitacoes.render();
+                break;
+
+            case 'nova-solicitacao':
+                Solicitacoes.openForm();
+                Solicitacoes.render();
+                break;
+
+            case 'aprovacoes':
+                Aprovacoes.render();
+                break;
+
+            case 'tecnicos':
+                Tecnicos.render();
+                break;
+
+            case 'fornecedores':
+                Fornecedores.render();
+                break;
+
+            case 'fornecedor':
+                FornecedorPortal.render();
+                break;
+
+            case 'pecas':
+            case 'catalogo':
+                Pecas.render();
+                break;
+
+            case 'relatorios':
+                Relatorios.render();
                 setTimeout(() => {
-                    switch (pageId) {
-                    case 'dashboard':
-                        Dashboard.render();
-                        break;
-
-                    case 'solicitacoes':
-                    case 'minhas-solicitacoes':
-                        Solicitacoes.render();
-                        break;
-
-                    case 'nova-solicitacao':
-                        Solicitacoes.openForm();
-                        // Navigate to solicitations after modal closes
-                        Solicitacoes.render();
-                        break;
-
-                    case 'aprovacoes':
-                        Aprovacoes.render();
-                        break;
-
-                    case 'tecnicos':
-                        Tecnicos.render();
-                        break;
-
-                    case 'fornecedores':
-                        Fornecedores.render();
-                        break;
-
-                    case 'fornecedor':
-                        FornecedorPortal.render();
-                        break;
-
-                    case 'pecas':
-                    case 'catalogo':
-                        Pecas.render();
-                        break;
-
-                    case 'relatorios':
-                        Relatorios.render();
-                        setTimeout(() => Relatorios.initCharts(), CHART_INIT_DELAY_MS);
-                        break;
-
-                    case 'configuracoes':
-                        this.renderConfiguracoes();
-                        break;
-
-                    case 'ajuda':
-                        this.renderAjuda();
-                        break;
-
-                    case 'perfil':
-                        this.renderPerfil();
-                        break;
-
-                    default:
-                        this.renderNotFound();
+                    if (!this.isStaleRender(renderSequence) && this.currentPage === 'relatorios') {
+                        Relatorios.initCharts();
                     }
+                }, CHART_INIT_DELAY_MS);
+                break;
 
-                    resolve();
-                }, 100);
-            });
+            case 'configuracoes':
+                this.renderConfiguracoes();
+                break;
+
+            case 'ajuda':
+                this.renderAjuda();
+                break;
+
+            case 'perfil':
+                this.renderPerfil();
+                break;
+
+            default:
+                this.renderNotFound();
+            }
         } catch (error) {
+            if (this.isStaleRender(renderSequence)) {
+                return;
+            }
             console.error('Erro ao carregar módulo da página', pageId, error);
             Utils.showToast('Não foi possível carregar este módulo agora.', 'error');
             this.renderNotFound();
         } finally {
-            Utils.hideLoading();
+            if (!this.isStaleRender(renderSequence)) {
+                Utils.hideLoading();
+            }
         }
     },
 
@@ -901,7 +923,7 @@ const App = {
     /**
      * Save settings
      */
-    saveSettings() {
+    async saveSettings() {
         const slaHours = parseInt(document.getElementById('sla-hours').value);
         const itemsPerPage = parseInt(document.getElementById('items-per-page').value);
         const statsRangeInput = document.getElementById('stats-range');
@@ -912,17 +934,35 @@ const App = {
         const sheetProvider = (sheetProviderInput && sheetProviderInput.value) || 'onedrive';
         const sheetTarget = (sheetTargetInput && sheetTargetInput.value.trim()) || '';
         const orcamentoMensalPecas = Math.max(parseFloat((budgetInput && budgetInput.value) || 0) || 0, 0);
-        
-        DataManager.saveSetting('slaHours', slaHours);
-        DataManager.saveSetting('itemsPerPage', itemsPerPage);
-        DataManager.saveSetting('statsRangeDays', statsRangeDays);
-        DataManager.saveSetting('orcamentoMensalPecas', orcamentoMensalPecas);
-        DataManager.saveSetting('sheetIntegration', { provider: sheetProvider, target: sheetTarget });
-        if (typeof OneDriveIntegration !== 'undefined' && typeof OneDriveIntegration.clearCache === 'function') {
-            OneDriveIntegration.clearCache();
+
+        const nextSettings = {
+            ...DataManager.getSettings(),
+            slaHours,
+            itemsPerPage,
+            statsRangeDays,
+            orcamentoMensalPecas,
+            sheetIntegration: { provider: sheetProvider, target: sheetTarget }
+        };
+
+        Utils.showLoading();
+        try {
+            const saved = typeof DataManager.persistCriticalCollection === 'function'
+                ? await DataManager.persistCriticalCollection(DataManager.KEYS.SETTINGS, nextSettings)
+                : await DataManager._persistCollectionToCloud(DataManager.KEYS.SETTINGS, nextSettings);
+
+            if (!saved) {
+                Utils.showToast('Não foi possível salvar as configurações na nuvem.', 'error');
+                return;
+            }
+
+            if (typeof OneDriveIntegration !== 'undefined' && typeof OneDriveIntegration.clearCache === 'function') {
+                OneDriveIntegration.clearCache();
+            }
+
+            Utils.showToast('Configurações salvas com sucesso', 'success');
+        } finally {
+            Utils.hideLoading();
         }
-        
-        Utils.showToast('Configurações salvas com sucesso', 'success');
     },
 
     /**
@@ -1122,14 +1162,24 @@ const App = {
         }
 
         if (resetEmailSent) {
-            Utils.showToast(`Senha redefinida e e-mail enviado para ${targetEmail}`, 'info');
+            Utils.showToast(`E-mail de orientação enviado para ${targetEmail}`, 'info');
         } else if (resetFallbackPrepared) {
-            Utils.showToast('Senha redefinida. E-mail preparado para envio manual.', 'warning');
+            Utils.showToast('Mensagem de orientação preparada para envio manual.', 'warning');
         } else if (targetEmail) {
-            Utils.showToast('Senha redefinida, mas não foi possível enviar o e-mail automático.', 'warning');
+            Utils.showToast('Senha redefinida, mas não foi possível enviar a orientação por e-mail.', 'warning');
         }
 
         Utils.showToast('Senha do gestor redefinida com sucesso', 'success');
+        if (typeof Utils.showCredentialDeliveryModal === 'function') {
+            Utils.showCredentialDeliveryModal({
+                title: 'Senha temporária do gestor',
+                username: loginUsername,
+                password: sanitizedPassword,
+                email: targetEmail,
+                name: displayName,
+                roleLabel: 'gestor'
+            });
+        }
     },
     async handleDeleteGestor(gestorId) {
         if (Auth.getRole() !== 'administrador') {
@@ -1764,7 +1814,7 @@ const App = {
     }
 };
 
-const APP_FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
+const APP_FIREBASE_SYNC_MODULE_PATH = './js/firebase-sync.js';
 
 // Start cloud synchronization once Firebase is ready
 window.addEventListener('firebase-ready', async () => {

@@ -1,8 +1,20 @@
-﻿const cache = new Map();
+const cache = new Map();
+
+function resolveClassicGlobal(checkGlobalName = '') {
+    if (!checkGlobalName) {
+        return true;
+    }
+    return window[checkGlobalName];
+}
 
 export function ensureClassicScript(src, checkGlobalName = '') {
     if (checkGlobalName && typeof window[checkGlobalName] !== 'undefined') {
         return Promise.resolve(window[checkGlobalName]);
+    }
+
+    const existing = document.querySelector(`script[data-lazy-src="${src}"]`);
+    if (existing?.dataset.loaded === 'true') {
+        return Promise.resolve(resolveClassicGlobal(checkGlobalName));
     }
 
     if (cache.has(src)) {
@@ -10,10 +22,23 @@ export function ensureClassicScript(src, checkGlobalName = '') {
     }
 
     const promise = new Promise((resolve, reject) => {
-        const existing = document.querySelector(`script[data-lazy-src="${src}"]`);
+        const resolveLoadedScript = () => {
+            resolve(resolveClassicGlobal(checkGlobalName));
+        };
+
+        const rejectLoad = (error) => {
+            cache.delete(src);
+            reject(error);
+        };
+
         if (existing) {
-            existing.addEventListener('load', () => resolve(window[checkGlobalName]));
-            existing.addEventListener('error', () => reject(new Error(`Falha ao carregar ${src}`)));
+            existing.addEventListener('load', () => {
+                existing.dataset.loaded = 'true';
+                resolveLoadedScript();
+            }, { once: true });
+            existing.addEventListener('error', () => {
+                rejectLoad(new Error(`Falha ao carregar ${src}`));
+            }, { once: true });
             return;
         }
 
@@ -21,8 +46,14 @@ export function ensureClassicScript(src, checkGlobalName = '') {
         script.src = src;
         script.async = true;
         script.dataset.lazySrc = src;
-        script.onload = () => resolve(window[checkGlobalName]);
-        script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+        script.onload = () => {
+            script.dataset.loaded = 'true';
+            resolveLoadedScript();
+        };
+        script.onerror = () => {
+            script.remove();
+            rejectLoad(new Error(`Falha ao carregar ${src}`));
+        };
         document.head.appendChild(script);
     });
 

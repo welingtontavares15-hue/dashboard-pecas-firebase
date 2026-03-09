@@ -295,11 +295,11 @@ const Utils = {
     /**
      * Prepare an email with login credentials
      */
-    sendCredentialsEmail({ to, username, password, name, roleLabel = 'usuário' }) {
+    sendCredentialsEmail({ to, username, password: _password, name, roleLabel = 'usuário' }) {
         if (typeof window === 'undefined') {
             return false;
         }
-        if (!to || !this.isValidEmail(to) || !username || !password) {
+        if (!to || !this.isValidEmail(to) || !username) {
             return false;
         }
 
@@ -310,15 +310,15 @@ const Utils = {
         const body = [
             `${greeting},`,
             '',
-            'Sua senha foi redefinida pelo administrador.',
+            'Seu acesso foi preparado pelo administrador.',
             '',
             `Nome: ${name || '-'}`,
             `Perfil: ${safeRole}`,
             `Usuário/Login: ${username}`,
-            `Nova senha: ${password}`,
             `Link de acesso ao sistema: ${accessLink}`,
             '',
-            'Acesse o sistema e altere a senha após o primeiro login.',
+            'A senha temporária deve ser compartilhada por canal interno seguro.',
+            'Ao acessar o sistema, altere a senha imediatamente.',
             '',
             'Atenciosamente,',
             this.BRAND_SIGNATURE
@@ -332,8 +332,8 @@ const Utils = {
     /**
      * Send password reset notification e-mail (automatic).
      */
-    async sendPasswordResetEmail({ to, username, password, name, roleLabel = 'usuário' } = {}) {
-        if (!to || !this.isValidEmail(to) || !username || !password) {
+    async sendPasswordResetEmail({ to, username, password: _password, name, roleLabel = 'usuário' } = {}) {
+        if (!to || !this.isValidEmail(to) || !username) {
             return false;
         }
 
@@ -349,9 +349,9 @@ const Utils = {
             `Nome: ${name || '-'}`,
             `Perfil: ${safeRole}`,
             `Usuário/Login: ${username}`,
-            `Nova senha: ${password}`,
             `Link de acesso ao sistema: ${accessLink}`,
             '',
+            'A senha temporária será compartilhada por canal interno seguro.',
             'Acesse o sistema e altere sua senha após o primeiro login.'
         ].join('\n');
 
@@ -362,12 +362,126 @@ const Utils = {
             fields: {
                 usuario: username,
                 perfil: safeRole,
-                nova_senha: password,
                 nome: name || '',
                 link_sistema: accessLink
             },
             eventLabel: 'password_reset_email'
         });
+    },
+
+    async copyText(text = '') {
+        if (!text) {
+            return false;
+        }
+
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+            } else if (typeof document !== 'undefined') {
+                const input = document.createElement('textarea');
+                input.value = text;
+                input.setAttribute('readonly', 'readonly');
+                input.style.position = 'absolute';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+            } else {
+                return false;
+            }
+
+            if (typeof this.showToast === 'function') {
+                this.showToast('Informações copiadas para a área de transferência', 'success');
+            }
+            return true;
+        } catch (_error) {
+            if (typeof this.showToast === 'function') {
+                this.showToast('Não foi possível copiar automaticamente. Copie manualmente os dados exibidos.', 'warning');
+            }
+            return false;
+        }
+    },
+
+    showCredentialDeliveryModal({ title = 'Credencial temporária', username, password, email = '', name = '', roleLabel = 'usuário' } = {}) {
+        if (!username || !password || typeof this.showModal !== 'function') {
+            return false;
+        }
+
+        const safeTitle = this.escapeHtml(title);
+        const safeRole = this.escapeHtml(String(roleLabel || 'usuário').trim());
+        const safeName = this.escapeHtml(name || '-');
+        const safeUsername = this.escapeHtml(username);
+        const safePassword = this.escapeHtml(password);
+        const safeEmail = email && this.isValidEmail(email) ? this.escapeHtml(email) : '';
+        const accessLink = this.escapeHtml(this.PASSWORD_RESET_SYSTEM_LINK);
+        const sharePayload = this.escapeHtml([
+            `Nome: ${name || '-'}`,
+            `Perfil: ${roleLabel || 'usuário'}`,
+            `Usuário/Login: ${username}`,
+            `Senha temporária: ${password}`,
+            `Acesso: ${this.PASSWORD_RESET_SYSTEM_LINK}`,
+            'Oriente a troca imediata da senha no primeiro acesso.'
+        ].join('\n'));
+
+        const content = `
+            <div class="modal-header">
+                <h3>${safeTitle}</h3>
+                <button class="modal-close" onclick="Utils.closeModal()" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" style="margin-bottom: 1rem;">
+                    Não envie a senha temporária por e-mail automático. Compartilhe este dado apenas por canal interno seguro.
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nome</label>
+                        <input type="text" class="form-control" value="${safeName}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Perfil</label>
+                        <input type="text" class="form-control" value="${safeRole}" readonly>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Usuário/Login</label>
+                        <input type="text" class="form-control" value="${safeUsername}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Senha temporária</label>
+                        <input type="text" class="form-control" value="${safePassword}" readonly>
+                    </div>
+                </div>
+                ${safeEmail ? `
+                    <div class="form-group">
+                        <label>E-mail de orientação</label>
+                        <input type="text" class="form-control" value="${safeEmail}" readonly>
+                    </div>
+                ` : ''}
+                <div class="form-group">
+                    <label>Link de acesso</label>
+                    <input type="text" class="form-control" value="${accessLink}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Mensagem segura para compartilhamento manual</label>
+                    <textarea id="credential-share-message" class="form-control" rows="6" readonly>${sharePayload}</textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="Utils.copyText(document.getElementById('credential-share-message').value)">
+                    <i class="fas fa-copy"></i> Copiar mensagem
+                </button>
+                <button class="btn btn-primary" onclick="Utils.closeModal()">
+                    Fechar
+                </button>
+            </div>
+        `;
+
+        this.showModal(content, { closeOnBackdrop: false });
+        return true;
     },
 
     /**

@@ -445,9 +445,17 @@ const Pecas = {
         try {
             Utils.showLoading();
             const data = await Utils.parseImportFile(file);
-            const result = DataManager.importParts(data);
+            const result = await DataManager.importParts(data);
             Utils.hideLoading();
-            
+
+            if (!result?.success) {
+                const failureMessage = Array.isArray(result?.errors) && result.errors.length > 0
+                    ? result.errors[0]
+                    : 'Falha ao importar o catálogo na nuvem.';
+                Utils.showToast(failureMessage, 'error');
+                return;
+            }
+
             let message = `Importação concluída: ${result.imported} novas, ${result.updated} atualizadas`;
             if (result.errors.length > 0) {
                 message += `, ${result.errors.length} erros`;

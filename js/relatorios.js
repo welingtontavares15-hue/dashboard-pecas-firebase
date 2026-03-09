@@ -579,65 +579,77 @@ const Relatorios = {
             dateTo: this.filters.dateTo,
             rangeDays: AnalyticsHelper.getGlobalPeriodFilter().rangeDays
         });
+        const selectedStatuses = this.getSelectedStatusSummary();
+        const hasActiveFilters = Boolean(
+            this.filters.dateFrom ||
+            this.filters.dateTo ||
+            this.filters.tecnico ||
+            this.filters.regiao ||
+            this.filters.cliente ||
+            selectedStatuses.length > 0
+        );
 
         return `
-            <div class="filters-bar mb-3" style="background: var(--bg-tertiary);">
-                <div class="filter-group">
-                    <label>De:</label>
-                    <input type="date" id="report-date-from" class="form-control" value="${this.filters.dateFrom}">
+            <details class="filter-panel compact report-filter-panel" ${hasActiveFilters ? 'open' : ''}>
+                <summary class="filter-panel-toggle">${hasActiveFilters ? 'Filtros ativos' : 'Filtros do relatório'}</summary>
+                <div class="filters-bar mb-3 filter-panel-body" style="background: var(--bg-tertiary);">
+                    <div class="filter-group">
+                        <label>De:</label>
+                        <input type="date" id="report-date-from" class="form-control" value="${this.filters.dateFrom}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Até:</label>
+                        <input type="date" id="report-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        ${this.renderStatusMultiSelect('report-status')}
+                    </div>
+                    <div class="filter-group">
+                        <label>Região:</label>
+                        <select id="report-regiao" class="form-control">
+                            <option value="">Todas</option>
+                            ${options.regioes.map(regiao => `
+                                <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>
+                                    ${Utils.escapeHtml(regiao)}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Técnico:</label>
+                        <select id="report-tecnico" class="form-control">
+                            <option value="">Todos</option>
+                            ${options.tecnicos.map(tecnico => `
+                                <option value="${tecnico.id}" ${this.filters.tecnico === tecnico.id ? 'selected' : ''}>
+                                    ${Utils.escapeHtml(tecnico.nome)}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Cliente:</label>
+                        <select id="report-cliente" class="form-control">
+                            <option value="">Todos</option>
+                            ${options.clientes.map(cliente => `
+                                <option value="${Utils.escapeHtml(cliente)}" ${this.filters.cliente === cliente ? 'selected' : ''}>
+                                    ${Utils.escapeHtml(cliente)}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="Relatorios.applyFilters()">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                    <button class="btn btn-outline" onclick="Relatorios.clearFilters()">
+                        <i class="fas fa-times"></i> Limpar
+                    </button>
+                    <div class="filter-group filter-period-pill">
+                        <label>Período global</label>
+                        <div class="helper-text">${Utils.escapeHtml(periodLabel)}</div>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label>Até:</label>
-                    <input type="date" id="report-date-to" class="form-control" value="${this.filters.dateTo}">
-                </div>
-                <div class="filter-group">
-                    <label>Status:</label>
-                    ${this.renderStatusMultiSelect('report-status')}
-                </div>
-                <div class="filter-group">
-                    <label>Região:</label>
-                    <select id="report-regiao" class="form-control">
-                        <option value="">Todas</option>
-                        ${options.regioes.map(regiao => `
-                            <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>
-                                ${Utils.escapeHtml(regiao)}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Técnico:</label>
-                    <select id="report-tecnico" class="form-control">
-                        <option value="">Todos</option>
-                        ${options.tecnicos.map(tecnico => `
-                            <option value="${tecnico.id}" ${this.filters.tecnico === tecnico.id ? 'selected' : ''}>
-                                ${Utils.escapeHtml(tecnico.nome)}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Cliente:</label>
-                    <select id="report-cliente" class="form-control">
-                        <option value="">Todos</option>
-                        ${options.clientes.map(cliente => `
-                            <option value="${Utils.escapeHtml(cliente)}" ${this.filters.cliente === cliente ? 'selected' : ''}>
-                                ${Utils.escapeHtml(cliente)}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
-                <button class="btn btn-primary" onclick="Relatorios.applyFilters()">
-                    <i class="fas fa-filter"></i> Filtrar
-                </button>
-                <button class="btn btn-outline" onclick="Relatorios.clearFilters()">
-                    <i class="fas fa-times"></i> Limpar
-                </button>
-                <div class="filter-group filter-period-pill">
-                    <label>Período global</label>
-                    <div class="helper-text">${Utils.escapeHtml(periodLabel)}</div>
-                </div>
-            </div>
+            </details>
 
         `;
     },

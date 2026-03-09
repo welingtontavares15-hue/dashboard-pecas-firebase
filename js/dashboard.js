@@ -21,7 +21,31 @@
         const pending = DataManager.getPendingSolicitations();
         const currentRange = this.getRangeDays();
         const content = document.getElementById('content-area');
-        const dashboardData = this.buildDashboardMetrics(DataManager.getSolicitations(), currentRange);
+        const solicitations = DataManager.getSolicitations();
+        const dashboardData = this.buildDashboardMetrics(solicitations, currentRange);
+        const recentStatusSummary = this.getRecentSelectedStatusSummary();
+        const hasRecentFilters = Boolean(
+            this.recentFilters.search ||
+            this.recentFilters.tecnico ||
+            this.recentFilters.dateFrom ||
+            this.recentFilters.dateTo ||
+            recentStatusSummary.length > 0
+        );
+
+        if (!Array.isArray(solicitations) || solicitations.length === 0) {
+            content.innerHTML = `
+                <div class="page-header">
+                    <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
+                    <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
+                </div>
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <h4>Sem solicitações registradas</h4>
+                    <p>O painel executivo será exibido assim que houver solicitações persistidas na plataforma.</p>
+                </div>
+            `;
+            return;
+        }
 
         content.innerHTML = `
             <div class="page-header">
@@ -90,8 +114,8 @@
                         <h4><i class="fas fa-history"></i> Solicitações Recentes</h4>
                         <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Busca rápida, filtros e ações diretas.</p>
                     </div>
-                    <details class="filter-panel compact" open>
-                        <summary class="filter-panel-toggle">Filtros</summary>
+                    <details class="filter-panel compact" ${hasRecentFilters ? 'open' : ''}>
+                        <summary class="filter-panel-toggle">${hasRecentFilters ? 'Filtros ativos' : 'Filtros'}</summary>
                         <div class="dashboard-filters filter-panel-body">
                             <div class="search-box">
                                 <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente ou técnico..." value="${Utils.escapeHtml(this.recentFilters.search)}">
@@ -103,14 +127,14 @@
                                 <button type="button" class="status-filter-trigger" data-status-trigger="recent-status">
                                     <span class="status-filter-label">
                                         <i class="fas fa-filter"></i>
-                                        <span class="status-filter-label-text">${this.getRecentSelectedStatusSummary().length > 0 ? `${this.getRecentSelectedStatusSummary().length} status selecionado(s)` : 'Todos os status'}</span>
+                                        <span class="status-filter-label-text">${recentStatusSummary.length > 0 ? `${recentStatusSummary.length} status selecionado(s)` : 'Todos os status'}</span>
                                     </span>
                                     <i class="fas fa-chevron-down"></i>
                                 </button>
                                 <div class="status-filter-dropdown" data-status-dropdown="recent-status">
                                     <div class="status-filter-summary">
-                                        ${this.getRecentSelectedStatusSummary().length > 0
-                                            ? this.getRecentSelectedStatusSummary().map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
+                                        ${recentStatusSummary.length > 0
+                                            ? recentStatusSummary.map(status => `<span class="tag-soft info"><i class="fas fa-check-square"></i>${Utils.escapeHtml(status.label)}</span>`).join('')
                                             : '<span class="status-filter-empty">Selecione um ou mais status</span>'}
                                     </div>
                                     <div class="status-filter-options">

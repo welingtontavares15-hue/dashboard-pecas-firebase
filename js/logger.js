@@ -147,12 +147,17 @@ const Logger = {
             // Update health stats
             this.updateHealthStats(entry);
 
-            // Output to console for debugging
-            const consoleFn = entry.level === 'error' ? console.error :
-                entry.level === 'warn' ? console.warn :
-                    entry.level === 'debug' ? console.debug : console.log;
-            
-            consoleFn(`[${entry.category.toUpperCase()}] ${entry.requestId}`, entry.message, entry.data);
+            const shouldMirrorToConsole = (typeof APP_CONFIG !== 'undefined' && typeof APP_CONFIG.isProduction === 'function')
+                ? (!APP_CONFIG.isProduction() || entry.level === 'error' || entry.level === 'warn')
+                : true;
+
+            if (shouldMirrorToConsole) {
+                const consoleFn = entry.level === 'error' ? console.error :
+                    entry.level === 'warn' ? console.warn :
+                        entry.level === 'debug' ? console.debug : console.log;
+
+                consoleFn(`[${entry.category.toUpperCase()}] ${entry.requestId}`, entry.message, entry.data);
+            }
         } catch (e) {
             console.error('Logger persist failed:', e);
         }

@@ -1,6 +1,6 @@
 {
-  "name": "Dashboard de Solicitação de Peças",
-  "short_name": "Dashboard Peças",
+  "name": "Dashboard de Solicitacao de Pecas",
+  "short_name": "Dashboard Pecas",
   "start_url": "./index.html",
   "display": "standalone",
   "theme_color": "#1f4b99",

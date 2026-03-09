@@ -271,6 +271,7 @@ const DataManager = {
     syncInProgress: false,
     _syncPromise: null,
     _debouncedSync: null,
+    _pendingSyncReason: 'auto',
     realtimeSubscribed: false,
     
     // Online-only mode: In-memory session cache for already-loaded data
@@ -672,12 +673,19 @@ const DataManager = {
      * Prevents overlapping sync operations.
      */
     scheduleSync(reason = 'auto') {
+        this._pendingSyncReason = reason;
         if (!this._debouncedSync && typeof Utils !== 'undefined' && typeof Utils.debounce === 'function') {
-            this._debouncedSync = Utils.debounce(() => this.syncAll(reason), 2000);
+            this._debouncedSync = Utils.debounce(() => {
+                const pendingReason = this._pendingSyncReason || 'auto';
+                this._pendingSyncReason = 'auto';
+                this.syncAll(pendingReason);
+            }, 2000);
         }
         if (this._debouncedSync) {
             this._debouncedSync();
+            return;
         }
+        this.syncAll(reason);
     },
 
     /**
@@ -2407,8 +2415,8 @@ const DataManager = {
         return saved;
     },
 
-    importParts(data) {
-        const parts = this.getParts();
+    async importParts(data) {
+        const parts = this.cloneSerializable(this.getParts(), []) || [];
         let imported = 0;
         let updated = 0;
         const errors = [];
@@ -2448,8 +2456,17 @@ const DataManager = {
             }
         });
         
-        this.saveData(this.KEYS.PARTS, parts);
-        return { imported, updated, errors };
+        const saved = await this.persistCriticalCollection(this.KEYS.PARTS, parts);
+        if (!saved) {
+            return {
+                success: false,
+                imported: 0,
+                updated: 0,
+                errors: [...errors, 'Falha ao persistir a importação na nuvem. Nenhuma alteração foi confirmada.']
+            };
+        }
+
+        return { success: true, imported, updated, errors };
     },
 
     // ===== RECENT PARTS (per technician) =====
