@@ -584,9 +584,15 @@ const CloudStorage = {
 
         cloudReady = await this.waitForCloudReady(Math.max(8000, Math.floor(timeoutMs / 2)));
         if (!cloudReady) {
-            this.logSyncEvent('warn', 'cloud_write_connection_not_ready', { key, opId });
+            this.logSyncEvent('warn', 'cloud_write_connection_pending', {
+                key,
+                opId
+            });
         }
-        return cloudReady;
+
+        // Em rede móvel/PWA o .info/connected pode atrasar mesmo com Auth e RTDB aptos para write.
+        // A gravação real fará o veredito com retry e tratamento de erro.
+        return true;
     },
 
     async saveRecentPartsForTechnician(tecnicoId, partCodes = [], options = {}) {

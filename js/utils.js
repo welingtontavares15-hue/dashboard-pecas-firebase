@@ -17,9 +17,9 @@ const Utils = {
      */
     PASSWORD_SALT: (typeof window !== 'undefined' && window.__diverseySalt) ? window.__diverseySalt : 'diversey_salt_v1',
 
-    OP_EMAIL_TIMEOUT_MS: 12000,
-    OP_EMAIL_MAX_RETRIES: 2,
-    OP_EMAIL_RETRY_DELAY_MS: 1200,
+    OP_EMAIL_TIMEOUT_MS: 15000,
+    OP_EMAIL_MAX_RETRIES: 3,
+    OP_EMAIL_RETRY_DELAY_MS: 1500,
     OP_EMAIL_TEMPLATE: 'box',
     BRAND_NAME: 'Diversey',
     PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas WMW',
@@ -361,7 +361,9 @@ const Utils = {
             message,
             fields: {
                 usuario: username,
+                login: username,
                 senha_temporaria: password || '',
+                senha: password || '',
                 perfil: safeRole,
                 nome: name || '',
                 link_sistema: accessLink
@@ -2631,7 +2633,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
 
 
 

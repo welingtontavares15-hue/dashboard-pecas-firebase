@@ -807,10 +807,7 @@ const DataManager = {
                 await CloudStorage.recoverAccessSession('critical_collection_retry', { key });
             }
             if (typeof CloudStorage.waitForCloudReady === 'function') {
-                const reconnected = await CloudStorage.waitForCloudReady(12000);
-                if (!reconnected) {
-                    return false;
-                }
+                await CloudStorage.waitForCloudReady(12000);
             }
             return await CloudStorage.saveData(key, data, options);
         } catch (e) {
@@ -3569,7 +3566,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 
