@@ -5,13 +5,13 @@
 // Como obter: Firebase Console > Project settings > Your apps (Web app) > Firebase SDK snippet (Config)
 
 window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
-    apiKey: 'SUA_API_KEY',
-    authDomain: 'SEU_PROJETO.firebaseapp.com',
-    databaseURL: 'https://SEU_PROJETO-default-rtdb.firebaseio.com',
-    projectId: 'SEU_PROJETO',
-    storageBucket: 'SEU_PROJETO.appspot.com',
-    messagingSenderId: 'SENDER_ID',
-    appId: 'APP_ID'
+    apiKey: 'AIzaSyAemXgLAf1jpmJHSfY4vS_W9mU_B4X4nlY',
+    authDomain: 'diversey-solicitacoes-pwa.firebaseapp.com',
+    databaseURL: 'https://diversey-solicitacoes-pwa-default-rtdb.firebaseio.com',
+    projectId: 'diversey-solicitacoes-pwa',
+    storageBucket: 'diversey-solicitacoes-pwa.firebasestorage.app',
+    messagingSenderId: '309933572392',
+    appId: '1:309933572392:web:d523d3e42e1238b6bd901d'
 };
 
 
