@@ -37,11 +37,13 @@ if (typeof window !== 'undefined') {
         onValue,
         off
     };
+    window.__firebaseModulesReady = true;
     window.FIREBASE_CONFIG = firebaseConfig;
     window.firebaseApp = null;
     window.firebaseAuth = null;
     window.firebaseDB = null;
     window.firebaseUser = null;
+    window.dispatchEvent(new CustomEvent('firebase-modules-ready'));
 }
 
 const FirebaseInit = {

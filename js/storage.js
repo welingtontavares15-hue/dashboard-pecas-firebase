@@ -29,6 +29,47 @@ const CloudStorage = {
         Logger[level](Logger.CATEGORY.SYNC, message, data);
     },
 
+    async waitForFirebaseBootstrap(timeoutMs = 15000) {
+        if (typeof window !== 'undefined' && window.firebaseModules && window.FirebaseInit) {
+            return true;
+        }
+
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        return new Promise((resolve) => {
+            let settled = false;
+            const cleanup = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timeout);
+                clearInterval(interval);
+                window.removeEventListener('firebase-modules-ready', handleReady);
+            };
+
+            const finish = (value) => {
+                cleanup();
+                resolve(value);
+            };
+
+            const checkReady = () => {
+                if (window.firebaseModules && window.FirebaseInit) {
+                    finish(true);
+                }
+            };
+
+            const handleReady = () => checkReady();
+            const timeout = setTimeout(() => finish(false), timeoutMs);
+            const interval = setInterval(checkReady, 100);
+
+            window.addEventListener('firebase-modules-ready', handleReady);
+            checkReady();
+        });
+    },
+
     /**
      * Initialize Firebase and cloud storage
      */
@@ -43,6 +84,13 @@ const CloudStorage = {
                         Utils.showToast('IndexedDB indisponível; cache offline foi reduzido.', 'warning');
                     }
                 }
+            }
+
+            const firebaseBootstrapReady = await this.waitForFirebaseBootstrap(15000);
+            if (!firebaseBootstrapReady) {
+                console.warn('Firebase bootstrap did not finish loading');
+                this.isInitialized = false;
+                return false;
             }
 
             // Check if Firebase modules are available
