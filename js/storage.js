@@ -430,22 +430,6 @@ const CloudStorage = {
             });
         }
 
-        for (const legacyField of ['data', 'updatedAt', 'updatedBy', 'opId']) {
-            try {
-                await remove(FirebaseInit.getRef(`data/${sanitizedKey}/${legacyField}`));
-            } catch (error) {
-                if (this.isPermissionDeniedError(error)) {
-                    this.logSyncEvent('debug', 'cloud_record_collection_legacy_cleanup_skipped', {
-                        key,
-                        opId,
-                        legacyField
-                    });
-                    continue;
-                }
-                throw error;
-            }
-        }
-
         for (const recordId of changedIds) {
             const record = nextMap.get(recordId);
             if (!record) {

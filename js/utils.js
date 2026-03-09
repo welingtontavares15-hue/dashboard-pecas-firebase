@@ -362,6 +362,7 @@ const Utils = {
             recipient: to,
             subject,
             message,
+            directFirst: true,
             fields: {
                 usuario: username,
                 login: username,
@@ -956,7 +957,7 @@ const Utils = {
         return scheduled;
     },
 
-    async sendOperationalEmail({ recipient, subject, message, fields = {}, eventLabel = 'email_notification' } = {}) {
+    async sendOperationalEmail({ recipient, subject, message, fields = {}, eventLabel = 'email_notification', directFirst = false } = {}) {
         const to = String(recipient || '').trim().toLowerCase();
         const maskedRecipient = this.maskEmailForLog(to);
 
@@ -973,85 +974,120 @@ const Utils = {
         }
 
         const gatewayRecipient = this.getOperationalEmailGatewayRecipient();
-        const endpointRecipient = gatewayRecipient || to;
-        const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(endpointRecipient)}`;
         const timeoutMs = Math.max(3000, Number(this.OP_EMAIL_TIMEOUT_MS) || 12000);
         const maxRetries = Math.max(0, Number(this.OP_EMAIL_MAX_RETRIES) || 0);
         const retryDelay = Math.max(200, Number(this.OP_EMAIL_RETRY_DELAY_MS) || 1200);
 
         const normalizedMessage = this.buildOperationalEmailBody(message);
+        const deliveryTargets = [];
+        const registerTarget = (endpointRecipient, mode) => {
+            const normalizedRecipient = String(endpointRecipient || '').trim().toLowerCase();
+            if (!this.isValidEmail(normalizedRecipient)) {
+                return;
+            }
+            const key = `${mode}:${normalizedRecipient}`;
+            if (deliveryTargets.some((target) => target.key === key)) {
+                return;
+            }
+            deliveryTargets.push({
+                key,
+                mode,
+                endpointRecipient: normalizedRecipient
+            });
+        };
+
+        if (directFirst) {
+            registerTarget(to, 'direct');
+        }
+        if (gatewayRecipient && gatewayRecipient !== to) {
+            registerTarget(gatewayRecipient, 'gateway');
+        }
+        if (!directFirst) {
+            registerTarget(to, 'direct');
+        }
+        if (deliveryTargets.length === 0) {
+            registerTarget(to, 'direct');
+        }
 
         return this.enqueueOperationalEmail(async () => {
             let lastError = null;
 
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                let response = null;
-                try {
-                    const payload = {
-                        _subject: subject,
-                        _template: this.OP_EMAIL_TEMPLATE || 'box',
-                        _captcha: 'false',
-                        mensagem: normalizedMessage,
-                        ...fields
-                    };
+            for (const deliveryTarget of deliveryTargets) {
+                const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(deliveryTarget.endpointRecipient)}`;
 
-                    if (gatewayRecipient && gatewayRecipient !== to) {
-                        payload._cc = to;
-                        payload._replyto = to;
-                        payload.destinatario = to;
-                        payload.email = to;
-                        payload._autoresponse = normalizedMessage;
-                    }
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    let response = null;
+                    try {
+                        const payload = {
+                            _subject: subject,
+                            _template: this.OP_EMAIL_TEMPLATE || 'box',
+                            _captcha: 'false',
+                            mensagem: normalizedMessage,
+                            ...fields
+                        };
 
-                    const result = await this.executeOperationalEmailRequest(endpoint, payload, timeoutMs);
-                    response = result?.response || null;
-                    const parsedPayload = result?.payload || null;
-
-                    if (response && response.ok) {
-                        const success = !parsedPayload || typeof parsedPayload.success === 'undefined'
-                            ? true
-                            : (parsedPayload.success === true || parsedPayload.success === 'true');
-
-                        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
-                            const loggerFn = success ? Logger.info.bind(Logger) : Logger.warn.bind(Logger);
-                            loggerFn(Logger.CATEGORY.REQUEST, eventLabel, {
-                                recipient: maskedRecipient,
-                                gatewayRecipient: this.maskEmailForLog(endpointRecipient),
-                                success,
-                                attempt: attempt + 1
-                            });
+                        if (deliveryTarget.mode === 'gateway' && deliveryTarget.endpointRecipient !== to) {
+                            payload._cc = to;
+                            payload._replyto = to;
+                            payload.destinatario = to;
+                            payload.email = to;
+                            payload._autoresponse = normalizedMessage;
                         }
 
-                        if (success) {
-                            return true;
+                        const result = await this.executeOperationalEmailRequest(endpoint, payload, timeoutMs);
+                        response = result?.response || null;
+                        const parsedPayload = result?.payload || null;
+
+                        if (response && response.ok) {
+                            const success = !parsedPayload || typeof parsedPayload.success === 'undefined'
+                                ? true
+                                : (parsedPayload.success === true || parsedPayload.success === 'true');
+
+                            if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
+                                const loggerFn = success ? Logger.info.bind(Logger) : Logger.warn.bind(Logger);
+                                loggerFn(Logger.CATEGORY.REQUEST, eventLabel, {
+                                    recipient: maskedRecipient,
+                                    gatewayRecipient: deliveryTarget.mode === 'gateway'
+                                        ? this.maskEmailForLog(deliveryTarget.endpointRecipient)
+                                        : null,
+                                    deliveryMode: deliveryTarget.mode,
+                                    success,
+                                    attempt: attempt + 1
+                                });
+                            }
+
+                            if (success) {
+                                return true;
+                            }
+
+                            lastError = new Error('provider_negative_ack');
+                            break;
                         }
 
-                        lastError = new Error('provider_negative_ack');
-                    } else {
                         const statusCode = response?.status || 0;
                         lastError = new Error(`http_${statusCode}`);
-
-                        if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+                        if (statusCode === 429 || (statusCode >= 400 && statusCode < 500)) {
+                            break;
+                        }
+                    } catch (error) {
+                        lastError = error;
+                        const transient = this.isConnectionError(error) || String(error?.message || '').includes('abort');
+                        if (!transient && attempt >= maxRetries) {
                             break;
                         }
                     }
-                } catch (error) {
-                    lastError = error;
-                    const transient = this.isConnectionError(error) || String(error?.message || '').includes('abort');
-                    if (!transient && attempt >= maxRetries) {
-                        break;
-                    }
-                }
 
-                if (attempt < maxRetries) {
-                    await this.delay(retryDelay * (attempt + 1));
+                    if (attempt < maxRetries) {
+                        await this.delay(retryDelay * (attempt + 1));
+                    }
                 }
             }
 
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.REQUEST, eventLabel, {
                     recipient: maskedRecipient,
-                    gatewayRecipient: this.maskEmailForLog(endpointRecipient),
+                    gatewayRecipient: gatewayRecipient && gatewayRecipient !== to ? this.maskEmailForLog(gatewayRecipient) : null,
+                    deliveryMode: directFirst ? 'direct_then_gateway' : 'gateway_then_direct',
                     success: false,
                     error: lastError?.message || 'send_failed'
                 });
@@ -2653,7 +2689,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
 
 
 

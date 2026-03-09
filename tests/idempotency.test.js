@@ -176,14 +176,9 @@ describe('CloudStorage Online-Only Mode', () => {
             expect(setMock).toHaveBeenCalledWith('data/diversey_recent_parts/tech_24', ['CS068', 'CS065']);
         });
 
-        it('ignores permission denied while cleaning legacy fields for solicitation records', async () => {
+        it('saves solicitation records without touching blocked legacy root fields', async () => {
             const setMock = jest.fn().mockResolvedValue(true);
-            const removeMock = jest.fn((dbPath) => {
-                if (dbPath === 'data/diversey_solicitacoes/data') {
-                    return Promise.reject(new Error('PERMISSION_DENIED: Permission denied'));
-                }
-                return Promise.resolve(true);
-            });
+            const removeMock = jest.fn().mockResolvedValue(true);
 
             global.DataManager = {
                 _sessionCache: {
@@ -225,6 +220,10 @@ describe('CloudStorage Online-Only Mode', () => {
                 tecnicoId: 'tech_24',
                 status: 'pendente'
             }));
+            expect(removeMock).not.toHaveBeenCalledWith('data/diversey_solicitacoes/data');
+            expect(removeMock).not.toHaveBeenCalledWith('data/diversey_solicitacoes/updatedAt');
+            expect(removeMock).not.toHaveBeenCalledWith('data/diversey_solicitacoes/updatedBy');
+            expect(removeMock).not.toHaveBeenCalledWith('data/diversey_solicitacoes/opId');
         });
     });
 
