@@ -795,6 +795,23 @@ const DataManager = {
         }
 
         try {
+            const saved = await CloudStorage.saveData(key, data, options);
+            if (saved) {
+                return true;
+            }
+
+            const activeUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+                ? Auth.getCurrentUser()
+                : null;
+            if (activeUser && typeof CloudStorage.recoverAccessSession === 'function') {
+                await CloudStorage.recoverAccessSession('critical_collection_retry', { key });
+            }
+            if (typeof CloudStorage.waitForCloudReady === 'function') {
+                const reconnected = await CloudStorage.waitForCloudReady(12000);
+                if (!reconnected) {
+                    return false;
+                }
+            }
             return await CloudStorage.saveData(key, data, options);
         } catch (e) {
             console.warn(`Erro ao salvar ${key} na nuvem`, e);
@@ -2679,8 +2696,30 @@ const DataManager = {
         
         // Keep only last 10
         recent[tecnicoId] = recent[tecnicoId].slice(0, 10);
-        
-        this.saveData(this.KEYS.RECENT_PARTS, recent);
+
+        this._sessionCache[this.KEYS.RECENT_PARTS] = recent;
+        this.emitDataUpdated([this.KEYS.RECENT_PARTS], 'local');
+
+        if (this.cloudInitialized &&
+            typeof CloudStorage !== 'undefined' &&
+            typeof CloudStorage.saveRecentPartsForTechnician === 'function') {
+            CloudStorage.saveRecentPartsForTechnician(tecnicoId, recent[tecnicoId], {
+                timeoutMs: 15000
+            }).then((saved) => {
+                if (!saved) {
+                    this.logOperationalEvent('warn', 'sync', 'recent_parts_cloud_save_failed', {
+                        tecnicoId,
+                        partCode
+                    });
+                }
+            }).catch((error) => {
+                this.logOperationalEvent('warn', 'sync', 'recent_parts_cloud_save_exception', {
+                    tecnicoId,
+                    partCode,
+                    error: error?.message || 'recent_parts_cloud_save_exception'
+                });
+            });
+        }
     },
 
     // ===== SOLICITATIONS =====
@@ -3530,7 +3569,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 

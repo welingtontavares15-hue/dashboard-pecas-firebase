@@ -140,14 +140,40 @@ describe('CloudStorage Online-Only Mode', () => {
         it('returns false when cloud is not connected', async () => {
             CloudStorage.isInitialized = false;
             CloudStorage.isConnected = false;
+            CloudStorage.ensureWriteReady = jest.fn().mockResolvedValue(false);
             const result = await CloudStorage.saveData('test_key', { value: 'test' });
             expect(result).toBe(false);
         });
 
         it('does not persist data locally when cloud unavailable', async () => {
+            CloudStorage.ensureWriteReady = jest.fn().mockResolvedValue(false);
             await CloudStorage.saveData('test_key', { value: 'test' });
             const stored = localStorage.getItem('test_key');
             expect(stored).toBeNull();
+        });
+
+        it('saves recent parts to the technician-specific cloud path', async () => {
+            const setMock = jest.fn().mockResolvedValue(true);
+
+            global.window.firebaseModules = { set: setMock };
+            global.FirebaseInit = {
+                database: {},
+                waitForReady: jest.fn().mockResolvedValue(true),
+                waitForCloudReady: jest.fn().mockResolvedValue(true),
+                isReady: () => true,
+                isRTDBConnected: () => true,
+                getRef: jest.fn((dbPath) => dbPath)
+            };
+
+            CloudStorage.isInitialized = true;
+            CloudStorage.database = {};
+            CloudStorage.cloudReady = true;
+            CloudStorage.waitForCloudReady = jest.fn().mockResolvedValue(true);
+
+            const result = await CloudStorage.saveRecentPartsForTechnician('tech_24', ['CS068', 'CS065']);
+
+            expect(result).toBe(true);
+            expect(setMock).toHaveBeenCalledWith('data/diversey_recent_parts/tech_24', ['CS068', 'CS065']);
         });
     });
 

@@ -31,7 +31,7 @@ const APP_CONFIG = {
     /**
      * Application version (should match service-worker.js CACHE_VERSION)
      */
-    version: 'v21',
+    version: 'v22',
     
     /**
      * Build timestamp (set during build/deploy)

@@ -9,13 +9,13 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309j',
-        solicitacoes: './pages/solicitacoes.js?v=20260309j',
-        aprovacoes: './pages/aprovacoes.js?v=20260309j',
-        pecas: './pages/pecas.js?v=20260309j',
-        relatorios: './pages/relatorios.js?v=20260309j',
-        fornecedor: './pages/fornecedor.js?v=20260309j',
-        usuarios: './pages/usuarios.js?v=20260309j'
+        dashboard: './pages/dashboard.js?v=20260309k',
+        solicitacoes: './pages/solicitacoes.js?v=20260309k',
+        aprovacoes: './pages/aprovacoes.js?v=20260309k',
+        pecas: './pages/pecas.js?v=20260309k',
+        relatorios: './pages/relatorios.js?v=20260309k',
+        fornecedor: './pages/fornecedor.js?v=20260309k',
+        usuarios: './pages/usuarios.js?v=20260309k'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],

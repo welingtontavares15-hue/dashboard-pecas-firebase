@@ -540,6 +540,113 @@ const CloudStorage = {
         return true;
     },
 
+    async ensureWriteReady(key = 'unknown', opId = null, options = {}) {
+        const timeoutMs = Math.max(5000, Number(options.timeoutMs) || 20000);
+
+        if ((!this.isInitialized || !this.database) && typeof this.init === 'function') {
+            const initialized = await this.init();
+            if (!initialized) {
+                this.logSyncEvent('warn', 'cloud_write_init_failed', { key, opId });
+                return false;
+            }
+        }
+
+        if ((!this.database || !this.isInitialized) && typeof FirebaseInit !== 'undefined' && FirebaseInit.database) {
+            this.database = FirebaseInit.database;
+            this.isInitialized = true;
+        }
+
+        if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.waitForReady !== 'function') {
+            return false;
+        }
+
+        const firebaseReady = await FirebaseInit.waitForReady(timeoutMs);
+        if (!firebaseReady) {
+            this.logSyncEvent('warn', 'cloud_write_auth_not_ready', { key, opId });
+            return false;
+        }
+
+        let cloudReady = await this.waitForCloudReady(timeoutMs);
+        if (cloudReady) {
+            return true;
+        }
+
+        const activeUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+            ? Auth.getCurrentUser()
+            : null;
+        if (activeUser) {
+            try {
+                await this.recoverAccessSession('write_precondition_retry', { key, opId });
+            } catch (_error) {
+                // retry path below handles final result
+            }
+        }
+
+        cloudReady = await this.waitForCloudReady(Math.max(8000, Math.floor(timeoutMs / 2)));
+        if (!cloudReady) {
+            this.logSyncEvent('warn', 'cloud_write_connection_not_ready', { key, opId });
+        }
+        return cloudReady;
+    },
+
+    async saveRecentPartsForTechnician(tecnicoId, partCodes = [], options = {}) {
+        const normalizedTecnicoId = String(tecnicoId || '').trim();
+        if (!normalizedTecnicoId) {
+            return false;
+        }
+
+        const opId = options.opId || this.generateOpId(`recent_parts:${normalizedTecnicoId}`);
+        const ready = await this.ensureWriteReady('diversey_recent_parts', opId, options);
+        if (!ready) {
+            return false;
+        }
+
+        const { set } = window.firebaseModules || {};
+        if (typeof set !== 'function') {
+            return false;
+        }
+
+        const payload = Array.isArray(partCodes)
+            ? partCodes.filter(Boolean).map((code) => String(code).trim()).filter(Boolean).slice(0, 10)
+            : [];
+
+        let lastError = null;
+        for (let attempt = 1; attempt <= Math.max(1, this.maxRetries); attempt++) {
+            try {
+                await set(FirebaseInit.getRef(`data/diversey_recent_parts/${normalizedTecnicoId}`), payload);
+                this.logSyncEvent('debug', 'cloud_recent_parts_saved', {
+                    tecnicoId: normalizedTecnicoId,
+                    opId,
+                    count: payload.length
+                });
+                return true;
+            } catch (error) {
+                lastError = error;
+                if (this.isPermissionDeniedError(error)) {
+                    const recovered = await this.recoverAccessSession('recent_parts_permission_denied', {
+                        tecnicoId: normalizedTecnicoId,
+                        opId,
+                        attempt
+                    });
+                    if (recovered) {
+                        continue;
+                    }
+                }
+                if (attempt >= this.maxRetries || !this.isRetryableSaveError(error)) {
+                    break;
+                }
+                await this.delay(this.retryDelay * attempt);
+            }
+        }
+
+        this.logSyncEvent('warn', 'cloud_recent_parts_save_failed', {
+            tecnicoId: normalizedTecnicoId,
+            opId,
+            error: lastError?.message || 'recent_parts_save_failed'
+        });
+        return false;
+    },
+
     /**
      * Save data to cloud storage - Online-only mode
      * Requires cloud connection; does NOT fallback to local storage.
@@ -549,18 +656,9 @@ const CloudStorage = {
      */
     async saveData(key, data, options = {}) {
         const opId = (data && data.opId) || this.generateOpId(key);
-        
-        // Ensure Firebase is authenticated and initialized
-        if (typeof FirebaseInit === 'undefined' || typeof FirebaseInit.isReady !== 'function' || !FirebaseInit.isReady()) {
-            console.warn('[ONLINE-ONLY] Cannot save - Firebase not authenticated');
-            return false;
-        }
 
-        // Online-only mode: Require cloud connection (optimized check order)
-        if (!this.isInitialized || !this.database ||
-            typeof FirebaseInit === 'undefined' ||
-            typeof FirebaseInit.isRTDBConnected !== 'function' ||
-            !FirebaseInit.isRTDBConnected()) {
+        const ready = await this.ensureWriteReady(key, opId, options);
+        if (!ready) {
             console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
             return false;
         }
