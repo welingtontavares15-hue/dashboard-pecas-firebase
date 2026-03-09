@@ -1,6 +1,6 @@
 ﻿/**
  * Application Configuration
- * Environment-specific settings for the Portal de Solicitacao de Pecas MWM.
+ * Environment-specific settings for the Diversey parts portal.
  * 
  * Build-time configuration:
  * - Development: Credentials panel visible on login screen

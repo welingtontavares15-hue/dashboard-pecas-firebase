@@ -21,9 +21,9 @@ const Utils = {
     OP_EMAIL_MAX_RETRIES: 2,
     OP_EMAIL_RETRY_DELAY_MS: 1200,
     OP_EMAIL_TEMPLATE: 'box',
-    BRAND_NAME: 'MWM',
-    PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas MWM',
-    BRAND_SIGNATURE: 'Equipe MWM',
+    BRAND_NAME: 'Diversey',
+    PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas WMW',
+    BRAND_SIGNATURE: 'Equipe Diversey',
     PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),
 
