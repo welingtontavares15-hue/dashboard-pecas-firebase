@@ -1302,6 +1302,9 @@ const Aprovacoes = {
     }
 };
 
+if (typeof window !== 'undefined') {
+    window.Aprovacoes = Aprovacoes;
+}
 
 
 

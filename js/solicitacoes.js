@@ -2038,6 +2038,9 @@ const Solicitacoes = {
     }
 };
 
+if (typeof window !== 'undefined') {
+    window.Solicitacoes = Solicitacoes;
+}
 
 
 

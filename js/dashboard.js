@@ -1112,6 +1112,9 @@ setRange(days) {
     }
 };
 
+if (typeof window !== 'undefined') {
+    window.Dashboard = Dashboard;
+}
 
 
 

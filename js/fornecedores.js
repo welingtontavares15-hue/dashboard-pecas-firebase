@@ -608,6 +608,9 @@ const Fornecedores = {
     }
 };
 
+if (typeof window !== 'undefined') {
+    window.Fornecedores = Fornecedores;
+}
 
 
 

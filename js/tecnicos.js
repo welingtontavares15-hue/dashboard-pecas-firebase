@@ -709,6 +709,9 @@ const Tecnicos = {
     }
 };
 
+if (typeof window !== 'undefined') {
+    window.Tecnicos = Tecnicos;
+}
 
 
 
