@@ -10,6 +10,7 @@ const CloudStorage = {
     isInitializing: false,
     cloudReady: false,
     database: null,
+    accessSession: null,
 
     // Listeners for real-time updates
     listeners: {},
@@ -480,6 +481,14 @@ const CloudStorage = {
             expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000)),
             updatedAt: Date.now()
         });
+        this.accessSession = {
+            userId: uid,
+            username: activeUser.username,
+            role: activeUser.role,
+            tecnicoId: activeUser.tecnicoId || null,
+            fornecedorId: activeUser.fornecedorId || null,
+            expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000))
+        };
         return true;
     },
 
@@ -527,6 +536,7 @@ const CloudStorage = {
         }
 
         await remove(FirebaseInit.getRef(`data/diversey_sessions/${uid}`));
+        this.accessSession = null;
         return true;
     },
 

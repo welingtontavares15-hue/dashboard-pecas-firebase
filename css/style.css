@@ -385,6 +385,10 @@ select.form-control {
     margin-top: 0.25rem;
 }
 
+.login-status {
+    margin-top: 0.35rem;
+}
+
 /* ===== Login Screen ===== */
 .login-container {
     display: flex;

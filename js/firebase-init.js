@@ -141,41 +141,109 @@ const FirebaseInit = {
         }
 
         this.authPromise = (async () => {
+            let timeout = null;
+            let unsubscribe = null;
+
             try {
                 if (!this.auth) {
                     console.warn('Firebase Auth not initialized');
                     return false;
                 }
 
-                // Set up auth state listener
-                return new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        reject(new Error('Authentication timeout'));
-                    }, 10000);
+                const finalizeWithUser = (user) => {
+                    this.isAuthenticated = true;
+                    if (typeof window !== 'undefined') {
+                        window.firebaseUser = user;
+                        window.dispatchEvent(new CustomEvent('firebase-ready', { detail: { uid: user.uid } }));
+                    }
+                    this.logSystemEvent('info', 'firebase_authenticated_anonymously', { uid: user.uid });
+                    this._notifyCloudReady();
+                    return true;
+                };
 
-                    onAuthStateChanged(this.auth, (user) => {
-                        clearTimeout(timeout);
-                        if (!user) {
-                            signInAnonymously(this.auth).catch((error) => {
-                                console.error('Anonymous sign in failed:', error);
-                                reject(error);
-                            });
+                if (this.auth.currentUser) {
+                    return finalizeWithUser(this.auth.currentUser);
+                }
+
+                return await new Promise((resolve, reject) => {
+                    let settled = false;
+                    let attemptCount = 0;
+                    const maxAttempts = 3;
+
+                    const cleanup = () => {
+                        if (timeout) {
+                            clearTimeout(timeout);
+                            timeout = null;
+                        }
+                        if (typeof unsubscribe === 'function') {
+                            unsubscribe();
+                            unsubscribe = null;
+                        }
+                    };
+
+                    const finishResolve = (value) => {
+                        if (settled) {
                             return;
                         }
-                        this.isAuthenticated = true;
-                        if (typeof window !== 'undefined') {
-                            window.firebaseUser = user;
-                            window.dispatchEvent(new CustomEvent('firebase-ready', { detail: { uid: user.uid } }));
-                        }
-                        this.logSystemEvent('info', 'firebase_authenticated_anonymously', { uid: user.uid });
-                        this._notifyCloudReady();
-                        resolve(true);
-                    }, (error) => {
-                        clearTimeout(timeout);
-                        console.error('Auth state change error:', error);
-                        reject(error);
-                    });
+                        settled = true;
+                        cleanup();
+                        resolve(value);
+                    };
 
+                    const finishReject = (error) => {
+                        if (settled) {
+                            return;
+                        }
+                        settled = true;
+                        cleanup();
+                        reject(error);
+                    };
+
+                    const attemptAnonymousSignIn = async () => {
+                        if (settled || this.auth.currentUser) {
+                            if (this.auth.currentUser) {
+                                finishResolve(finalizeWithUser(this.auth.currentUser));
+                            }
+                            return;
+                        }
+
+                        attemptCount += 1;
+
+                        try {
+                            await signInAnonymously(this.auth);
+                        } catch (error) {
+                            if (this.auth.currentUser) {
+                                finishResolve(finalizeWithUser(this.auth.currentUser));
+                                return;
+                            }
+
+                            if (attemptCount < maxAttempts) {
+                                setTimeout(() => {
+                                    attemptAnonymousSignIn().catch(finishReject);
+                                }, 500 * attemptCount);
+                                return;
+                            }
+
+                            console.error('Anonymous sign in failed:', error);
+                            finishReject(error);
+                        }
+                    };
+
+                    timeout = setTimeout(() => {
+                        finishReject(new Error('Authentication timeout'));
+                    }, 12000);
+
+                    unsubscribe = onAuthStateChanged(this.auth, (user) => {
+                        if (user) {
+                            finishResolve(finalizeWithUser(user));
+                            return;
+                        }
+
+                        attemptAnonymousSignIn().catch(finishReject);
+                    }, (error) => {
+                        console.error('Auth state change error:', error);
+                        finishReject(error);
+                    });
                 });
             } catch (error) {
                 console.error('Failed to authenticate with Firebase:', error);

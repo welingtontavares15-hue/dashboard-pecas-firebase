@@ -331,9 +331,9 @@ const DataManager = {
 
                 await this.applySolicitationsReset();
 
-                // Online-only mode: Initialize default data in cloud if not present
-                // This seeds the cloud with initial data on first deployment
-                if (this.cloudInitialized) {
+                // Cloud seeding must never run in the normal production bootstrap.
+                // It is only safe under explicit bootstrap mode.
+                if (this.cloudInitialized && this.isCloudBootstrapSeedingEnabled()) {
                     await this._ensureCloudDataExists();
                 }
 
@@ -752,6 +752,18 @@ const DataManager = {
         return true;
     },
 
+    isCloudBootstrapSeedingEnabled() {
+        if (typeof process !== 'undefined' && process?.env?.NODE_ENV === 'test') {
+            return true;
+        }
+
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        return window.__ENABLE_CLOUD_BOOTSTRAP === true;
+    },
+
     async _persistCollectionToCloud(key, data, options = {}) {
         if (!this.cloudInitialized && typeof CloudStorage !== 'undefined' && typeof CloudStorage.init === 'function') {
             try {
@@ -888,6 +900,10 @@ const DataManager = {
      */
     async _ensureCloudDataExists() {
         if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.saveData !== 'function') {
+            return;
+        }
+
+        if (!this.isCloudBootstrapSeedingEnabled()) {
             return;
         }
         
@@ -3514,8 +3530,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
-
 
 
 

@@ -7,14 +7,15 @@ const CHART_INIT_DELAY_MS = 100;
 
 const App = {
     currentPage: null,
+    isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309d',
-        solicitacoes: './pages/solicitacoes.js?v=20260309d',
-        aprovacoes: './pages/aprovacoes.js?v=20260309d',
-        pecas: './pages/pecas.js?v=20260309d',
-        relatorios: './pages/relatorios.js?v=20260309d',
-        fornecedor: './pages/fornecedor.js?v=20260309d',
-        usuarios: './pages/usuarios.js?v=20260309d'
+        dashboard: './pages/dashboard.js?v=20260309e',
+        solicitacoes: './pages/solicitacoes.js?v=20260309e',
+        aprovacoes: './pages/aprovacoes.js?v=20260309e',
+        pecas: './pages/pecas.js?v=20260309e',
+        relatorios: './pages/relatorios.js?v=20260309e',
+        fornecedor: './pages/fornecedor.js?v=20260309e',
+        usuarios: './pages/usuarios.js?v=20260309e'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -50,19 +51,56 @@ const App = {
     async init() {
         // Set up event listeners FIRST to prevent form from submitting before handlers are attached
         this.setupEventListeners();
-        
-        // Initialize data (now async for cloud storage)
-        await DataManager.init();
-        
-        // Check if user is logged in
-        if (Auth.init()) {
-            this.showApp();
-        } else {
-            this.showLogin();
+        this.setLoginBootstrapState(true, 'Conectando ao Firebase...');
+        this.isBootstrapping = true;
+
+        try {
+            // Initialize data (now async for cloud storage)
+            await DataManager.init();
+
+            // Check if user is logged in
+            if (Auth.init()) {
+                this.showApp();
+            } else {
+                this.showLogin();
+            }
+
+            // Apply saved theme
+            this.applyTheme();
+        } finally {
+            this.isBootstrapping = false;
+            this.setLoginBootstrapState(false);
         }
-        
-        // Apply saved theme
-        this.applyTheme();
+    },
+
+    setLoginBootstrapState(isBusy, statusText = '') {
+        const usernameInput = document.getElementById('login-username');
+        const passwordInput = document.getElementById('login-password');
+        const submitBtn = document.getElementById('login-submit');
+        const statusEl = document.getElementById('login-status');
+
+        if (usernameInput) {
+            usernameInput.disabled = !!isBusy;
+        }
+        if (passwordInput) {
+            passwordInput.disabled = !!isBusy;
+        }
+        if (submitBtn) {
+            submitBtn.disabled = !!isBusy;
+            submitBtn.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+            submitBtn.innerHTML = isBusy
+                ? '<i class="fas fa-circle-notch fa-spin"></i> Conectando...'
+                : '<i class="fas fa-sign-in-alt"></i> Entrar';
+        }
+        if (statusEl) {
+            if (isBusy && statusText) {
+                statusEl.textContent = statusText;
+                statusEl.classList.remove('hidden');
+            } else {
+                statusEl.textContent = '';
+                statusEl.classList.add('hidden');
+            }
+        }
     },
 
     /**
@@ -564,6 +602,12 @@ const App = {
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value;
         const errorDiv = document.getElementById('login-error');
+
+        if (this.isBootstrapping) {
+            errorDiv.textContent = 'Aguarde a inicialização da sincronização antes de entrar.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
         
         if (!username || !password) {
             errorDiv.textContent = 'Preencha usuário e senha';
