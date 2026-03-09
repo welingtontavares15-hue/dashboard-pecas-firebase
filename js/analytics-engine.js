@@ -74,6 +74,7 @@
             const rangeDays = Math.max(toFiniteNumber(period.rangeDays, fallbackRangeDays), 1);
             let dateFrom = String(period.dateFrom || '').trim();
             let dateTo = String(period.dateTo || '').trim();
+            let explicitDateBounds = null;
 
             if (!dateFrom || !dateTo) {
                 const end = new Date(today);
@@ -82,6 +83,12 @@
                 start.setDate(start.getDate() - Math.max(rangeDays - 1, 0));
                 dateFrom = global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(start) : start.toISOString().slice(0, 10);
                 dateTo = global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(end) : end.toISOString().slice(0, 10);
+            } else {
+                explicitDateBounds = dateFrom <= dateTo
+                    ? { dateFrom, dateTo }
+                    : { dateFrom: dateTo, dateTo: dateFrom };
+                dateFrom = explicitDateBounds.dateFrom;
+                dateTo = explicitDateBounds.dateTo;
             }
 
             const from = global.Utils?.parseAsLocalDate ? global.Utils.parseAsLocalDate(dateFrom) : new Date(dateFrom);
@@ -95,8 +102,8 @@
                 : diffDays;
 
             return {
-                dateFrom: global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(from) : from.toISOString().slice(0, 10),
-                dateTo: global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(to) : to.toISOString().slice(0, 10),
+                dateFrom: explicitDateBounds?.dateFrom || (global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(from) : from.toISOString().slice(0, 10)),
+                dateTo: explicitDateBounds?.dateTo || (global.Utils?.getLocalDateString ? global.Utils.getLocalDateString(to) : to.toISOString().slice(0, 10)),
                 rangeDays: normalizedRange,
                 from,
                 to,

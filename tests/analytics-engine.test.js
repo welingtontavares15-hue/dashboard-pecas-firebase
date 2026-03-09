@@ -233,6 +233,18 @@ describe('AnalyticsEngine', () => {
         expect(state.rangeDays).toBe(9);
     });
 
+    it('keeps explicit normalizePeriod labels aligned with the provided boundaries', () => {
+        const period = AnalyticsEngine.normalizePeriod({
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-09',
+            rangeDays: 9
+        });
+
+        expect(period.dateFrom).toBe('2026-03-01');
+        expect(period.dateTo).toBe('2026-03-09');
+        expect(AnalyticsEngine.getRangeLabel(period)).toBe('01/03/2026 a 09/03/2026');
+    });
+
     it('does not reapply the default range when operational analysis receives explicit dates', () => {
         const records = [
             {
