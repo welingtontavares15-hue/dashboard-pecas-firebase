@@ -13,6 +13,7 @@ const Solicitacoes = {
         dateTo: '',
         search: ''
     },
+    _filtersInitialized: false,
 
     // Current solicitation being edited
     currentSolicitation: null,
@@ -22,10 +23,62 @@ const Solicitacoes = {
     isDeliverySubmitting: false,
     isDeleteSubmitting: false,
 
+    getDefaultFilters() {
+        return {
+            status: [],
+            tecnico: '',
+            dateFrom: '',
+            dateTo: '',
+            search: '',
+            useDefaultPeriod: false
+        };
+    },
+
+    ensureFilters() {
+        if (this._filtersInitialized) {
+            return;
+        }
+
+        const defaults = this.getDefaultFilters();
+        const restored = AnalyticsHelper.restoreModuleFilterState('solicitacoes', {
+            defaults,
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...defaults,
+            ...restored,
+            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+        };
+        this._filtersInitialized = true;
+    },
+
+    persistFilters() {
+        const persisted = AnalyticsHelper.persistModuleFilterState('solicitacoes', {
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            dateFrom: this.filters.dateFrom,
+            dateTo: this.filters.dateTo
+        }, {
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...this.filters,
+            search: persisted?.search || '',
+            status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
+            tecnico: persisted?.tecnico || '',
+            dateFrom: persisted?.dateFrom || '',
+            dateTo: persisted?.dateTo || ''
+        };
+        return persisted;
+    },
+
     /**
      * Render solicitations list
      */
     render() {
+        this.ensureFilters();
         const content = document.getElementById('content-area');
         const canCreate = Auth.hasPermission('solicitacoes', 'create');
         const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
@@ -67,19 +120,20 @@ const Solicitacoes = {
                     ` : ''}
                 </div>
             </div>
+            <div class="filter-context-summary" id="sol-filter-context">
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            </div>
             ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <details class="filter-panel" open>
-                <summary class="filter-panel-toggle">Filtros</summary>
+            <details class="filter-panel" id="sol-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+                <summary class="filter-panel-toggle" id="sol-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
                         <input type="text" id="sol-search" class="form-control"
                                placeholder="Buscar por número, cliente, técnico ou peça..."
                                value="${Utils.escapeHtml(this.filters.search)}">
-                        <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
-                            <i class="fas fa-search"></i>
-                        </button>
                     </div>
                     <div class="filter-group">
                         <label>Status:</label>
@@ -125,11 +179,9 @@ const Solicitacoes = {
             </div>
         `;
 
-        document.getElementById('sol-search').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                this.applyFilters();
-            }
-        });
+        document.getElementById('sol-search').addEventListener('input', Utils.debounce(() => {
+            this.applyFilters();
+        }, 250));
 
         ['sol-date-from', 'sol-date-to'].forEach(id => {
             const el = document.getElementById(id);
@@ -164,6 +216,60 @@ const Solicitacoes = {
                 tecnicoFilter.addEventListener('change', () => this.applyFilters());
             }
         }
+    },
+
+    getResultsSummary() {
+        const solicitations = this.getFilteredSolicitations();
+        return `Base atual: ${Utils.formatNumber(solicitations.length)} solicitações filtradas.`;
+    },
+
+    renderActiveFilterChips() {
+        const chips = AnalyticsHelper.buildFilterChips({
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            dateFrom: this.filters.dateFrom,
+            dateTo: this.filters.dateTo
+        }, {
+            moduleKey: 'solicitacoes',
+            useDefaultPeriod: false,
+            statusOptions: this.getStatusOptions(),
+            labels: {
+                tecnico: 'Tecnico'
+            },
+            resolvers: {
+                tecnico: (value) => DataManager.getTechnicianById(value)?.nome || value
+            }
+        });
+
+        if (!chips.length) {
+            return '';
+        }
+
+        return `
+            <div class="filter-chip-bar">
+                ${chips.map((chip) => `
+                    <button type="button" class="filter-chip" onclick="Solicitacoes.removeFilterChip('${chip.key}'${chip.key === 'status' ? `, '${Utils.escapeHtml(String(chip.value || ''))}'` : ''})">
+                        <span>${Utils.escapeHtml(chip.label)}: ${Utils.escapeHtml(chip.displayValue || chip.value || '')}</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    removeFilterChip(key, value = '') {
+        if (key === 'search') {
+            this.filters.search = '';
+        } else if (key === 'status') {
+            this.filters.status = (this.filters.status || []).filter((status) => status !== value);
+        } else if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+            this.filters[key] = '';
+        }
+
+        this.persistFilters();
+        this.currentPage = 1;
+        this.render();
     },
 
     getStatusOptions() {
@@ -344,6 +450,7 @@ const Solicitacoes = {
     setStatusFilter(statuses = []) {
         this.filters.status = Array.isArray(statuses) ? statuses : (statuses ? [statuses] : []);
         this.currentPage = 1;
+        this.persistFilters();
         this.render();
     },
 
@@ -525,10 +632,8 @@ const Solicitacoes = {
 
     renderSummaryCards() {
         const solicitations = this.getFilteredSolicitations();
-        const totalValue = solicitations.reduce((sum, sol) => sum + (Number(sol.total) || 0), 0);
-        const totalParts = solicitations.reduce((sum, sol) => {
-            return sum + (sol.itens || []).reduce((itemSum, item) => itemSum + (Number(item.quantidade) || 0), 0);
-        }, 0);
+        const totalValue = solicitations.reduce((sum, sol) => sum + (Number(sol._analysisCost ?? sol.total) || 0), 0);
+        const totalParts = solicitations.reduce((sum, sol) => sum + (Number(sol._analysisPieces) || 0), 0);
         const uniqueClients = new Set(solicitations.map(sol => (sol.cliente || '').trim()).filter(Boolean)).size;
         const avgValue = solicitations.length > 0 ? totalValue / solicitations.length : 0;
 
@@ -699,6 +804,7 @@ const Solicitacoes = {
      * Get filtered solicitations
      */
     getFilteredSolicitations() {
+        this.ensureFilters();
         let solicitations = DataManager.getSolicitations();
         const role = Auth.getRole();
 
@@ -711,61 +817,43 @@ const Solicitacoes = {
             solicitations = solicitations.filter((sol) => this.canCurrentUserAccessSolicitation(sol));
         }
 
-        const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : (this.filters.status ? [this.filters.status] : []);
-        if (selectedStatuses.length > 0) {
-            solicitations = solicitations.filter((s) => {
-                const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
-                    ? DataManager.normalizeWorkflowStatus(s.status)
-                    : s.status;
-                return selectedStatuses.includes(normalizedStatus);
-            });
-        }
-        if (this.filters.tecnico) {
-            solicitations = solicitations.filter(s => s.tecnicoId === this.filters.tecnico);
-        }
-
-        if (this.filters.search) {
-            const search = this.filters.search;
-            solicitations = solicitations.filter(s => {
-                const itemText = (s.itens || []).map(item => `${item.codigo || ''} ${item.descricao || ''}`).join(' ');
-                return (
-                    Utils.matchesSearch(s.numero, search) ||
-                    Utils.matchesSearch(s.cliente, search) ||
-                    Utils.matchesSearch(s.tecnicoNome, search) ||
-                    Utils.matchesSearch(itemText, search)
-                );
-            });
-        }
-
-        if (this.filters.dateFrom) {
-            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
-            solicitations = solicitations.filter(s => Utils.parseAsLocalDate(s.data) >= from);
-        }
-
-        if (this.filters.dateTo) {
-            const to = Utils.parseAsLocalDate(this.filters.dateTo);
-            to.setHours(23, 59, 59, 999);
-            solicitations = solicitations.filter(s => Utils.parseAsLocalDate(s.data) <= to);
-        }
-
-        return solicitations.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return AnalyticsHelper.filterSolicitations(solicitations, {
+            moduleKey: 'solicitacoes',
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            period: {
+                dateFrom: this.filters.dateFrom,
+                dateTo: this.filters.dateTo
+            },
+            useDefaultPeriod: false
+        }).sort((a, b) => (b._analysisDate?.getTime() || b.createdAt || 0) - (a._analysisDate?.getTime() || a.createdAt || 0));
     },
 
     /**
      * Apply filters
      */
     applyFilters() {
-        this.filters.search = document.getElementById('sol-search').value;
-        this.filters.status = this.getSelectedStatusValues('sol-status-filter');
-        this.filters.dateFrom = document.getElementById('sol-date-from').value;
-        this.filters.dateTo = document.getElementById('sol-date-to').value;
-        
-        const tecnicoFilter = document.getElementById('sol-tecnico-filter');
-        if (tecnicoFilter) {
-            this.filters.tecnico = tecnicoFilter.value;
-        }
+        const normalized = AnalyticsHelper.buildFilterState({
+            search: document.getElementById('sol-search').value,
+            statuses: this.getSelectedStatusValues('sol-status-filter'),
+            dateFrom: document.getElementById('sol-date-from').value,
+            dateTo: document.getElementById('sol-date-to').value,
+            tecnico: document.getElementById('sol-tecnico-filter')?.value || ''
+        }, {
+            moduleKey: 'solicitacoes',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+
+        this.filters.search = normalized.search;
+        this.filters.status = normalized.statuses;
+        this.filters.dateFrom = normalized.dateFrom;
+        this.filters.dateTo = normalized.dateTo;
+        this.filters.tecnico = normalized.tecnico;
         
         this.currentPage = 1;
+        this.persistFilters();
         this.refreshTable();
     },
 
@@ -773,8 +861,9 @@ const Solicitacoes = {
      * Clear filters
      */
     clearFilters() {
-        this.filters = { status: [], tecnico: '', dateFrom: '', dateTo: '', search: '' };
+        this.filters = this.getDefaultFilters();
         this.currentPage = 1;
+        this.persistFilters();
         this.render();
     },
 
@@ -782,6 +871,21 @@ const Solicitacoes = {
      * Refresh table
      */
     refreshTable() {
+        const filterPanel = document.getElementById('sol-filter-panel');
+        const filterToggle = document.getElementById('sol-filter-panel-toggle');
+        if (filterPanel && filterToggle) {
+            const hasActive = this.hasActiveFilters();
+            filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
+            filterPanel.open = hasActive;
+        }
+
+        const context = document.getElementById('sol-filter-context');
+        if (context) {
+            context.innerHTML = `
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            `;
+        }
         const summaryContainer = document.getElementById('sol-summary-container');
         if (summaryContainer) {
             summaryContainer.innerHTML = this.renderSummaryCards();

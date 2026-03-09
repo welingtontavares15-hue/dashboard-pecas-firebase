@@ -10,29 +10,139 @@
         status: [],
         tecnico: '',
         dateFrom: '',
-        dateTo: ''
+        dateTo: '',
+        rangeDays: null
     },
     chartWarningShown: false,
+    _filtersInitialized: false,
+    _activeDashboardData: null,
+
+    getDefaultFilters() {
+        const period = AnalyticsHelper.getGlobalPeriodFilter() || AnalyticsHelper.normalizePeriod({ rangeDays: AnalyticsHelper.getDefaultRangeDays() });
+        return {
+            search: '',
+            status: [],
+            tecnico: '',
+            dateFrom: period?.dateFrom || '',
+            dateTo: period?.dateTo || '',
+            rangeDays: period?.rangeDays || AnalyticsHelper.getDefaultRangeDays(),
+            useDefaultPeriod: true
+        };
+    },
+
+    ensureFilters() {
+        if (this._filtersInitialized) {
+            return;
+        }
+
+        const defaults = this.getDefaultFilters();
+        const restored = AnalyticsHelper.restoreModuleFilterState('dashboard', {
+            defaults,
+            useDefaultPeriod: true
+        });
+        this.recentFilters = {
+            ...defaults,
+            ...restored,
+            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+        };
+        this.rangeDays = this.recentFilters.rangeDays || defaults.rangeDays;
+        this._filtersInitialized = true;
+    },
+
+    buildFilterState() {
+        this.ensureFilters();
+        return AnalyticsHelper.buildFilterState({
+            search: this.recentFilters.search,
+            statuses: this.recentFilters.status,
+            tecnico: this.recentFilters.tecnico,
+            dateFrom: this.recentFilters.dateFrom,
+            dateTo: this.recentFilters.dateTo,
+            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+        }, {
+            moduleKey: 'dashboard',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
+        });
+    },
+
+    persistFilters() {
+        const persisted = AnalyticsHelper.persistModuleFilterState('dashboard', {
+            search: this.recentFilters.search,
+            statuses: this.recentFilters.status,
+            tecnico: this.recentFilters.tecnico,
+            dateFrom: this.recentFilters.dateFrom,
+            dateTo: this.recentFilters.dateTo,
+            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+        }, {
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
+        });
+        this.recentFilters = {
+            ...this.recentFilters,
+            status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
+            dateFrom: persisted?.dateFrom || '',
+            dateTo: persisted?.dateTo || '',
+            rangeDays: persisted?.rangeDays || this.rangeDays
+        };
+        this.rangeDays = this.recentFilters.rangeDays || this.rangeDays;
+        return persisted;
+    },
+
+    canAccessDashboardRecord(solicitation) {
+        const role = Auth.getRole();
+        if (role === 'administrador' || role === 'gestor') {
+            return true;
+        }
+        if (role === 'tecnico') {
+            return solicitation?.tecnicoId === Auth.getTecnicoId();
+        }
+        if (role === 'fornecedor' && typeof FornecedorPortal !== 'undefined'
+            && typeof FornecedorPortal.belongsToCurrentSupplier === 'function'
+            && typeof FornecedorPortal.getSupplierScope === 'function') {
+            const normalizedStatus = AnalyticsHelper.normalizeStatus(solicitation?.status);
+            return ['aprovada', 'em-transito'].includes(normalizedStatus)
+                && FornecedorPortal.belongsToCurrentSupplier(solicitation, FornecedorPortal.getSupplierScope());
+        }
+        return true;
+    },
+
+    getDashboardData() {
+        const filterState = this.buildFilterState();
+        const accessible = DataManager.getSolicitations().filter((solicitation) => this.canAccessDashboardRecord(solicitation));
+        const dataset = AnalyticsHelper.buildDataset(accessible, filterState, {
+            moduleKey: 'dashboard',
+            useDefaultPeriod: true,
+            cacheKey: `dashboard:${Auth.getRole() || 'anon'}`
+        });
+        const analysis = AnalyticsHelper.computeMetrics(dataset, {
+            moduleKey: 'dashboard',
+            allRecords: accessible
+        });
+        const summaryLabel = `Indicadores calculados sobre ${Utils.formatNumber(dataset.totalCount)} solicitações filtradas.`;
+
+        return {
+            ...analysis,
+            dataset,
+            filterState,
+            summaryLabel
+        };
+    },
 
     /**
      * Render dashboard
      */
     render() {
+        this.ensureFilters();
         const pending = DataManager.getPendingSolicitations();
         const currentRange = this.getRangeDays();
         const content = document.getElementById('content-area');
         const solicitations = DataManager.getSolicitations();
-        const dashboardData = this.buildDashboardMetrics(solicitations, currentRange);
+        const dashboardData = this.getDashboardData();
+        this._activeDashboardData = dashboardData;
         const recentStatusSummary = this.getRecentSelectedStatusSummary();
-        const hasRecentFilters = Boolean(
-            this.recentFilters.search ||
-            this.recentFilters.tecnico ||
-            this.recentFilters.dateFrom ||
-            this.recentFilters.dateTo ||
-            recentStatusSummary.length > 0
-        );
+        const hasRecentFilters = this.hasActiveRecentFilters();
 
-        if (!Array.isArray(solicitations) || solicitations.length === 0) {
+        if (!Array.isArray(solicitations) || solicitations.length === 0 || dashboardData.totalRequests === 0) {
             content.innerHTML = `
                 <div class="page-header">
                     <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
@@ -40,8 +150,8 @@
                 </div>
                 <div class="empty-state">
                     <i class="fas fa-inbox"></i>
-                    <h4>Sem solicitações registradas</h4>
-                    <p>O painel executivo será exibido assim que houver solicitações persistidas na plataforma.</p>
+                    <h4>Sem solicitações no conjunto atual</h4>
+                    <p>${this.hasActiveRecentFilters() ? 'Revise os filtros do painel para exibir indicadores e solicitações.' : 'O painel executivo será exibido assim que houver solicitações visíveis para o seu perfil.'}</p>
                 </div>
             `;
             return;
@@ -52,13 +162,17 @@
                 <h2><i class="fas fa-clipboard-check"></i> Painel de Custos de Peças</h2>
                 <p class="text-muted">Acompanhe custos, volume e desempenho financeiro das solicitações.</p>
                 <div class="kpi-controls">
-                    <span class="text-muted">Período global:</span>
+                    <span class="text-muted">Período padrão do painel:</span>
                     ${[7, 30, 90].map(days => `
                         <button class="btn btn-sm ${currentRange === days ? 'btn-primary' : 'btn-outline'}"
                                 onclick="Dashboard.setRange(${days})">
                             ${days}d
                         </button>
                     `).join('')}
+                </div>
+                <div class="filter-context-summary">
+                    <span class="helper-text">${dashboardData.summaryLabel}</span>
+                    ${this.renderActiveFilterChips()}
                 </div>
             </div>
 
@@ -112,16 +226,13 @@
                 <div class="card-header">
                     <div>
                         <h4><i class="fas fa-history"></i> Solicitações Recentes</h4>
-                        <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Busca rápida, filtros e ações diretas.</p>
+                        <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Os mesmos filtros do painel controlam indicadores, alertas, gráficos e a tabela recente.</p>
                     </div>
                     <details class="filter-panel compact" ${hasRecentFilters ? 'open' : ''}>
                         <summary class="filter-panel-toggle">${hasRecentFilters ? 'Filtros ativos' : 'Filtros'}</summary>
                         <div class="dashboard-filters filter-panel-body">
                             <div class="search-box">
-                                <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente ou técnico..." value="${Utils.escapeHtml(this.recentFilters.search)}">
-                                <button class="btn btn-primary" onclick="Dashboard.applyRecentFilters()">
-                                    <i class="fas fa-search"></i>
-                                </button>
+                                <input type="text" id="recent-search" class="form-control" placeholder="Buscar por número, cliente, técnico, peça ou rastreio..." value="${Utils.escapeHtml(this.recentFilters.search)}">
                             </div>
                             <div class="status-filter" data-status-filter="recent-status" role="group" aria-label="Filtro rápido de status">
                                 <button type="button" class="status-filter-trigger" data-status-trigger="recent-status">
@@ -235,16 +346,72 @@
         `).join('');
     },
 
-    buildDashboardMetrics(solicitations = [], rangeDays = 30) {
-        const analysis = AnalyticsHelper.buildOperationalAnalysis(solicitations, {
-            period: AnalyticsHelper.getGlobalPeriodFilter()
+    renderActiveFilterChips() {
+        const chips = AnalyticsHelper.buildFilterChips(this.buildFilterState(), {
+            moduleKey: 'dashboard',
+            statusOptions: this.getRecentStatusOptions(),
+            labels: {
+                tecnico: 'Tecnico'
+            },
+            resolvers: {
+                tecnico: (value) => DataManager.getTechnicianById(value)?.nome || value
+            }
+        });
+
+        if (!chips.length) {
+            return '';
+        }
+
+        return `
+            <div class="filter-chip-bar">
+                ${chips.map((chip) => `
+                    <button type="button" class="filter-chip" onclick="Dashboard.removeFilterChip('${chip.key}'${chip.key === 'status' ? `, '${Utils.escapeHtml(String(chip.value || ''))}'` : ''})">
+                        <span>${Utils.escapeHtml(chip.label)}: ${Utils.escapeHtml(chip.displayValue || chip.value || '')}</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    removeFilterChip(key, value = '') {
+        if (key === 'search') {
+            this.recentFilters.search = '';
+        } else if (key === 'status') {
+            this.recentFilters.status = (this.recentFilters.status || []).filter((status) => status !== value);
+        } else if (key === 'period') {
+            const defaults = this.getDefaultFilters();
+            this.recentFilters.dateFrom = defaults.dateFrom;
+            this.recentFilters.dateTo = defaults.dateTo;
+            this.recentFilters.rangeDays = defaults.rangeDays;
+            this.rangeDays = defaults.rangeDays;
+        } else if (key === 'tecnico') {
+            this.recentFilters.tecnico = '';
+        }
+
+        this.persistFilters();
+        this.render();
+    },
+
+    buildDashboardMetrics(solicitations = []) {
+        const accessible = solicitations.filter((solicitation) => this.canAccessDashboardRecord(solicitation));
+        const analysis = AnalyticsHelper.buildOperationalAnalysis(accessible, {
+            moduleKey: 'dashboard',
+            search: this.recentFilters.search,
+            statuses: this.recentFilters.status,
+            tecnico: this.recentFilters.tecnico,
+            period: {
+                dateFrom: this.recentFilters.dateFrom,
+                dateTo: this.recentFilters.dateTo,
+                rangeDays: this.recentFilters.rangeDays || this.getRangeDays()
+            }
         });
 
         const slaSamples = analysis.costSolicitations
             .map(sol => {
-                const createdAt = Utils.parseAsLocalDate(sol.createdAt || sol.data);
+                const createdAt = AnalyticsHelper.getSolicitationDate(sol);
                 const completedAt = Utils.parseAsLocalDate(sol.approvedAt || sol.updatedAt || sol.data);
-                if (isNaN(createdAt) || isNaN(completedAt)) {
+                if (isNaN(createdAt) || isNaN(completedAt.getTime())) {
                     return null;
                 }
                 return Math.max((completedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60), 0);
@@ -507,10 +674,10 @@
     },
 
     renderRecentTable() {
-        const solicitations = this.getFilteredRecentSolicitations();
+        const dashboardData = this._activeDashboardData || this.getDashboardData();
+        const solicitations = dashboardData.dataset?.records || [];
         const slaHours = DataManager.getSettings().slaHours || 24;
         const visible = solicitations.slice(0, 8);
-        const dashboardData = this.buildDashboardMetrics(DataManager.getSolicitations(), this.getRangeDays());
         const highCostIds = new Set(dashboardData.highCostSolicitations.map(sol => sol.id));
 
         if (visible.length === 0) {
@@ -525,7 +692,7 @@
         
         return `
             <div class="table-info">
-                Exibindo ${visible.length} de ${solicitations.length} registros filtrados
+                Exibindo ${visible.length} de ${solicitations.length} registros filtrados. ${Utils.escapeHtml(dashboardData.summaryLabel)}
             </div>
             <div class="table-container">
                 <table class="table">
@@ -588,36 +755,13 @@
     },
 
     getFilteredRecentSolicitations() {
-        const globalPeriod = AnalyticsHelper.getGlobalPeriodFilter();
-        const { search, status, tecnico, dateFrom, dateTo } = this.recentFilters;
-        const selectedStatuses = Array.isArray(status) ? status : (status ? [status] : []);
-        let solicitations = AnalyticsHelper.filterSolicitations(DataManager.getSolicitations().slice(), {
-            period: {
-                dateFrom: dateFrom || globalPeriod.dateFrom,
-                dateTo: dateTo || globalPeriod.dateTo,
-                rangeDays: globalPeriod.rangeDays
-            },
-            statuses: selectedStatuses,
-            tecnico
-        }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        if (search) {
-            solicitations = solicitations.filter(s => 
-                Utils.matchesSearch(s.numero, search) || Utils.matchesSearch(s.tecnicoNome, search) || Utils.matchesSearch(s.cliente, search)
-            );
-        }
-
-        return solicitations;
+        return this.getDashboardData().dataset?.records || [];
     },
 
     bindRecentFilters() {
         const searchInput = document.getElementById('recent-search');
         if (searchInput) {
-            searchInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    this.applyRecentFilters();
-                }
-            });
+            searchInput.addEventListener('input', Utils.debounce(() => this.applyRecentFilters(), 250));
         }
 
         ['recent-tecnico', 'recent-date-from', 'recent-date-to'].forEach(id => {
@@ -661,30 +805,39 @@
         this.recentFilters.tecnico = document.getElementById('recent-tecnico')?.value || '';
         this.recentFilters.dateFrom = document.getElementById('recent-date-from')?.value || '';
         this.recentFilters.dateTo = document.getElementById('recent-date-to')?.value || '';
-        this.refreshRecentTable();
+        const normalized = AnalyticsHelper.buildFilterState({
+            search: this.recentFilters.search,
+            statuses: this.recentFilters.status,
+            tecnico: this.recentFilters.tecnico,
+            dateFrom: this.recentFilters.dateFrom,
+            dateTo: this.recentFilters.dateTo,
+            rangeDays: this.recentFilters.rangeDays || this.rangeDays
+        }, {
+            moduleKey: 'dashboard',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
+        });
+        this.recentFilters = {
+            ...this.recentFilters,
+            status: normalized.statuses,
+            dateFrom: normalized.dateFrom,
+            dateTo: normalized.dateTo,
+            rangeDays: normalized.rangeDays
+        };
+        this.rangeDays = normalized.rangeDays;
+        this.persistFilters();
+        this.render();
     },
 
     clearRecentFilters() {
-        this.recentFilters = { search: '', status: [], tecnico: '', dateFrom: '', dateTo: '' };
-        if (document.getElementById('recent-search')) {
-            document.getElementById('recent-search').value = '';
-        }
-        document.querySelectorAll('[data-status-group="recent-status"]').forEach(option => {
-            option.checked = false;
-        });
-        if (document.getElementById('recent-tecnico')) {
-            document.getElementById('recent-tecnico').value = '';
-        }
-        if (document.getElementById('recent-date-from')) {
-            document.getElementById('recent-date-from').value = '';
-        }
-        if (document.getElementById('recent-date-to')) {
-            document.getElementById('recent-date-to').value = '';
-        }
-        this.refreshRecentTable();
+        this.recentFilters = this.getDefaultFilters();
+        this.rangeDays = this.recentFilters.rangeDays;
+        this.persistFilters();
+        this.render();
     },
 
     refreshRecentTable() {
+        this._activeDashboardData = this.getDashboardData();
         const container = document.getElementById('recent-table-container');
         if (container) {
             container.innerHTML = this.renderRecentTable();
@@ -735,12 +888,14 @@
     },
 
     hasActiveRecentFilters() {
+        const defaults = this.getDefaultFilters();
         return !!(
             this.recentFilters.search ||
             this.recentFilters.tecnico ||
-            this.recentFilters.dateFrom ||
-            this.recentFilters.dateTo ||
-            (Array.isArray(this.recentFilters.status) && this.recentFilters.status.length > 0)
+            (Array.isArray(this.recentFilters.status) && this.recentFilters.status.length > 0) ||
+            this.recentFilters.dateFrom !== defaults.dateFrom ||
+            this.recentFilters.dateTo !== defaults.dateTo ||
+            Number(this.recentFilters.rangeDays || defaults.rangeDays) !== Number(defaults.rangeDays)
         );
     },
 
@@ -849,13 +1004,17 @@
 
 setRange(days) {
         this.rangeDays = days;
-        AnalyticsHelper.setGlobalPeriodByDays(days);
+        const preferredPeriod = AnalyticsHelper.setGlobalPeriodByDays(days);
+        this.recentFilters.rangeDays = preferredPeriod.rangeDays;
+        this.recentFilters.dateFrom = preferredPeriod.dateFrom;
+        this.recentFilters.dateTo = preferredPeriod.dateTo;
+        this.persistFilters();
         this.render();
     },
 
     getRangeDays() {
-        const period = AnalyticsHelper.getGlobalPeriodFilter();
-        this.rangeDays = period.rangeDays;
+        this.ensureFilters();
+        this.rangeDays = Number(this.recentFilters.rangeDays) || this.getDefaultFilters().rangeDays;
         return this.rangeDays;
     },
 

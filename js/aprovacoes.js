@@ -12,16 +12,63 @@ const Aprovacoes = {
     isRejectSubmitting: false,
     isBatchApproveSubmitting: false,
     filters: {
+        search: '',
         minValue: '',
         tecnico: '',
         regiao: '',
-        prioridade: ''
+        prioridade: '',
+        dateFrom: '',
+        dateTo: ''
+    },
+    _filtersInitialized: false,
+
+    getDefaultFilters() {
+        return {
+            search: '',
+            minValue: '',
+            tecnico: '',
+            regiao: '',
+            prioridade: '',
+            dateFrom: '',
+            dateTo: '',
+            useDefaultPeriod: false
+        };
+    },
+
+    ensureFilters() {
+        if (this._filtersInitialized) {
+            return;
+        }
+
+        const defaults = this.getDefaultFilters();
+        const restored = AnalyticsHelper.restoreModuleFilterState('aprovacoes', {
+            defaults,
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...defaults,
+            ...restored
+        };
+        this._filtersInitialized = true;
+    },
+
+    persistFilters() {
+        const persisted = AnalyticsHelper.persistModuleFilterState('aprovacoes', this.filters, {
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...this.filters,
+            ...persisted
+        };
+        return persisted;
     },
 
     /**
      * Render approvals page
      */
     render() {
+        this.ensureFilters();
         const content = document.getElementById('content-area');
         const pending = DataManager.getPendingSolicitations();
 
@@ -36,6 +83,10 @@ const Aprovacoes = {
                     </div>
                 ` : ''}
             </div>
+            <div class="filter-context-summary" id="approval-filter-context">
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            </div>
 
             ${pending.length > 0 ? `
                 <div class="alert alert-warning mb-3" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid var(--warning-color); border-radius: var(--radius-md);">
@@ -49,9 +100,12 @@ const Aprovacoes = {
                 </div>
             ` : ''}
 
-            <details class="filter-panel" open>
-                <summary class="filter-panel-toggle">Filtros</summary>
+            <details class="filter-panel" id="approval-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+                <summary class="filter-panel-toggle" id="approval-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
+                    <div class="search-box">
+                        <input type="text" id="approval-search" class="form-control" placeholder="Buscar por número, cliente, técnico ou peça..." value="${Utils.escapeHtml(this.filters.search)}">
+                    </div>
                     <div class="filter-group">
                         <label>Valor mínimo:</label>
                         <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
@@ -83,6 +137,14 @@ const Aprovacoes = {
                             <option value="baixa" ${this.filters.prioridade === 'baixa' ? 'selected' : ''}>Baixa</option>
                         </select>
                     </div>
+                    <div class="filter-group">
+                        <label>De:</label>
+                        <input type="date" id="approval-date-from" class="form-control" value="${this.filters.dateFrom}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Até:</label>
+                        <input type="date" id="approval-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
                     <button class="btn btn-outline" onclick="Aprovacoes.clearFilters()">
                         <i class="fas fa-times"></i> Limpar
                     </button>
@@ -100,6 +162,61 @@ const Aprovacoes = {
 
         this.bindFilters();
         this.updateSelectedCount();
+    },
+
+    getResultsSummary() {
+        const pending = this.getFilteredPendingSolicitations();
+        return `Base atual: ${Utils.formatNumber(pending.length)} solicitações pendentes filtradas.`;
+    },
+
+    renderActiveFilterChips() {
+        const chips = AnalyticsHelper.buildFilterChips(this.filters, {
+            moduleKey: 'aprovacoes',
+            useDefaultPeriod: false,
+            labels: {
+                tecnico: 'Tecnico',
+                regiao: 'Regiao',
+                prioridade: 'Prioridade'
+            },
+            resolvers: {
+                tecnico: (value) => DataManager.getTechnicianById(value)?.nome || value
+            }
+        });
+
+        if (!chips.length) {
+            return '';
+        }
+
+        return `
+            <div class="filter-chip-bar">
+                ${chips.map((chip) => `
+                    <button type="button" class="filter-chip" onclick="Aprovacoes.removeFilterChip('${chip.key}')">
+                        <span>${Utils.escapeHtml(chip.label)}: ${Utils.escapeHtml(chip.displayValue || chip.value || '')}</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    removeFilterChip(key) {
+        if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+            this.filters[key] = '';
+        }
+
+        this.persistFilters();
+        this.selectedIds = [];
+        this.currentPage = 1;
+        this.render();
+    },
+
+    hasActiveFilters() {
+        return Object.values(this.filters).some((value) => {
+            if (Array.isArray(value)) {
+                return value.length > 0;
+            }
+            return value !== '' && value !== null && value !== undefined;
+        });
     },
 
     /**
@@ -211,31 +328,27 @@ const Aprovacoes = {
     },
 
     getFilteredPendingSolicitations() {
-        let pending = DataManager.getPendingSolicitations().slice();
-
-        if (this.filters.minValue) {
-            const minValue = Number(this.filters.minValue) || 0;
-            pending = pending.filter(sol => (Number(sol.total) || 0) >= minValue);
-        }
-
-        if (this.filters.tecnico) {
-            pending = pending.filter(sol => sol.tecnicoId === this.filters.tecnico);
-        }
-
-        if (this.filters.regiao) {
-            pending = pending.filter(sol => this.getSolicitationRegion(sol) === this.filters.regiao);
-        }
-
-        if (this.filters.prioridade) {
-            pending = pending.filter(sol => this.getSolicitationPriority(sol) === this.filters.prioridade);
-        }
+        let pending = AnalyticsHelper.filterSolicitations(DataManager.getPendingSolicitations().slice(), {
+            moduleKey: 'aprovacoes',
+            search: this.filters.search,
+            tecnico: this.filters.tecnico,
+            regiao: this.filters.regiao,
+            prioridade: this.filters.prioridade,
+            minValue: this.filters.minValue,
+            period: {
+                dateFrom: this.filters.dateFrom,
+                dateTo: this.filters.dateTo
+            },
+            statuses: ['pendente'],
+            useDefaultPeriod: false
+        });
 
         return pending.sort((a, b) => {
-            const totalDiff = (Number(b.total) || 0) - (Number(a.total) || 0);
+            const totalDiff = (Number(b._analysisCost ?? b.total) || 0) - (Number(a._analysisCost ?? a.total) || 0);
             if (totalDiff !== 0) {
                 return totalDiff;
             }
-            return (a.createdAt || 0) - (b.createdAt || 0);
+            return (a._analysisDate?.getTime() || a.createdAt || 0) - (b._analysisDate?.getTime() || b.createdAt || 0);
         });
     },
 
@@ -253,8 +366,8 @@ const Aprovacoes = {
     },
 
     getSolicitationPriority(sol) {
-        const total = Number(sol?.total) || 0;
-        const waitingHours = Utils.getHoursDiff(sol?.createdAt || sol?.data, Date.now());
+        const total = Number(sol?._analysisCost ?? sol?.total) || 0;
+        const waitingHours = Utils.getHoursDiff(sol?._analysisDate?.getTime() || sol?.createdAt || sol?.data, Date.now());
         const slaHours = DataManager.getSettings().slaHours || 24;
 
         if (total >= 1500 || waitingHours >= slaHours) {
@@ -277,7 +390,12 @@ const Aprovacoes = {
     },
 
     bindFilters() {
-        ['approval-min-value', 'approval-tecnico', 'approval-regiao', 'approval-prioridade'].forEach(id => {
+        const search = document.getElementById('approval-search');
+        if (search) {
+            search.addEventListener('input', Utils.debounce(() => this.applyFilters(), 250));
+        }
+
+        ['approval-min-value', 'approval-tecnico', 'approval-regiao', 'approval-prioridade', 'approval-date-from', 'approval-date-to'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => this.applyFilters());
@@ -286,19 +404,40 @@ const Aprovacoes = {
     },
 
     applyFilters() {
-        this.filters.minValue = document.getElementById('approval-min-value')?.value || '';
-        this.filters.tecnico = document.getElementById('approval-tecnico')?.value || '';
-        this.filters.regiao = document.getElementById('approval-regiao')?.value || '';
-        this.filters.prioridade = document.getElementById('approval-prioridade')?.value || '';
+        const normalized = AnalyticsHelper.buildFilterState({
+            search: document.getElementById('approval-search')?.value || '',
+            minValue: document.getElementById('approval-min-value')?.value || '',
+            tecnico: document.getElementById('approval-tecnico')?.value || '',
+            regiao: document.getElementById('approval-regiao')?.value || '',
+            prioridade: document.getElementById('approval-prioridade')?.value || '',
+            dateFrom: document.getElementById('approval-date-from')?.value || '',
+            dateTo: document.getElementById('approval-date-to')?.value || ''
+        }, {
+            moduleKey: 'aprovacoes',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...this.filters,
+            search: normalized.search,
+            minValue: normalized.minValue === '' ? '' : String(normalized.minValue),
+            tecnico: normalized.tecnico,
+            regiao: normalized.regiao,
+            prioridade: normalized.prioridade,
+            dateFrom: normalized.dateFrom,
+            dateTo: normalized.dateTo
+        };
         this.selectedIds = [];
         this.currentPage = 1;
+        this.persistFilters();
         this.refreshTable();
     },
 
     clearFilters() {
-        this.filters = { minValue: '', tecnico: '', regiao: '', prioridade: '' };
+        this.filters = this.getDefaultFilters();
         this.selectedIds = [];
         this.currentPage = 1;
+        this.persistFilters();
         this.render();
     },
 
@@ -306,6 +445,21 @@ const Aprovacoes = {
      * Refresh table
      */
     refreshTable() {
+        const filterPanel = document.getElementById('approval-filter-panel');
+        const filterToggle = document.getElementById('approval-filter-panel-toggle');
+        if (filterPanel && filterToggle) {
+            const hasActive = this.hasActiveFilters();
+            filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
+            filterPanel.open = hasActive;
+        }
+
+        const context = document.getElementById('approval-filter-context');
+        if (context) {
+            context.innerHTML = `
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            `;
+        }
         const container = document.getElementById('approvals-table-container');
         if (container) {
             container.innerHTML = this.renderTable();

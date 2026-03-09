@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -26,6 +26,7 @@ const PRECACHE = {
     './js/firebase-sync.js',
     './js/pwa.js',
     './js/utils.js',
+    './js/analytics-engine.js',
     './js/logger.js',
     './js/indexeddb-storage.js',
     './js/storage.js',

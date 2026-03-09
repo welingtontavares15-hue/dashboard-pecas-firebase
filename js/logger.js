@@ -33,7 +33,8 @@ const Logger = {
         EXPORT: 'export',
         REQUEST: 'request',
         SYSTEM: 'system',
-        APPROVAL: 'approval'
+        APPROVAL: 'approval',
+        ANALYTICS: 'analytics'
     },
 
     /**

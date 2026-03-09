@@ -2925,6 +2925,8 @@ const DataManager = {
             slaHours: 24,
             itemsPerPage: 10,
             statsRangeDays: 30,
+            preferredRangeDays: 30,
+            defaultPeriodFilter: null,
             orcamentoMensalPecas: 0,
             sheetIntegration: { provider: 'onedrive', target: '' }
         };

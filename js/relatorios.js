@@ -6,6 +6,7 @@
 const Relatorios = {
     currentReport: 'custos',
     filters: {
+        search: '',
         dateFrom: '',
         dateTo: '',
         status: [],
@@ -16,18 +17,130 @@ const Relatorios = {
     chartWarningShown: false,
     charts: {},
     costStatuses: ['aprovada', 'em-transito', 'entregue', 'finalizada', 'historico-manual'],
+    _filtersInitialized: false,
+    _activeReportData: null,
+
+    getDefaultFilters() {
+        const period = AnalyticsHelper.getGlobalPeriodFilter() || AnalyticsHelper.normalizePeriod({ rangeDays: AnalyticsHelper.getDefaultRangeDays() });
+        return {
+            search: '',
+            dateFrom: period?.dateFrom || '',
+            dateTo: period?.dateTo || '',
+            status: [],
+            tecnico: '',
+            regiao: '',
+            cliente: '',
+            rangeDays: period?.rangeDays || AnalyticsHelper.getDefaultRangeDays(),
+            useDefaultPeriod: true
+        };
+    },
+
+    ensureFilters() {
+        if (this._filtersInitialized) {
+            return;
+        }
+
+        const defaults = this.getDefaultFilters();
+        const restored = AnalyticsHelper.restoreModuleFilterState('relatorios', {
+            defaults,
+            useDefaultPeriod: true
+        });
+        this.filters = {
+            ...defaults,
+            ...restored,
+            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+        };
+        this._filtersInitialized = true;
+    },
+
+    buildFilterState() {
+        this.ensureFilters();
+        return AnalyticsHelper.buildFilterState({
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            regiao: this.filters.regiao,
+            cliente: this.filters.cliente,
+            dateFrom: this.filters.dateFrom,
+            dateTo: this.filters.dateTo,
+            rangeDays: this.filters.rangeDays
+        }, {
+            moduleKey: 'relatorios',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
+        });
+    },
+
+    persistFilters() {
+        const persisted = AnalyticsHelper.persistModuleFilterState('relatorios', {
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            regiao: this.filters.regiao,
+            cliente: this.filters.cliente,
+            dateFrom: this.filters.dateFrom,
+            dateTo: this.filters.dateTo,
+            rangeDays: this.filters.rangeDays
+        }, {
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
+        });
+        this.filters = {
+            ...this.filters,
+            search: persisted?.search || '',
+            status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
+            tecnico: persisted?.tecnico || '',
+            regiao: persisted?.regiao || '',
+            cliente: persisted?.cliente || '',
+            dateFrom: persisted?.dateFrom || '',
+            dateTo: persisted?.dateTo || '',
+            rangeDays: persisted?.rangeDays || this.filters.rangeDays
+        };
+        return persisted;
+    },
+
+    getReportData() {
+        const filterState = this.buildFilterState();
+        const allSolicitations = DataManager.getSolicitations().slice();
+        const dataset = AnalyticsHelper.buildDataset(allSolicitations, filterState, {
+            moduleKey: 'relatorios',
+            useDefaultPeriod: true,
+            cacheKey: `relatorios:${this.currentReport}`
+        });
+        const analysis = AnalyticsHelper.computeMetrics(dataset, {
+            moduleKey: 'relatorios',
+            allRecords: allSolicitations,
+            costStatuses: Array.isArray(filterState.statuses) && filterState.statuses.length > 0
+                ? filterState.statuses
+                : this.costStatuses
+        });
+        const monthlySummary = this.buildMonthlyAverageSummary(dataset.records, filterState.period);
+
+        return {
+            dataset,
+            analysis,
+            solicitations: dataset.records,
+            monthlySummary,
+            summaryLabel: `Base atual: ${Utils.formatNumber(dataset.totalCount)} solicitações filtradas.`
+        };
+    },
 
     /**
      * Render reports page
      */
     render() {
-        this.syncDateFiltersFromGlobal();
+        this.ensureFilters();
+        this._activeReportData = this.getReportData();
         const content = document.getElementById('content-area');
 
         content.innerHTML = `
             <div class="page-header">
                 <h2><i class="fas fa-file-alt"></i> Relatórios</h2>
                 <p class="text-muted">Analise custos de peças, técnicos e solicitações no mesmo painel.</p>
+                <div class="filter-context-summary">
+                    <span class="helper-text">${this._activeReportData.summaryLabel}</span>
+                    ${this.renderActiveFilterChips()}
+                </div>
             </div>
 
             <div class="tabs">
@@ -83,6 +196,54 @@ const Relatorios = {
         }
     },
 
+    renderActiveFilterChips() {
+        const chips = AnalyticsHelper.buildFilterChips(this.buildFilterState(), {
+            moduleKey: 'relatorios',
+            statusOptions: this.getStatusOptions(),
+            labels: {
+                tecnico: 'Tecnico',
+                regiao: 'Regiao',
+                cliente: 'Cliente'
+            },
+            resolvers: {
+                tecnico: (value) => DataManager.getTechnicianById(value)?.nome || value
+            }
+        });
+
+        if (!chips.length) {
+            return '';
+        }
+
+        return `
+            <div class="filter-chip-bar">
+                ${chips.map((chip) => `
+                    <button type="button" class="filter-chip" onclick="Relatorios.removeFilterChip('${chip.key}'${chip.key === 'status' ? `, '${Utils.escapeHtml(String(chip.value || ''))}'` : ''})">
+                        <span>${Utils.escapeHtml(chip.label)}: ${Utils.escapeHtml(chip.displayValue || chip.value || '')}</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    removeFilterChip(key, value = '') {
+        if (key === 'search') {
+            this.filters.search = '';
+        } else if (key === 'status') {
+            this.filters.status = (this.filters.status || []).filter((status) => status !== value);
+        } else if (key === 'period') {
+            const defaults = this.getDefaultFilters();
+            this.filters.dateFrom = defaults.dateFrom;
+            this.filters.dateTo = defaults.dateTo;
+            this.filters.rangeDays = defaults.rangeDays;
+        } else if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+            this.filters[key] = '';
+        }
+
+        this.persistFilters();
+        this.render();
+    },
+
     /**
      * Render solicitations report
      */
@@ -109,9 +270,10 @@ const Relatorios = {
      * Generate solicitations table
      */
     generateSolicitacoesTable() {
-        const solicitations = this.getFilteredSolicitations();
-        const analysis = this.buildCostAnalysis();
-        const monthlySummary = this.buildMonthlyAverageSummary(solicitations);
+        const reportData = this._activeReportData || this.getReportData();
+        const solicitations = reportData.solicitations;
+        const analysis = reportData.analysis;
+        const monthlySummary = reportData.monthlySummary;
         const highCostIds = new Set(analysis.highCostSolicitations.map(sol => sol.id));
 
         if (solicitations.length === 0) {
@@ -121,8 +283,8 @@ const Relatorios = {
             );
         }
 
-        const totalValue = solicitations.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
-        const totalItems = solicitations.reduce((sum, s) => sum + ((s.itens || []).reduce((itemSum, item) => itemSum + (Number(item?.quantidade) || 0), 0)), 0);
+        const totalValue = solicitations.reduce((sum, s) => sum + (Number(s._analysisCost ?? s.total) || 0), 0);
+        const totalItems = solicitations.reduce((sum, s) => sum + (Number(s._analysisPieces) || (s.itens || []).reduce((itemSum, item) => itemSum + (Number(item?.quantidade) || 0), 0)), 0);
         const byStatus = {};
 
         solicitations.forEach((solicitation) => {
@@ -198,8 +360,8 @@ const Relatorios = {
                                 <td>${Utils.escapeHtml(this.getSolicitationClientName(sol))}</td>
                                 <td>${Utils.escapeHtml(this.getSolicitationRegion(sol))}</td>
                                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-                                <td>${Utils.formatNumber((sol.itens || []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0))}</td>
-                                <td>${Utils.formatCurrency(sol.total || 0)}</td>
+                                <td>${Utils.formatNumber(Number(sol._analysisPieces) || 0)}</td>
+                                <td>${Utils.formatCurrency(sol._analysisCost || 0)}</td>
                                 <td>${Utils.renderStatusBadge(sol.status)}</td>
                             </tr>
                         `).join('')}
@@ -221,13 +383,14 @@ const Relatorios = {
      * Render cost dashboard report
      */
     renderCustosReport() {
-        const analysis = this.buildCostAnalysis();
+        const reportData = this._activeReportData || this.getReportData();
+        const analysis = reportData.analysis;
         const latestMonth = analysis.latestMonth;
         const topTechnicians = analysis.byTechnician.slice(0, 8)
             .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
         const topParts = analysis.byPiece.slice(0, 8)
             .sort((a, b) => (Number(b.totalCost) || 0) - (Number(a.totalCost) || 0));
-        const monthlySummary = this.buildMonthlyAverageSummary(analysis.solicitations || []);
+        const monthlySummary = reportData.monthlySummary;
 
         return `
             <div class="card">
@@ -577,10 +740,11 @@ const Relatorios = {
         const periodLabel = AnalyticsHelper.getRangeLabel({
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo,
-            rangeDays: AnalyticsHelper.getGlobalPeriodFilter().rangeDays
+            rangeDays: this.filters.rangeDays || AnalyticsHelper.getDefaultRangeDays()
         });
         const selectedStatuses = this.getSelectedStatusSummary();
         const hasActiveFilters = Boolean(
+            this.filters.search ||
             this.filters.dateFrom ||
             this.filters.dateTo ||
             this.filters.tecnico ||
@@ -593,6 +757,9 @@ const Relatorios = {
             <details class="filter-panel compact report-filter-panel" ${hasActiveFilters ? 'open' : ''}>
                 <summary class="filter-panel-toggle">${hasActiveFilters ? 'Filtros ativos' : 'Filtros do relatório'}</summary>
                 <div class="filters-bar mb-3 filter-panel-body" style="background: var(--bg-tertiary);">
+                    <div class="search-box">
+                        <input type="text" id="report-search" class="form-control" placeholder="Buscar por número, cliente, técnico, peça ou rastreio..." value="${Utils.escapeHtml(this.filters.search)}">
+                    </div>
                     <div class="filter-group">
                         <label>De:</label>
                         <input type="date" id="report-date-from" class="form-control" value="${this.filters.dateFrom}">
@@ -645,7 +812,7 @@ const Relatorios = {
                         <i class="fas fa-times"></i> Limpar
                     </button>
                     <div class="filter-group filter-period-pill">
-                        <label>Período global</label>
+                        <label>Base do relatório</label>
                         <div class="helper-text">${Utils.escapeHtml(periodLabel)}</div>
                     </div>
                 </div>
@@ -654,18 +821,17 @@ const Relatorios = {
         `;
     },
 
-    syncDateFiltersFromGlobal() {
-        const period = AnalyticsHelper.getGlobalPeriodFilter();
-        this.filters.dateFrom = period.dateFrom;
-        this.filters.dateTo = period.dateTo;
-    },
-
     afterRender() {
         this.bindFilterControls();
         setTimeout(() => this.initCharts(), 50);
     },
 
     bindFilterControls() {
+        const search = document.getElementById('report-search');
+        if (search) {
+            search.addEventListener('input', Utils.debounce(() => this.applyFilters(), 250));
+        }
+
         ['report-date-from', 'report-date-to', 'report-tecnico', 'report-regiao', 'report-cliente'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -780,30 +946,9 @@ const Relatorios = {
         this._statusDropdownCloseBound = true;
     },
 
-    matchesDateRange(date) {
-        if (!date || isNaN(date)) {
-            return false;
-        }
-
-        let isValid = true;
-        if (this.filters.dateFrom) {
-            const from = Utils.parseAsLocalDate(this.filters.dateFrom);
-            from.setHours(0, 0, 0, 0);
-            isValid = isValid && date.getTime() >= from.getTime();
-        }
-
-        if (this.filters.dateTo) {
-            const to = Utils.parseAsLocalDate(this.filters.dateTo);
-            to.setHours(23, 59, 59, 999);
-            isValid = isValid && date.getTime() <= to.getTime();
-        }
-
-        return isValid;
-    },
-    buildMonthlyAverageSummary(solicitations = []) {
-        const period = AnalyticsHelper.getGlobalPeriodFilter();
-        const fromRaw = this.filters.dateFrom || period?.dateFrom;
-        const toRaw = this.filters.dateTo || period?.dateTo;
+    buildMonthlyAverageSummary(solicitations = [], period = null) {
+        const fromRaw = period?.dateFrom || this.filters.dateFrom;
+        const toRaw = period?.dateTo || this.filters.dateTo;
         const from = Utils.parseAsLocalDate(fromRaw);
         const to = Utils.parseAsLocalDate(toRaw);
         let monthCount = 1;
@@ -814,7 +959,7 @@ const Relatorios = {
             monthCount = Math.max(((end.getFullYear() - start.getFullYear()) * 12) + (end.getMonth() - start.getMonth()) + 1, 1);
         }
 
-        const totalCost = solicitations.reduce((sum, sol) => sum + (Number(sol?.total) || 0), 0);
+        const totalCost = solicitations.reduce((sum, sol) => sum + (Number(sol?._analysisCost ?? sol?.total) || 0), 0);
 
         return {
             monthCount,
@@ -827,91 +972,61 @@ const Relatorios = {
      * Apply filters
      */
     applyFilters() {
+        this.filters.search = document.getElementById('report-search')?.value || '';
         this.filters.dateFrom = document.getElementById('report-date-from')?.value || '';
         this.filters.dateTo = document.getElementById('report-date-to')?.value || '';
         this.filters.status = this.getSelectedStatusValues('report-status');
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
-        AnalyticsHelper.saveGlobalPeriodFilter({
+        const normalized = AnalyticsHelper.buildFilterState({
+            search: this.filters.search,
+            statuses: this.filters.status,
+            tecnico: this.filters.tecnico,
+            regiao: this.filters.regiao,
+            cliente: this.filters.cliente,
             dateFrom: this.filters.dateFrom,
-            dateTo: this.filters.dateTo
+            dateTo: this.filters.dateTo,
+            rangeDays: this.filters.rangeDays
+        }, {
+            moduleKey: 'relatorios',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: true
         });
+        this.filters = {
+            ...this.filters,
+            search: normalized.search,
+            status: normalized.statuses,
+            tecnico: normalized.tecnico,
+            regiao: normalized.regiao,
+            cliente: normalized.cliente,
+            dateFrom: normalized.dateFrom,
+            dateTo: normalized.dateTo,
+            rangeDays: normalized.rangeDays
+        };
+        this.persistFilters();
 
-        const reportContent = document.getElementById('report-content');
-        if (reportContent) {
-            reportContent.innerHTML = this.renderReportContent();
-            this.afterRender();
-        }
+        this.render();
     },
 
     clearFilters() {
-        const period = AnalyticsHelper.setGlobalPeriodByDays(AnalyticsHelper.getDefaultRangeDays());
-        this.filters = {
-            dateFrom: period.dateFrom,
-            dateTo: period.dateTo,
-            status: [],
-            tecnico: '',
-            regiao: '',
-            cliente: ''
-        };
-
-        const reportContent = document.getElementById('report-content');
-        if (reportContent) {
-            reportContent.innerHTML = this.renderReportContent();
-            this.afterRender();
-        }
+        this.filters = this.getDefaultFilters();
+        this.persistFilters();
+        this.render();
     },
     /**
      * Get filtered solicitations for the generic report
      */
     getFilteredSolicitations() {
-        const selectedStatuses = Array.isArray(this.filters.status) ? this.filters.status : [];
-        return AnalyticsHelper.filterSolicitations(DataManager.getSolicitations().slice(), {
-            period: {
-                dateFrom: this.filters.dateFrom,
-                dateTo: this.filters.dateTo
-            },
-            statuses: selectedStatuses,
-            tecnico: this.filters.tecnico,
-            regiao: this.filters.regiao,
-            cliente: this.filters.cliente
-        }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return (this._activeReportData || this.getReportData()).solicitations.slice();
     },
 
     getFilteredCostSolicitations() {
-        const selectedStatuses = Array.isArray(this.filters.status) && this.filters.status.length > 0
-            ? this.filters.status
-            : this.costStatuses;
-
-        return AnalyticsHelper.filterSolicitations(DataManager.getSolicitations().slice(), {
-            period: {
-                dateFrom: this.filters.dateFrom,
-                dateTo: this.filters.dateTo
-            },
-            statuses: selectedStatuses,
-            tecnico: this.filters.tecnico,
-            regiao: this.filters.regiao,
-            cliente: this.filters.cliente
-        }).sort((a, b) => {
-            const dateA = this.getSolicitationDate(a)?.getTime() || 0;
-            const dateB = this.getSolicitationDate(b)?.getTime() || 0;
-            return dateB - dateA;
-        });
+        return (this._activeReportData || this.getReportData()).analysis.costSolicitations.slice();
     },
 
     buildCostAnalysis() {
-        const analysis = AnalyticsHelper.buildOperationalAnalysis(DataManager.getSolicitations().slice(), {
-            period: {
-                dateFrom: this.filters.dateFrom,
-                dateTo: this.filters.dateTo
-            },
-            statuses: Array.isArray(this.filters.status) && this.filters.status.length > 0 ? this.filters.status : this.costStatuses,
-            tecnico: this.filters.tecnico,
-            regiao: this.filters.regiao,
-            cliente: this.filters.cliente
-        });
-
+        const analysis = (this._activeReportData || this.getReportData()).analysis;
         return {
             ...analysis,
             totalCalls: analysis.totalApproved,

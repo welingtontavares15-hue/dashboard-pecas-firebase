@@ -14,10 +14,58 @@ const FornecedorPortal = {
     pendingTrackingUpdates: {},
     filters: {
         search: '',
-        status: ''
+        status: '',
+        dateFrom: '',
+        dateTo: ''
+    },
+    _filtersInitialized: false,
+
+    getDefaultFilters() {
+        return {
+            search: '',
+            status: '',
+            dateFrom: '',
+            dateTo: '',
+            useDefaultPeriod: false
+        };
+    },
+
+    ensureFilters() {
+        if (this._filtersInitialized) {
+            return;
+        }
+
+        const defaults = this.getDefaultFilters();
+        const restored = AnalyticsHelper.restoreModuleFilterState('fornecedor-portal', {
+            defaults,
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...defaults,
+            ...restored,
+            status: restored.status || (Array.isArray(restored.statuses) ? restored.statuses[0] || '' : '')
+        };
+        this._filtersInitialized = true;
+    },
+
+    persistFilters() {
+        const persisted = AnalyticsHelper.persistModuleFilterState('fornecedor-portal', {
+            ...this.filters,
+            status: this.filters.status
+        }, {
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...this.filters,
+            ...persisted,
+            status: persisted.status || (Array.isArray(persisted.statuses) ? persisted.statuses[0] || '' : '')
+        };
+        return persisted;
     },
 
     render() {
+        this.ensureFilters();
         const content = document.getElementById('content-area');
         if (!content) {
             return;
@@ -41,6 +89,10 @@ const FornecedorPortal = {
                     <p class="text-muted">Pedidos aprovados para envio, registro de rastreio e geração de PDF operacional.</p>
                 </div>
             </div>
+            <div class="filter-context-summary" id="supplier-filter-context">
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            </div>
 
             <div class="card supplier-flow-card">
                 <div class="card-body">
@@ -55,14 +107,13 @@ const FornecedorPortal = {
                 </div>
             </div>
 
-            <div class="filters-bar supplier-filters-bar">
+            <details class="filter-panel" id="supplier-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+                <summary class="filter-panel-toggle" id="supplier-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
+                <div class="filters-bar supplier-filters-bar filter-panel-body">
                 <div class="search-box">
                     <input type="text" id="supplier-portal-search" class="form-control"
                            placeholder="Buscar por número, cliente, técnico, peça ou rastreio..."
                            value="${Utils.escapeHtml(this.filters.search)}">
-                    <button class="btn btn-primary" onclick="FornecedorPortal.applyFilters()">
-                        <i class="fas fa-search"></i>
-                    </button>
                 </div>
                 <div class="filter-group">
                     <label for="supplier-portal-status">Status:</label>
@@ -72,10 +123,19 @@ const FornecedorPortal = {
                         <option value="em-transito" ${this.filters.status === 'em-transito' ? 'selected' : ''}>Em trânsito</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="supplier-portal-date-from">De:</label>
+                    <input type="date" id="supplier-portal-date-from" class="form-control" value="${this.filters.dateFrom}">
+                </div>
+                <div class="filter-group">
+                    <label for="supplier-portal-date-to">Até:</label>
+                    <input type="date" id="supplier-portal-date-to" class="form-control" value="${this.filters.dateTo}">
+                </div>
                 <button class="btn btn-outline" onclick="FornecedorPortal.clearFilters()">
                     <i class="fas fa-times"></i> Limpar
                 </button>
-            </div>
+                </div>
+            </details>
 
             <div id="supplier-portal-summary">
                 ${this.renderSummaryCards()}
@@ -96,24 +156,24 @@ const FornecedorPortal = {
     bindFilters() {
         const search = document.getElementById('supplier-portal-search');
         const status = document.getElementById('supplier-portal-status');
+        const dateFrom = document.getElementById('supplier-portal-date-from');
+        const dateTo = document.getElementById('supplier-portal-date-to');
 
         if (search) {
-            search.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    this.applyFilters();
-                }
-            });
-
             search.addEventListener('input', Utils.debounce(() => {
-                this.filters.search = search.value || '';
-                this.currentPage = 1;
-                this.refreshTable();
+                this.applyFilters();
             }, 250));
         }
 
         if (status) {
             status.addEventListener('change', () => this.applyFilters());
         }
+
+        [dateFrom, dateTo].forEach((element) => {
+            if (element) {
+                element.addEventListener('change', () => this.applyFilters());
+            }
+        });
     },
 
     normalizeEmail(value) {
@@ -161,33 +221,71 @@ const FornecedorPortal = {
 
     getFilteredSolicitations() {
         const scope = this.getSupplierScope();
-        let solicitations = DataManager.getSolicitations().filter((sol) => {
-            const status = this.normalizeStatus(sol.status);
-            return FORNECEDOR_VISIBLE_STATUSES.includes(status) && this.belongsToCurrentSupplier(sol, scope);
+        return AnalyticsHelper.filterSolicitations(DataManager.getSolicitations().slice(), {
+            moduleKey: 'fornecedor-portal',
+            search: this.filters.search,
+            status: this.filters.status,
+            fornecedor: scope.fornecedorId || scope.email || '',
+            period: {
+                dateFrom: this.filters.dateFrom,
+                dateTo: this.filters.dateTo
+            },
+            useDefaultPeriod: false,
+            recordPredicate: (sol) => {
+                const status = this.normalizeStatus(sol.status);
+                return FORNECEDOR_VISIBLE_STATUSES.includes(status) && this.belongsToCurrentSupplier(sol, scope);
+            }
+        }).sort((a, b) => {
+            const aDate = a.trackingUpdatedAt || a.approvedAt || a._analysisDate?.getTime() || a.createdAt || 0;
+            const bDate = b.trackingUpdatedAt || b.approvedAt || b._analysisDate?.getTime() || b.createdAt || 0;
+            return bDate - aDate;
+        });
+    },
+
+    getResultsSummary() {
+        const solicitations = this.getFilteredSolicitations();
+        return `Base atual: ${Utils.formatNumber(solicitations.length)} pedidos filtrados do fornecedor.`;
+    },
+
+    renderActiveFilterChips() {
+        const chips = AnalyticsHelper.buildFilterChips(this.filters, {
+            moduleKey: 'fornecedor-portal',
+            useDefaultPeriod: false
         });
 
-        if (this.filters.status) {
-            solicitations = solicitations.filter(sol => this.normalizeStatus(sol.status) === this.filters.status);
+        if (!chips.length) {
+            return '';
         }
 
-        if (this.filters.search) {
-            const term = this.filters.search;
-            solicitations = solicitations.filter((sol) => {
-                const itemText = (sol.itens || []).map(item => `${item.codigo || ''} ${item.descricao || ''}`).join(' ');
-                return (
-                    Utils.matchesSearch(sol.numero, term) ||
-                    Utils.matchesSearch(sol.tecnicoNome, term) ||
-                    Utils.matchesSearch(sol.cliente, term) ||
-                    Utils.matchesSearch(sol.trackingCode, term) ||
-                    Utils.matchesSearch(itemText, term)
-                );
-            });
+        return `
+            <div class="filter-chip-bar">
+                ${chips.map((chip) => `
+                    <button type="button" class="filter-chip" onclick="FornecedorPortal.removeFilterChip('${chip.key}')">
+                        <span>${Utils.escapeHtml(chip.label)}: ${Utils.escapeHtml(chip.displayValue || chip.value || '')}</span>
+                        <i class="fas fa-times"></i>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    removeFilterChip(key) {
+        if (Object.prototype.hasOwnProperty.call(this.filters, key)) {
+            this.filters[key] = '';
         }
 
-        return solicitations.sort((a, b) => {
-            const aDate = a.trackingUpdatedAt || a.approvedAt || a.createdAt || 0;
-            const bDate = b.trackingUpdatedAt || b.approvedAt || b.createdAt || 0;
-            return bDate - aDate;
+        this.currentPage = 1;
+        this.persistFilters();
+        this.render();
+    },
+
+    hasActiveFilters() {
+        const defaults = this.getDefaultFilters();
+        return Object.keys(defaults).some((key) => {
+            if (key === 'useDefaultPeriod') {
+                return false;
+            }
+            return (this.filters[key] || '') !== (defaults[key] || '');
         });
     },
     getTechnicianName(sol) {
@@ -361,7 +459,7 @@ const FornecedorPortal = {
                 <div class="empty-state">
                     <i class="fas fa-box-open"></i>
                     <h4>Sem pedidos no fluxo do fornecedor</h4>
-                    <p>Este perfil exibe somente solicitações aprovadas e em trânsito vinculadas ao seu fornecedor.</p>
+                    <p>${this.hasActiveFilters() ? 'Nenhum pedido atende aos filtros atuais. Revise busca, status ou período.' : 'Este perfil exibe somente solicitações aprovadas e em trânsito vinculadas ao seu fornecedor.'}</p>
                 </div>
             `;
         }
@@ -409,7 +507,7 @@ const FornecedorPortal = {
                                     </div>
                                 </td>
                                 <td>${this.renderPartsSummary(sol.itens || [])}</td>
-                                <td>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</td>
+                                <td>${this.hasTotal(sol) || Number.isFinite(Number(sol._analysisCost)) ? Utils.formatCurrency(Number(sol._analysisCost ?? sol.total) || 0) : '-'}</td>
                                 <td>
                                     <div class="supplier-status-cell">
                                         ${Utils.renderStatusBadge(status)}
@@ -440,6 +538,22 @@ const FornecedorPortal = {
         `;
     },
     refreshTable() {
+        const filterPanel = document.getElementById('supplier-filter-panel');
+        const filterToggle = document.getElementById('supplier-filter-panel-toggle');
+        if (filterPanel && filterToggle) {
+            const hasActive = this.hasActiveFilters();
+            filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
+            filterPanel.open = hasActive;
+        }
+
+        const context = document.getElementById('supplier-filter-context');
+        if (context) {
+            context.innerHTML = `
+                <span class="helper-text">${this.getResultsSummary()}</span>
+                ${this.renderActiveFilterChips()}
+            `;
+        }
+
         const summaryContainer = document.getElementById('supplier-portal-summary');
         if (summaryContainer) {
             summaryContainer.innerHTML = this.renderSummaryCards();
@@ -452,15 +566,32 @@ const FornecedorPortal = {
     },
 
     applyFilters() {
-        this.filters.search = document.getElementById('supplier-portal-search')?.value || '';
-        this.filters.status = document.getElementById('supplier-portal-status')?.value || '';
+        const normalized = AnalyticsHelper.buildFilterState({
+            search: document.getElementById('supplier-portal-search')?.value || '',
+            status: document.getElementById('supplier-portal-status')?.value || '',
+            dateFrom: document.getElementById('supplier-portal-date-from')?.value || '',
+            dateTo: document.getElementById('supplier-portal-date-to')?.value || ''
+        }, {
+            moduleKey: 'fornecedor-portal',
+            defaults: this.getDefaultFilters(),
+            useDefaultPeriod: false
+        });
+        this.filters = {
+            ...this.filters,
+            search: normalized.search,
+            status: normalized.status || '',
+            dateFrom: normalized.dateFrom,
+            dateTo: normalized.dateTo
+        };
         this.currentPage = 1;
+        this.persistFilters();
         this.refreshTable();
     },
 
     clearFilters() {
-        this.filters = { search: '', status: '' };
+        this.filters = this.getDefaultFilters();
         this.currentPage = 1;
+        this.persistFilters();
         this.render();
     },
 
