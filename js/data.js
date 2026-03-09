@@ -2873,7 +2873,8 @@ const DataManager = {
             download = true,
             reason = 'manual',
             silent = false,
-            solicitations = null
+            solicitations = null,
+            trackExport = download === true
         } = options;
 
         try {
@@ -2891,21 +2892,23 @@ const DataManager = {
             };
             const json = JSON.stringify(payload, null, 2);
             const payloadBase64 = btoa(unescape(encodeURIComponent(json)));
-            const entry = this.logExport({
-                type: 'json',
-                filename,
-                source: 'backup',
-                filters: { reason },
-                recordCount: snapshotSolicitations.length
-            });
-
-            if (entry) {
-                this.saveExportArtifact(entry, {
-                    payloadBase64,
+            if (trackExport) {
+                const entry = this.logExport({
+                    type: 'json',
                     filename,
-                    contentType: 'application/json',
-                    source: 'backup'
+                    source: 'backup',
+                    filters: { reason },
+                    recordCount: snapshotSolicitations.length
                 });
+
+                if (entry) {
+                    this.saveExportArtifact(entry, {
+                        payloadBase64,
+                        filename,
+                        contentType: 'application/json',
+                        source: 'backup'
+                    });
+                }
             }
 
             if (download && typeof Utils !== 'undefined' && typeof Utils.downloadFile === 'function') {
@@ -3032,6 +3035,14 @@ const DataManager = {
         return this.saveData(this.KEYS.SETTINGS, settings);
     },
 
+    canPersistExportMetadataToCloud() {
+        const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function')
+            ? Auth.getCurrentUser()
+            : null;
+        const role = String(currentUser?.role || '').trim().toLowerCase();
+        return role === 'admin' || role === 'administrador' || role === 'gestor';
+    },
+
     // ===== EXPORT LOG (Cloud-First) =====
     /**
      * Log an export operation with metadata.
@@ -3084,8 +3095,10 @@ const DataManager = {
             
             // Keep only the most recent entries
             const trimmedLogs = logs.slice(0, this.EXPORT_LOG_LIMIT);
-            
-            this.saveData(this.KEYS.EXPORT_LOG, trimmedLogs);
+            this._sessionCache[this.KEYS.EXPORT_LOG] = trimmedLogs;
+            if (this.canPersistExportMetadataToCloud()) {
+                this.saveData(this.KEYS.EXPORT_LOG, trimmedLogs);
+            }
             
             // Integrate with structured Logger for health panel
             if (typeof Logger !== 'undefined') {
@@ -3134,8 +3147,10 @@ const DataManager = {
                 source: artifact.source || entry.source || 'unknown',
                 createdAt: entry.timestamp || Date.now()
             };
-            
-            this.saveData(this.KEYS.EXPORT_FILES, artifacts);
+            this._sessionCache[this.KEYS.EXPORT_FILES] = artifacts;
+            if (this.canPersistExportMetadataToCloud()) {
+                this.saveData(this.KEYS.EXPORT_FILES, artifacts);
+            }
             return artifacts[entry.id];
         } catch (e) {
             console.warn('Failed to persist export artifact:', e);

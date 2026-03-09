@@ -4,10 +4,10 @@ const path = require('path');
 describe('DataManager export artifacts', () => {
     const dataCode = fs.readFileSync(path.join(__dirname, '../js/data.js'), 'utf8');
 
-    const loadDataManager = () => {
+    const loadDataManager = (authMock = { getCurrentUser: () => ({ role: 'gestor' }) }) => {
         const sanitizedCode = dataCode.replace('DataManager.init();', '// DataManager.init();');
-        const factory = new Function('Utils', 'CloudStorage', `${sanitizedCode}; return DataManager;`);
-        return factory({ generateId: () => 'generated-id' }, {});
+        const factory = new Function('Utils', 'CloudStorage', 'Auth', `${sanitizedCode}; return DataManager;`);
+        return factory({ generateId: () => 'generated-id' }, {}, authMock);
     };
 
     beforeEach(() => {
@@ -33,5 +33,20 @@ describe('DataManager export artifacts', () => {
         expect(saved.opId).toBe('exp123');
         expect(saved.filename).toBe('file.xlsx');
         expect(manager.saveData).toHaveBeenCalledWith(manager.KEYS.EXPORT_FILES, expect.any(Object));
+    });
+
+    it('keeps export artifact only in session cache for roles sem permissão de cloud', () => {
+        const manager = loadDataManager({ getCurrentUser: () => ({ role: 'tecnico' }) });
+        manager.loadData = jest.fn(() => ({}));
+        manager.saveData = jest.fn();
+
+        const entry = { id: 'exp124', filename: 'file.pdf', source: 'tests', timestamp: 1001 };
+        const artifact = { payloadBase64: 'YmFy', filename: 'file.pdf', contentType: 'application/pdf' };
+
+        const saved = manager.saveExportArtifact(entry, artifact);
+
+        expect(saved.opId).toBe('exp124');
+        expect(manager._sessionCache[manager.KEYS.EXPORT_FILES].exp124.filename).toBe('file.pdf');
+        expect(manager.saveData).not.toHaveBeenCalled();
     });
 });

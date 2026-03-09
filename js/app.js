@@ -8,13 +8,13 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260307h',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260307h',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
-        pecas: './js/pages/pecas.js?v=20260307h',
-        relatorios: './js/pages/relatorios.js?v=20260307h',
-        fornecedor: './js/pages/fornecedor.js?v=20260307h',
-        usuarios: './js/pages/usuarios.js?v=20260307h'
+        dashboard: './pages/dashboard.js?v=20260309a',
+        solicitacoes: './pages/solicitacoes.js?v=20260309a',
+        aprovacoes: './pages/aprovacoes.js?v=20260309a',
+        pecas: './pages/pecas.js?v=20260309a',
+        relatorios: './pages/relatorios.js?v=20260309a',
+        fornecedor: './pages/fornecedor.js?v=20260309a',
+        usuarios: './pages/usuarios.js?v=20260309a'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1816,17 +1816,31 @@ const App = {
     }
 };
 
-const APP_FIREBASE_SYNC_MODULE_PATH = './js/firebase-sync.js';
+const APP_FIREBASE_SYNC_MODULE_PATH = './firebase-sync.js';
+let delegatedFirebaseSyncStarted = false;
 
-// Start cloud synchronization once Firebase is ready
-window.addEventListener('firebase-ready', async () => {
+async function startDelegatedFirebaseSync() {
+    if (delegatedFirebaseSyncStarted) {
+        return;
+    }
+    delegatedFirebaseSyncStarted = true;
     try {
         const mod = await import(APP_FIREBASE_SYNC_MODULE_PATH);
         await mod.startFirebaseSync();
     } catch (error) {
+        delegatedFirebaseSyncStarted = false;
         console.warn('Falha ao iniciar sincronização com Firebase', error);
     }
+}
+
+// Start cloud synchronization once Firebase is ready
+window.addEventListener('firebase-ready', async () => {
+    await startDelegatedFirebaseSync();
 });
+
+if (typeof window !== 'undefined' && window.firebaseUser) {
+    startDelegatedFirebaseSync().catch(() => {});
+}
 
 // Refresh settings UI when sync status changes
 ['cloud-sync-applied', 'cloud-sync-pushed', 'cloud-sync-status'].forEach((evt) => {
