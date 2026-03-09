@@ -11,6 +11,7 @@ const FornecedorPortal = {
     currentPage: 1,
     itemsPerPage: 10,
     activeDetailId: null,
+    pendingTrackingUpdates: {},
     filters: {
         search: '',
         status: ''
@@ -482,7 +483,11 @@ const FornecedorPortal = {
         return !!marker && !!modal && !modal.classList.contains('hidden');
     },
 
-    saveTracking(id, options = {}) {
+    async saveTracking(id, options = {}) {
+        if (this.pendingTrackingUpdates[id]) {
+            return;
+        }
+
         if (Auth.getRole() !== 'fornecedor') {
             Utils.showToast('Apenas fornecedores podem registrar rastreio', 'warning');
             return;
@@ -528,47 +533,52 @@ const FornecedorPortal = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Fornecedor';
         const now = Date.now();
+        this.pendingTrackingUpdates[id] = true;
+        try {
+            const result = await DataManager.updateSolicitationStatus(id, 'em-transito', {
+                trackingCode,
+                trackingUpdatedAt: now,
+                trackingBy: userName,
+                supplierResponseAt: now,
+                by: userName
+            });
+            const success = result === true || (result && result.success !== false && !result.error);
 
-        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
-            trackingCode,
-            trackingUpdatedAt: now,
-            trackingBy: userName,
-            supplierResponseAt: now,
-            by: userName
-        });
+            if (!success) {
+                Utils.showToast(result?.message || result?.error || 'Não foi possível salvar o rastreio', 'error');
+                return;
+            }
 
-        if (!success) {
-            Utils.showToast('Não foi possível salvar o rastreio', 'error');
-            return;
-        }
+            if (input) {
+                input.value = trackingCode;
+            }
 
-        if (input) {
-            input.value = trackingCode;
-        }
+            const tableInput = document.querySelector(`[data-supplier-tracking="${id}"]`);
+            if (tableInput) {
+                tableInput.value = trackingCode;
+            }
 
-        const tableInput = document.querySelector(`[data-supplier-tracking="${id}"]`);
-        if (tableInput) {
-            tableInput.value = trackingCode;
-        }
+            const modalInput = document.querySelector(`[data-supplier-tracking-modal="${id}"]`);
+            if (modalInput) {
+                modalInput.value = trackingCode;
+            }
 
-        const modalInput = document.querySelector(`[data-supplier-tracking-modal="${id}"]`);
-        if (modalInput) {
-            modalInput.value = trackingCode;
-        }
+            Utils.showToast('Rastreio salvo. Pedido atualizado para Em trânsito.', 'success');
 
-        Utils.showToast('Rastreio salvo. Pedido atualizado para Em trânsito.', 'success');
+            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
+            this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
 
-        const updatedSolicitation = DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
-        this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
+            this.refreshTable();
 
-        this.refreshTable();
+            if (this.isDetailModalOpen(id)) {
+                this.openHistory(id);
+            }
 
-        if (this.isDetailModalOpen(id)) {
-            this.openHistory(id);
-        }
-
-        if (typeof Auth.renderMenu === 'function') {
-            Auth.renderMenu(App.currentPage);
+            if (typeof Auth.renderMenu === 'function') {
+                Auth.renderMenu(App.currentPage);
+            }
+        } finally {
+            delete this.pendingTrackingUpdates[id];
         }
     },
 

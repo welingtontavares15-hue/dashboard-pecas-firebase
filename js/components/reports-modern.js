@@ -1,15 +1,15 @@
 ﻿function normalizeReport(report) {
     const map = {
-        custos: 'custos',
-        'visao-geral': 'custos',
-        solicitacoes: 'solicitacoes',
-        historico: 'solicitacoes',
+        custos: 'visao-geral',
+        solicitacoes: 'historico',
         tecnicos: 'tecnicos',
         pecas: 'pecas',
-        meses: 'custos'
+        meses: 'meses',
+        historico: 'historico',
+        'visao-geral': 'visao-geral'
     };
 
-    return map[String(report || '').trim().toLowerCase()] || 'custos';
+    return map[String(report || '').trim().toLowerCase()] || 'visao-geral';
 }
 
 function sortPartsByCost(parts = []) {
@@ -77,10 +77,10 @@ function buildStatusDistribution(solicitations = []) {
 }
 
 function relatoriosSafeClient(sol) {
-    return String(sol?.cliente || sol?.clienteNome || '').trim() || 'Nao informado';
+    return String(sol?.cliente || sol?.clienteNome || '').trim() || 'Não informado';
 }
 
-function renderCompactEmpty(message = 'Sem dados no periodo selecionado.', description = 'Ajuste os filtros para continuar.') {
+function renderCompactEmpty(message = 'Sem dados no período selecionado.', description = 'Ajuste os filtros para continuar.') {
     return `
         <div class="empty-state compact-empty-state">
             <i class="fas fa-chart-line"></i>
@@ -96,32 +96,39 @@ function buildExecutiveCards(relatorios) {
 
     const cards = [
         {
-            title: 'Custo total de pecas',
+            title: 'Custo total de peças',
             value: Utils.formatCurrency(analysis.totalCost || 0),
-            note: 'Base financeira do filtro atual',
+            note: 'Somatório do período filtrado',
             icon: 'fa-sack-dollar',
             tone: 'primary'
         },
         {
-            title: 'Ticket medio',
+            title: 'Custo médio por solicitação',
             value: Utils.formatCurrency(analysis.costPerAttendance || 0),
-            note: `${Utils.formatNumber(analysis.totalCalls || 0)} solicitacao(oes) com custo`,
+            note: `${Utils.formatNumber(analysis.totalCalls || 0)} solicitação(ões) com custo`,
             icon: 'fa-receipt',
             tone: 'success'
         },
         {
-            title: 'Media por tecnico',
+            title: 'Custo médio por técnico',
             value: Utils.formatCurrency(analysis.avgCostPerTech || 0),
-            note: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} tecnico(s) no periodo`,
+            note: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} técnico(s) no período`,
             icon: 'fa-user-gear',
             tone: 'info'
         },
         {
-            title: 'Media mensal',
-            value: Utils.formatCurrency(monthly.averageMonthlyCost),
-            note: `${Utils.formatNumber(monthly.monthCount)} mes(es) no filtro`,
-            icon: 'fa-chart-line',
+            title: 'Custo do mês mais recente',
+            value: Utils.formatCurrency(monthly.latestMonthCost),
+            note: monthly.latestMonthLabel,
+            icon: 'fa-calendar-days',
             tone: 'warning'
+        },
+        {
+            title: 'Média mensal (período)',
+            value: Utils.formatCurrency(monthly.averageMonthlyCost),
+            note: `${Utils.formatNumber(monthly.monthCount)} mês(es) no filtro`,
+            icon: 'fa-chart-line',
+            tone: 'success'
         }
     ];
 
@@ -140,45 +147,35 @@ function buildExecutiveCards(relatorios) {
         </div>
     `;
 }
-function buildReportFilterChips(relatorios) {
-    const chips = [];
-    const filters = relatorios.filters || {};
-    const statuses = Array.isArray(filters.status) ? filters.status : [];
-    const statusLabels = relatorios.getStatusOptions()
-        .filter((option) => statuses.includes(option.value))
-        .map((option) => option.label);
-    const technician = filters.tecnico ? DataManager.getTechnicianById(filters.tecnico) : null;
-
-    if (statusLabels.length > 0) {
-        chips.push(`Status: ${statusLabels.join(', ')}`);
-    }
-    if (filters.regiao) {
-        chips.push(`Regiao: ${filters.regiao}`);
-    }
-    if (technician?.nome) {
-        chips.push(`Tecnico: ${technician.nome}`);
-    }
-    if (filters.cliente) {
-        chips.push(`Cliente: ${filters.cliente}`);
-    }
-
-    return chips;
+function renderRecentRows(solicitations) {
+    return solicitations.slice(0, 8).map((sol) => {
+        return `
+            <tr>
+                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
+                <td><strong>#${sol.numero}</strong></td>
+                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
+                <td>${Utils.escapeHtml(relatoriosSafeClient(sol))}</td>
+                <td>${Utils.formatCurrency(sol.total || 0)}</td>
+                <td>${Utils.renderStatusBadge(sol.status)}</td>
+            </tr>
+        `;
+    }).join('');
 }
-
 function renderPartsTable(parts, totalCost) {
     if (!parts.length) {
         return renderCompactEmpty();
     }
 
     return `
-        <div class="table-container dashboard-compact-table" data-skip-quick-filter="true">
-            <table class="table compact-table">
+        <div class="table-container dashboard-compact-table">
+            <table class="table">
                 <thead>
                     <tr>
-                        <th>Peca</th>
+                        <th>Peça</th>
                         <th>Quantidade</th>
                         <th>Custo total</th>
-                        <th>Participacao</th>
+                        <th>Custo médio</th>
+                        <th>Participação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -187,11 +184,12 @@ function renderPartsTable(parts, totalCost) {
         return `
                             <tr>
                                 <td>
-                                    <strong>${Utils.escapeHtml(part.descricao || part.codigo || 'Sem descricao')}</strong>
-                                    <div class="helper-text">${Utils.escapeHtml(part.codigo || '-')}</div>
+                                    <strong>${Utils.escapeHtml(part.codigo || '-')}</strong>
+                                    <div class="helper-text">${Utils.escapeHtml(part.descricao || 'Sem descrição')}</div>
                                 </td>
-                                <td>${Utils.formatNumber(part.quantidade || 0)}</td>
-                                <td>${Utils.formatCurrency(part.totalCost || 0)}</td>
+                                <td>${Utils.formatNumber(part.quantidade)}</td>
+                                <td>${Utils.formatCurrency(part.totalCost)}</td>
+                                <td>${Utils.formatCurrency(part.averageUnitCost)}</td>
                                 <td>${Utils.formatNumber(share, 1)}%</td>
                             </tr>
                         `;
@@ -208,15 +206,15 @@ function renderTechniciansTable(technicians) {
     }
 
     return `
-        <div class="table-container dashboard-compact-table" data-skip-quick-filter="true">
-            <table class="table compact-table">
+        <div class="table-container dashboard-compact-table">
+            <table class="table">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Tecnico</th>
-                        <th>Solicitacoes</th>
+                        <th>Técnico</th>
+                        <th>Solicitações</th>
                         <th>Custo total</th>
-                        <th>Ticket medio</th>
+                        <th>Custo médio por solicitação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -224,9 +222,9 @@ function renderTechniciansTable(technicians) {
                         <tr>
                             <td><strong>${index + 1}</strong></td>
                             <td><strong>${Utils.escapeHtml(technician.nome)}</strong></td>
-                            <td>${Utils.formatNumber(technician.calls || 0)}</td>
-                            <td>${Utils.formatCurrency(technician.totalCost || 0)}</td>
-                            <td>${Utils.formatCurrency(technician.costPerCall || 0)}</td>
+                            <td>${Utils.formatNumber(technician.calls)}</td>
+                            <td>${Utils.formatCurrency(technician.totalCost)}</td>
+                            <td>${Utils.formatCurrency(technician.costPerCall)}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -234,20 +232,46 @@ function renderTechniciansTable(technicians) {
         </div>
     `;
 }
+function renderHistoryTable(relatorios, solicitations) {
+    if (!solicitations.length) {
+        return renderCompactEmpty();
+    }
 
-function renderSolicitationRows(solicitations) {
-    return solicitations.slice(0, 60).map((sol) => `
-        <tr>
-            <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-            <td><strong>#${sol.numero}</strong></td>
-            <td>${Utils.escapeHtml(sol.tecnicoNome || 'Nao informado')}</td>
-            <td>${Utils.escapeHtml(relatoriosSafeClient(sol))}</td>
-            <td>${Utils.formatCurrency(sol.total || 0)}</td>
-            <td>${Utils.renderStatusBadge(sol.status)}</td>
-        </tr>
-    `).join('');
+    return `
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Número</th>
+                        <th>Técnico</th>
+                        <th>Cliente</th>
+                        <th>Custo</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${solicitations.map((sol) => `
+                            <tr>
+                                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
+                                <td><strong>#${sol.numero}</strong></td>
+                                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
+                                <td>${Utils.escapeHtml(relatorios.getSolicitationClientName(sol))}</td>
+                                <td>${Utils.formatCurrency(sol.total || 0)}</td>
+                                <td>${Utils.renderStatusBadge(sol.status)}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
-
 function buildMonthlyRows(byMonth = []) {
     return byMonth.map((month, index) => {
         const previous = byMonth[index - 1];
@@ -259,7 +283,7 @@ function buildMonthlyRows(byMonth = []) {
         return `
             <tr>
                 <td><strong>${Utils.escapeHtml(month.label)}</strong></td>
-                <td>${Utils.formatNumber(month.requestCount || 0)}</td>
+                <td>${Utils.formatNumber(month.requestCount)}</td>
                 <td>${Utils.formatCurrency(currentValue)}</td>
                 <td>${Utils.formatCurrency(averageCostByRequest)}</td>
                 <td>${index === 0 ? 'Base inicial' : `${variation >= 0 ? '↑' : '↓'} ${Utils.formatNumber(Math.abs(variation), 1)}%`}</td>
@@ -267,7 +291,6 @@ function buildMonthlyRows(byMonth = []) {
         `;
     }).join('');
 }
-
 function replaceChartFallback(canvasId, message) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || !canvas.parentElement) {
@@ -277,6 +300,7 @@ function replaceChartFallback(canvasId, message) {
     canvas.parentElement.innerHTML = `<div class="chart-fallback">${Utils.escapeHtml(message)}</div>`;
 }
 
+
 function getReportChartTheme() {
     const isDark = document.body.classList.contains('dark-mode');
     return {
@@ -284,12 +308,11 @@ function getReportChartTheme() {
         gridColor: isDark ? 'rgba(71, 85, 105, 0.42)' : 'rgba(148, 163, 184, 0.18)'
     };
 }
-
 function createHorizontalCostChart(relatorios, id, labels, data, color) {
     const canvas = document.getElementById(id);
     if (!canvas || labels.length === 0) {
         if (canvas) {
-            replaceChartFallback(id, 'Sem dados no periodo selecionado');
+            replaceChartFallback(id, 'Sem dados no período selecionado');
         }
         return;
     }
@@ -335,12 +358,11 @@ function createHorizontalCostChart(relatorios, id, labels, data, color) {
         }
     });
 }
-
 function createVerticalCostChart(relatorios, id, labels, data, color) {
     const canvas = document.getElementById(id);
     if (!canvas || labels.length === 0) {
         if (canvas) {
-            replaceChartFallback(id, 'Sem dados no periodo selecionado');
+            replaceChartFallback(id, 'Sem dados no período selecionado');
         }
         return;
     }
@@ -399,7 +421,6 @@ export function applyReportsModernization() {
 
     Relatorios.render = function renderModernReports() {
         this.currentReport = normalizeReport(window.__reportTarget || this.currentReport);
-        window.__reportTarget = this.currentReport;
         this.syncDateFiltersFromGlobal();
 
         const content = document.getElementById('content-area');
@@ -416,36 +437,37 @@ export function applyReportsModernization() {
         content.innerHTML = `
             <div class="page-container reports-shell">
                 <div class="page-header reports-header-compact">
-                    <div class="page-heading">
-                        <h2><i class="fas fa-file-alt"></i> Relatorios</h2>
-                        <p class="text-muted">Leitura objetiva de custos, solicitacoes e concentracao por tecnico ou peca.</p>
+                    <div>
+                        <h2><i class="fas fa-file-alt"></i> Relatórios</h2>
+                        <p class="text-muted">Leitura objetiva de custos, histórico e desempenho operacional.</p>
                     </div>
                     <span class="report-period-chip">${Utils.escapeHtml(periodLabel)}</span>
                 </div>
 
-                <div class="page-filters reports-filter-shell">
+                <div class="page-filters">
                     ${this.renderCostFilters()}
                 </div>
 
-                ${this.currentReport === 'custos' ? `
-                    <div class="page-kpis">
-                        ${buildExecutiveCards(this)}
-                    </div>
-                ` : ''}
+                <div class="page-kpis">
+                    ${buildExecutiveCards(this)}
+                </div>
 
                 <div class="page-content reports-content-stack">
                     <div class="report-tabs-modern">
-                        <button class="report-tab-btn ${this.currentReport === 'custos' ? 'active' : ''}" onclick="Relatorios.switchReport('custos')">
-                            <i class="fas fa-chart-pie"></i> Custos
-                        </button>
-                        <button class="report-tab-btn ${this.currentReport === 'solicitacoes' ? 'active' : ''}" onclick="Relatorios.switchReport('solicitacoes')">
-                            <i class="fas fa-clipboard-list"></i> Solicitacoes
-                        </button>
-                        <button class="report-tab-btn ${this.currentReport === 'tecnicos' ? 'active' : ''}" onclick="Relatorios.switchReport('tecnicos')">
-                            <i class="fas fa-user-gear"></i> Por tecnico
+                        <button class="report-tab-btn ${this.currentReport === 'visao-geral' ? 'active' : ''}" onclick="Relatorios.switchReport('visao-geral')">
+                            <i class="fas fa-chart-pie"></i> Visão Geral
                         </button>
                         <button class="report-tab-btn ${this.currentReport === 'pecas' ? 'active' : ''}" onclick="Relatorios.switchReport('pecas')">
-                            <i class="fas fa-box-open"></i> Por peca
+                            <i class="fas fa-box-open"></i> Custo por Peça
+                        </button>
+                        <button class="report-tab-btn ${this.currentReport === 'tecnicos' ? 'active' : ''}" onclick="Relatorios.switchReport('tecnicos')">
+                            <i class="fas fa-user-gear"></i> Custo por Técnico
+                        </button>
+                        <button class="report-tab-btn ${this.currentReport === 'meses' ? 'active' : ''}" onclick="Relatorios.switchReport('meses')">
+                            <i class="fas fa-chart-line"></i> Custo por Mês
+                        </button>
+                        <button class="report-tab-btn ${this.currentReport === 'historico' ? 'active' : ''}" onclick="Relatorios.switchReport('historico')">
+                            <i class="fas fa-clock-rotate-left"></i> Histórico
                         </button>
                     </div>
 
@@ -470,133 +492,134 @@ export function applyReportsModernization() {
 
     Relatorios.renderReportContent = function renderReportContent() {
         switch (normalizeReport(this.currentReport)) {
-        case 'solicitacoes':
-            return this.renderSolicitacoesExecutiveReport();
-        case 'tecnicos':
-            return this.renderTecnicosExecutiveReport();
         case 'pecas':
-            return this.renderPecasExecutiveReport();
-        case 'custos':
+            return this.renderPecasModernReport();
+        case 'tecnicos':
+            return this.renderTecnicosModernReport();
+        case 'meses':
+            return this.renderMesesModernReport();
+        case 'historico':
+            return this.renderHistoricoModernReport();
+        case 'visao-geral':
         default:
-            return this.renderCustosExecutiveReport();
+            return this.renderOverviewModernReport();
         }
     };
 
     Relatorios.renderCostFilters = function renderCostFilters() {
         const options = this.getAvailableCostFilters();
-        const activeChips = buildReportFilterChips(this);
-        const advancedOpen = !!(this.filters.regiao || this.filters.tecnico || this.filters.cliente);
 
         return `
             <div class="report-filters-modern">
-                <div class="filter-shell-primary">
-                    <div class="report-filters-primary">
-                        <div class="filter-group">
-                            <label>De</label>
-                            <input type="date" id="report-date-from" class="form-control" value="${this.filters.dateFrom}">
-                        </div>
-                        <div class="filter-group">
-                            <label>Ate</label>
-                            <input type="date" id="report-date-to" class="form-control" value="${this.filters.dateTo}">
-                        </div>
-                        <div class="filter-group filter-group-wide">
-                            <label>Status</label>
-                            ${this.renderStatusMultiSelect('report-status')}
-                        </div>
+                <div class="report-filters-grid">
+                    <div class="filter-group">
+                        <label>De</label>
+                        <input type="date" id="report-date-from" class="form-control" value="${this.filters.dateFrom}">
                     </div>
-                    <div class="filter-inline-group filter-inline-group-actions">
-                        <details class="filter-panel compact" ${advancedOpen ? 'open' : ''}>
-                            <summary class="filter-panel-toggle">Mais filtros${activeChips.length ? ` <span class="filter-summary-count">${activeChips.length}</span>` : ''}</summary>
-                            <div class="filter-panel-body">
-                                <div class="filters-bar report-filters-advanced">
-                                    <div class="filter-group">
-                                        <label>Regiao</label>
-                                        <select id="report-regiao" class="form-control">
-                                            <option value="">Todas</option>
-                                            ${options.regioes.map((regiao) => `<option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                    <div class="filter-group">
-                                        <label>Tecnico</label>
-                                        <select id="report-tecnico" class="form-control">
-                                            <option value="">Todos</option>
-                                            ${options.tecnicos.map((tecnico) => `<option value="${tecnico.id}" ${this.filters.tecnico === tecnico.id ? 'selected' : ''}>${Utils.escapeHtml(tecnico.nome)}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                    <div class="filter-group">
-                                        <label>Cliente</label>
-                                        <select id="report-cliente" class="form-control">
-                                            <option value="">Todos</option>
-                                            ${options.clientes.map((cliente) => `<option value="${Utils.escapeHtml(cliente)}" ${this.filters.cliente === cliente ? 'selected' : ''}>${Utils.escapeHtml(cliente)}</option>`).join('')}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </details>
-                        <button class="btn btn-outline btn-sm" onclick="Relatorios.clearFilters()">
-                            <i class="fas fa-eraser"></i> Limpar
-                        </button>
+                    <div class="filter-group">
+                        <label>Até</label>
+                        <input type="date" id="report-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
+                    <div class="filter-group filter-group-span-2">
+                        <label>Status</label>
+                        ${this.renderStatusMultiSelect('report-status')}
+                    </div>
+                    <div class="filter-group">
+                        <label>Região</label>
+                        <select id="report-regiao" class="form-control">
+                            <option value="">Todas</option>
+                            ${options.regioes.map((regiao) => `
+                                <option value="${Utils.escapeHtml(regiao)}" ${this.filters.regiao === regiao ? 'selected' : ''}>${Utils.escapeHtml(regiao)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Técnico</label>
+                        <select id="report-tecnico" class="form-control">
+                            <option value="">Todos</option>
+                            ${options.tecnicos.map((tecnico) => `
+                                <option value="${tecnico.id}" ${this.filters.tecnico === tecnico.id ? 'selected' : ''}>${Utils.escapeHtml(tecnico.nome)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Cliente</label>
+                        <select id="report-cliente" class="form-control">
+                            <option value="">Todos</option>
+                            ${options.clientes.map((cliente) => `
+                                <option value="${Utils.escapeHtml(cliente)}" ${this.filters.cliente === cliente ? 'selected' : ''}>${Utils.escapeHtml(cliente)}</option>
+                            `).join('')}
+                        </select>
                     </div>
                 </div>
-                <div class="filter-summary-row">
-                    ${activeChips.length
-        ? activeChips.map((chip) => `<span class="filter-summary-chip">${Utils.escapeHtml(chip)}</span>`).join('')
-        : '<span class="filter-summary-empty">Usando somente periodo e status como filtros visiveis.</span>'}
+                <div class="report-filter-actions">
+                    <button class="btn btn-primary report-primary-action" onclick="Relatorios.applyFilters()">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                    <button class="btn btn-outline report-secondary-action" onclick="Relatorios.clearFilters()">
+                        <i class="fas fa-eraser"></i> Limpar
+                    </button>
                 </div>
             </div>
         `;
     };
 
-    Relatorios.renderCustosExecutiveReport = function renderCustosExecutiveReport() {
+    Relatorios.renderOverviewModernReport = function renderOverviewModernReport() {
         const analysis = this.buildCostAnalysis();
         const topParts = sortPartsByCost(analysis.byPiece || []).slice(0, 8);
         const topTechnicians = sortTechniciansByCost(analysis.byTechnician || []).slice(0, 8);
+        const recentSolicitations = this.getFilteredSolicitations().slice(0, 8);
         const monthly = buildMonthlyCostSummary(this, analysis);
-        const months = analysis.byMonth || [];
 
-        if ((analysis.totalCost || 0) === 0 && months.length === 0) {
+        if ((analysis.totalCost || 0) === 0 && recentSolicitations.length === 0) {
             return renderCompactEmpty();
         }
 
         return `
             <section class="report-stack-grid">
-                <article class="card report-panel-card">
-                    <div class="card-header compact-card-header">
-                        <div>
-                            <h4>Relatorio de Custos</h4>
-                            <p class="text-muted">Tendencia mensal, ranking por tecnico e consolidacao financeira.</p>
-                        </div>
-                        <button class="btn btn-outline btn-sm" onclick="Relatorios.exportCustos()">
-                            <i class="fas fa-file-excel"></i> Exportar
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div class="reports-inline-summary">
-                            <span class="tag-soft info"><i class="fas fa-calendar-days"></i> ${Utils.escapeHtml(monthly.latestMonthLabel)}</span>
-                            <span class="tag-soft success"><i class="fas fa-chart-line"></i> Media mensal ${Utils.formatCurrency(monthly.averageMonthlyCost)}</span>
-                            <span class="tag-soft warning"><i class="fas fa-sack-dollar"></i> Ultimo mes ${Utils.formatCurrency(monthly.latestMonthCost)}</span>
-                        </div>
-                        <div class="reports-two-column report-detail-grid">
-                            <div class="chart-container report-chart-card">
-                                <div class="chart-wrapper compact-chart-wrapper">
-                                    <canvas id="reportCostMonthlyChart"></canvas>
-                                </div>
-                            </div>
-                            <div class="chart-container report-chart-card">
-                                <div class="chart-wrapper compact-chart-wrapper">
-                                    <canvas id="reportCostTechChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-
-                <div class="reports-two-column report-detail-grid">
+                <div class="reports-two-column">
                     <article class="card report-panel-card">
                         <div class="card-header compact-card-header">
                             <div>
-                                <h4>Pecas com maior custo</h4>
-                                <p class="text-muted">Concentracao financeira por peca dentro do filtro atual.</p>
+                                <h4>Evolução mensal de custos</h4>
+                                <p class="text-muted">Visão temporal para identificar picos de gasto no período.</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="Relatorios.exportCustos()">
+                                <i class="fas fa-file-excel"></i> Exportar
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="reports-inline-summary">
+                                <span class="tag-soft info"><i class="fas fa-calendar-days"></i> ${Utils.escapeHtml(monthly.latestMonthLabel)}</span>
+                                <span class="tag-soft success"><i class="fas fa-chart-line"></i> Média mensal: ${Utils.formatCurrency(monthly.averageMonthlyCost)}</span>
+                            </div>
+                            <div class="chart-wrapper compact-chart-wrapper">
+                                <canvas id="reportOverviewMonthlyChart"></canvas>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card report-panel-card">
+                        <div class="card-header compact-card-header">
+                            <div>
+                                <h4>Ranking de custo por técnico</h4>
+                                <p class="text-muted">Ordenado do maior custo total para o menor.</p>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-wrapper compact-chart-wrapper">
+                                <canvas id="reportOverviewTechChart"></canvas>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="reports-two-column">
+                    <article class="card report-panel-card">
+                        <div class="card-header compact-card-header">
+                            <div>
+                                <h4>Peças com maior custo</h4>
+                                <p class="text-muted">Ranking por impacto financeiro total no período.</p>
                             </div>
                         </div>
                         <div class="card-body">
@@ -607,25 +630,26 @@ export function applyReportsModernization() {
                     <article class="card report-panel-card">
                         <div class="card-header compact-card-header">
                             <div>
-                                <h4>Resumo mensal</h4>
-                                <p class="text-muted">Tabela executiva para leitura rapida da evolucao de custos.</p>
+                                <h4>Histórico recente</h4>
+                                <p class="text-muted">Últimas solicitações dentro do filtro atual.</p>
                             </div>
                         </div>
                         <div class="card-body">
-                            ${months.length === 0 ? renderCompactEmpty() : `
-                                <div class="table-container" data-skip-quick-filter="true">
-                                    <table class="table compact-table">
+                            ${recentSolicitations.length === 0 ? renderCompactEmpty() : `
+                                <div class="table-container dashboard-compact-table">
+                                    <table class="table">
                                         <thead>
                                             <tr>
-                                                <th>Mes</th>
-                                                <th>Solicitacoes</th>
-                                                <th>Custo total</th>
-                                                <th>Ticket medio</th>
-                                                <th>Comparativo</th>
+                                                <th>Data</th>
+                                                <th>Número</th>
+                                                <th>Técnico</th>
+                                                <th>Cliente</th>
+                                                <th>Custo</th>
+                                                <th>Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${buildMonthlyRows(months)}
+                                            ${renderRecentRows(recentSolicitations)}
                                         </tbody>
                                     </table>
                                 </div>
@@ -636,87 +660,50 @@ export function applyReportsModernization() {
             </section>
         `;
     };
-    Relatorios.renderSolicitacoesExecutiveReport = function renderSolicitacoesExecutiveReport() {
-        const solicitations = this.getFilteredSolicitations();
+
+    Relatorios.renderPecasModernReport = function renderPecasModernReport() {
         const analysis = this.buildCostAnalysis();
-        const statusSummary = buildStatusDistribution(solicitations);
-        const totalItems = solicitations.reduce((sum, sol) => sum + ((sol.itens || []).reduce((itemSum, item) => itemSum + (Number(item?.quantidade) || 0), 0)), 0);
+        const parts = sortPartsByCost(analysis.byPiece || []);
 
         return `
             <article class="card report-panel-card">
                 <div class="card-header compact-card-header">
                     <div>
-                        <h4>Solicitacoes</h4>
-                        <p class="text-muted">Volume, custo e status do fluxo em uma leitura mais limpa.</p>
+                        <h4>Custo por Peça</h4>
+                        <p class="text-muted">Ranking financeiro por peça com foco em custo total e custo médio.</p>
                     </div>
-                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportSolicitacoes()">
+                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportPecas()">
                         <i class="fas fa-file-excel"></i> Exportar
                     </button>
                 </div>
                 <div class="card-body">
-                    ${solicitations.length === 0 ? renderCompactEmpty() : `
-                        <div class="summary-inline-grid summary-inline-grid-compact">
-                            <article class="summary-inline-card">
-                                <span>Total de solicitacoes</span>
-                                <strong>${Utils.formatNumber(solicitations.length)}</strong>
-                                <small>Base filtrada atual</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Total financeiro</span>
-                                <strong>${Utils.formatCurrency(analysis.totalCost || 0)}</strong>
-                                <small>Custo agregado do periodo</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Total de pecas</span>
-                                <strong>${Utils.formatNumber(totalItems)}</strong>
-                                <small>Itens consolidados no filtro</small>
-                            </article>
-                        </div>
-                        ${statusSummary.length ? `
-                            <div class="reports-status-row">
-                                ${statusSummary.map((item) => `
-                                    <span class="reports-status-chip">
-                                        <span>${Utils.escapeHtml(item.label)}</span>
-                                        <strong>${Utils.formatNumber(item.count)}</strong>
-                                    </span>
-                                `).join('')}
+                    ${parts.length === 0 ? renderCompactEmpty() : `
+                        <div class="reports-two-column report-detail-grid">
+                            <div class="chart-container report-chart-card">
+                                <div class="chart-wrapper compact-chart-wrapper">
+                                    <canvas id="reportPartCostChart"></canvas>
+                                </div>
                             </div>
-                        ` : ''}
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Numero</th>
-                                        <th>Tecnico</th>
-                                        <th>Cliente</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${renderSolicitationRows(solicitations)}
-                                </tbody>
-                            </table>
+                            <div>
+                                ${renderPartsTable(parts, analysis.totalCost || 0)}
+                            </div>
                         </div>
-                        ${solicitations.length > 60 ? `<p class="text-muted text-center mt-2">Mostrando 60 de ${solicitations.length} registros. Exporte para ver tudo.</p>` : ''}
                     `}
                 </div>
             </article>
         `;
     };
 
-    Relatorios.renderTecnicosExecutiveReport = function renderTecnicosExecutiveReport() {
+    Relatorios.renderTecnicosModernReport = function renderTecnicosModernReport() {
         const analysis = this.buildCostAnalysis();
         const technicians = sortTechniciansByCost(analysis.byTechnician || []);
-        const topTechnician = technicians[0] || null;
 
         return `
             <article class="card report-panel-card">
                 <div class="card-header compact-card-header">
                     <div>
-                        <h4>Custo por Tecnico</h4>
-                        <p class="text-muted">Concentracao financeira por tecnico com grafico e tabela alinhados.</p>
+                        <h4>Custo por Técnico</h4>
+                        <p class="text-muted">Prioridade de leitura: maior custo total para menor custo total.</p>
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="Relatorios.exportTecnicos()">
                         <i class="fas fa-file-excel"></i> Exportar
@@ -724,27 +711,11 @@ export function applyReportsModernization() {
                 </div>
                 <div class="card-body">
                     ${technicians.length === 0 ? renderCompactEmpty() : `
-                        <div class="summary-inline-grid summary-inline-grid-compact">
-                            <article class="summary-inline-card">
-                                <span>Tecnicos com custo</span>
-                                <strong>${Utils.formatNumber(technicians.length)}</strong>
-                                <small>Quantidade no filtro atual</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Maior custo total</span>
-                                <strong>${Utils.escapeHtml(topTechnician?.nome || 'Sem dados')}</strong>
-                                <small>${topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : 'Sem custos'}</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Media por tecnico</span>
-                                <strong>${Utils.formatCurrency(analysis.avgCostPerTech || 0)}</strong>
-                                <small>Base financeira media da equipe</small>
-                            </article>
-                        </div>
                         <div class="reports-two-column report-detail-grid">
                             <div class="chart-container report-chart-card">
+                                <h4 class="mb-2">Custo total por técnico</h4>
                                 <div class="chart-wrapper compact-chart-wrapper">
-                                    <canvas id="reportTechnicianChart"></canvas>
+                                    <canvas id="reportTechnicianCostChart"></canvas>
                                 </div>
                             </div>
                             <div>
@@ -757,52 +728,88 @@ export function applyReportsModernization() {
         `;
     };
 
-    Relatorios.renderPecasExecutiveReport = function renderPecasExecutiveReport() {
+    Relatorios.renderMesesModernReport = function renderMesesModernReport() {
         const analysis = this.buildCostAnalysis();
-        const parts = sortPartsByCost(analysis.byPiece || []);
-        const topPart = parts[0] || null;
+        const months = analysis.byMonth || [];
+        const monthly = buildMonthlyCostSummary(this, analysis);
 
         return `
             <article class="card report-panel-card">
                 <div class="card-header compact-card-header">
                     <div>
-                        <h4>Custo por Peca</h4>
-                        <p class="text-muted">Participacao de custo por item com menos ruido visual.</p>
+                        <h4>Custo por Mês</h4>
+                        <p class="text-muted">Evolução mensal com média mensal calculada pelo período filtrado.</p>
                     </div>
-                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportPecas()">
+                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportCustos()">
                         <i class="fas fa-file-excel"></i> Exportar
                     </button>
                 </div>
                 <div class="card-body">
-                    ${parts.length === 0 ? renderCompactEmpty() : `
-                        <div class="summary-inline-grid summary-inline-grid-compact">
-                            <article class="summary-inline-card">
-                                <span>Pecas no filtro</span>
-                                <strong>${Utils.formatNumber(parts.length)}</strong>
-                                <small>Itens distintos com custo</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Peca de maior impacto</span>
-                                <strong>${Utils.escapeHtml(topPart?.descricao || topPart?.codigo || 'Sem dados')}</strong>
-                                <small>${topPart ? Utils.formatCurrency(topPart.totalCost || 0) : 'Sem custos'}</small>
-                            </article>
-                            <article class="summary-inline-card">
-                                <span>Custo total</span>
-                                <strong>${Utils.formatCurrency(analysis.totalCost || 0)}</strong>
-                                <small>Base consolidada do periodo</small>
-                            </article>
-                        </div>
-                        <div class="reports-two-column report-detail-grid">
-                            <div class="chart-container report-chart-card">
+                    <div class="reports-inline-summary">
+                        <span class="tag-soft info"><i class="fas fa-calendar-alt"></i> ${Utils.formatNumber(monthly.monthCount)} mês(es) no filtro</span>
+                        <span class="tag-soft success"><i class="fas fa-chart-line"></i> Média mensal: ${Utils.formatCurrency(monthly.averageMonthlyCost)}</span>
+                    </div>
+                    ${months.length === 0 ? renderCompactEmpty() : `
+                        <div class="report-stack-grid">
+                            <div class="chart-container report-chart-card report-chart-card-full">
                                 <div class="chart-wrapper compact-chart-wrapper">
-                                    <canvas id="reportPartChart"></canvas>
+                                    <canvas id="reportMonthlyCostChart"></canvas>
                                 </div>
                             </div>
-                            <div>
-                                ${renderPartsTable(parts, analysis.totalCost || 0)}
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mês</th>
+                                            <th>Solicitações com custo</th>
+                                            <th>Custo total</th>
+                                            <th>Custo médio por solicitação</th>
+                                            <th>Comparativo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${buildMonthlyRows(months)}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     `}
+                </div>
+            </article>
+        `;
+    };
+
+    Relatorios.renderHistoricoModernReport = function renderHistoricoModernReport() {
+        const solicitations = this.getFilteredSolicitations();
+        const analysis = this.buildCostAnalysis();
+        const statusSummary = buildStatusDistribution(solicitations);
+
+        return `
+            <article class="card report-panel-card">
+                <div class="card-header compact-card-header">
+                    <div>
+                        <h4>Relatório de Solicitações</h4>
+                        <p class="text-muted">Leitura executiva com foco em volume, custo e status do fluxo operacional.</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportSolicitacoes()">
+                        <i class="fas fa-file-excel"></i> Exportar
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="reports-inline-summary reports-inline-summary-spread">
+                        <span class="tag-soft info"><i class="fas fa-clipboard-list"></i> ${Utils.formatNumber(solicitations.length)} solicitação(ões)</span>
+                        <span class="tag-soft primary"><i class="fas fa-sack-dollar"></i> ${Utils.formatCurrency(analysis.totalCost || 0)} em custos</span>
+                        <span class="tag-soft success"><i class="fas fa-receipt"></i> Ticket médio ${Utils.formatCurrency(analysis.costPerAttendance || 0)}</span>
+                    </div>
+                    ${statusSummary.length > 0 ? `
+                        <div class="reports-status-row">
+                            ${statusSummary.map((item) => `
+                                <span class="reports-status-chip"><span>${Utils.escapeHtml(item.label)}</span> <strong>${Utils.formatNumber(item.count)}</strong></span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <p class="helper-text" style="margin: 0 0 10px;">Fluxo operacional: técnico abre, gestor avalia, aprovação envia PDF ao fornecedor, gestor registra rastreio, técnico confirma entrega e finaliza.</p>
+                    ${renderHistoryTable(this, solicitations)}
                 </div>
             </article>
         `;
@@ -850,14 +857,15 @@ export function applyReportsModernization() {
         this.destroyCharts();
 
         const chartIds = [
-            'reportCostMonthlyChart',
-            'reportCostTechChart',
-            'reportTechnicianChart',
-            'reportPartChart'
+            'reportOverviewMonthlyChart',
+            'reportOverviewTechChart',
+            'reportPartCostChart',
+            'reportTechnicianCostChart',
+            'reportMonthlyCostChart'
         ];
 
         if (typeof Chart === 'undefined') {
-            chartIds.forEach((id) => replaceChartFallback(id, 'Grafico indisponivel no momento'));
+            chartIds.forEach((id) => replaceChartFallback(id, 'Gráfico indisponível no momento'));
             return;
         }
 
@@ -867,9 +875,9 @@ export function applyReportsModernization() {
         const months = analysis.byMonth || [];
         const chartTheme = getReportChartTheme();
 
-        const monthlyCanvas = document.getElementById('reportCostMonthlyChart');
-        if (monthlyCanvas && months.some((month) => Number(month.totalCost) > 0)) {
-            this.charts.reportCostMonthlyChart = new Chart(monthlyCanvas, {
+        const overviewMonthlyCanvas = document.getElementById('reportOverviewMonthlyChart');
+        if (overviewMonthlyCanvas && months.some((month) => Number(month.totalCost) > 0)) {
+            this.charts.reportOverviewMonthlyChart = new Chart(overviewMonthlyCanvas, {
                 type: 'line',
                 data: {
                     labels: months.map((month) => month.label),
@@ -910,31 +918,102 @@ export function applyReportsModernization() {
                 }
             });
         } else {
-            replaceChartFallback('reportCostMonthlyChart', 'Sem dados no periodo selecionado');
+            replaceChartFallback('reportOverviewMonthlyChart', 'Sem dados no período selecionado');
         }
 
         createVerticalCostChart(
             this,
-            'reportCostTechChart',
+            'reportOverviewTechChart',
             topTechnicians.slice(0, 8).map((technician) => technician.nome),
             topTechnicians.slice(0, 8).map((technician) => Number(technician.totalCost) || 0),
             'rgba(14, 116, 144, 0.85)'
         );
 
+        createHorizontalCostChart(
+            this,
+            'reportPartCostChart',
+            topParts.map((part) => part.codigo),
+            topParts.map((part) => Number(part.totalCost) || 0),
+            'rgba(245, 158, 11, 0.85)'
+        );
+
         createVerticalCostChart(
             this,
-            'reportTechnicianChart',
+            'reportTechnicianCostChart',
             topTechnicians.map((technician) => technician.nome),
             topTechnicians.map((technician) => Number(technician.totalCost) || 0),
             'rgba(37, 99, 235, 0.85)'
         );
 
-        createHorizontalCostChart(
-            this,
-            'reportPartChart',
-            topParts.map((part) => part.codigo || part.descricao || 'Peca'),
-            topParts.map((part) => Number(part.totalCost) || 0),
-            'rgba(245, 158, 11, 0.85)'
-        );
+        const monthlyCanvas = document.getElementById('reportMonthlyCostChart');
+        if (monthlyCanvas && months.length > 0) {
+            this.charts.reportMonthlyCostChart = new Chart(monthlyCanvas, {
+                type: 'bar',
+                data: {
+                    labels: months.map((month) => month.label),
+                    datasets: [{
+                        data: months.map((month) => Number(month.totalCost) || 0),
+                        backgroundColor: 'rgba(22, 163, 74, 0.82)',
+                        borderRadius: 8,
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: chartTheme.textColor,
+                                callback: (value) => Utils.formatCurrency(Number(value) || 0)
+                            },
+                            grid: {
+                                color: chartTheme.gridColor
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: chartTheme.textColor
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        } else {
+            replaceChartFallback('reportMonthlyCostChart', 'Sem dados no período selecionado');
+        }
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

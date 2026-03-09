@@ -296,7 +296,8 @@ const Auth = {
             };
         }
 
-        const user = DataManager.getUserByUsername(inputUsername);
+        const userRecord = DataManager.getUserByUsername(inputUsername);
+        const user = userRecord ? { ...userRecord } : null;
         
         if (!user) {
             this.logAuthAttempt({
@@ -351,15 +352,25 @@ const Auth = {
         if (!storedHash && user.password) {
             try {
                 storedHash = await this.hashPassword(user.password, canonicalUsername);
-                user.passwordHash = storedHash;
-                delete user.password;
+                const migratedUser = { ...user, passwordHash: storedHash };
+                delete migratedUser.password;
                 const targetUsername = DataManager.normalizeUsername(user.username);
-                const users = DataManager.getUsers();
+                const users = typeof DataManager.cloneSerializable === 'function'
+                    ? (DataManager.cloneSerializable(DataManager.getUsers(), []) || [])
+                    : DataManager.getUsers().map((item) => ({ ...item }));
                 const idx = users.findIndex(u => DataManager.normalizeUsername(u.username) === targetUsername);
                 if (idx >= 0) {
-                    users[idx] = { ...user };
+                    users[idx] = migratedUser;
                 }
-                DataManager.saveData(DataManager.KEYS.USERS, users);
+                const saved = typeof DataManager._persistUsersToCloud === 'function'
+                    ? await DataManager._persistUsersToCloud(users)
+                    : await DataManager.saveData(DataManager.KEYS.USERS, users);
+                if (!saved) {
+                    throw new Error('cloud_save_failed');
+                }
+                DataManager._sessionCache[DataManager.KEYS.USERS] = users;
+                user.passwordHash = storedHash;
+                delete user.password;
             } catch (e) {
                 console.error('Falha ao migrar senha para hash seguro', e);
                 return { success: false, error: 'Erro ao validar credenciais' };
@@ -401,10 +412,25 @@ const Auth = {
             }
 
             try {
-                const users = DataManager.getUsers();
-                const updatedUsers = users.map(u => u.username === user.username ? { ...u, passwordHash, password: undefined } : u);
-                user.passwordHash = passwordHash;
-                DataManager.saveData(DataManager.KEYS.USERS, updatedUsers);
+                const users = typeof DataManager.cloneSerializable === 'function'
+                    ? (DataManager.cloneSerializable(DataManager.getUsers(), []) || [])
+                    : DataManager.getUsers().map((item) => ({ ...item }));
+                const updatedUsers = users.map((u) => {
+                    if (u.username !== user.username) {
+                        return u;
+                    }
+
+                    const migratedUser = { ...u, passwordHash };
+                    delete migratedUser.password;
+                    return migratedUser;
+                });
+                const saved = typeof DataManager._persistUsersToCloud === 'function'
+                    ? await DataManager._persistUsersToCloud(updatedUsers)
+                    : await DataManager.saveData(DataManager.KEYS.USERS, updatedUsers);
+                if (saved) {
+                    DataManager._sessionCache[DataManager.KEYS.USERS] = updatedUsers;
+                    user.passwordHash = passwordHash;
+                }
             } catch (e) {
                 console.warn('Falha ao migrar hash legado', e);
             }

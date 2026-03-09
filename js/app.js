@@ -8,11 +8,11 @@ const CHART_INIT_DELAY_MS = 100;
 const App = {
     currentPage: null,
     lazyModules: {
-        dashboard: './js/pages/dashboard.js?v=20260308ui',
-        solicitacoes: './js/pages/solicitacoes.js?v=20260308ui',
-        aprovacoes: './js/pages/aprovacoes.js?v=20260308ui',
+        dashboard: './js/pages/dashboard.js?v=20260307h',
+        solicitacoes: './js/pages/solicitacoes.js?v=20260307h',
+        aprovacoes: './js/pages/aprovacoes.js?v=20260307h',
         pecas: './js/pages/pecas.js?v=20260307h',
-        relatorios: './js/pages/relatorios.js?v=20260308ui',
+        relatorios: './js/pages/relatorios.js?v=20260307h',
         fornecedor: './js/pages/fornecedor.js?v=20260307h',
         usuarios: './js/pages/usuarios.js?v=20260307h'
     },
@@ -1171,13 +1171,14 @@ const App = {
      * Render system health panel for admins
      */
     renderHealthPanel() {
+        // Check if Logger is available
         if (typeof Logger === 'undefined') {
             return '';
         }
 
         const health = Logger.getHealthSummary();
         const recentErrors = Logger.getRecentErrors(10);
-
+        
         const statusColors = {
             healthy: '#10b981',
             degraded: '#f59e0b',
@@ -1197,17 +1198,14 @@ const App = {
         const statusColor = statusColors[health.status] || statusColors.healthy;
         const statusLabel = statusLabels[health.status] || 'Desconhecido';
         const statusIcon = statusIcons[health.status] || 'fa-question-circle';
-        const categoryCount = Object.keys(health.categoryBreakdown || {}).length;
-        const totalEvents = Object.values(health.categoryBreakdown || {}).reduce((sum, stats) => sum + (stats.total || 0), 0);
-        const criticalErrors = recentErrors.filter(err => err.level === 'error').length;
 
         const categoryStats = Object.entries(health.categoryBreakdown || {}).map(([cat, stats]) => `
             <tr>
-                <td><strong>${Utils.escapeHtml(cat)}</strong></td>
-                <td>${Utils.formatNumber(stats.total || 0)}</td>
-                <td>${Utils.formatNumber(stats.errors || 0)}</td>
-                <td>${Utils.formatNumber(stats.lastHour || 0)}</td>
-                <td>${Utils.formatNumber(stats.lastDay || 0)}</td>
+                <td><code>${Utils.escapeHtml(cat)}</code></td>
+                <td>${stats.total || 0}</td>
+                <td>${stats.errors || 0}</td>
+                <td>${stats.lastHour || 0}</td>
+                <td>${stats.lastDay || 0}</td>
             </tr>
         `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum evento registrado</td></tr>';
 
@@ -1215,20 +1213,66 @@ const App = {
             <tr>
                 <td><small>${Utils.formatDate(err.timestamp, true)}</small></td>
                 <td><code>${Utils.escapeHtml(err.requestId || '-')}</code></td>
+                <td><span class="badge badge-${err.level === 'error' ? 'danger' : 'warning'}">${Utils.escapeHtml(err.level)}</span></td>
                 <td>${Utils.escapeHtml(err.category || '-')}</td>
                 <td>${Utils.escapeHtml(err.message || '-')}</td>
             </tr>
-        `).join('') || '<tr><td colspan="4" class="text-muted">Nenhum erro recente</td></tr>';
+        `).join('') || '<tr><td colspan="5" class="text-muted">Nenhum erro recente</td></tr>';
 
         return `
-            <div class="card mt-3 system-health-card">
-                <div class="card-header compact-card-header">
-                    <div>
-                        <h4><i class="fas fa-heartbeat"></i> Saúde do Sistema</h4>
-                        <p class="text-muted">Status geral primeiro, categorias monitoradas em segundo plano e logs recentes apenas quando importarem.</p>
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h4><i class="fas fa-heartbeat"></i> Saúde do Sistema</h4>
+                </div>
+                <div class="card-body">
+                    <div class="health-status" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: ${statusColor}15; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                        <i class="fas ${statusIcon}" style="font-size: 2rem; color: ${statusColor};"></i>
+                        <div>
+                            <strong style="color: ${statusColor};">${statusLabel}</strong>
+                            <p class="mb-0" style="font-size: 0.875rem;">
+                                ${health.errorsLastHour} erros na última hora | ${health.errorsLastDay} nas últimas 24h
+                            </p>
+                        </div>
                     </div>
-                    <div class="btn-group">
-                        <button class="btn btn-outline btn-sm" onclick="App.refreshHealthPanel()">
+
+                    <h5>Eventos por Categoria</h5>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th>Total</th>
+                                    <th>Erros</th>
+                                    <th>Última Hora</th>
+                                    <th>Últimas 24h</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${categoryStats}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5 class="mt-3">Erros Recentes</h5>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Request ID</th>
+                                    <th>Nível</th>
+                                    <th>Categoria</th>
+                                    <th>Mensagem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${errorRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="btn-group mt-3">
+                        <button class="btn btn-outline" onclick="App.refreshHealthPanel()">
                             <i class="fas fa-sync-alt"></i> Atualizar
                         </button>
                         <button class="btn btn-danger btn-sm" onclick="App.clearSystemLogs()">
@@ -1236,84 +1280,13 @@ const App = {
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="health-status-hero" style="--health-status-color:${statusColor};">
-                        <div class="health-status-icon"><i class="fas ${statusIcon}"></i></div>
-                        <div class="health-status-copy">
-                            <strong>${statusLabel}</strong>
-                            <p>${health.errorsLastHour} erro(s) na última hora e ${health.errorsLastDay} nas últimas 24 horas.</p>
-                        </div>
-                    </div>
-
-                    <div class="summary-inline-grid system-health-summary-grid">
-                        <article class="summary-inline-card">
-                            <span>Categorias monitoradas</span>
-                            <strong>${Utils.formatNumber(categoryCount)}</strong>
-                            <small>Grupos acompanhados pelo logger</small>
-                        </article>
-                        <article class="summary-inline-card">
-                            <span>Eventos recentes</span>
-                            <strong>${Utils.formatNumber(totalEvents)}</strong>
-                            <small>Total consolidado no painel de saúde</small>
-                        </article>
-                        <article class="summary-inline-card">
-                            <span>Erros críticos</span>
-                            <strong>${Utils.formatNumber(criticalErrors)}</strong>
-                            <small>Ocorrências críticas nos últimos registros</small>
-                        </article>
-                    </div>
-
-                    <div class="system-health-grid">
-                        <section class="system-panel-section">
-                            <div class="system-panel-header">
-                                <h5>Categorias</h5>
-                                <p class="text-muted">Volume total, erros e recência por área do sistema.</p>
-                            </div>
-                            <div class="table-container" data-skip-quick-filter="true">
-                                <table class="table compact-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Categoria</th>
-                                            <th>Total</th>
-                                            <th>Erros</th>
-                                            <th>Última hora</th>
-                                            <th>24h</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${categoryStats}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-
-                        <section class="system-panel-section">
-                            <div class="system-panel-header">
-                                <h5>Erros recentes</h5>
-                                <p class="text-muted">Detalhes mais recentes para investigação rápida.</p>
-                            </div>
-                            <div class="table-container system-log-table">
-                                <table class="table compact-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Data/Hora</th>
-                                            <th>Request ID</th>
-                                            <th>Categoria</th>
-                                            <th>Mensagem</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${errorRows}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-                    </div>
-                </div>
             </div>
         `;
     },
 
+    /**
+     * Refresh health panel
+     */
     refreshHealthPanel() {
         this.renderConfiguracoes();
         Utils.showToast('Dados de saúde atualizados', 'info');
@@ -1748,16 +1721,23 @@ const App = {
             return;
         }
         
-        // Update password
+        let passwordHash;
         try {
-            dbUser.passwordHash = await Auth.hashPassword(newPass, user.username);
+            passwordHash = await Auth.hashPassword(newPass, user.username);
         } catch (error) {
             console.error('Erro ao atualizar senha', error);
             Utils.showToast('Erro ao atualizar senha', 'error');
             return;
         }
-        delete dbUser.password;
-        DataManager.saveData(DataManager.KEYS.USERS, users);
+
+        const result = await DataManager.saveUser({
+            ...dbUser,
+            passwordHash
+        });
+        if (!result?.success) {
+            Utils.showToast(result?.error || 'Não foi possível atualizar a senha', 'error');
+            return;
+        }
         
         Utils.showToast('Senha alterada com sucesso', 'success');
         
@@ -1817,9 +1797,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-
-
-
 
 
 

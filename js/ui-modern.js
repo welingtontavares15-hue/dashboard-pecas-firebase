@@ -54,83 +54,22 @@
             return;
         }
 
+        const toolbar = document.createElement('div');
+        toolbar.className = 'table-toolbar';
+        toolbar.innerHTML = '<input type="text" class="table-quick-filter form-control" placeholder="Filtro rápido da tabela">';
+
+        tableContainer.parentElement.insertBefore(toolbar, tableContainer);
+
+        const filterInput = toolbar.querySelector('.table-quick-filter');
         const tbody = table.querySelector('tbody');
-        const rowCount = tbody ? tbody.rows.length : 0;
-        const shouldAddToolbar = rowCount >= 7
-            && table.dataset.skipQuickFilter !== 'true'
-            && tableContainer.dataset.skipQuickFilter !== 'true'
-            && tableContainer.parentElement;
-
-        if (shouldAddToolbar) {
-            const toolbar = document.createElement('div');
-            toolbar.className = 'table-toolbar';
-            toolbar.innerHTML = `
-                <button type="button" class="btn btn-outline btn-sm table-filter-toggle" aria-expanded="false">
-                    <i class="fas fa-search"></i> Buscar na tabela
-                </button>
-                <div class="table-toolbar-search hidden">
-                    <i class="fas fa-search" aria-hidden="true"></i>
-                    <input type="text" class="table-quick-filter form-control" placeholder="Filtrar linhas desta tabela">
-                    <button type="button" class="btn-icon table-filter-clear hidden" aria-label="Limpar busca na tabela">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-
-            tableContainer.parentElement.insertBefore(toolbar, tableContainer);
-
-            const toggleButton = toolbar.querySelector('.table-filter-toggle');
-            const searchWrapper = toolbar.querySelector('.table-toolbar-search');
-            const filterInput = toolbar.querySelector('.table-quick-filter');
-            const clearButton = toolbar.querySelector('.table-filter-clear');
-            const applyQuickFilter = debounce(() => {
-                const query = (filterInput?.value || '').toLowerCase().trim();
-                if (tbody) {
-                    Array.from(tbody.rows).forEach((row) => {
-                        const text = (row.textContent || '').toLowerCase();
-                        row.style.display = text.includes(query) ? '' : 'none';
-                    });
-                }
-                if (clearButton) {
-                    clearButton.classList.toggle('hidden', !query);
-                }
-                if (searchWrapper) {
-                    searchWrapper.classList.toggle('hidden', !query && searchWrapper.dataset.forceOpen !== 'true');
-                }
-                if (toggleButton) {
-                    toggleButton.setAttribute('aria-expanded', searchWrapper && !searchWrapper.classList.contains('hidden') ? 'true' : 'false');
-                }
-            }, 120);
-
-            if (toggleButton && searchWrapper && filterInput) {
-                toggleButton.addEventListener('click', () => {
-                    const willOpen = searchWrapper.classList.contains('hidden');
-                    searchWrapper.dataset.forceOpen = willOpen ? 'true' : 'false';
-                    searchWrapper.classList.toggle('hidden', !willOpen);
-                    toggleButton.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-                    if (willOpen) {
-                        filterInput.focus();
-                    }
+        if (filterInput && tbody) {
+            filterInput.addEventListener('input', debounce(() => {
+                const query = (filterInput.value || '').toLowerCase().trim();
+                Array.from(tbody.rows).forEach((row) => {
+                    const text = (row.textContent || '').toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
                 });
-
-                filterInput.addEventListener('input', applyQuickFilter);
-                filterInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Escape') {
-                        filterInput.value = '';
-                        searchWrapper.dataset.forceOpen = 'false';
-                        applyQuickFilter();
-                    }
-                });
-            }
-
-            if (clearButton && filterInput && searchWrapper && toggleButton) {
-                clearButton.addEventListener('click', () => {
-                    filterInput.value = '';
-                    searchWrapper.dataset.forceOpen = 'false';
-                    applyQuickFilter();
-                    toggleButton.focus();
-                });
-            }
+            }, 120));
         }
 
         const headers = Array.from(table.querySelectorAll('thead th'));
@@ -272,26 +211,26 @@
             const itemMap = new Map(items.map((item) => [item.id, item]));
             const pendingCount = DataManager.getPendingSolicitations().length;
             const reportAliases = {
-                custos: 'custos',
-                'visao-geral': 'custos',
-                solicitacoes: 'solicitacoes',
+                custos: 'visao-geral',
+                solicitacoes: 'historico',
                 pecas: 'pecas',
                 tecnicos: 'tecnicos',
-                meses: 'custos',
-                historico: 'solicitacoes'
+                meses: 'meses',
+                historico: 'historico'
             };
             const currentReportRaw = activeId === 'relatorios'
-                ? ((window.Relatorios && window.Relatorios.currentReport) || window.__reportTarget || 'custos')
+                ? ((window.Relatorios && window.Relatorios.currentReport) || window.__reportTarget || 'visao-geral')
                 : '';
-            const currentReport = reportAliases[String(currentReportRaw || '').toLowerCase()] || currentReportRaw || 'custos';
+            const currentReport = reportAliases[String(currentReportRaw || '').toLowerCase()] || currentReportRaw || 'visao-geral';
 
             this._menuGroupsCollapsed = this._menuGroupsCollapsed || {};
 
             const reportShortcuts = itemMap.has('relatorios') ? [
-                { id: 'relatorios', pageId: 'relatorios', label: 'Custos', icon: 'fa-chart-pie', reportTarget: 'custos' },
-                { id: 'relatorios_solicitacoes', pageId: 'relatorios', label: 'Solicitações', icon: 'fa-clipboard-list', reportTarget: 'solicitacoes', isSubItem: true },
-                { id: 'relatorios_tecnicos', pageId: 'relatorios', label: 'Por técnico', icon: 'fa-user-gear', reportTarget: 'tecnicos', isSubItem: true },
-                { id: 'relatorios_pecas', pageId: 'relatorios', label: 'Por peça', icon: 'fa-box-open', reportTarget: 'pecas', isSubItem: true }
+                { id: 'relatorios', pageId: 'relatorios', label: 'Relatórios', icon: 'fa-file-alt', reportTarget: 'visao-geral' },
+                { id: 'relatorios_pecas', pageId: 'relatorios', label: 'Custo por Peça', icon: 'fa-box-open', reportTarget: 'pecas', isSubItem: true },
+                { id: 'relatorios_tecnicos', pageId: 'relatorios', label: 'Custo por Técnico', icon: 'fa-user-gear', reportTarget: 'tecnicos', isSubItem: true },
+                { id: 'relatorios_meses', pageId: 'relatorios', label: 'Custo por Mês', icon: 'fa-chart-line', reportTarget: 'meses', isSubItem: true },
+                { id: 'relatorios_historico', pageId: 'relatorios', label: 'Histórico', icon: 'fa-clock-rotate-left', reportTarget: 'historico', isSubItem: true }
             ] : [];
 
             const role = this.getRole();
@@ -307,11 +246,11 @@
                         { key: 'suporte', title: 'SUPORTE', items: [itemMap.get('perfil')] }
                     ]
                     : [
-                        { key: 'visao-geral', title: 'Painel', items: [itemMap.get('dashboard')] },
-                        { key: 'operacao', title: 'Operação', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
-                        { key: 'custos', title: 'Análises', items: reportShortcuts },
-                        { key: 'cadastros', title: 'Cadastros', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
-                        { key: 'configuracoes', title: 'Sistema', items: [itemMap.get('configuracoes')] }
+                        { key: 'visao-geral', title: 'VISÃO GERAL', items: [itemMap.get('dashboard')] },
+                        { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
+                        { key: 'custos', title: 'CUSTOS E ANÁLISES', items: reportShortcuts },
+                        { key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
+                        { key: 'configuracoes', title: 'CONFIGURAÇÕES', items: [itemMap.get('configuracoes')] }
                     ]);
             const buildEntry = (entry) => {
                 if (!entry) {
@@ -321,11 +260,11 @@
                 const pageId = entry.pageId || entry.id;
                 const reportTarget = entry.reportTarget || '';
                 const badgeCount = entry.badge ? pendingCount : 0;
-                const isReportMain = pageId === 'relatorios' && (!reportTarget || reportTarget === 'custos');
+                const isReportMain = pageId === 'relatorios' && (!reportTarget || reportTarget === 'visao-geral');
                 const isActive = reportTarget
                     ? (activeId === 'relatorios' && currentReport === reportTarget)
-                    : (isReportMain ? (activeId === 'relatorios' && (!currentReport || currentReport === 'custos')) : pageId === activeId);
-                const reportSeed = reportTarget || (pageId === 'relatorios' ? 'custos' : '');
+                    : (isReportMain ? (activeId === 'relatorios' && (!currentReport || currentReport === 'visao-geral')) : pageId === activeId);
+                const reportSeed = reportTarget || (pageId === 'relatorios' ? 'visao-geral' : '');
                 const className = 'nav-item ' + (entry.isSubItem ? 'nav-item-sub ' : '') + (isActive ? 'active' : '');
                 const onclickAttr = ` onclick="window.__reportTarget='${reportSeed}'"`;
                 const dataReport = reportTarget ? ` data-report-target="${reportTarget}"` : '';
@@ -739,8 +678,6 @@
     patchAuth();
     patchApp();
 })();
-
-
 
 
 

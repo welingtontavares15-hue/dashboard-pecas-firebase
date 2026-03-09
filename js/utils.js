@@ -21,6 +21,9 @@ const Utils = {
     OP_EMAIL_MAX_RETRIES: 2,
     OP_EMAIL_RETRY_DELAY_MS: 1200,
     OP_EMAIL_TEMPLATE: 'box',
+    BRAND_NAME: 'MWM',
+    PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas MWM',
+    BRAND_SIGNATURE: 'Equipe MWM',
     PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),
 
@@ -301,7 +304,7 @@ const Utils = {
         }
 
         const greeting = name ? `Olá ${name}` : 'Olá';
-        const subject = 'Nova senha de acesso - Dashboard de Peças';
+        const subject = `Credenciais de acesso - ${this.PORTAL_DISPLAY_NAME}`;
         const safeRole = String(roleLabel || 'usuário').trim();
         const accessLink = this.PASSWORD_RESET_SYSTEM_LINK;
         const body = [
@@ -318,7 +321,7 @@ const Utils = {
             'Acesse o sistema e altere a senha após o primeiro login.',
             '',
             'Atenciosamente,',
-            'Equipe Diversey'
+            this.BRAND_SIGNATURE
         ].join('\n');
 
         const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -375,13 +378,58 @@ const Utils = {
     },
 
     /**
-     * Fixed recipients for supplier approval notifications.
+     * Resolve active manager recipients dynamically with safe fallback.
      */
-    getSupplierNotificationRecipients() {
-        return [
-            'operacional@ebstecnologica.com.br',
-            'operacional2@ebstecnologica.com.br'
-        ];
+    getManagerNotificationRecipients() {
+        const recipients = [];
+
+        if (typeof DataManager !== 'undefined' && typeof DataManager.getGestorUsers === 'function') {
+            DataManager.getGestorUsers()
+                .filter((user) => user && user.disabled !== true)
+                .forEach((user) => {
+                    const email = String(user.email || '').trim().toLowerCase();
+                    if (this.isValidEmail(email)) {
+                        recipients.push(email);
+                    }
+                });
+        }
+
+        const fallback = String(this.getManagerNotificationEmail() || '').trim().toLowerCase();
+        if (this.isValidEmail(fallback)) {
+            recipients.push(fallback);
+        }
+
+        return Array.from(new Set(recipients));
+    },
+
+    getSupplierApprovalRecipients(solicitation) {
+        if (!solicitation?.fornecedorId || typeof DataManager === 'undefined') {
+            return [];
+        }
+
+        const recipients = [];
+        const supplier = typeof DataManager.getSupplierById === 'function'
+            ? DataManager.getSupplierById(solicitation.fornecedorId)
+            : null;
+
+        const supplierEmail = String(supplier?.email || '').trim().toLowerCase();
+        if (this.isValidEmail(supplierEmail)) {
+            recipients.push(supplierEmail);
+        }
+
+        if (typeof DataManager.getUsers === 'function') {
+            DataManager.getUsers()
+                .filter((user) => user && user.role === 'fornecedor' && user.disabled !== true)
+                .forEach((user) => {
+                    const isLinked = user.fornecedorId === solicitation.fornecedorId;
+                    const linkedEmail = String(user.email || '').trim().toLowerCase();
+                    if (isLinked && this.isValidEmail(linkedEmail)) {
+                        recipients.push(linkedEmail);
+                    }
+                });
+        }
+
+        return Array.from(new Set(recipients));
     },
 
     /**
@@ -415,7 +463,7 @@ const Utils = {
     },
 
     buildOperationalEmailBody(message = '', context = {}) {
-        const header = context?.header || 'DIVERSEY | Sistema de Solicitação de Peças';
+        const header = context?.header || `${this.BRAND_NAME} | ${this.PORTAL_DISPLAY_NAME}`;
         const generatedAt = this.formatDate(Date.now(), true);
         const normalizedMessage = String(message || '').trim();
 
@@ -600,34 +648,35 @@ const Utils = {
      */
     async sendSolicitationApprovalEmail({ solicitation, submittedBy, recipient } = {}) {
         const eventType = 'nova solicitação';
-        const sentAt = new Date().toISOString();
-        const to = String(recipient || this.getManagerNotificationEmail()).trim().toLowerCase();
         const solicitationNumber = solicitation?.numero || '(sem número)';
 
         if (!solicitation) {
-            const log = this.logEmailNotification({
-                eventType,
-                solicitationNumber,
-                recipient: to || null,
+            return {
                 success: false,
                 reason: 'missing_solicitation',
-                profile: 'gestor',
-                sentAt
-            });
-            return { success: false, reason: 'missing_solicitation', recipient: to || null, sentAt, log };
+                sentCount: 0,
+                failedCount: 0,
+                totalRecipients: 0,
+                results: []
+            };
         }
 
-        if (!to || !this.isValidEmail(to)) {
-            const log = this.logEmailNotification({
-                eventType,
-                solicitationNumber,
-                recipient: to || null,
+        const recipients = Array.from(new Set((Array.isArray(recipient) ? recipient : [recipient])
+            .filter(Boolean)
+            .map((email) => String(email || '').trim().toLowerCase())));
+        const resolvedRecipients = recipients.length > 0
+            ? recipients.filter((email) => this.isValidEmail(email))
+            : this.getManagerNotificationRecipients();
+
+        if (resolvedRecipients.length === 0) {
+            return {
                 success: false,
                 reason: 'invalid_recipient',
-                profile: 'gestor',
-                sentAt
-            });
-            return { success: false, reason: 'invalid_recipient', recipient: to || null, sentAt, log };
+                sentCount: 0,
+                failedCount: 0,
+                totalRecipients: 0,
+                results: []
+            };
         }
 
         const details = this.buildSolicitationEmailContext(solicitation, { statusLabel: 'Em aprovação' });
@@ -650,53 +699,58 @@ const Utils = {
             `Link do sistema: ${details.portalLink}`,
             `Enviado por: ${sender}`
         ].join('\n');
+        const results = [];
 
-        let sent = false;
-        let errorMessage = null;
+        for (const to of resolvedRecipients) {
+            const sentAt = new Date().toISOString();
+            let sent = false;
+            let errorMessage = null;
 
-        try {
-            sent = await this.sendOperationalEmail({
+            try {
+                sent = await this.sendOperationalEmail({
+                    recipient: to,
+                    subject,
+                    message,
+                    fields: {
+                        evento: eventType,
+                        numero_solicitacao: details.number,
+                        tecnico: details.technician,
+                        cliente: details.client,
+                        data_solicitacao: details.requestDate,
+                        itens_pecas_solicitadas: details.itemsSummary,
+                        quantidade_total: details.totalQuantity,
+                        valor_total: details.totalValue,
+                        status_atual: details.statusLabel,
+                        link_sistema: details.portalLink,
+                        enviado_por: sender
+                    },
+                    eventLabel: 'manager_new_request_email'
+                });
+            } catch (error) {
+                sent = false;
+                errorMessage = error?.message || 'unknown_error';
+            }
+
+            const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+            results.push(this.logEmailNotification({
+                eventType,
+                solicitationNumber: details.number,
                 recipient: to,
-                subject,
-                message,
-                fields: {
-                    evento: eventType,
-                    numero_solicitacao: details.number,
-                    tecnico: details.technician,
-                    cliente: details.client,
-                    data_solicitacao: details.requestDate,
-                    itens_pecas_solicitadas: details.itemsSummary,
-                    quantidade_total: details.totalQuantity,
-                    valor_total: details.totalValue,
-                    status_atual: details.statusLabel,
-                    link_sistema: details.portalLink,
-                    enviado_por: sender
-                },
-                eventLabel: 'manager_new_request_email'
-            });
-        } catch (error) {
-            sent = false;
-            errorMessage = error?.message || 'unknown_error';
+                success: !!sent,
+                reason,
+                error: errorMessage,
+                profile: 'gestor',
+                sentAt
+            }));
         }
 
-        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
-        const log = this.logEmailNotification({
-            eventType,
-            solicitationNumber: details.number,
-            recipient: to,
-            success: !!sent,
-            reason,
-            error: errorMessage,
-            profile: 'gestor',
-            sentAt
-        });
-
+        const sentCount = results.filter((item) => item.success).length;
         return {
-            success: !!sent,
-            reason,
-            recipient: to,
-            sentAt,
-            log
+            success: sentCount === resolvedRecipients.length,
+            sentCount,
+            failedCount: resolvedRecipients.length - sentCount,
+            totalRecipients: resolvedRecipients.length,
+            results
         };
     },
     isConnectionError(error) {
@@ -882,9 +936,7 @@ const Utils = {
             };
         }
 
-        const recipients = Array.from(new Set(this.getSupplierNotificationRecipients()
-            .map((email) => String(email || '').trim().toLowerCase())))
-            .filter((email) => this.isValidEmail(email));
+        const recipients = this.getSupplierApprovalRecipients(solicitation);
 
         if (recipients.length === 0) {
             return {
@@ -1771,8 +1823,8 @@ const Utils = {
         const softBg = { r: 244, g: 246, b: 248 };
         const pageBg = { r: 248, g: 250, b: 252 };
         const headerHeight = 32;
-        const brandName = 'Diversey';
-        const brandTagline = 'A Solenis Company';
+        const brandName = this.BRAND_NAME;
+        const brandTagline = this.PORTAL_DISPLAY_NAME;
         const { preview } = options || {};
         const technician = DataManager.getTechnicianById(solicitation.tecnicoId);
         const supplier = solicitation.fornecedorId ? DataManager.getSupplierById(solicitation.fornecedorId) : null;

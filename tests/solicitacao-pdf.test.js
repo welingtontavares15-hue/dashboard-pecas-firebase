@@ -36,7 +36,7 @@ describe('generateSolicitacaoPdf', () => {
             ],
             desconto: 0,
             frete: 0,
-            fluxoAprovacao: 'Supervisor Diversey',
+            fluxoAprovacao: 'Gestor MWM',
             solicitanteLabel: 'Solicitante',
             recebidoPorLabel: 'Recebido por'
         };

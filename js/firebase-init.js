@@ -48,6 +48,14 @@ const FirebaseInit = {
     isConnected: false,
     authPromise: null,
     connectionListener: null,
+
+    logSystemEvent(level, message, data = {}) {
+        if (typeof Logger === 'undefined' || typeof Logger[level] !== 'function') {
+            return;
+        }
+
+        Logger[level](Logger.CATEGORY.SYSTEM, message, data);
+    },
     connectionCallbacks: [],
     cloudReadyCallbacks: [],
 
@@ -94,7 +102,7 @@ const FirebaseInit = {
             }
 
             this.isInitialized = true;
-            console.log('Firebase initialized successfully');
+            this.logSystemEvent('info', 'firebase_initialized');
 
             // Authenticate immediately
             await this.authenticate();
@@ -152,7 +160,7 @@ const FirebaseInit = {
                             window.firebaseUser = user;
                             window.dispatchEvent(new CustomEvent('firebase-ready', { detail: { uid: user.uid } }));
                         }
-                        console.log('Firebase user (anon) OK:', user.uid);
+                        this.logSystemEvent('info', 'firebase_authenticated_anonymously', { uid: user.uid });
                         this._notifyCloudReady();
                         resolve(true);
                     }, (error) => {
@@ -243,9 +251,9 @@ const FirebaseInit = {
                 this.isConnected = snapshot.val() === true;
                 
                 if (this.isConnected && !wasConnected) {
-                    console.log('RTDB connection established: cloudConnected = true');
+                    this.logSystemEvent('info', 'rtdb_connection_established');
                 } else if (!this.isConnected && wasConnected) {
-                    console.log('RTDB connection lost: cloudConnected = false');
+                    this.logSystemEvent('warn', 'rtdb_connection_lost');
                 }
 
                 if (this.isReady() && this.isRTDBConnected()) {
@@ -262,7 +270,7 @@ const FirebaseInit = {
                 });
             });
 
-            console.log('RTDB connection monitoring initialized');
+            this.logSystemEvent('debug', 'rtdb_connection_monitoring_initialized');
         } catch (error) {
             console.warn('Failed to initialize RTDB connection monitoring:', error);
         }

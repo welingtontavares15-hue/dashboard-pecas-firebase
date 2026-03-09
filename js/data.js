@@ -168,15 +168,6 @@ const STATS_CONFIG = {
     OUTLIER_PERCENTILE_THRESHOLD: 0.95
 };
 
-const FIREBASE_SYNC_MODULE_PATH = '/js/firebase-sync.js';
-const firebaseSyncModuleRef = { promise: null };
-function loadFirebaseSyncModule() {
-    if (!firebaseSyncModuleRef.promise) {
-        firebaseSyncModuleRef.promise = import(FIREBASE_SYNC_MODULE_PATH);
-    }
-    return firebaseSyncModuleRef.promise;
-}
-
 const DataManager = {
     // Storage keys
     KEYS: {
@@ -394,6 +385,18 @@ const DataManager = {
                     this.scheduleSync('init_complete');
                 }
 
+                if ((typeof APP_CONFIG !== 'undefined' && typeof APP_CONFIG.isProduction === 'function' && APP_CONFIG.isProduction()) &&
+                    this.getUsers().length === 0) {
+                    if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
+                        Logger.warn(Logger.CATEGORY.AUTH, 'no_provisioned_users_detected', {
+                            environment: APP_CONFIG.environment || 'production'
+                        });
+                    }
+                    if (typeof Utils !== 'undefined' && typeof Utils.showToast === 'function') {
+                        Utils.showToast('Ambiente sem usuários provisionados na nuvem. Solicite a habilitação inicial ao administrador.', 'warning');
+                    }
+                }
+
                 success = true;
                 return true;
             } catch (err) {
@@ -421,14 +424,14 @@ const DataManager = {
             
             window.addEventListener('online', () => {
                 this._isOnline = true;
-                console.log('[ONLINE-ONLY] Browser connection restored');
+                this.logOperationalEvent('info', 'sync', 'browser_connection_restored');
                 this.showConnectionToast('browser_online', 'Conexão restabelecida', 'success');
                 this.scheduleSync('browser_online');
             });
             
             window.addEventListener('offline', () => {
                 this._isOnline = false;
-                console.log('[ONLINE-ONLY] Browser connection lost');
+                this.logOperationalEvent('warn', 'sync', 'browser_connection_lost');
                 this.showConnectionToast('browser_offline', 'Sem conexão: operações de escrita bloqueadas', 'warning');
             });
         }
@@ -437,11 +440,11 @@ const DataManager = {
         if (typeof FirebaseInit !== 'undefined' && typeof FirebaseInit.onConnectionChange === 'function') {
             FirebaseInit.onConnectionChange((isConnected, wasConnected) => {
                 if (isConnected && !wasConnected) {
-                    console.log('[ONLINE-ONLY] RTDB connection restored - ready for sync');
+                    this.logOperationalEvent('info', 'sync', 'rtdb_connection_restored');
                     this.showConnectionToast('cloud_connected', 'Sincronização em nuvem conectada', 'info', 8000);
                     this.scheduleSync('rtdb_reconnected');
                 } else if (!isConnected && wasConnected) {
-                    console.log('[ONLINE-ONLY] RTDB connection lost - writes will be blocked');
+                    this.logOperationalEvent('warn', 'sync', 'rtdb_connection_lost');
                     this.showConnectionToast('cloud_disconnected', 'Sincronização em nuvem indisponível no momento', 'warning', 8000);
                 }
             });
@@ -465,7 +468,7 @@ const DataManager = {
 
         const subscribeCollection = (key, label) => {
             subscribeSafe(key, (payload) => {
-                console.log(`${label} updated from cloud`);
+                this.logOperationalEvent('debug', 'sync', 'realtime_collection_updated', { key, label });
                 this._sessionCache[key] = payload;
                 this.emitDataUpdated([key], 'realtime');
             });
@@ -473,32 +476,18 @@ const DataManager = {
 
         try {
             subscribeSafe(this.KEYS.SOLICITATIONS, (data) => {
-                console.log('Solicitations updated from cloud');
+                this.logOperationalEvent('debug', 'sync', 'realtime_solicitations_updated');
                 this._sessionCache[this.KEYS.SOLICITATIONS] = data;
                 this.emitDataUpdated([this.KEYS.SOLICITATIONS], 'realtime');
             });
 
             // Subscribe to real-time updates for users to keep sessions synchronized
             subscribeSafe(this.KEYS.USERS, (users) => {
-                console.log('Users updated from cloud');
+                this.logOperationalEvent('debug', 'sync', 'realtime_users_updated');
                 this._sessionCache[this.KEYS.USERS] = users;
 
                 if (typeof Auth !== 'undefined' && Auth.currentUser && Array.isArray(users)) {
-                    const currentUsername = this.normalizeUsername(Auth.currentUser.username);
-                    const latestUser = users.find(u => this.normalizeUsername(u.username) === currentUsername);
-                    if (!latestUser || latestUser.disabled) {
-                        Auth.logout();
-                        if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
-                            App.showLogin();
-                        }
-                    } else {
-                        Auth.currentUser = Auth.buildSessionUser(latestUser);
-                        if (typeof Auth.persistSession === 'function') {
-                            Auth.persistSession(Auth.currentUser);
-                        } else {
-                            sessionStorage.setItem('diversey_current_user', JSON.stringify(Auth.currentUser));
-                        }
-                    }
+                    this.refreshAuthenticatedSession(users);
                 }
 
                 this.emitDataUpdated([this.KEYS.USERS], 'realtime');
@@ -571,6 +560,83 @@ const DataManager = {
                 source
             }
         }));
+    },
+
+    cloneSerializable(value, fallback = null) {
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch (_error) {
+            return fallback;
+        }
+    },
+
+    async persistCriticalCollection(key, data) {
+        const payload = this.cloneSerializable(data, data);
+        const saved = await this._persistCollectionToCloud(key, payload);
+        if (!saved) {
+            return false;
+        }
+
+        this._sessionCache[key] = payload;
+        this.emitDataUpdated([key], 'local');
+        return true;
+    },
+
+    refreshAuthenticatedSession(users = this.getUsers()) {
+        if (typeof Auth === 'undefined' || typeof Auth.getCurrentUser !== 'function') {
+            return;
+        }
+
+        const currentUser = Auth.getCurrentUser();
+        if (!currentUser || !Array.isArray(users)) {
+            return;
+        }
+
+        const byId = currentUser.id
+            ? users.find((item) => item?.id === currentUser.id)
+            : null;
+        const byUsername = !byId
+            ? users.find((item) => this.normalizeUsername(item?.username) === this.normalizeUsername(currentUser.username))
+            : null;
+        const latestUser = byId || byUsername || null;
+
+        if (!latestUser || latestUser.disabled === true) {
+            Auth.logout();
+            if (typeof App !== 'undefined' && typeof App.showLogin === 'function') {
+                App.showLogin();
+            }
+            return;
+        }
+
+        if (typeof Auth.buildSessionUser === 'function') {
+            Auth.currentUser = Auth.buildSessionUser(latestUser);
+        } else {
+            Auth.currentUser = { ...latestUser };
+        }
+
+        if (typeof Auth.persistSession === 'function') {
+            Auth.persistSession(Auth.currentUser);
+        }
+    },
+
+    logOperationalEvent(level, category, message, data = {}) {
+        if (typeof Logger === 'undefined' || typeof Logger[level] !== 'function') {
+            return;
+        }
+
+        Logger[level](category, message, data);
+    },
+
+    isBootstrapUserProvisioningEnabled() {
+        if (typeof APP_CONFIG === 'undefined') {
+            return false;
+        }
+
+        if (typeof APP_CONFIG.isProduction === 'function' && APP_CONFIG.isProduction()) {
+            return typeof window !== 'undefined' && window.__ENABLE_USER_BOOTSTRAP === true;
+        }
+
+        return true;
     },
 
     async _persistCollectionToCloud(key, data) {
@@ -752,7 +818,7 @@ const DataManager = {
     async restoreFromIndexedDB() {
         // Online-only mode: IndexedDB is not used for business data persistence
         // This method is intentionally a no-op
-        console.log('[ONLINE-ONLY] IndexedDB restore skipped - cloud is source of truth');
+        this.logOperationalEvent('debug', 'sync', 'indexeddb_restore_skipped', { mode: 'online_only' });
         return;
     },
 
@@ -841,26 +907,22 @@ const DataManager = {
             this._sessionCache[key] = data;
             this.emitDataUpdated([key], 'local');
 
-            // Sync snapshot to Firebase RTDB (shared state)
-            try {
-                loadFirebaseSyncModule().then((mod) => {
-                    if (!mod || typeof mod.shouldSkipCloudWrite !== 'function' || mod.shouldSkipCloudWrite()) {
-                        return;
-                    }
-                    const snapshot = (typeof mod.captureLocalSnapshot === 'function') ? mod.captureLocalSnapshot() : null;
-                    if (snapshot && typeof mod.pushToCloud === 'function') {
-                        mod.pushToCloud(snapshot);
-                    }
-                }).catch(() => {});
-            } catch (_e) {
-                // ignore sync errors to avoid blocking UI
-            }
+            CloudStorage.saveData(key, data).then((saved) => {
+                if (saved === true) {
+                    return;
+                }
 
-            CloudStorage.saveData(key, data).catch((e) => {
+                console.warn('Cloud save rejected for optimistic write:', key);
+                if (typeof Utils !== 'undefined' && Utils.showToast) {
+                    Utils.showToast('Alteracao registrada localmente, mas a confirmacao na nuvem falhou. Refaça a sincronizacao.', 'warning');
+                }
+                this.scheduleSync(`retry:${key}`);
+            }).catch((e) => {
                 console.warn('Cloud save failed:', e);
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
                     Utils.showToast('Falha ao sincronizar alteracao com a nuvem. Tente novamente.', 'warning');
                 }
+                this.scheduleSync(`retry:${key}`);
             });
 
             return true;
@@ -972,7 +1034,7 @@ const DataManager = {
             if (cloudUsers && Array.isArray(cloudUsers) && cloudUsers.length > 0) {
                 // Online-only mode: Update session cache
                 this._sessionCache[this.KEYS.USERS] = cloudUsers;
-                console.log('Users synced from cloud for login');
+                this.logOperationalEvent('info', 'auth', 'users_synced_before_login', { count: cloudUsers.length });
                 return true;
             }
         } catch (error) {
@@ -1017,8 +1079,10 @@ const DataManager = {
 
     // ===== USERS =====
     async getDefaultUsers() {
-        // In production mode, we still need to seed essential users on first initialization
-        // This ensures admin, gestor, and technician accounts exist for initial access
+        if (!this.isBootstrapUserProvisioningEnabled()) {
+            return [];
+        }
+
         const technicians = this.getDefaultTechnicians();
         const gestorPassword = this.getGestorPassword();
         const canonicalGestorUsername = 'gestor';
@@ -1085,6 +1149,10 @@ const DataManager = {
     getGestorPassword() {
         const key = 'diversey_gestor_recovery_password';
         const fallback = 'gestor123';
+
+        if (!this.isBootstrapUserProvisioningEnabled()) {
+            return fallback;
+        }
 
         try {
             const stored = localStorage.getItem(key) || sessionStorage.getItem(key);
@@ -1274,7 +1342,7 @@ const DataManager = {
         if (!userId) {
             return false;
         }
-        const users = this.getUsers();
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         const removedUser = users.find(u => u.id === userId) || null;
         const filtered = users.filter(u => u.id !== userId);
         if (filtered.length === users.length) {
@@ -1295,7 +1363,7 @@ const DataManager = {
             return { success: false, error: 'Informe uma nova senha com pelo menos 4 caracteres.' };
         }
 
-        const users = this.getUsers();
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         const index = users.findIndex((u) => u.id === userId);
         if (index < 0) {
             return { success: false, error: 'Usuário não encontrado.' };
@@ -1375,6 +1443,7 @@ const DataManager = {
         }
 
         this._sessionCache[this.KEYS.USERS] = users;
+        this.refreshAuthenticatedSession(users);
         this.emitDataUpdated([this.KEYS.USERS], 'local');
 
         const updatedUser = this.getUserByUsername(targetUser.username) || users[index];
@@ -1461,7 +1530,7 @@ const DataManager = {
      * Create or update user (used for adding gestores)
      */
     async migrateUserPasswords() {
-        const users = this.getUsers();
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         let updated = false;
         for (const u of users) {
             if (u && u.password && !u.passwordHash) {
@@ -1475,8 +1544,14 @@ const DataManager = {
             }
         }
         if (updated) {
-            this._sessionCache[this.KEYS.USERS] = users;
-            await this._persistUsersToCloud(users);
+            const saved = await this._persistUsersToCloud(users);
+            if (saved) {
+                this._sessionCache[this.KEYS.USERS] = users;
+                this.refreshAuthenticatedSession(users);
+                this.emitDataUpdated([this.KEYS.USERS], 'local');
+            } else {
+                this.logOperationalEvent('warn', 'auth', 'password_migration_cloud_save_failed');
+            }
         }
     },
 
@@ -1485,7 +1560,7 @@ const DataManager = {
             return { success: false, error: 'Usuário inválido' };
         }
 
-        const users = this.getUsers();
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         const candidate = {
             ...user,
             username: String(user.username || '').trim(),
@@ -1558,6 +1633,7 @@ const DataManager = {
         }
 
         this._sessionCache[this.KEYS.USERS] = users;
+        this.refreshAuthenticatedSession(users);
         this.emitDataUpdated([this.KEYS.USERS], 'local');
         return { success: true, user: normalizedUser };
     },
@@ -1575,7 +1651,11 @@ const DataManager = {
      * If missing or without password hash, recreate with the fallback password.
      */
     async ensureDefaultGestor() {
-        const users = this.getUsers();
+        if (!this.isBootstrapUserProvisioningEnabled()) {
+            return;
+        }
+
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         const fallbackPassword = this.getGestorPassword();
         const fallback = {
             id: 'gestor',
@@ -1680,14 +1760,24 @@ const DataManager = {
         }
 
         if (updated) {
-            this._sessionCache[this.KEYS.USERS] = users;
-            await this._persistUsersToCloud(users);
+            const saved = await this._persistUsersToCloud(users);
+            if (saved) {
+                this._sessionCache[this.KEYS.USERS] = users;
+                this.refreshAuthenticatedSession(users);
+                this.emitDataUpdated([this.KEYS.USERS], 'local');
+            } else {
+                this.logOperationalEvent('warn', 'auth', 'default_gestor_cloud_save_failed');
+            }
         }
     },
 
     // ===== TECHNICIANS =====
     async ensureRecoveryUsers() {
-        const users = this.getUsers();
+        if (!this.isBootstrapUserProvisioningEnabled()) {
+            return;
+        }
+
+        const users = this.cloneSerializable(this.getUsers(), []) || [];
         const technicians = this.getTechnicians();
         const now = Date.now();
         let updated = false;
@@ -1786,8 +1876,14 @@ const DataManager = {
         });
 
         if (updated) {
-            this._sessionCache[this.KEYS.USERS] = users;
-            await this._persistUsersToCloud(users);
+            const saved = await this._persistUsersToCloud(users);
+            if (saved) {
+                this._sessionCache[this.KEYS.USERS] = users;
+                this.refreshAuthenticatedSession(users);
+                this.emitDataUpdated([this.KEYS.USERS], 'local');
+            } else {
+                this.logOperationalEvent('warn', 'auth', 'recovery_users_cloud_save_failed');
+            }
         }
     },
 
@@ -1926,6 +2022,7 @@ const DataManager = {
 
         this._sessionCache[this.KEYS.TECHNICIANS] = nextTechnicians;
         this._sessionCache[this.KEYS.USERS] = nextUsers;
+        this.refreshAuthenticatedSession(nextUsers);
         this.emitDataUpdated([this.KEYS.TECHNICIANS, this.KEYS.USERS], 'local');
 
         return { success: true, technician: normalizedTechnician, user: candidateUser };
@@ -2079,6 +2176,7 @@ const DataManager = {
 
         this._sessionCache[this.KEYS.SUPPLIERS] = nextSuppliers;
         this._sessionCache[this.KEYS.USERS] = nextUsers;
+        this.refreshAuthenticatedSession(nextUsers);
         this.emitDataUpdated([this.KEYS.SUPPLIERS, this.KEYS.USERS], 'local');
 
         return { success: true, supplier: normalizedSupplier, user: candidateUser };
@@ -2272,8 +2370,8 @@ const DataManager = {
         return { items, total, page, totalPages };
     },
 
-    savePart(part) {
-        const parts = this.getParts();
+    async savePart(part) {
+        const parts = this.cloneSerializable(this.getParts(), []) || [];
         const index = parts.findIndex(p => p.id === part.id);
         
         // Check for duplicate code
@@ -2289,13 +2387,24 @@ const DataManager = {
             parts.push(part);
         }
         
-        const saved = this.saveData(this.KEYS.PARTS, parts);
-        return { success: saved };
+        const saved = await this._persistCollectionToCloud(this.KEYS.PARTS, parts);
+        if (!saved) {
+            return { success: false, error: 'Não foi possível salvar a peça na nuvem. Tente novamente.' };
+        }
+
+        this._sessionCache[this.KEYS.PARTS] = parts;
+        this.emitDataUpdated([this.KEYS.PARTS], 'local');
+        return { success: true, part };
     },
 
-    deletePart(id) {
-        const parts = this.getParts().filter(p => p.id !== id);
-        return this.saveData(this.KEYS.PARTS, parts);
+    async deletePart(id) {
+        const parts = (this.cloneSerializable(this.getParts(), []) || []).filter(p => p.id !== id);
+        const saved = await this._persistCollectionToCloud(this.KEYS.PARTS, parts);
+        if (saved) {
+            this._sessionCache[this.KEYS.PARTS] = parts;
+            this.emitDataUpdated([this.KEYS.PARTS], 'local');
+        }
+        return saved;
     },
 
     importParts(data) {
@@ -2394,24 +2503,21 @@ const DataManager = {
         );
     },
 
-    saveSolicitation(solicitation) {
-        const normalizedSolicitation = this.normalizeHistoricalStatus(solicitation);
+    async saveSolicitation(solicitation) {
+        const normalizedSolicitation = this.normalizeHistoricalStatus(this.cloneSerializable(solicitation, { ...solicitation }) || {});
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
 
-        const solicitations = this.getSolicitations();
+        const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
         const index = solicitations.findIndex(s => s.id === normalizedSolicitation.id);
         let persistedSolicitation;
         const now = Date.now();
 
         if (index >= 0) {
-            // Optimistic concurrency check
             const existing = solicitations[index];
             const existingVersion = Number(existing.audit?.version) || 0;
             const incomingVersion = normalizedSolicitation.audit?.version;
             const existingStatus = this.normalizeWorkflowStatus(existing.status || this.STATUS.PENDENTE);
 
-            // If incoming has version and it doesn't match, there's a conflict
-            // Use Number() for type-safe comparison
             if (incomingVersion !== undefined && Number(incomingVersion) !== existingVersion) {
                 console.warn(`Conflito de versão: esperado ${existingVersion}, recebido ${incomingVersion}`);
                 return { success: false, error: 'conflict', message: 'Versão desatualizada. Recarregue os dados.' };
@@ -2422,12 +2528,25 @@ const DataManager = {
                 return { success: false, error: 'invalid_transition', message: 'Fluxo de status inválido.' };
             }
 
-            // Update with new version
+            normalizedSolicitation.createdAt = existing.createdAt || normalizedSolicitation.createdAt || now;
+            normalizedSolicitation.createdBy = existing.createdBy || normalizedSolicitation.createdBy || normalizedSolicitation.updatedBy || 'Sistema';
+            normalizedSolicitation.timeline = Array.isArray(normalizedSolicitation.timeline)
+                ? normalizedSolicitation.timeline
+                : (this.cloneSerializable(existing.timeline, []) || []);
+            normalizedSolicitation.approvals = Array.isArray(normalizedSolicitation.approvals)
+                ? normalizedSolicitation.approvals
+                : (this.cloneSerializable(existing.approvals, []) || []);
+            normalizedSolicitation.statusHistory = Array.isArray(normalizedSolicitation.statusHistory)
+                ? normalizedSolicitation.statusHistory
+                : (this.cloneSerializable(existing.statusHistory, []) || []);
             normalizedSolicitation.audit = {
-                ...normalizedSolicitation.audit,
+                ...(existing.audit || {}),
+                ...(normalizedSolicitation.audit || {}),
                 version: existingVersion + 1,
+                createdAt: existing.audit?.createdAt || existing.createdAt || now,
+                createdBy: existing.audit?.createdBy || existing.createdBy || normalizedSolicitation.createdBy || 'Sistema',
                 lastUpdatedAt: now,
-                lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
+                lastUpdatedBy: normalizedSolicitation.updatedBy || normalizedSolicitation.createdBy || 'Sistema'
             };
             normalizedSolicitation.updatedAt = now;
 
@@ -2441,18 +2560,17 @@ const DataManager = {
             );
             normalizedSolicitation.createdAt = now;
             normalizedSolicitation.updatedAt = now;
+            normalizedSolicitation.createdBy = normalizedSolicitation.createdBy || normalizedSolicitation.updatedBy || 'Sistema';
 
-            // Initialize audit trail for new solicitation
             normalizedSolicitation.audit = {
                 version: 1,
                 createdAt: now,
-                createdBy: normalizedSolicitation.createdBy || 'Sistema',
+                createdBy: normalizedSolicitation.createdBy,
                 lastUpdatedAt: now,
-                lastUpdatedBy: normalizedSolicitation.createdBy || 'Sistema'
+                lastUpdatedBy: normalizedSolicitation.updatedBy || normalizedSolicitation.createdBy || 'Sistema'
             };
 
-            // Initialize timeline array for tracking events
-            if (!normalizedSolicitation.timeline) {
+            if (!Array.isArray(normalizedSolicitation.timeline)) {
                 normalizedSolicitation.timeline = [];
             }
             normalizedSolicitation.timeline.push({
@@ -2461,8 +2579,7 @@ const DataManager = {
                 by: normalizedSolicitation.createdBy || 'Sistema'
             });
 
-            // Initialize approvals array for approval history
-            if (!normalizedSolicitation.approvals) {
+            if (!Array.isArray(normalizedSolicitation.approvals)) {
                 normalizedSolicitation.approvals = [];
             }
 
@@ -2470,147 +2587,160 @@ const DataManager = {
             persistedSolicitation = normalizedSolicitation;
         }
 
-        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
-        if (saved && persistedSolicitation) {
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        if (!saved) {
+            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a solicitação na nuvem.' };
+        }
+
+        if (persistedSolicitation) {
             this.queueOneDriveBackup(persistedSolicitation);
             this.createSolicitationsBackup({ download: false, reason: index >= 0 ? 'auto-update' : 'auto-create', silent: true });
         }
 
-        return saved;
+        return { success: true, solicitation: this.cloneSerializable(persistedSolicitation, persistedSolicitation) };
     },
     
-    updateSolicitationStatus(id, status, extra = {}) {
-        const solicitations = this.getSolicitations();
+    async updateSolicitationStatus(id, status, extra = {}) {
+        const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
         const index = solicitations.findIndex(s => s.id === id);
 
-        if (index >= 0) {
-            const solicitation = solicitations[index];
-            const previousStatus = this.normalizeWorkflowStatus(solicitation.status || this.STATUS.PENDENTE);
-            const nextStatus = this.normalizeWorkflowStatus(status);
-            const payload = { ...extra };
-            const now = Date.now();
+        if (index < 0) {
+            return { success: false, error: 'not_found', message: 'Solicitação não encontrada.' };
+        }
 
-            if (previousStatus === nextStatus) {
-                if (nextStatus === this.STATUS.EM_TRANSITO) {
-                    const incomingTrackingCode = String(payload.trackingCode || '').trim();
-                    const currentTrackingCode = String(solicitation.trackingCode || '').trim();
+        const solicitation = solicitations[index];
+        const previousStatus = this.normalizeWorkflowStatus(solicitation.status || this.STATUS.PENDENTE);
+        const nextStatus = this.normalizeWorkflowStatus(status);
+        const payload = { ...extra };
+        const now = Date.now();
 
-                    if (incomingTrackingCode && incomingTrackingCode !== currentTrackingCode) {
-                        const currentVersion = solicitation.audit?.version || 0;
-                        solicitation.audit = {
-                            ...solicitation.audit,
-                            version: currentVersion + 1,
-                            lastUpdatedAt: now,
-                            lastUpdatedBy: payload.by || 'Sistema'
-                        };
-
-                        payload.trackingCode = incomingTrackingCode;
-                        payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
-                        delete payload.status;
-
-                        Object.assign(solicitation, payload);
-                        solicitation.updatedAt = now;
-
-                        const savedTrackingUpdate = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
-                        if (savedTrackingUpdate) {
-                            this.queueOneDriveBackup(solicitation);
-                            this.createSolicitationsBackup({ download: false, reason: 'auto-tracking-update', silent: true });
-                        }
-                        return savedTrackingUpdate;
-                    }
-                }
-
-                console.warn(`Atualização de status ignorada (status já aplicado): ${previousStatus}`);
-                return false;
-            }
-
-            if (!this.isValidWorkflowTransition(previousStatus, nextStatus)) {
-                console.warn(`Transição de status inválida: ${previousStatus} -> ${nextStatus}`);
-                return false;
-            }
-
+        if (previousStatus === nextStatus) {
             if (nextStatus === this.STATUS.EM_TRANSITO) {
-                const trackingCode = String(payload.trackingCode || solicitation.trackingCode || '').trim();
-                if (!trackingCode) {
-                    console.warn('Transição para "Em trânsito" bloqueada: rastreio ausente.');
-                    return false;
+                const incomingTrackingCode = String(payload.trackingCode || '').trim();
+                const currentTrackingCode = String(solicitation.trackingCode || '').trim();
+
+                if (incomingTrackingCode && incomingTrackingCode !== currentTrackingCode) {
+                    const currentVersion = Number(solicitation.audit?.version) || 0;
+                    solicitation.audit = {
+                        ...(solicitation.audit || {}),
+                        version: currentVersion + 1,
+                        lastUpdatedAt: now,
+                        lastUpdatedBy: payload.by || 'Sistema'
+                    };
+
+                    if (!Array.isArray(solicitation.timeline)) {
+                        solicitation.timeline = [];
+                    }
+                    solicitation.timeline.push({
+                        event: 'tracking_updated',
+                        at: now,
+                        by: payload.by || 'Sistema',
+                        comment: incomingTrackingCode
+                    });
+
+                    payload.trackingCode = incomingTrackingCode;
+                    payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
+                    delete payload.status;
+
+                    Object.assign(solicitation, payload);
+                    solicitation.updatedAt = now;
+
+                    const savedTrackingUpdate = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+                    if (!savedTrackingUpdate) {
+                        return { success: false, error: 'cloud_save_failed', message: 'Não foi possível atualizar o rastreio na nuvem.' };
+                    }
+
+                    this.queueOneDriveBackup(solicitation);
+                    this.createSolicitationsBackup({ download: false, reason: 'auto-tracking-update', silent: true });
+                    return { success: true, solicitation: this.cloneSerializable(solicitation, solicitation) };
                 }
-                payload.trackingCode = trackingCode;
-                payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
             }
 
-            if (nextStatus === this.STATUS.FINALIZADA) {
-                payload.deliveredAt = payload.deliveredAt || now;
-                payload.finalizedAt = payload.finalizedAt || now;
+            console.warn(`Atualização de status ignorada (status já aplicado): ${previousStatus}`);
+            return { success: false, error: 'already_applied', message: 'O status informado já está aplicado.' };
+        }
+
+        if (!this.isValidWorkflowTransition(previousStatus, nextStatus)) {
+            console.warn(`Transição de status inválida: ${previousStatus} -> ${nextStatus}`);
+            return { success: false, error: 'invalid_transition', message: 'Transição de status inválida.' };
+        }
+
+        if (nextStatus === this.STATUS.EM_TRANSITO) {
+            const trackingCode = String(payload.trackingCode || solicitation.trackingCode || '').trim();
+            if (!trackingCode) {
+                console.warn('Transição para "Em trânsito" bloqueada: rastreio ausente.');
+                return { success: false, error: 'missing_tracking_code', message: 'Informe um código de rastreio válido.' };
             }
+            payload.trackingCode = trackingCode;
+            payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
+        }
 
-            solicitation.status = nextStatus;
-            solicitation.updatedAt = now;
+        if (nextStatus === this.STATUS.FINALIZADA) {
+            payload.deliveredAt = payload.deliveredAt || now;
+            payload.finalizedAt = payload.finalizedAt || now;
+        }
 
-            // Update audit version
-            const currentVersion = solicitation.audit?.version || 0;
-            solicitation.audit = {
-                ...solicitation.audit,
-                version: currentVersion + 1,
-                lastUpdatedAt: now,
-                lastUpdatedBy: payload.by || 'Sistema'
-            };
+        solicitation.status = nextStatus;
+        solicitation.updatedAt = now;
 
-            // Maintain statusHistory for backward compatibility
-            if (!solicitation.statusHistory) {
-                solicitation.statusHistory = [];
+        const currentVersion = Number(solicitation.audit?.version) || 0;
+        solicitation.audit = {
+            ...(solicitation.audit || {}),
+            version: currentVersion + 1,
+            lastUpdatedAt: now,
+            lastUpdatedBy: payload.by || 'Sistema'
+        };
+
+        if (!Array.isArray(solicitation.statusHistory)) {
+            solicitation.statusHistory = [];
+        }
+        solicitation.statusHistory.push({
+            status: nextStatus,
+            at: now,
+            by: payload.by || 'Sistema'
+        });
+
+        if (!Array.isArray(solicitation.timeline)) {
+            solicitation.timeline = [];
+        }
+        solicitation.timeline.push({
+            event: 'status_changed',
+            from: previousStatus,
+            to: nextStatus,
+            at: now,
+            by: payload.by || 'Sistema',
+            comment: payload.approvalComment || payload.rejectionReason || payload.trackingCode || null
+        });
+
+        if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
+            if (!Array.isArray(solicitation.approvals)) {
+                solicitation.approvals = [];
             }
-
-            solicitation.statusHistory.push({
-                status: nextStatus,
-                at: now,
-                by: payload.by || 'Sistema'
-            });
-
-            // Add to timeline for comprehensive event tracking
-            if (!solicitation.timeline) {
-                solicitation.timeline = [];
-            }
-            solicitation.timeline.push({
-                event: 'status_changed',
-                from: previousStatus,
-                to: nextStatus,
+            solicitation.approvals.push({
+                decision: nextStatus === this.STATUS.APROVADA ? 'approved' : 'rejected',
                 at: now,
                 by: payload.by || 'Sistema',
                 comment: payload.approvalComment || payload.rejectionReason || null
             });
-
-            // Track approvals separately for the approvals trail
-            if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
-                if (!solicitation.approvals) {
-                    solicitation.approvals = [];
-                }
-                solicitation.approvals.push({
-                    decision: nextStatus === this.STATUS.APROVADA ? 'approved' : 'rejected',
-                    at: now,
-                    by: payload.by || 'Sistema',
-                    comment: payload.approvalComment || payload.rejectionReason || null
-                });
-            }
-
-            // Merge extra data
-            delete payload.status;
-            Object.assign(solicitation, payload);
-            solicitation.status = nextStatus;
-            solicitation.updatedAt = now;
-
-            const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
-            if (saved) {
-                this.queueOneDriveBackup(solicitation);
-                this.createSolicitationsBackup({ download: false, reason: 'auto-status-change', silent: true });
-            }
-            return saved;
         }
-        return false;
+
+        delete payload.status;
+        Object.assign(solicitation, payload);
+        solicitation.status = nextStatus;
+        solicitation.updatedAt = now;
+
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        if (!saved) {
+            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a mudança de status na nuvem.' };
+        }
+
+        this.queueOneDriveBackup(solicitation);
+        this.createSolicitationsBackup({ download: false, reason: 'auto-status-change', silent: true });
+        return { success: true, solicitation: this.cloneSerializable(solicitation, solicitation) };
     },
 
-    deleteSolicitation(id) {
-        const currentSolicitations = this.getSolicitations();
+    async deleteSolicitation(id) {
+        const currentSolicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
         this.createSolicitationsBackup({
             download: false,
             reason: 'auto-delete',
@@ -2618,11 +2748,17 @@ const DataManager = {
             solicitations: currentSolicitations
         });
         const solicitations = currentSolicitations.filter(s => s.id !== id);
-        const saved = this.saveData(this.KEYS.SOLICITATIONS, solicitations);
-        if (saved) {
-            this.createSolicitationsBackup({ download: false, reason: 'post-delete', silent: true });
+        if (solicitations.length === currentSolicitations.length) {
+            return { success: false, error: 'not_found', message: 'Solicitação não encontrada.' };
         }
-        return saved;
+
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations);
+        if (!saved) {
+            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível remover a solicitação na nuvem.' };
+        }
+
+        this.createSolicitationsBackup({ download: false, reason: 'post-delete', silent: true });
+        return { success: true };
     },
 
     createSolicitationsBackup(options = {}) {

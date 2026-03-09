@@ -316,7 +316,7 @@ const Pecas = {
     /**
      * Save part
      */
-    savePart() {
+    async savePart() {
         const id = document.getElementById('part-id').value;
         const codigo = (document.getElementById('part-codigo').value || '').trim().toUpperCase();
         const descricao = (document.getElementById('part-descricao').value || '').replace(/\s+/g, ' ').trim();
@@ -344,7 +344,7 @@ const Pecas = {
             ativo: true
         };
         
-        const result = DataManager.savePart(part);
+        const result = await DataManager.savePart(part);
         
         if (result.success) {
             Utils.showToast(id ? 'Peça atualizada com sucesso' : 'Peça cadastrada com sucesso', 'success');
@@ -382,9 +382,13 @@ const Pecas = {
         
         if (confirmed) {
             part.ativo = false;
-            DataManager.savePart(part);
-            Utils.showToast('Peça inativada com sucesso', 'success');
-            this.refreshTable();
+            const result = await DataManager.savePart(part);
+            if (result?.success) {
+                Utils.showToast('Peça inativada com sucesso', 'success');
+                this.refreshTable();
+            } else {
+                Utils.showToast(result?.error || 'Erro ao inativar peça', 'error');
+            }
         }
     },
 

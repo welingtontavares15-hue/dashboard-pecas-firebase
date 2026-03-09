@@ -1,11 +1,11 @@
 ﻿/**
  * Application Configuration
- * Environment-specific settings for the Dashboard de Peças application.
+ * Environment-specific settings for the Portal de Solicitacao de Pecas MWM.
  * 
  * Build-time configuration:
  * - Development: Credentials panel visible on login screen
  * - Staging: Credentials panel visible (for testing)
- * - Production: Credentials panel BLOCKED
+ * - Production: Credentials panel BLOCKED and bootstrap users disabled by default
  * 
  * IMPORTANT: APP_CONFIG.environment defaults to 'production'. 
  * Set explicitly per deployment (dev/staging/prod) to control security features.
@@ -24,6 +24,7 @@ const APP_CONFIG = {
      * Set this to 'production' before deploying to production.
      * When set to 'production', the credentials panel on the login screen
      * will be completely blocked, regardless of feature flags.
+     * Bootstrap users remain disabled unless window.__ENABLE_USER_BOOTSTRAP === true.
      */
     environment: 'production',
     

@@ -17,6 +17,10 @@ const Solicitacoes = {
     // Current solicitation being edited
     currentSolicitation: null,
     autocompleteInstance: null,
+    isSaveSubmitting: false,
+    isTrackingSubmitting: false,
+    isDeliverySubmitting: false,
+    isDeleteSubmitting: false,
 
     /**
      * Render solicitations list
@@ -27,15 +31,12 @@ const Solicitacoes = {
         const canManageBackup = Auth.hasPermission('solicitacoes', 'edit') || canCreate;
         const isTecnico = Auth.getRole() === 'tecnico';
         const canExport = !!(window && window.XLSX);
+        const exportAttrs = canExport ? '' : 'disabled aria-disabled="true"';
         const exportTitle = canExport ? '' : 'title="Exportação indisponível: biblioteca XLSX não carregada"';
-        const advancedOpen = !!(this.filters.tecnico || this.filters.dateFrom || this.filters.dateTo);
 
         content.innerHTML = `
             <div class="page-header">
-                <div class="page-heading">
-                    <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
-                    <p class="text-muted">Centralize busca, status e decisões com menos ruído visual e leitura mais direta.</p>
-                </div>
+                <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
                 <div class="page-actions">
                     ${canCreate ? `
                         <button class="btn btn-success" onclick="Solicitacoes.openForm()">
@@ -57,7 +58,7 @@ const Solicitacoes = {
                                     </button>
                                 ` : ''}
                                 ${canExport ? `
-                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()" ${exportTitle}>
+                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()">
                                         <i class="fas fa-file-excel"></i> Exportar
                                     </button>
                                 ` : ''}
@@ -66,70 +67,56 @@ const Solicitacoes = {
                     ` : ''}
                 </div>
             </div>
-            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">A exportação volta a ficar disponível assim que a biblioteca XLSX estiver carregada.</p>'}
+            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <section class="page-filters filter-shell">
-                <div class="filter-shell-primary">
-                    <div class="search-box search-box-wide">
+            <details class="filter-panel" open>
+                <summary class="filter-panel-toggle">Filtros</summary>
+                <div class="filters-bar filter-panel-body">
+                    <div class="search-box">
                         <input type="text" id="sol-search" class="form-control"
                                placeholder="Buscar por número, cliente, técnico ou peça..."
                                value="${Utils.escapeHtml(this.filters.search)}">
                         <button class="btn btn-primary" onclick="Solicitacoes.applyFilters()">
-                            <i class="fas fa-search"></i> Buscar
+                            <i class="fas fa-search"></i>
                         </button>
                     </div>
-                    <div class="filter-inline-group filter-inline-group-actions">
-                        <div class="filter-group filter-group-wide">
-                            <label>Status</label>
-                            ${this.renderStatusFilter('sol-status-filter')}
+                    <div class="filter-group">
+                        <label>Status:</label>
+                        ${this.renderStatusFilter('sol-status-filter')}
+                    </div>
+                    ${!isTecnico ? `
+                        <div class="filter-group">
+                            <label>Técnico:</label>
+                            <select id="sol-tecnico-filter" class="form-control">
+                                <option value="">Todos</option>
+                                ${DataManager.getTechnicians().map(t =>
+        `<option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
+                                        ${Utils.escapeHtml(t.nome)}
+                                    </option>`
+    ).join('')}
+                            </select>
                         </div>
-                        <details class="filter-panel compact" ${advancedOpen ? 'open' : ''}>
-                            <summary class="filter-panel-toggle">Mais filtros</summary>
-                            <div class="filter-panel-body">
-                                <div class="filters-bar">
-                                    ${!isTecnico ? `
-                                        <div class="filter-group">
-                                            <label>Técnico</label>
-                                            <select id="sol-tecnico-filter" class="form-control">
-                                                <option value="">Todos</option>
-                                                ${DataManager.getTechnicians().map(t => `
-                                                    <option value="${t.id}" ${this.filters.tecnico === t.id ? 'selected' : ''}>
-                                                        ${Utils.escapeHtml(t.nome)}
-                                                    </option>`).join('')}
-                                            </select>
-                                        </div>
-                                    ` : ''}
-                                    <div class="filter-group">
-                                        <label>De</label>
-                                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
-                                    </div>
-                                    <div class="filter-group">
-                                        <label>Até</label>
-                                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
-                                    </div>
-                                </div>
-                            </div>
-                        </details>
-                        <button class="btn btn-outline btn-sm" onclick="Solicitacoes.clearFilters()">
-                            <i class="fas fa-times"></i> Limpar
-                        </button>
+                    ` : ''}
+                    <div class="filter-group">
+                        <label>De:</label>
+                        <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
                     </div>
+                    <div class="filter-group">
+                        <label>Até:</label>
+                        <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
+                    </div>
+                    <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
+                        <i class="fas fa-times"></i> Limpar
+                    </button>
                 </div>
-                ${this.renderFilterSummary()}
-            </section>
+            </details>
 
             <div id="sol-summary-container">
                 ${this.renderSummaryCards()}
             </div>
 
             <div class="card">
-                <div class="card-header compact-card-header">
-                    <div>
-                        <h4>Lista de solicitações</h4>
-                        <p id="sol-list-meta" class="text-muted">${this.renderListMeta()}</p>
-                    </div>
-                </div>
                 <div class="card-body">
                     <div id="sol-table-container">
                         ${this.renderTable()}
@@ -177,48 +164,6 @@ const Solicitacoes = {
                 tecnicoFilter.addEventListener('change', () => this.applyFilters());
             }
         }
-    },
-
-    getActiveFilterChips() {
-        const chips = [];
-        const selectedStatuses = this.getSelectedStatusSummary();
-        if (selectedStatuses.length > 0) {
-            chips.push(`Status: ${selectedStatuses.map(status => status.label).join(', ')}`);
-        }
-        if (this.filters.tecnico) {
-            const technician = DataManager.getTechnicianById(this.filters.tecnico);
-            if (technician?.nome) {
-                chips.push(`Técnico: ${technician.nome}`);
-            }
-        }
-        if (this.filters.dateFrom) {
-            chips.push(`De: ${Utils.formatDate(this.filters.dateFrom)}`);
-        }
-        if (this.filters.dateTo) {
-            chips.push(`Até: ${Utils.formatDate(this.filters.dateTo)}`);
-        }
-        if (this.filters.search) {
-            chips.push(`Busca: ${this.filters.search}`);
-        }
-        return chips;
-    },
-
-    renderFilterSummary() {
-        const chips = this.getActiveFilterChips();
-        return `
-            <div class="filter-summary-row">
-                ${chips.length
-        ? chips.map(chip => `<span class="filter-summary-chip">${Utils.escapeHtml(chip)}</span>`).join('')
-        : '<span class="filter-summary-empty">Exibindo a base completa sem filtros adicionais.</span>'}
-            </div>
-        `;
-    },
-
-    renderListMeta() {
-        const solicitations = this.getFilteredSolicitations();
-        const totalParts = solicitations.reduce((sum, sol) => sum + this.getItemsQuantity(sol.itens || []), 0);
-        const uniqueClients = new Set(solicitations.map(sol => (sol.cliente || '').trim()).filter(Boolean)).size;
-        return `${Utils.formatNumber(totalParts)} peças consolidadas e ${Utils.formatNumber(uniqueClients)} cliente(s) na seleção atual.`;
     },
 
     getStatusOptions() {
@@ -588,7 +533,7 @@ const Solicitacoes = {
         const avgValue = solicitations.length > 0 ? totalValue / solicitations.length : 0;
 
         return `
-            <div class="kpi-grid compact-kpi-grid compact-kpi-grid-3">
+            <div class="kpi-grid">
                 <div class="kpi-card">
                     <div class="kpi-icon info"><i class="fas fa-list"></i></div>
                     <div class="kpi-content">
@@ -602,29 +547,25 @@ const Solicitacoes = {
                     <div class="kpi-content">
                         <h4>Valor total solicitado</h4>
                         <div class="kpi-value">${Utils.formatCurrency(totalValue)}</div>
-                        <div class="kpi-change">Soma das solicitações exibidas</div>
+                        <div class="kpi-change">Soma das solicitações filtradas</div>
                     </div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-icon primary"><i class="fas fa-receipt"></i></div>
+                    <div class="kpi-icon warning"><i class="fas fa-boxes"></i></div>
+                    <div class="kpi-content">
+                        <h4>Total de peças usadas</h4>
+                        <div class="kpi-value">${Utils.formatNumber(totalParts)}</div>
+                        <div class="kpi-change">Quantidade consolidada de itens</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon primary"><i class="fas fa-users"></i></div>
                     <div class="kpi-content">
                         <h4>Ticket médio</h4>
                         <div class="kpi-value">${Utils.formatCurrency(avgValue)}</div>
-                        <div class="kpi-change">Média por solicitação filtrada</div>
+                        <div class="kpi-change">${Utils.formatNumber(uniqueClients)} clientes na seleção</div>
                     </div>
                 </div>
-            </div>
-            <div class="summary-inline-grid summary-inline-grid-compact">
-                <article class="summary-inline-card">
-                    <span>Peças consolidadas</span>
-                    <strong>${Utils.formatNumber(totalParts)}</strong>
-                    <small>Total de itens na seleção atual</small>
-                </article>
-                <article class="summary-inline-card">
-                    <span>Clientes únicos</span>
-                    <strong>${Utils.formatNumber(uniqueClients)}</strong>
-                    <small>Base de clientes do filtro aplicado</small>
-                </article>
             </div>
         `;
     },
@@ -844,14 +785,6 @@ const Solicitacoes = {
         const summaryContainer = document.getElementById('sol-summary-container');
         if (summaryContainer) {
             summaryContainer.innerHTML = this.renderSummaryCards();
-        }
-        const filterSummary = document.querySelector('.page-filters .filter-summary-row');
-        if (filterSummary) {
-            filterSummary.outerHTML = this.renderFilterSummary();
-        }
-        const listMeta = document.getElementById('sol-list-meta');
-        if (listMeta) {
-            listMeta.textContent = this.renderListMeta();
         }
         const container = document.getElementById('sol-table-container');
         if (container) {
@@ -1202,7 +1135,11 @@ const Solicitacoes = {
     /**
      * Save tracking code and move solicitation to transit status
      */
-    saveTracking() {
+    async saveTracking() {
+        if (this.isTrackingSubmitting) {
+            return;
+        }
+
         const id = document.getElementById('tracking-id').value;
         const codeInput = document.getElementById('tracking-code');
         const trackingCode = codeInput.value.trim();
@@ -1241,25 +1178,32 @@ const Solicitacoes = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
 
-        const success = DataManager.updateSolicitationStatus(id, 'em-transito', {
-            trackingCode,
-            trackingUpdatedAt: Date.now(),
-            trackingBy: userName,
-            supplierResponseAt: Date.now(),
-            by: userName
-        });
+        this.isTrackingSubmitting = true;
+        try {
+            const result = await DataManager.updateSolicitationStatus(id, 'em-transito', {
+                trackingCode,
+                trackingUpdatedAt: Date.now(),
+                trackingBy: userName,
+                supplierResponseAt: Date.now(),
+                by: userName
+            });
+            const success = result === true || (result && result.success !== false && !result.error);
 
-        if (success) {
+            if (!success) {
+                Utils.showToast(result?.message || result?.error || 'Erro ao salvar rastreio', 'error');
+                return;
+            }
+
             Utils.showToast('Rastreio salvo com sucesso', 'success');
 
-            const updatedSolicitation = DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
+            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
             this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
 
             Utils.closeModal();
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
-        } else {
-            Utils.showToast('Erro ao salvar rastreio', 'error');
+        } finally {
+            this.isTrackingSubmitting = false;
         }
     },
 
@@ -1304,6 +1248,10 @@ const Solicitacoes = {
      * Confirm delivery by technician
      */
     async confirmDelivery(id) {
+        if (this.isDeliverySubmitting) {
+            return;
+        }
+
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
             Utils.showToast('Solicitação não encontrada', 'error');
@@ -1333,21 +1281,28 @@ const Solicitacoes = {
         const userName = currentUser?.name || 'Sistema';
 
         const deliveredAt = Date.now();
-        const success = DataManager.updateSolicitationStatus(id, 'finalizada', {
-            deliveredAt,
-            deliveredBy: userName,
-            finalizedAt: deliveredAt,
-            finalizedBy: userName,
-            by: userName
-        });
+        this.isDeliverySubmitting = true;
+        try {
+            const result = await DataManager.updateSolicitationStatus(id, 'finalizada', {
+                deliveredAt,
+                deliveredBy: userName,
+                finalizedAt: deliveredAt,
+                finalizedBy: userName,
+                by: userName
+            });
+            const success = result === true || (result && result.success !== false && !result.error);
 
-        if (success) {
+            if (!success) {
+                Utils.showToast(result?.message || result?.error || 'Não foi possível atualizar o status', 'error');
+                return;
+            }
+
             Utils.showToast('Entrega confirmada e solicitação finalizada', 'success');
             Utils.closeModal();
             this.refreshTable();
             Auth.renderMenu(App.currentPage);
-        } else {
-            Utils.showToast('Não foi possível atualizar o status', 'error');
+        } finally {
+            this.isDeliverySubmitting = false;
         }
     },
 
@@ -1631,7 +1586,11 @@ const Solicitacoes = {
     /**
      * Save solicitation
      */
-    saveSolicitation(status = 'pendente') {
+    async saveSolicitation(status = 'pendente') {
+        if (this.isSaveSubmitting) {
+            return;
+        }
+
         const tecnicoId = document.getElementById('sol-tecnico').value;
         const dataInput = document.getElementById('sol-data').value;
         const observacoes = (document.getElementById('sol-observacoes').value || '').trim();
@@ -1704,7 +1663,8 @@ const Solicitacoes = {
             cliente,
             observacoes,
             status,
-            createdBy: userName
+            createdBy: this.currentSolicitation?.createdBy || userName,
+            updatedBy: userName
         };
 
         if (!solicitation.statusHistory) {
@@ -1719,53 +1679,50 @@ const Solicitacoes = {
             });
         }
 
-        const result = DataManager.saveSolicitation(solicitation);
-        const saved = result === true || (result && result.success !== false && !result.error);
+        this.isSaveSubmitting = true;
+        try {
+            const result = await DataManager.saveSolicitation(solicitation);
+            const saved = result === true || (result && result.success !== false && !result.error);
 
-        if (!saved) {
-            const errorMsg = (result && result.error === 'conflict')
-                ? 'Conflito de versão. Recarregue a página e tente novamente.'
-                : 'Erro ao salvar solicitação';
-            Utils.showToast(errorMsg, 'error');
-            return;
-        }
+            if (!saved) {
+                const errorMsg = (result && result.error === 'conflict')
+                    ? 'Conflito de versão. Recarregue a página e tente novamente.'
+                    : (result?.message || result?.error || 'Erro ao salvar solicitação');
+                Utils.showToast(errorMsg, 'error');
+                return;
+            }
 
-        Utils.showToast('Solicitação enviada para aprovação', 'success');
+            const persistedSolicitation = result?.solicitation || this.resolvePersistedSolicitation(solicitation) || solicitation;
+            Utils.showToast('Solicitação enviada para aprovação', 'success');
 
-        Utils.closeModal();
+            Utils.closeModal();
 
-        if (document.getElementById('sol-table-container')) {
-            this.refreshTable();
-        }
+            if (document.getElementById('sol-table-container')) {
+                this.refreshTable();
+            }
 
-        Auth.renderMenu(App.currentPage);
+            Auth.renderMenu(App.currentPage);
 
-        if (shouldSendManagerEmail && typeof Utils.sendSolicitationApprovalEmail === 'function') {
-            const persistedSolicitation = this.resolvePersistedSolicitation(solicitation) || solicitation;
-            const recipient = (typeof Utils.getManagerNotificationEmail === 'function')
-                ? Utils.getManagerNotificationEmail()
-                : 'wbastostavares@solenis.com';
+            if (shouldSendManagerEmail && typeof Utils.sendSolicitationApprovalEmail === 'function') {
+                try {
+                    const notification = await Utils.sendSolicitationApprovalEmail({
+                        solicitation: persistedSolicitation,
+                        submittedBy: userName
+                    });
 
-            Utils.sendSolicitationApprovalEmail({
-                solicitation: persistedSolicitation,
-                submittedBy: userName,
-                recipient
-            }).then((result) => {
-                const sent = result === true || result?.success === true;
-                if (sent) {
-                    Utils.showToast(`Notificação por e-mail enviada para ${recipient}`, 'info');
-                    return;
+                    if ((notification?.sentCount || 0) > 0) {
+                        Utils.showToast(`${notification.sentCount} gestor(es) notificado(s) por e-mail.`, 'info');
+                    } else if (notification?.totalRecipients === 0 || notification?.reason === 'invalid_recipient') {
+                        Utils.showToast('Solicitação enviada, mas não há gestores válidos para notificação automática.', 'warning');
+                    } else {
+                        Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
+                    }
+                } catch (_error) {
+                    Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
                 }
-
-                if (result?.reason === 'invalid_recipient') {
-                    Utils.showToast('Solicitação enviada, mas o e-mail do gestor configurado é inválido.', 'warning');
-                    return;
-                }
-
-                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
-            }).catch(() => {
-                Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
-            });
+            }
+        } finally {
+            this.isSaveSubmitting = false;
         }
     },
 
@@ -1906,6 +1863,10 @@ const Solicitacoes = {
      * Confirm delete
      */
     async confirmDelete(id) {
+        if (this.isDeleteSubmitting) {
+            return;
+        }
+
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
             return;
@@ -1917,10 +1878,20 @@ const Solicitacoes = {
         );
         
         if (confirmed) {
-            DataManager.deleteSolicitation(id);
-            Utils.showToast('Solicitação excluída com sucesso', 'success');
-            this.refreshTable();
-            Auth.renderMenu(App.currentPage);
+            this.isDeleteSubmitting = true;
+            try {
+                const result = await DataManager.deleteSolicitation(id);
+                const success = result === true || (result && result.success !== false && !result.error);
+                if (!success) {
+                    Utils.showToast(result?.message || result?.error || 'Não foi possível excluir a solicitação', 'error');
+                    return;
+                }
+                Utils.showToast('Solicitação excluída com sucesso', 'success');
+                this.refreshTable();
+                Auth.renderMenu(App.currentPage);
+            } finally {
+                this.isDeleteSubmitting = false;
+            }
         }
     },
 
@@ -1959,10 +1930,6 @@ const Solicitacoes = {
         Utils.showToast('Lista exportada com sucesso', 'success');
     }
 };
-
-
-
-
 
 
 

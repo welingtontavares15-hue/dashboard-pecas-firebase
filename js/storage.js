@@ -20,6 +20,14 @@ const CloudStorage = {
     queueStore: 'queue',
     queueLocalKey: 'cloud_sync_queue',
 
+    logSyncEvent(level, message, data = {}) {
+        if (typeof Logger === 'undefined' || typeof Logger[level] !== 'function') {
+            return;
+        }
+
+        Logger[level](Logger.CATEGORY.SYNC, message, data);
+    },
+
     /**
      * Initialize Firebase and cloud storage
      */
@@ -72,7 +80,9 @@ const CloudStorage = {
             
             // Register callback for connection state changes
             FirebaseInit.onConnectionChange((isConnected, wasConnected) => {
-                console.log('Firebase connection status:', isConnected ? 'Connected' : 'Disconnected');
+                this.logSyncEvent('info', 'firebase_connection_status_changed', {
+                    connected: isConnected === true
+                });
                 this.cloudReady = isConnected && FirebaseInit.isReady();
                 
                 // If we just connected, sync from cloud
@@ -110,7 +120,9 @@ const CloudStorage = {
             this.isInitialized = true;
             this.cloudReady = await this.waitForCloudReady(10000);
             
-            console.log('CloudStorage initialized with Firebase and authenticated');
+            this.logSyncEvent('info', 'cloud_storage_initialized', {
+                initiallyConnected: initiallyConnected === true
+            });
             
             // Initial sync from cloud if connected (using centralized state)
             if (initiallyConnected && FirebaseInit.isRTDBConnected()) {
@@ -170,6 +182,23 @@ const CloudStorage = {
         return false;
     },
 
+    delay(ms = 0) {
+        return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+    },
+
+    isRetryableSaveError(error) {
+        const message = String(error?.message || '').toLowerCase();
+        const code = String(error?.code || '').toLowerCase();
+        return [
+            'network',
+            'timeout',
+            'unavailable',
+            'disconnected',
+            'failed-precondition',
+            'connection'
+        ].some((token) => message.includes(token) || code.includes(token));
+    },
+
     /**
      * Save data to cloud storage - Online-only mode
      * Requires cloud connection; does NOT fallback to local storage.
@@ -196,23 +225,32 @@ const CloudStorage = {
         }
 
         // Save to cloud
-        try {
-            const { set } = window.firebaseModules;
-            const sanitizedKey = this.sanitizeKey(key);
-            const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
-            
-            await set(dataRef, {
-                data: data,
-                updatedAt: Date.now(),
-                updatedBy: this.getDeviceId(),
-                opId
-            });
-            console.log(`Data saved to cloud: ${key}`);
-            return true;
-        } catch (error) {
-            console.error('Error saving to cloud:', error);
-            return false;
+        const { set } = window.firebaseModules;
+        const sanitizedKey = this.sanitizeKey(key);
+        const dataRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
+        let lastError = null;
+
+        for (let attempt = 1; attempt <= Math.max(1, this.maxRetries); attempt++) {
+            try {
+                await set(dataRef, {
+                    data: data,
+                    updatedAt: Date.now(),
+                    updatedBy: this.getDeviceId(),
+                    opId
+                });
+                this.logSyncEvent('debug', 'cloud_data_saved', { key, opId });
+                return true;
+            } catch (error) {
+                lastError = error;
+                if (attempt >= this.maxRetries || !this.isRetryableSaveError(error)) {
+                    break;
+                }
+                await this.delay(this.retryDelay * attempt);
+            }
         }
+
+        console.error('Error saving to cloud:', lastError);
+        return false;
     },
 
     /**
@@ -299,17 +337,23 @@ const CloudStorage = {
                             const needsCloudUpdate = this.usersNeedCloudUpdate(cloudUsers, mergedUsers);
                             DataManager._sessionCache[originalKey] = mergedUsers;
                             keysUpdated++;
-                            console.log(`Merged users from cloud to session: ${mergedUsers.length} total users`);
+                            this.logSyncEvent('debug', 'users_merged_from_cloud', {
+                                key: originalKey,
+                                count: mergedUsers.length
+                            });
                             if (needsCloudUpdate) {
                                 this.saveData(originalKey, mergedUsers)
-                                    .then(() => console.log('Pushed merged users back to cloud to preserve local additions'))
+                                    .then(() => this.logSyncEvent('debug', 'merged_users_pushed_to_cloud', {
+                                        key: originalKey,
+                                        count: mergedUsers.length
+                                    }))
                                     .catch((pushErr) => console.warn('Failed to push merged users to cloud', pushErr));
                             }
                         } else {
                             // For other data types, use direct replacement
                             DataManager._sessionCache[originalKey] = entry.data;
                             keysUpdated++;
-                            console.log(`Synced from cloud to session: ${originalKey}`);
+                            this.logSyncEvent('debug', 'cloud_collection_synced_to_session', { key: originalKey });
                         }
                     }
                 }
@@ -378,7 +422,10 @@ const CloudStorage = {
             if (!existingUser) {
                 // User only exists locally, add it
                 userMap.set(user.id, { ...user });
-                console.log(`Keeping local-only user: ${user.username}`);
+                this.logSyncEvent('debug', 'merge_kept_local_only_user', {
+                    userId: user.id,
+                    username: user.username
+                });
             } else {
                 // User exists in both, use updatedAt to determine which is newer
                 const localUpdatedAt = user.updatedAt || 0;
@@ -387,10 +434,16 @@ const CloudStorage = {
                 if (localUpdatedAt > cloudUpdatedAt) {
                     // Local version is newer
                     userMap.set(user.id, { ...user });
-                    console.log(`Local user is newer: ${user.username}`);
+                    this.logSyncEvent('debug', 'merge_local_user_newer', {
+                        userId: user.id,
+                        username: user.username
+                    });
                 } else {
                     // Cloud version is newer or same, keep cloud
-                    console.log(`Cloud user is newer or same: ${existingUser.username}`);
+                    this.logSyncEvent('debug', 'merge_cloud_user_kept', {
+                        userId: existingUser.id,
+                        username: existingUser.username
+                    });
                 }
             }
         });
@@ -431,7 +484,7 @@ const CloudStorage = {
     async syncToCloud() {
         // Online-only mode: All writes go directly to cloud via saveData()
         // This method is a no-op in online-only mode
-        console.log('[ONLINE-ONLY] syncToCloud is no-op - writes go directly to cloud');
+        this.logSyncEvent('debug', 'sync_to_cloud_skipped_online_only');
     },
 
     /**
@@ -563,7 +616,7 @@ const CloudStorage = {
      */
     async persistLocally(_key, _data, _updatedAt = Date.now()) {
         // Online-only mode: No local persistence for business data
-        console.log('[ONLINE-ONLY] persistLocally skipped - cloud is source of truth');
+        this.logSyncEvent('debug', 'local_persistence_skipped_online_only');
         return true;
     },
 
