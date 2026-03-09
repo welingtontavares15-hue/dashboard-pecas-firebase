@@ -2868,6 +2868,28 @@ const DataManager = {
         return { success: true };
     },
 
+    async clearAllSolicitations() {
+        const currentSolicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
+        if (currentSolicitations.length > 0) {
+            this.createSolicitationsBackup({
+                download: false,
+                reason: 'pre-clear-all',
+                silent: true,
+                solicitations: currentSolicitations
+            });
+        }
+
+        const saved = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, [], {
+            replaceCollection: true
+        });
+        if (!saved) {
+            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível limpar o histórico de solicitações na nuvem.' };
+        }
+
+        this.createSolicitationsBackup({ download: false, reason: 'post-clear-all', silent: true, solicitations: [] });
+        return { success: true };
+    },
+
     createSolicitationsBackup(options = {}) {
         const {
             download = true,
@@ -3400,7 +3422,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 

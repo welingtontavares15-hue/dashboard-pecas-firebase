@@ -513,7 +513,7 @@ const Tecnicos = {
                 roleLabel: 'técnico'
             });
             if (sent) {
-                Utils.showToast('E-mail de orientação preparado sem incluir a senha temporária', 'info');
+                Utils.showToast('E-mail de orientação preparado com login e senha temporária', 'info');
             }
         }
 
@@ -708,7 +708,6 @@ const Tecnicos = {
         }
     }
 };
-
 
 
 

@@ -292,7 +292,10 @@ const CloudStorage = {
             }
 
             return Object.values(cloudData)
-                .filter((item) => item && typeof item === 'object')
+                .filter((item) => item
+                    && typeof item === 'object'
+                    && !Array.isArray(item)
+                    && (item.id || item.numero))
                 .sort((left, right) => {
                     const leftStamp = Number(left?.updatedAt || left?.createdAt) || 0;
                     const rightStamp = Number(right?.updatedAt || right?.createdAt) || 0;
@@ -352,6 +355,15 @@ const CloudStorage = {
         const changedIds = explicitChangedIds || new Set();
         const removedIds = explicitRemovedIds || new Set();
 
+        if (options.replaceCollection === true && nextRecords.length === 0) {
+            await remove(collectionRef);
+            this.logSyncEvent('debug', 'cloud_record_collection_cleared', {
+                key,
+                opId
+            });
+            return true;
+        }
+
         if (!explicitChangedIds) {
             nextMap.forEach((record, recordId) => {
                 const previous = previousMap.get(recordId);
@@ -367,6 +379,10 @@ const CloudStorage = {
                     removedIds.add(recordId);
                 }
             });
+        }
+
+        for (const legacyField of ['data', 'updatedAt', 'updatedBy', 'opId']) {
+            await remove(FirebaseInit.getRef(`data/${sanitizedKey}/${legacyField}`));
         }
 
         for (const recordId of changedIds) {
@@ -927,4 +943,3 @@ const CloudStorage = {
 
 // Export for use in other modules
 window.CloudStorage = CloudStorage;
-

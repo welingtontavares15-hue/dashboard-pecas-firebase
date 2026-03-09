@@ -295,7 +295,7 @@ const Utils = {
     /**
      * Prepare an email with login credentials
      */
-    sendCredentialsEmail({ to, username, password: _password, name, roleLabel = 'usuário' }) {
+    sendCredentialsEmail({ to, username, password, name, roleLabel = 'usuário' }) {
         if (typeof window === 'undefined') {
             return false;
         }
@@ -315,14 +315,14 @@ const Utils = {
             `Nome: ${name || '-'}`,
             `Perfil: ${safeRole}`,
             `Usuário/Login: ${username}`,
+            password ? `Senha temporária: ${password}` : null,
             `Link de acesso ao sistema: ${accessLink}`,
             '',
-            'A senha temporária deve ser compartilhada por canal interno seguro.',
             'Ao acessar o sistema, altere a senha imediatamente.',
             '',
             'Atenciosamente,',
             this.BRAND_SIGNATURE
-        ].join('\n');
+        ].filter(Boolean).join('\n');
 
         const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         window.open(mailto, '_blank');
@@ -332,7 +332,7 @@ const Utils = {
     /**
      * Send password reset notification e-mail (automatic).
      */
-    async sendPasswordResetEmail({ to, username, password: _password, name, roleLabel = 'usuário' } = {}) {
+    async sendPasswordResetEmail({ to, username, password, name, roleLabel = 'usuário' } = {}) {
         if (!to || !this.isValidEmail(to) || !username) {
             return false;
         }
@@ -349,11 +349,11 @@ const Utils = {
             `Nome: ${name || '-'}`,
             `Perfil: ${safeRole}`,
             `Usuário/Login: ${username}`,
+            password ? `Senha temporária: ${password}` : null,
             `Link de acesso ao sistema: ${accessLink}`,
             '',
-            'A senha temporária será compartilhada por canal interno seguro.',
             'Acesse o sistema e altere sua senha após o primeiro login.'
-        ].join('\n');
+        ].filter(Boolean).join('\n');
 
         return this.sendOperationalEmail({
             recipient: to,
@@ -361,6 +361,7 @@ const Utils = {
             message,
             fields: {
                 usuario: username,
+                senha_temporaria: password || '',
                 perfil: safeRole,
                 nome: name || '',
                 link_sistema: accessLink
@@ -433,7 +434,7 @@ const Utils = {
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning" style="margin-bottom: 1rem;">
-                    Não envie a senha temporária por e-mail automático. Compartilhe este dado apenas por canal interno seguro.
+                    Confira os dados abaixo antes de compartilhar a credencial temporária com o usuário.
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -2621,7 +2622,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
 
 
 
