@@ -835,7 +835,8 @@ export function applyReportsModernization() {
     Relatorios.applyFilters = function applyFilters() {
         this.filters.dateFrom = document.getElementById('report-date-from')?.value || '';
         this.filters.dateTo = document.getElementById('report-date-to')?.value || '';
-        this.filters.status = this.getSelectedStatusValues('report-status');
+        // Use plural property for statuses to support multiple selections
+        this.filters.statuses = this.getSelectedStatusValues('report-status');
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
@@ -853,7 +854,7 @@ export function applyReportsModernization() {
         this.filters = {
             dateFrom: period.dateFrom,
             dateTo: period.dateTo,
-            status: [],
+            statuses: [],
             tecnico: '',
             regiao: '',
             cliente: ''

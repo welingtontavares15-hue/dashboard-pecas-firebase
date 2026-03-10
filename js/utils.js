@@ -25,7 +25,9 @@ const Utils = {
         ? String(window.__FORM_SUBMIT_GATEWAY_RECIPIENT).trim().toLowerCase()
         : 'welingtontavares61m@gmail.com',
     BRAND_NAME: 'Diversey',
-    PORTAL_DISPLAY_NAME: 'Portal de Solicitacao de Pecas WMW',
+    // Display name shown in the portal header and login screen. Updated to use
+    // proper Portuguese diacritics and the correct abbreviation (MWW instead of WMW).
+    PORTAL_DISPLAY_NAME: 'Portal de Solicitação de Peças MWW',
     BRAND_SIGNATURE: 'Equipe Diversey',
     PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),

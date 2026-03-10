@@ -9,7 +9,10 @@ const Relatorios = {
         search: '',
         dateFrom: '',
         dateTo: '',
-        status: [],
+        /**
+         * Selected status values for reports. Uses plural to clarify multiple selections.
+         */
+        statuses: [],
         tecnico: '',
         regiao: '',
         cliente: '',
@@ -28,7 +31,10 @@ const Relatorios = {
             search: '',
             dateFrom: period?.dateFrom || '',
             dateTo: period?.dateTo || '',
-            status: [],
+            /**
+             * Default selected statuses (none).
+             */
+            statuses: [],
             tecnico: '',
             regiao: '',
             cliente: '',
@@ -47,10 +53,13 @@ const Relatorios = {
             defaults,
             useDefaultPeriod: true
         });
+        // Merge defaults with restored state. Always place status arrays into the plural property.
         this.filters = {
             ...defaults,
             ...restored,
-            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : [],
+            statuses: Array.isArray(restored?.statuses)
+                ? restored.statuses.slice()
+                : (Array.isArray(restored?.status) ? restored.status.slice() : []),
             useDefaultPeriod: restored?.useDefaultPeriod !== false
         };
         this._filtersInitialized = true;
@@ -61,7 +70,7 @@ const Relatorios = {
         const useDefaultPeriod = this.filters.useDefaultPeriod !== false;
         return AnalyticsHelper.buildFilterState({
             search: this.filters.search,
-            statuses: this.filters.status,
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             regiao: this.filters.regiao,
             cliente: this.filters.cliente,
@@ -80,7 +89,7 @@ const Relatorios = {
         const useDefaultPeriod = this.filters.useDefaultPeriod !== false;
         const persisted = AnalyticsHelper.persistModuleFilterState('relatorios', {
             search: this.filters.search,
-            statuses: this.filters.status,
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             regiao: this.filters.regiao,
             cliente: this.filters.cliente,
@@ -95,7 +104,7 @@ const Relatorios = {
         this.filters = {
             ...this.filters,
             search: persisted?.search || '',
-            status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
+            statuses: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
             tecnico: persisted?.tecnico || '',
             regiao: persisted?.regiao || '',
             cliente: persisted?.cliente || '',
@@ -238,7 +247,8 @@ const Relatorios = {
         if (key === 'search') {
             this.filters.search = '';
         } else if (key === 'status') {
-            this.filters.status = (this.filters.status || []).filter((status) => status !== value);
+            // Remove a single status value from the plural statuses property. The chip key remains singular for backwards compatibility.
+            this.filters.statuses = (this.filters.statuses || []).filter((status) => status !== value);
         } else if (key === 'period') {
             const defaults = this.getDefaultFilters();
             this.filters.dateFrom = defaults.dateFrom;
@@ -914,7 +924,7 @@ const Relatorios = {
     },
 
     isStatusSelected(value) {
-        return Array.isArray(this.filters.status) && this.filters.status.includes(value);
+        return Array.isArray(this.filters.statuses) && this.filters.statuses.includes(value);
     },
 
     getSelectedStatusValues(controlId = 'report-status') {
@@ -922,7 +932,7 @@ const Relatorios = {
     },
 
     getSelectedStatusSummary() {
-        const selectedValues = Array.isArray(this.filters.status) ? this.filters.status : [];
+        const selectedValues = Array.isArray(this.filters.statuses) ? this.filters.statuses : [];
         return this.getStatusOptions().filter(option => selectedValues.includes(option.value));
     },
 
@@ -983,7 +993,7 @@ const Relatorios = {
         this.filters.search = document.getElementById('report-search')?.value || '';
         this.filters.dateFrom = document.getElementById('report-date-from')?.value || '';
         this.filters.dateTo = document.getElementById('report-date-to')?.value || '';
-        this.filters.status = this.getSelectedStatusValues('report-status');
+        this.filters.statuses = this.getSelectedStatusValues('report-status');
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
@@ -994,7 +1004,7 @@ const Relatorios = {
         }
         const normalized = AnalyticsHelper.buildFilterState({
             search: this.filters.search,
-            statuses: this.filters.status,
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             regiao: this.filters.regiao,
             cliente: this.filters.cliente,
@@ -1010,7 +1020,7 @@ const Relatorios = {
         this.filters = {
             ...this.filters,
             search: normalized.search,
-            status: normalized.statuses,
+            statuses: normalized.statuses,
             tecnico: normalized.tecnico,
             regiao: normalized.regiao,
             cliente: normalized.cliente,

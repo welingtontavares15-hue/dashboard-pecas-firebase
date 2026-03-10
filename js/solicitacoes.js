@@ -7,7 +7,12 @@ const Solicitacoes = {
     currentPage: 1,
     itemsPerPage: 10,
     filters: {
-        status: [],
+        /**
+         * Selected status values for solicitations. Uses plural to clarify multiple selections.
+         * This property replaces the previous singular `status` key which could lead to
+         * inconsistencies when persisting and restoring filter state.
+         */
+        statuses: [],
         tecnico: '',
         dateFrom: '',
         dateTo: '',
@@ -24,8 +29,10 @@ const Solicitacoes = {
     isDeleteSubmitting: false,
 
     getDefaultFilters() {
+        // Always return the plural `statuses` property. Leaving a singular `status` property
+        // causes duplication and breaks the persisted filter state restoration.
         return {
-            status: [],
+            statuses: [],
             tecnico: '',
             dateFrom: '',
             dateTo: '',
@@ -44,10 +51,14 @@ const Solicitacoes = {
             defaults,
             useDefaultPeriod: false
         });
+        // Merge defaults with restored state. Always place status arrays into the plural
+        // `statuses` property. Avoid assigning into a singular `status` property here.
         this.filters = {
             ...defaults,
             ...restored,
-            status: Array.isArray(restored?.statuses) ? restored.statuses.slice() : []
+            statuses: Array.isArray(restored?.statuses)
+                ? restored.statuses.slice()
+                : (Array.isArray(restored?.status) ? restored.status.slice() : [])
         };
         this._filtersInitialized = true;
     },
@@ -55,7 +66,7 @@ const Solicitacoes = {
     persistFilters() {
         const persisted = AnalyticsHelper.persistModuleFilterState('solicitacoes', {
             search: this.filters.search,
-            statuses: this.filters.status,
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo
@@ -63,10 +74,15 @@ const Solicitacoes = {
             defaults: this.getDefaultFilters(),
             useDefaultPeriod: false
         });
+        // After persisting, normalize the filter state back into our local object. Always
+        // assign the array into `statuses`. If persisted data still uses the old
+        // `status` property we convert it to `statuses`.
         this.filters = {
             ...this.filters,
             search: persisted?.search || '',
-            status: Array.isArray(persisted?.statuses) ? persisted.statuses.slice() : [],
+            statuses: Array.isArray(persisted?.statuses)
+                ? persisted.statuses.slice()
+                : (Array.isArray(persisted?.status) ? persisted.status.slice() : []),
             tecnico: persisted?.tecnico || '',
             dateFrom: persisted?.dateFrom || '',
             dateTo: persisted?.dateTo || ''
@@ -226,7 +242,7 @@ const Solicitacoes = {
     renderActiveFilterChips() {
         const chips = AnalyticsHelper.buildFilterChips({
             search: this.filters.search,
-            statuses: this.filters.status,
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             dateFrom: this.filters.dateFrom,
             dateTo: this.filters.dateTo
@@ -262,7 +278,7 @@ const Solicitacoes = {
         if (key === 'search') {
             this.filters.search = '';
         } else if (key === 'status') {
-            this.filters.status = (this.filters.status || []).filter((status) => status !== value);
+        this.filters.statuses = (this.filters.statuses || []).filter((status) => status !== value);
         } else if (key === 'period') {
             this.filters.dateFrom = '';
             this.filters.dateTo = '';
@@ -306,7 +322,7 @@ const Solicitacoes = {
                     <div class="status-filter-options">
                         ${this.getStatusOptions().map(option => `
                             <label class="status-filter-option">
-                                <input type="checkbox" data-status-group="${controlId}" value="${option.value}" ${Array.isArray(this.filters.status) && this.filters.status.includes(option.value) ? 'checked' : ''}>
+                                <input type="checkbox" data-status-group="${controlId}" value="${option.value}" ${Array.isArray(this.filters.statuses) && this.filters.statuses.includes(option.value) ? 'checked' : ''}>
                                 <span>${option.label}</span>
                                 ${Utils.renderStatusBadge(option.value)}
                             </label>
@@ -322,7 +338,7 @@ const Solicitacoes = {
     },
 
     getSelectedStatusSummary() {
-        const selectedValues = Array.isArray(this.filters.status) ? this.filters.status : [];
+        const selectedValues = Array.isArray(this.filters.statuses) ? this.filters.statuses : [];
         return this.getStatusOptions().filter(option => selectedValues.includes(option.value));
     },
 
@@ -446,12 +462,12 @@ const Solicitacoes = {
             this.filters.tecnico ||
             this.filters.dateFrom ||
             this.filters.dateTo ||
-            (Array.isArray(this.filters.status) && this.filters.status.length > 0)
+            (Array.isArray(this.filters.statuses) && this.filters.statuses.length > 0)
         );
     },
 
     setStatusFilter(statuses = []) {
-        this.filters.status = Array.isArray(statuses) ? statuses : (statuses ? [statuses] : []);
+        this.filters.statuses = Array.isArray(statuses) ? statuses : (statuses ? [statuses] : []);
         this.currentPage = 1;
         this.persistFilters();
         this.render();
@@ -823,7 +839,8 @@ const Solicitacoes = {
         return AnalyticsHelper.filterSolicitations(solicitations, {
             moduleKey: 'solicitacoes',
             search: this.filters.search,
-            statuses: this.filters.status,
+            // Use the plural property when passing statuses to the analytics engine
+            statuses: this.filters.statuses,
             tecnico: this.filters.tecnico,
             period: {
                 dateFrom: this.filters.dateFrom,
@@ -850,7 +867,7 @@ const Solicitacoes = {
         });
 
         this.filters.search = normalized.search;
-        this.filters.status = normalized.statuses;
+        this.filters.statuses = normalized.statuses;
         this.filters.dateFrom = normalized.dateFrom;
         this.filters.dateTo = normalized.dateTo;
         this.filters.tecnico = normalized.tecnico;

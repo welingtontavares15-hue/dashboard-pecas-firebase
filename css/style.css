@@ -1564,10 +1564,12 @@ body.dark-mode .main-header {
     flex-wrap: wrap;
     gap: 1rem;
     padding: 1rem 1.25rem;
-    background: var(--bg-secondary);
+    /* Subtle gradient background for filter container */
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
     border-radius: var(--radius-md);
     margin-bottom: 1.25rem;
-    box-shadow: none;
+    /* Apply a small shadow for depth */
+    box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     align-items: flex-end;
 }
