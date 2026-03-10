@@ -51,9 +51,20 @@ const Utils = {
     },
 
     /**
-     * Parse a date value as local time.
-     * Handles "YYYY-MM-DD" strings (from input[type="date"]) as local dates
-     * to avoid UTC parsing that shifts dates in negative UTC timezones.
+     * Parse a date value as a local date.
+     *
+     * JavaScript's `Date` constructor interprets bare ISO‑8601 date strings
+     * (e.g. `"2023-09-15"`) as UTC dates. When converted to the local timezone
+     * this can shift the date one day earlier in regions west of UTC【205829251678765†L60-L70】.  Users
+     * entering dates via `<input type="date">` typically expect the value to
+     * represent a date in their local timezone, not UTC.  To avoid off‑by‑one
+     * day errors when filtering records, this helper detects ISO date strings
+     * and creates a Date object using the local calendar fields instead of
+     * relying on the built‑in parser.  It also supports ISO strings with
+     * a time component (e.g. `"2023-09-15T00:00:00Z"`) by stripping the time
+     * portion before parsing locally.  All other values are passed through
+     * to `new Date()` so they behave as before.
+     *
      * @param {Date|string|number} value - Date value to parse
      * @returns {Date} Date object in local time
      */
@@ -61,23 +72,28 @@ const Utils = {
         if (!value) {
             return new Date(NaN);
         }
+        // Preserve Date instances as-is.
         if (value instanceof Date) {
             return value;
         }
+        // Numeric timestamps can be passed directly to the Date constructor.
         if (typeof value === 'number') {
             return new Date(value);
         }
         if (typeof value === 'string') {
-            // Check for YYYY-MM-DD format (from input[type="date"])
-            const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (isoDateMatch) {
-                // Parse as local date by using Date constructor with year, month, day
-                const year = parseInt(isoDateMatch[1], 10);
-                const month = parseInt(isoDateMatch[2], 10) - 1; // months are 0-indexed
-                const day = parseInt(isoDateMatch[3], 10);
+            const trimmed = value.trim();
+            // Detect YYYY-MM-DD or YYYY-MM-DDThh:mm:ss[.sss][Z|±hh:mm] formats.  Any
+            // ISO 8601 date string starting with year-month-day should map to a
+            // local date using only the Y/M/D fields.  See explanation above【205829251678765†L60-L70】.
+            const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+            if (isoMatch) {
+                const year = parseInt(isoMatch[1], 10);
+                const month = parseInt(isoMatch[2], 10) - 1; // zero‑based month
+                const day = parseInt(isoMatch[3], 10);
                 return new Date(year, month, day);
             }
         }
+        // Fall back to default Date parsing for other input types/strings.
         return new Date(value);
     },
 
