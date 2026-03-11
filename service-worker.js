@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v25';
+const CACHE_VERSION = 'v26';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -42,7 +42,8 @@ const PRECACHE = {
     './js/pages/pecas.js',
     './js/pages/relatorios.js',
     './js/pages/fornecedor.js',
-    './js/pages/usuarios.js'
+    './js/pages/usuarios.js',
+    './js/components/reports-modern.js'
   ],
   dashboard: [
     './js/dashboard.js',
@@ -62,7 +63,8 @@ const PRECACHE = {
     './js/fornecedores.js'
   ],
   relatorios: [
-    './js/relatorios.js'
+    './js/relatorios.js',
+    './js/components/reports-modern.js'
   ]
 };
 

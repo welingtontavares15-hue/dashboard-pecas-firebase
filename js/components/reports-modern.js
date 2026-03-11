@@ -190,13 +190,14 @@ function buildExecutiveCards(relatorios) {
 }
 function renderRecentRows(solicitations) {
     return solicitations.slice(0, 8).map((sol) => {
+        const cost = Number(sol?._analysisCost ?? sol?.total) || 0;
         return `
             <tr>
                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                 <td><strong>#${sol.numero}</strong></td>
                 <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
                 <td>${Utils.escapeHtml(relatoriosSafeClient(sol))}</td>
-                <td>${Utils.formatCurrency(sol.total || 0)}</td>
+                <td>${Utils.formatCurrency(cost)}</td>
                 <td>${Utils.renderStatusBadge(sol.status)}</td>
             </tr>
         `;
@@ -322,7 +323,7 @@ function renderHistoryTable(relatorios, solicitations) {
                                 <td><strong>#${sol.numero}</strong></td>
                                 <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
                                 <td>${Utils.escapeHtml(relatorios.getSolicitationClientName(sol))}</td>
-                                <td>${Utils.formatCurrency(sol.total || 0)}</td>
+                                <td>${Utils.formatCurrency(Number(sol?._analysisCost ?? sol?.total) || 0)}</td>
                                 <td>${Utils.renderStatusBadge(sol.status)}</td>
                                 <td>
                                     <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
@@ -480,6 +481,8 @@ export function applyReportsModernization() {
     }
 
     const Relatorios = window.Relatorios;
+    const legacyApplyFilters = typeof Relatorios.applyFilters === 'function' ? Relatorios.applyFilters : null;
+    const legacyClearFilters = typeof Relatorios.clearFilters === 'function' ? Relatorios.clearFilters : null;
     Relatorios.__visualRefined = true;
     Relatorios.currentReport = normalizeReport(Relatorios.currentReport);
 
@@ -494,19 +497,6 @@ export function applyReportsModernization() {
             return;
         }
 
-        const filterState = typeof this.buildFilterState === 'function'
-            ? this.buildFilterState()
-            : {
-                dateFrom: this.filters.dateFrom,
-                dateTo: this.filters.dateTo,
-                rangeDays: this.filters.rangeDays
-            };
-        const periodLabel = AnalyticsHelper.getRangeLabel(filterState.period || {
-            dateFrom: filterState.dateFrom,
-            dateTo: filterState.dateTo,
-            rangeDays: filterState.rangeDays
-        });
-
         content.innerHTML = `
             <div class="page-container reports-shell">
                 <div class="page-header reports-header-compact">
@@ -514,7 +504,6 @@ export function applyReportsModernization() {
                         <h2><i class="fas fa-file-alt"></i> Relatórios</h2>
                         <p class="text-muted">Leitura objetiva de custos, histórico e desempenho operacional.</p>
                     </div>
-                    <span class="report-period-chip">${Utils.escapeHtml(periodLabel)}</span>
                 </div>
 
                 <div class="page-filters">
@@ -899,33 +888,55 @@ export function applyReportsModernization() {
     };
 
     Relatorios.applyFilters = function applyFilters() {
+        /*
+         * A implementação original do módulo de relatórios já possui a lógica correta
+         * para transformar os campos de filtro em um filterState consistente, incluindo:
+         * - definição de useDefaultPeriod = false quando o usuário informa datas manuais;
+         * - limpeza de rangeDays em períodos personalizados;
+         * - normalização de status, técnico, região e cliente;
+         * - persistência do estado filtrado sem sobrescrever o período global da aplicação.
+         *
+         * A versão moderna estava substituindo esse comportamento por uma rotina simplificada
+         * que apenas preenchia this.filters e chamava render(). Como buildFilterState()
+         * depende da flag useDefaultPeriod, as datas digitadas eram ignoradas e o módulo
+         * continuava usando o período padrão/global, causando justamente o sintoma relatado
+         * de cards e rankings refletirem somente a janela recente.
+         *
+         * Para corrigir a causa raiz, delegamos de volta para a lógica base do módulo.
+         */
+        if (legacyApplyFilters) {
+            return legacyApplyFilters.call(this);
+        }
+
+        // Fallback defensivo caso o método base não exista.
         this.filters.dateFrom = document.getElementById('report-date-from')?.value || '';
         this.filters.dateTo = document.getElementById('report-date-to')?.value || '';
-        // Use plural property for statuses to support multiple selections
         this.filters.statuses = this.getSelectedStatusValues('report-status');
         this.filters.tecnico = document.getElementById('report-tecnico')?.value || '';
         this.filters.regiao = document.getElementById('report-regiao')?.value || '';
         this.filters.cliente = document.getElementById('report-cliente')?.value || '';
-
-        AnalyticsHelper.saveGlobalPeriodFilter({
-            dateFrom: this.filters.dateFrom,
-            dateTo: this.filters.dateTo
-        });
-
+        const hasManualPeriod = Boolean(this.filters.dateFrom || this.filters.dateTo);
+        this.filters.useDefaultPeriod = !hasManualPeriod;
+        if (hasManualPeriod) {
+            this.filters.rangeDays = '';
+        }
+        if (typeof this.persistFilters === 'function') {
+            this.persistFilters();
+        }
         this.render();
     };
 
     Relatorios.clearFilters = function clearFilters() {
-        const period = AnalyticsHelper.setGlobalPeriodByDays(AnalyticsHelper.getDefaultRangeDays());
-        this.filters = {
-            dateFrom: period.dateFrom,
-            dateTo: period.dateTo,
-            statuses: [],
-            tecnico: '',
-            regiao: '',
-            cliente: ''
-        };
+        if (legacyClearFilters) {
+            return legacyClearFilters.call(this);
+        }
 
+        this.filters = {
+            ...this.getDefaultFilters()
+        };
+        if (typeof this.persistFilters === 'function') {
+            this.persistFilters();
+        }
         this.render();
     };
 

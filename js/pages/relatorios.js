@@ -1,5 +1,5 @@
 ﻿import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyReportsModernization } from '../components/reports-modern.js?v=20260309j';
+import { applyReportsModernization } from '../components/reports-modern.js?v=20260311a';
 
 let ready = false;
 
