@@ -575,8 +575,9 @@ export function applyReportsModernization() {
 
     Relatorios.renderOverviewModernReport = function renderOverviewModernReport() {
         const analysis = this.buildCostAnalysis();
-        const topParts = sortPartsByCost(analysis.byPiece || []).slice(0, 8);
-        const topTechnicians = sortTechniciansByCost(analysis.byTechnician || []).slice(0, 8);
+        // Para a visão executiva utilizamos até 10 itens para melhor leitura
+        const topParts = sortPartsByCost(analysis.byPiece || []).slice(0, 10);
+        const topTechnicians = sortTechniciansByCost(analysis.byTechnician || []).slice(0, 10);
         const recentSolicitations = this.getFilteredSolicitations().slice(0, 8);
         const monthly = buildMonthlyCostSummary(this, analysis);
 
@@ -934,8 +935,8 @@ export function applyReportsModernization() {
         createVerticalCostChart(
             this,
             'reportOverviewTechChart',
-            topTechnicians.slice(0, 8).map((technician) => technician.nome),
-            topTechnicians.slice(0, 8).map((technician) => Number(technician.totalCost) || 0),
+            topTechnicians.slice(0, 10).map((technician) => technician.nome),
+            topTechnicians.slice(0, 10).map((technician) => Number(technician.totalCost) || 0),
             'rgba(14, 116, 144, 0.85)'
         );
 
@@ -950,8 +951,8 @@ export function applyReportsModernization() {
         createVerticalCostChart(
             this,
             'reportTechnicianCostChart',
-            topTechnicians.map((technician) => technician.nome),
-            topTechnicians.map((technician) => Number(technician.totalCost) || 0),
+            topTechnicians.slice(0, 10).map((technician) => technician.nome),
+            topTechnicians.slice(0, 10).map((technician) => Number(technician.totalCost) || 0),
             'rgba(37, 99, 235, 0.85)'
         );
 

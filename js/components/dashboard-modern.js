@@ -191,6 +191,54 @@ function renderTopTechniciansTable(items = []) {
     `;
 }
 
+/**
+ * Renderiza a tabela de peças com maior custo.
+ * Exibe as 5 primeiras peças ordenadas pelo custo total, mostrando
+ * código/descrição, quantidade utilizada, custo total e custo médio.
+ * Esta visão executiva ajuda a identificar rapidamente quais itens
+ * impactam mais o orçamento sem recorrer aos relatórios analíticos.
+ *
+ * @param {Array} items Lista de peças contendo as propriedades `codigo`,
+ * `descricao`, `quantidade`, `totalCost` e `averageUnitCost`.
+ * @returns {string} HTML da tabela ou estado vazio.
+ */
+function renderTopPartsTable(items = []) {
+    if (!items.length) {
+        return renderCompactEmpty(DASHBOARD_TEXTS.emptyRanking);
+    }
+
+    return `
+        <div class="table-container dashboard-compact-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Peça</th>
+                        <th>Quantidade</th>
+                        <th>Custo total</th>
+                        <th>Custo médio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((part, index) => {
+                        const label = Utils.escapeHtml(part.descricao || part.codigo || 'Sem dados');
+                        const qty = Utils.formatNumber(part.quantidade || 0);
+                        const total = Utils.formatCurrency(part.totalCost || 0);
+                        const avg = Utils.formatCurrency(part.averageUnitCost || 0);
+                        return `
+                            <tr>
+                                <td><strong>${index + 1}. ${label}</strong></td>
+                                <td>${qty}</td>
+                                <td>${total}</td>
+                                <td>${avg}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
 function renderExecutiveSummary(analysis, topTechnician) {
     return `
         <div class="dashboard-executive-panel">
@@ -299,6 +347,9 @@ export function applyDashboardModernization() {
         const openCount = getOpenSolicitationsCount(solicitations);
         const topTechnicians = (analysis.byTechnician || []).slice(0, 5);
         const topTechnician = topTechnicians[0] || null;
+        // Calcular as peças com maior custo para a visão executiva
+        const topParts = (analysis.byPiece || []).slice(0, 5);
+        const topPart = topParts[0] || null;
 
         content.innerHTML = `
             <div class="page-container dashboard-refined-shell dashboard-cost-shell">
@@ -342,11 +393,12 @@ export function applyDashboardModernization() {
 
                 <div class="page-kpis">
                     <div class="kpi-grid dashboard-kpi-grid">
-                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es abertas', value: Utils.formatNumber(openCount), subtitle: 'Em andamento no filtro atual', icon: 'fa-folder-open', tone: 'warning' })}
-                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es no per\u00edodo', value: Utils.formatNumber(solicitations.length), subtitle: `${Utils.formatDate(filters.dateFrom)} a ${Utils.formatDate(filters.dateTo)}`, icon: 'fa-clipboard-list', tone: 'info' })}
-                        ${renderKpiCard({ title: 'Custo total de pe\u00e7as', value: Utils.formatCurrency(analysis.totalCost || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo`, icon: 'fa-sack-dollar', tone: 'primary' })}
-                        ${renderKpiCard({ title: 'Custo m\u00e9dio por solicita\u00e7\u00e3o', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo`, icon: 'fa-receipt', tone: 'success' })}
-                        ${renderKpiCard({ title: 'Custo m\u00e9dio por t\u00e9cnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnico(s) com custo`, icon: 'fa-user-gear', tone: 'info' })}
+                        ${renderKpiCard({ title: 'Custo total de pe\u00e7as', value: Utils.formatCurrency(analysis.totalCost || 0), subtitle: 'Somat\u00f3rio do per\u00edodo filtrado', icon: 'fa-sack-dollar', tone: 'primary' })}
+                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es com custo', value: Utils.formatNumber(analysis.totalApproved || 0), subtitle: 'Chamados com custo no per\u00edodo', icon: 'fa-clipboard-list', tone: 'info' })}
+                        ${renderKpiCard({ title: 'Custo m\u00e9dio por solicita\u00e7\u00e3o', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00f5es com custo`, icon: 'fa-receipt', tone: 'success' })}
+                        ${renderKpiCard({ title: 'Custo m\u00e9dio por t\u00e9cnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnicos no per\u00edodo`, icon: 'fa-user-gear', tone: 'info' })}
+                        ${renderKpiCard({ title: 'T\u00e9cnico com maior custo', value: Utils.escapeHtml(topTechnician?.nome || 'Sem dados'), subtitle: topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral, icon: 'fa-medal', tone: 'warning' })}
+                        ${renderKpiCard({ title: 'Pe\u00e7a com maior custo', value: Utils.escapeHtml(topPart ? (topPart.descricao || topPart.codigo) : 'Sem dados'), subtitle: topPart ? Utils.formatCurrency(topPart.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral, icon: 'fa-box-open', tone: 'danger' })}
                     </div>
                 </div>
 
@@ -367,12 +419,12 @@ export function applyDashboardModernization() {
                         <article class="card dashboard-panel-card">
                             <div class="card-header dashboard-panel-header">
                                 <div>
-                                    <h4>Resumo executivo e fluxo da solicita\u00e7\u00e3o</h4>
-                                    <p class="text-muted">Leitura r\u00e1pida de custo, etapas e status do processo.</p>
+                                    <h4>Top 5 pe\u00e7as com maior custo</h4>
+                                    <p class="text-muted">Pe\u00e7a, quantidade, custo total e custo m\u00e9dio.</p>
                                 </div>
                             </div>
                             <div class="card-body">
-                                ${renderExecutiveSummary(analysis, topTechnician)}
+                                ${renderTopPartsTable(topParts)}
                             </div>
                         </article>
                     </section>
