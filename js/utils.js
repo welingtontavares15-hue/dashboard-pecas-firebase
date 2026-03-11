@@ -380,7 +380,7 @@ const Utils = {
             recipient: to,
             subject,
             message,
-            directFirst: true,
+            directFirst: false,
             fields: {
                 usuario: username,
                 login: username,
