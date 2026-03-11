@@ -1308,8 +1308,13 @@ const Solicitacoes = {
                 trackingCode,
                 trackingUpdatedAt: Date.now(),
                 trackingBy: userName,
+                trackingByEmail: currentUser?.email || null,
                 supplierResponseAt: Date.now(),
-                by: userName
+                by: userName,
+                byUserId: currentUser?.id || null,
+                byUsername: currentUser?.username || null,
+                byEmail: currentUser?.email || null,
+                byRole: currentUser?.role || null
             });
             const success = result === true || (result && result.success !== false && !result.error);
 
@@ -1341,27 +1346,47 @@ const Solicitacoes = {
             trackingCode,
             updatedBy
         }).then((result) => {
-                const sent = result === true || result?.success === true;
-                if (sent) {
+            const managerCopySentCount = Number(result?.managerCopySentCount) || 0;
+            const managerCopyFailedCount = Number(result?.managerCopyFailedCount) || 0;
+            const managerCopyTotalRecipients = Number(result?.managerCopyTotalRecipients) || 0;
+            const showManagerCopyStatus = () => {
+                if (managerCopySentCount > 0) {
+                    Utils.showToast(`${managerCopySentCount} cópia(s) para gestor enviadas por e-mail.`, 'info');
+                } else if (managerCopyTotalRecipients === 0) {
+                    Utils.showToast('Não há gestor válido configurado para cópia automática do rastreio.', 'warning');
+                }
+
+                if (managerCopyFailedCount > 0) {
+                    Utils.showToast(`${managerCopyFailedCount} cópia(s) de e-mail para gestor falharam. Verifique o log.`, 'warning');
+                }
+            };
+
+            const sent = result === true || result?.success === true;
+            if (sent) {
                 Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
+                showManagerCopyStatus();
                 return;
             }
 
             if (result?.reason === 'missing_email') {
+                showManagerCopyStatus();
                 Utils.showToast('Rastreio salvo, mas o técnico solicitante está sem e-mail cadastrado na base de Técnicos.', 'warning');
                 return;
             }
 
             if (result?.reason === 'invalid_email') {
+                showManagerCopyStatus();
                 Utils.showToast('Rastreio salvo, mas o e-mail cadastrado do técnico é inválido. Atualize o cadastro de Técnicos.', 'warning');
                 return;
             }
 
             if (result?.reason === 'invalid_technician_link' || result?.reason === 'technician_not_found') {
+                showManagerCopyStatus();
                 Utils.showToast('Rastreio salvo, mas não foi possível validar o vínculo da solicitação com o técnico para envio de e-mail.', 'warning');
                 return;
             }
 
+            showManagerCopyStatus();
             Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
         }).catch(() => {
             Utils.showToast('Rastreio salvo, mas falhou o envio de e-mail ao técnico solicitante. Verifique o log.', 'warning');
@@ -1789,6 +1814,7 @@ const Solicitacoes = {
             ...this.currentSolicitation,
             tecnicoId,
             tecnicoNome: tech?.nome || this.currentSolicitation.tecnicoNome,
+            tecnicoEmail: tech?.email || this.currentSolicitation.tecnicoEmail || currentUser?.email || '',
             data: normalizedDate,
             cliente,
             observacoes,
@@ -1796,6 +1822,15 @@ const Solicitacoes = {
             createdBy: this.currentSolicitation?.createdBy || userName,
             updatedBy: userName
         };
+
+        if (Auth.getRole() === 'tecnico') {
+            solicitation.requesterUserId = currentUser?.id || this.currentSolicitation?.requesterUserId || null;
+            solicitation.requesterUsername = currentUser?.username || this.currentSolicitation?.requesterUsername || null;
+            solicitation.requesterName = currentUser?.name || tech?.nome || this.currentSolicitation?.requesterName || null;
+            solicitation.requesterEmail = currentUser?.email || tech?.email || this.currentSolicitation?.requesterEmail || '';
+            solicitation.requesterRole = currentUser?.role || 'tecnico';
+            solicitation.requesterTecnicoId = currentUser?.tecnicoId || tecnicoId;
+        }
 
         if (!solicitation.statusHistory) {
             solicitation.statusHistory = [];

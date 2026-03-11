@@ -817,6 +817,10 @@ const Aprovacoes = {
                 approvedAt: Date.now(),
                 approvedBy: userName,
                 by: userName,
+                byUserId: currentUser?.id || null,
+                byUsername: currentUser?.username || null,
+                byEmail: currentUser?.email || null,
+                byRole: currentUser?.role || null,
                 itens: this.editingSolicitation?.itens || sol.itens,
                 subtotal: parseFloat(subtotal.toFixed(2)),
                 desconto,
@@ -1131,7 +1135,11 @@ const Aprovacoes = {
                 rejectionReason: reason,
                 rejectedAt: Date.now(),
                 rejectedBy: userName,
-                by: userName
+                by: userName,
+                byUserId: currentUser?.id || null,
+                byUsername: currentUser?.username || null,
+                byEmail: currentUser?.email || null,
+                byRole: currentUser?.role || null
             });
             const success = result === true || (result && result.success !== false && !result.error);
 
@@ -1229,6 +1237,10 @@ const Aprovacoes = {
                     approvedAt: Date.now(),
                     approvedBy: userName,
                     by: userName,
+                    byUserId: currentUser?.id || null,
+                    byUsername: currentUser?.username || null,
+                    byEmail: currentUser?.email || null,
+                    byRole: currentUser?.role || null,
                     approvalComment: 'Aprovação em lote'
                 });
                 const success = result === true || (result && result.success !== false && !result.error);

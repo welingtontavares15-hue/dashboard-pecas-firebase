@@ -7,8 +7,8 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../pecas.js', import.meta.url).href, 'Pecas');
-    await ensureClassicScript(new URL('../solicitacoes.js', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../pecas.js?v=20260311c', import.meta.url).href, 'Pecas');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20260311c', import.meta.url).href, 'Solicitacoes');
 
     ready = true;
 }

@@ -510,35 +510,177 @@ const Utils = {
     },
 
     /**
-     * Default manager e-mail recipient for approval notifications.
+     * Optional manager notification fallback configured in system settings.
+     * This is intentionally no longer hardcoded to avoid routing alerts to a
+     * fixed recipient when the real manager/approver is another user.
      */
     getManagerNotificationEmail() {
-        return 'wbastostavares@solenis.com';
+        const settings = (typeof DataManager !== 'undefined' && typeof DataManager.getSettings === 'function')
+            ? DataManager.getSettings()
+            : {};
+        const configured = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(settings?.managerNotificationEmail || '')
+            : String(settings?.managerNotificationEmail || '').trim().toLowerCase();
+        return this.isValidEmail(configured) ? configured : '';
+    },
+
+    normalizeOperationalEmail(email) {
+        if (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function') {
+            return DataManager.normalizeEmail(email || '');
+        }
+        return String(email || '').trim().toLowerCase();
+    },
+
+    getActiveUsersByRoles(roles = []) {
+        const roleSet = new Set((Array.isArray(roles) ? roles : [roles])
+            .map((role) => String(role || '').trim().toLowerCase())
+            .filter(Boolean));
+
+        if (roleSet.size === 0 || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
+            return [];
+        }
+
+        return DataManager.getUsers().filter((user) => {
+            if (!user || user.disabled === true) {
+                return false;
+            }
+            return roleSet.has(String(user.role || '').trim().toLowerCase());
+        });
+    },
+
+    getUserEmail(user) {
+        const email = this.normalizeOperationalEmail(user?.email || '');
+        return this.isValidEmail(email) ? email : '';
+    },
+
+    findUserById(userId) {
+        if (!userId || typeof DataManager === 'undefined' || typeof DataManager.getUserById !== 'function') {
+            return null;
+        }
+        return DataManager.getUserById(userId) || null;
+    },
+
+    findPreferredUserByUsername(username, roles = []) {
+        if (!username || typeof DataManager === 'undefined' || typeof DataManager.getUsersByUsername !== 'function') {
+            return null;
+        }
+
+        const candidates = DataManager.getUsersByUsername(username)
+            .filter((user) => user && user.disabled !== true);
+
+        if (!candidates.length) {
+            return null;
+        }
+
+        const roleSet = new Set((Array.isArray(roles) ? roles : [roles])
+            .map((role) => String(role || '').trim().toLowerCase())
+            .filter(Boolean));
+
+        const filtered = roleSet.size > 0
+            ? candidates.filter((user) => roleSet.has(String(user.role || '').trim().toLowerCase()))
+            : candidates;
+
+        const preferred = typeof DataManager.selectPreferredUserRecord === 'function'
+            ? DataManager.selectPreferredUserRecord(filtered.length > 0 ? filtered : candidates, username)
+            : ((filtered.length > 0 ? filtered : candidates)[0] || null);
+
+        return preferred || null;
+    },
+
+    getLinkedTechnicianUsers(technicianId) {
+        if (!technicianId || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
+            return [];
+        }
+
+        return DataManager.getUsers().filter((user) => user
+            && user.disabled !== true
+            && String(user.role || '').trim().toLowerCase() === 'tecnico'
+            && String(user.tecnicoId || '').trim() === String(technicianId || '').trim());
+    },
+
+    getLinkedSupplierUsers(supplierId) {
+        if (!supplierId || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
+            return [];
+        }
+
+        return DataManager.getUsers().filter((user) => user
+            && user.disabled !== true
+            && String(user.role || '').trim().toLowerCase() === 'fornecedor'
+            && String(user.fornecedorId || '').trim() === String(supplierId || '').trim());
+    },
+
+    resolveApprovalManagerTarget(solicitation) {
+        if (!solicitation) {
+            return null;
+        }
+
+        const directCandidates = [
+            solicitation.approvalManagerEmail,
+            solicitation.approvedByEmail,
+            solicitation?.aprovacao?.email
+        ]
+            .map((value) => this.normalizeOperationalEmail(value || ''))
+            .filter((value) => this.isValidEmail(value));
+
+        if (directCandidates.length > 0) {
+            return directCandidates[0];
+        }
+
+        const managerById = this.findUserById(solicitation.approvalManagerUserId || solicitation?.aprovacao?.userId || null);
+        const managerByIdEmail = this.getUserEmail(managerById);
+        if (managerByIdEmail && ['gestor', 'admin', 'administrador'].includes(String(managerById?.role || '').trim().toLowerCase())) {
+            return managerByIdEmail;
+        }
+
+        const managerByUsername = this.findPreferredUserByUsername(
+            solicitation.approvalManagerUsername || solicitation.approvedByUsername || solicitation?.aprovacao?.username || solicitation.approvedBy || '',
+            ['gestor', 'admin', 'administrador']
+        );
+        const managerByUsernameEmail = this.getUserEmail(managerByUsername);
+        if (managerByUsernameEmail) {
+            return managerByUsernameEmail;
+        }
+
+        return null;
     },
 
     /**
      * Resolve active manager recipients dynamically with safe fallback.
      */
-    getManagerNotificationRecipients() {
+    getManagerNotificationRecipients(solicitation = null, options = {}) {
         const recipients = [];
+        const preferAssigned = options?.preferAssigned === true;
 
-        if (typeof DataManager !== 'undefined' && typeof DataManager.getGestorUsers === 'function') {
-            DataManager.getGestorUsers()
-                .filter((user) => user && user.disabled !== true)
-                .forEach((user) => {
-                    const email = String(user.email || '').trim().toLowerCase();
-                    if (this.isValidEmail(email)) {
-                        recipients.push(email);
-                    }
-                });
+        const addRecipient = (email) => {
+            const normalized = this.normalizeOperationalEmail(email || '');
+            if (this.isValidEmail(normalized) && !recipients.includes(normalized)) {
+                recipients.push(normalized);
+            }
+        };
+
+        const assignedManagerEmail = this.resolveApprovalManagerTarget(solicitation);
+        if (assignedManagerEmail) {
+            addRecipient(assignedManagerEmail);
+            if (preferAssigned) {
+                return recipients;
+            }
         }
 
-        const fallback = String(this.getManagerNotificationEmail() || '').trim().toLowerCase();
-        if (this.isValidEmail(fallback)) {
-            recipients.push(fallback);
+        this.getActiveUsersByRoles(['gestor']).forEach((user) => addRecipient(this.getUserEmail(user)));
+
+        if (recipients.length === 0) {
+            this.getActiveUsersByRoles(['admin', 'administrador']).forEach((user) => addRecipient(this.getUserEmail(user)));
         }
 
-        return Array.from(new Set(recipients));
+        if (recipients.length === 0) {
+            addRecipient(this.getManagerNotificationEmail());
+        }
+
+        return recipients;
+    },
+
+    getTrackingManagerCopyRecipients(solicitation = null) {
+        return this.getManagerNotificationRecipients(solicitation, { preferAssigned: true });
     },
 
     getOperationalEmailGatewayRecipient() {
@@ -552,28 +694,23 @@ const Utils = {
         }
 
         const recipients = [];
+        const addRecipient = (email) => {
+            const normalized = this.normalizeOperationalEmail(email || '');
+            if (this.isValidEmail(normalized) && !recipients.includes(normalized)) {
+                recipients.push(normalized);
+            }
+        };
+
+        this.getLinkedSupplierUsers(solicitation.fornecedorId).forEach((user) => addRecipient(this.getUserEmail(user)));
+
         const supplier = typeof DataManager.getSupplierById === 'function'
             ? DataManager.getSupplierById(solicitation.fornecedorId)
             : null;
 
-        const supplierEmail = String(supplier?.email || '').trim().toLowerCase();
-        if (this.isValidEmail(supplierEmail)) {
-            recipients.push(supplierEmail);
-        }
+        addRecipient(solicitation.fornecedorEmail || '');
+        addRecipient(supplier?.email || '');
 
-        if (typeof DataManager.getUsers === 'function') {
-            DataManager.getUsers()
-                .filter((user) => user && user.role === 'fornecedor' && user.disabled !== true)
-                .forEach((user) => {
-                    const isLinked = user.fornecedorId === solicitation.fornecedorId;
-                    const linkedEmail = String(user.email || '').trim().toLowerCase();
-                    if (isLinked && this.isValidEmail(linkedEmail)) {
-                        recipients.push(linkedEmail);
-                    }
-                });
-        }
-
-        return Array.from(new Set(recipients));
+        return recipients;
     },
 
     /**
@@ -684,6 +821,61 @@ const Utils = {
                 ? DataManager.getTechnicianById(technicianId)
                 : null);
 
+        const requesterMatchesTechnician = String(solicitation.requesterTecnicoId || '').trim() === String(technicianId || '').trim();
+        const requesterRole = String(solicitation.requesterRole || '').trim().toLowerCase();
+
+        const requesterEmail = this.normalizeOperationalEmail(solicitation.requesterEmail || '');
+        if (requesterEmail && this.isValidEmail(requesterEmail) && (requesterRole === 'tecnico' || requesterMatchesTechnician)) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: requesterEmail,
+                source: 'requester_snapshot'
+            };
+        }
+
+        const requesterUser = this.findUserById(solicitation.requesterUserId || null);
+        const requesterUserEmail = this.getUserEmail(requesterUser);
+        if (requesterUserEmail && String(requesterUser?.role || '').trim().toLowerCase() === 'tecnico') {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: requesterUserEmail,
+                source: 'requester_user_id'
+            };
+        }
+
+        const requesterUserByUsername = this.findPreferredUserByUsername(solicitation.requesterUsername || '', ['tecnico']);
+        const requesterUserByUsernameEmail = this.getUserEmail(requesterUserByUsername);
+        if (requesterUserByUsernameEmail) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: requesterUserByUsernameEmail,
+                source: 'requester_username'
+            };
+        }
+
+        const linkedTechnicianUsers = this.getLinkedTechnicianUsers(technicianId);
+        const linkedTechnicianUser = linkedTechnicianUsers.find((user) => this.getUserEmail(user)) || null;
+        const linkedTechnicianEmail = this.getUserEmail(linkedTechnicianUser);
+        if (linkedTechnicianEmail) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: linkedTechnicianEmail,
+                source: 'tecnico_user_link'
+            };
+        }
+
         if (!technician) {
             return {
                 success: false,
@@ -693,9 +885,7 @@ const Utils = {
             };
         }
 
-        const recipientEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
-            ? DataManager.normalizeEmail(technician.email || '')
-            : String(technician.email || '').trim().toLowerCase();
+        const recipientEmail = this.normalizeOperationalEmail(technician.email || solicitation.tecnicoEmail || '');
 
         if (!recipientEmail) {
             return {
@@ -723,7 +913,8 @@ const Utils = {
             solicitationNumber,
             technicianId,
             technician,
-            recipientEmail
+            recipientEmail,
+            source: 'tecnico_catalog'
         };
     },
     /**
@@ -1141,12 +1332,12 @@ const Utils = {
 
         const details = this.buildSolicitationEmailContext(solicitation, { statusLabel: 'Aprovado / aguardando envio' });
         const approver = approvedBy || 'Gestor';
-        const subject = 'Nova solicitação de peças aprovada para separação e envio';
+        const subject = 'Nova solicitação de peças aprovada para envio do material';
 
         const message = [
-            'Uma nova solicitação de peças acaba de ser enviada para atendimento.',
-            'Acesse o sistema pelo link abaixo para identificar o material a ser separado e enviado.',
-            'Após o envio, por favor informe no sistema o código de rastreio para atualização do fluxo.',
+            'Uma nova solicitação de peças foi aprovada e está liberada para atendimento do fornecedor.',
+            'Providencie o envio do material conforme os itens abaixo.',
+            'Assim que o código de rastreio estiver disponível, registre-o no sistema para atualização do fluxo.',
             '',
             `Número da solicitação: ${details.number}`,
             `Técnico: ${details.technician}`,
@@ -1260,8 +1451,9 @@ const Utils = {
         const approver = approvedBy || 'Gestor';
         const subject = 'Sua solicitação de peças foi aprovada';
         const message = [
-            'Sua solicitação de peças foi aprovada e já está disponível para atendimento do fornecedor.',
-            'Acompanhe o andamento no sistema e aguarde o envio do rastreio.',
+            'Sua solicitação de peças foi aprovada pelo gestor.',
+            'O fornecedor já foi notificado para providenciar o envio do material.',
+            'Acompanhe o andamento no sistema e aguarde o envio do código de rastreio.',
             '',
             `Número da solicitação: ${details.number}`,
             `Técnico: ${details.technician}`,
@@ -1461,38 +1653,18 @@ const Utils = {
             return { success: false, reason: 'missing_solicitation', recipient: null, sentAt, log };
         }
 
-        const target = this.resolveTechnicianNotificationTarget(solicitation);
-        if (!target.success) {
-            const log = this.logEmailNotification({
-                eventType,
-                solicitationNumber: target.solicitationNumber || solicitation.numero || null,
-                recipient: target.recipientEmail || null,
-                success: false,
-                reason: target.reason,
-                profile: 'tecnico',
-                sentAt
-            });
-            return {
-                success: false,
-                reason: target.reason,
-                recipient: target.recipientEmail || null,
-                sentAt,
-                tecnicoId: target.technicianId || null,
-                log
-            };
-        }
-
         const details = this.buildSolicitationEmailContext(solicitation, {
             statusLabel: 'Em trânsito',
             trackingCode
         });
         const sender = updatedBy || 'Fornecedor';
+        const managerCopyRecipients = this.getTrackingManagerCopyRecipients(solicitation);
 
         if (!details.trackingCode) {
             const log = this.logEmailNotification({
                 eventType,
                 solicitationNumber: details.number,
-                recipient: target.recipientEmail,
+                recipient: null,
                 success: false,
                 reason: 'missing_tracking_code',
                 profile: 'tecnico',
@@ -1502,10 +1674,18 @@ const Utils = {
             return {
                 success: false,
                 reason: 'missing_tracking_code',
-                recipient: target.recipientEmail,
+                recipient: null,
                 sentAt,
-                tecnicoId: target.technicianId || null,
-                log
+                tecnicoId: solicitation?.tecnicoId || null,
+                log,
+                managerCopyRecipients,
+                managerCopySentCount: 0,
+                managerCopyFailedCount: 0,
+                managerCopyTotalRecipients: managerCopyRecipients.length,
+                managerResults: [],
+                totalRecipients: 1 + managerCopyRecipients.length,
+                sentCount: 0,
+                failedCount: 1
             };
         }
 
@@ -1528,55 +1708,161 @@ const Utils = {
             `Link do sistema: ${details.portalLink}`,
             `Atualizado por: ${sender}`
         ].join('\n');
+        const managerCopyMessage = [
+            'O fornecedor informou o código de rastreio de uma solicitação de peças.',
+            'Esta mensagem é uma cópia automática para acompanhamento do gestor.',
+            '',
+            `Número da solicitação: ${details.number}`,
+            `Técnico solicitante: ${details.technician}`,
+            `Cliente: ${details.client}`,
+            `Data: ${details.requestDate}`,
+            'Itens/peças solicitadas:',
+            details.itemsDetailed,
+            `Quantidade total: ${details.totalQuantity}`,
+            `Código de rastreio: ${details.trackingCode}`,
+            `Valor total: ${details.totalValue}`,
+            `Status atual: ${details.statusLabel}`,
+            `Link do sistema: ${details.portalLink}`,
+            `Atualizado por: ${sender}`
+        ].join('\n');
 
+        const sendManagerCopies = async (excludeRecipients = []) => {
+            const excluded = Array.isArray(excludeRecipients)
+                ? excludeRecipients.map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+                : [];
+            const recipients = managerCopyRecipients.filter((email) => email && !excluded.includes(email));
+            const results = [];
+
+            for (const managerEmail of recipients) {
+                const managerSentAt = new Date().toISOString();
+                let managerSent = false;
+                let managerError = null;
+
+                try {
+                    managerSent = await this.sendOperationalEmail({
+                        recipient: managerEmail,
+                        subject: `Cópia para gestor | ${subject}`,
+                        message: managerCopyMessage,
+                        fields: {
+                            evento: `${eventType} (cópia gestor)`,
+                            numero_solicitacao: details.number,
+                            tecnico: details.technician,
+                            cliente: details.client,
+                            data_solicitacao: details.requestDate,
+                            itens_pecas_solicitadas: details.itemsSummary,
+                            quantidade_total: details.totalQuantity,
+                            codigo_rastreio: details.trackingCode,
+                            valor_total: details.totalValue,
+                            status_atual: details.statusLabel,
+                            link_sistema: details.portalLink,
+                            atualizado_por: sender,
+                            tipo_notificacao: 'copia_gestor'
+                        },
+                        eventLabel: 'tracking_manager_copy_email'
+                    });
+                } catch (error) {
+                    managerSent = false;
+                    managerError = error?.message || 'unknown_error';
+                }
+
+                const managerReason = managerSent ? null : (managerError ? 'send_exception' : 'send_failed');
+                results.push(this.logEmailNotification({
+                    eventType: `${eventType} (cópia gestor)`,
+                    solicitationNumber: details.number,
+                    recipient: managerEmail,
+                    success: !!managerSent,
+                    reason: managerReason,
+                    error: managerError,
+                    profile: 'gestor',
+                    sentAt: managerSentAt
+                }));
+            }
+
+            return {
+                recipients,
+                results,
+                sentCount: results.filter((item) => item.success).length,
+                failedCount: results.filter((item) => !item.success).length
+            };
+        };
+
+        const target = this.resolveTechnicianNotificationTarget(solicitation);
         let sent = false;
         let errorMessage = null;
+        let reason = null;
+        let recipientEmail = null;
+        let technicianLog = null;
 
-        try {
-            sent = await this.sendOperationalEmail({
+        if (target.success) {
+            recipientEmail = target.recipientEmail;
+            try {
+                sent = await this.sendOperationalEmail({
+                    recipient: target.recipientEmail,
+                    subject,
+                    message,
+                    fields: {
+                        evento: eventType,
+                        numero_solicitacao: details.number,
+                        tecnico: details.technician,
+                        cliente: details.client,
+                        data_solicitacao: details.requestDate,
+                        itens_pecas_solicitadas: details.itemsSummary,
+                        quantidade_total: details.totalQuantity,
+                        codigo_rastreio: details.trackingCode,
+                        valor_total: details.totalValue,
+                        status_atual: details.statusLabel,
+                        link_sistema: details.portalLink,
+                        atualizado_por: sender
+                    },
+                    eventLabel: 'tracking_technician_email'
+                });
+            } catch (error) {
+                sent = false;
+                errorMessage = error?.message || 'unknown_error';
+            }
+
+            reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
+            technicianLog = this.logEmailNotification({
+                eventType,
+                solicitationNumber: details.number,
                 recipient: target.recipientEmail,
-                subject,
-                message,
-                fields: {
-                    evento: eventType,
-                    numero_solicitacao: details.number,
-                    tecnico: details.technician,
-                    cliente: details.client,
-                    data_solicitacao: details.requestDate,
-                    itens_pecas_solicitadas: details.itemsSummary,
-                    quantidade_total: details.totalQuantity,
-                    codigo_rastreio: details.trackingCode,
-                    valor_total: details.totalValue,
-                    status_atual: details.statusLabel,
-                    link_sistema: details.portalLink,
-                    atualizado_por: sender
-                },
-                eventLabel: 'tracking_technician_email'
+                success: !!sent,
+                reason,
+                error: errorMessage,
+                profile: 'tecnico',
+                sentAt
             });
-        } catch (error) {
-            sent = false;
-            errorMessage = error?.message || 'unknown_error';
+        } else {
+            reason = target.reason;
+            recipientEmail = target.recipientEmail || null;
+            technicianLog = this.logEmailNotification({
+                eventType,
+                solicitationNumber: target.solicitationNumber || solicitation.numero || null,
+                recipient: recipientEmail,
+                success: false,
+                reason,
+                profile: 'tecnico',
+                sentAt
+            });
         }
 
-        const reason = sent ? null : (errorMessage ? 'send_exception' : 'send_failed');
-        const log = this.logEmailNotification({
-            eventType,
-            solicitationNumber: details.number,
-            recipient: target.recipientEmail,
-            success: !!sent,
-            reason,
-            error: errorMessage,
-            profile: 'tecnico',
-            sentAt
-        });
+        const managerSummary = await sendManagerCopies(recipientEmail ? [recipientEmail] : []);
 
         return {
             success: !!sent,
             reason,
-            recipient: target.recipientEmail,
+            recipient: recipientEmail,
             sentAt,
-            tecnicoId: target.technicianId || null,
-            log
+            tecnicoId: target.technicianId || solicitation?.tecnicoId || null,
+            log: technicianLog,
+            managerCopyRecipients: managerSummary.recipients,
+            managerCopySentCount: managerSummary.sentCount,
+            managerCopyFailedCount: managerSummary.failedCount,
+            managerCopyTotalRecipients: managerSummary.recipients.length,
+            managerResults: managerSummary.results,
+            totalRecipients: (recipientEmail ? 1 : 0) + managerSummary.recipients.length,
+            sentCount: (sent ? 1 : 0) + managerSummary.sentCount,
+            failedCount: (sent ? 0 : 1) + managerSummary.failedCount
         };
     },
     /**
