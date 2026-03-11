@@ -249,7 +249,10 @@
                         { key: 'visao-geral', title: 'VISÃO GERAL', items: [itemMap.get('dashboard')] },
                         { key: 'operacao', title: 'OPERAÇÃO', items: [itemMap.get('solicitacoes'), itemMap.get('aprovacoes')] },
                         { key: 'custos', title: 'CUSTOS E ANÁLISES', items: reportShortcuts },
-                        { key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] },
+                        // O grupo de cadastros deve existir apenas para administradores.
+                        ...(role === 'administrador'
+                            ? [{ key: 'cadastros', title: 'CADASTROS', items: [itemMap.get('pecas'), itemMap.get('tecnicos'), itemMap.get('fornecedores')] }]
+                            : []),
                         { key: 'configuracoes', title: 'CONFIGURAÇÕES', items: [itemMap.get('configuracoes')] }
                     ]);
             const buildEntry = (entry) => {
