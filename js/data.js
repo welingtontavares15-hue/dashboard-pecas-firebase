@@ -2867,6 +2867,13 @@ const DataManager = {
         const nextStatus = this.normalizeWorkflowStatus(status);
         const payload = { ...extra };
         const now = Date.now();
+        const actorSnapshot = {
+            id: String(payload.byUserId || '').trim() || null,
+            username: String(payload.byUsername || '').trim() || null,
+            name: String(payload.by || '').trim() || 'Sistema',
+            email: this.normalizeEmail(payload.byEmail || ''),
+            role: String(payload.byRole || '').trim().toLowerCase() || null
+        };
 
         if (previousStatus === nextStatus) {
             if (nextStatus === this.STATUS.EM_TRANSITO) {
@@ -2894,7 +2901,15 @@ const DataManager = {
 
                     payload.trackingCode = incomingTrackingCode;
                     payload.trackingUpdatedAt = payload.trackingUpdatedAt || now;
+                    solicitation.trackingUpdatedByUserId = actorSnapshot.id;
+                    solicitation.trackingUpdatedByUsername = actorSnapshot.username;
+                    solicitation.trackingUpdatedByEmail = actorSnapshot.email || null;
+                    solicitation.trackingUpdatedByRole = actorSnapshot.role;
                     delete payload.status;
+                    delete payload.byUserId;
+                    delete payload.byUsername;
+                    delete payload.byEmail;
+                    delete payload.byRole;
 
                     Object.assign(solicitation, payload);
                     solicitation.updatedAt = now;
@@ -2978,9 +2993,37 @@ const DataManager = {
                 by: payload.by || 'Sistema',
                 comment: payload.approvalComment || payload.rejectionReason || null
             });
+
+            solicitation.aprovacao = {
+                status: nextStatus,
+                at: now,
+                by: actorSnapshot.name,
+                userId: actorSnapshot.id,
+                username: actorSnapshot.username,
+                email: actorSnapshot.email || null,
+                role: actorSnapshot.role,
+                comment: payload.approvalComment || payload.rejectionReason || null
+            };
+
+            solicitation.approvalManagerUserId = actorSnapshot.id;
+            solicitation.approvalManagerUsername = actorSnapshot.username;
+            solicitation.approvalManagerName = actorSnapshot.name;
+            solicitation.approvalManagerEmail = actorSnapshot.email || null;
+            solicitation.approvalManagerRole = actorSnapshot.role;
+        }
+
+        if (nextStatus === this.STATUS.EM_TRANSITO) {
+            solicitation.trackingUpdatedByUserId = actorSnapshot.id;
+            solicitation.trackingUpdatedByUsername = actorSnapshot.username;
+            solicitation.trackingUpdatedByEmail = actorSnapshot.email || null;
+            solicitation.trackingUpdatedByRole = actorSnapshot.role;
         }
 
         delete payload.status;
+        delete payload.byUserId;
+        delete payload.byUsername;
+        delete payload.byEmail;
+        delete payload.byRole;
         Object.assign(solicitation, payload);
         solicitation.status = nextStatus;
         solicitation.updatedAt = now;

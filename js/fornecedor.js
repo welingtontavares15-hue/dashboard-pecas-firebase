@@ -673,8 +673,13 @@ const FornecedorPortal = {
                 trackingCode,
                 trackingUpdatedAt: now,
                 trackingBy: userName,
+                trackingByEmail: currentUser?.email || null,
                 supplierResponseAt: now,
-                by: userName
+                by: userName,
+                byUserId: currentUser?.id || null,
+                byUsername: currentUser?.username || null,
+                byEmail: currentUser?.email || null,
+                byRole: currentUser?.role || null
             });
             const success = result === true || (result && result.success !== false && !result.error);
 

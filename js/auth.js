@@ -42,9 +42,10 @@ const Auth = {
             dashboard: true,
             solicitacoes: { view: true, create: false, edit: false, delete: false, viewAll: true },
             aprovacoes: { view: true, approve: true, reject: true, batch: true },
-            tecnicos: { view: true, create: false, edit: false, delete: false },
-            fornecedores: { view: true, create: false, edit: false, delete: false },
-            pecas: { view: true, create: false, edit: false, delete: false, import: false },
+            // Cadastros ficam disponíveis apenas para administradores.
+            tecnicos: { view: false, create: false, edit: false, delete: false },
+            fornecedores: { view: false, create: false, edit: false, delete: false },
+            pecas: { view: false, create: false, edit: false, delete: false, import: false },
             relatorios: { view: true, export: true },
             configuracoes: { view: true, edit: false }
         },
@@ -87,9 +88,6 @@ const Auth = {
             { id: 'dashboard', icon: 'fa-chart-pie', label: 'Visão Geral', section: 'Operação' },
             { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
             { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
-            { id: 'tecnicos', icon: 'fa-users', label: 'Técnicos', section: 'Cadastros' },
-            { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
-            { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
             { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
         ],
