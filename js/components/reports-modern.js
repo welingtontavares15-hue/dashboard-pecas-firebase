@@ -21,9 +21,35 @@ function sortTechniciansByCost(technicians = []) {
 }
 
 function getFilteredPeriodMonthCount(relatorios) {
-    const period = AnalyticsHelper.getGlobalPeriodFilter();
-    const fromRaw = relatorios?.filters?.dateFrom || period?.dateFrom;
-    const toRaw = relatorios?.filters?.dateTo || period?.dateTo;
+    /*
+     * Calcula o número de meses no período filtrado. Em vez de utilizar o filtro
+     * global (que pode estar baseado em configurações de estatísticas ou em
+     * períodos padrão), utilizamos o período explicitamente definido nos filtros
+     * atuais do módulo de relatórios. Isso garante que o resumo mensal e o
+     * cálculo de médias respeitem sempre as datas selecionadas pelo usuário e
+     * não fiquem limitados a um intervalo fixo (por exemplo, os últimos 60 dias).
+     */
+    // Recupere o período atual a partir do estado de filtros do Relatorios
+    let fromRaw = null;
+    let toRaw = null;
+    try {
+        const state = typeof relatorios?.buildFilterState === 'function'
+            ? relatorios.buildFilterState()
+            : null;
+        if (state && state.period) {
+            fromRaw = state.period.dateFrom;
+            toRaw = state.period.dateTo;
+        }
+    } catch (_error) {
+        // ignore and fallback to filter properties
+    }
+    // Fallback para filtros diretos caso não seja possível obter o estado
+    if (!fromRaw) {
+        fromRaw = relatorios?.filters?.dateFrom || '';
+    }
+    if (!toRaw) {
+        toRaw = relatorios?.filters?.dateTo || '';
+    }
     const from = Utils.parseAsLocalDate(fromRaw);
     const to = Utils.parseAsLocalDate(toRaw);
 

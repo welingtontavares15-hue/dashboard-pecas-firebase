@@ -896,12 +896,25 @@
                 .slice()
                 .sort((a, b) => (a.costPerCall - b.costPerCall) || (b.calls - a.calls) || a.nome.localeCompare(b.nome, 'pt-BR'));
 
+            // Construímos o ranking de peças com base no custo total acumulado. A quantidade
+            // é exibida apenas como informação complementar e não interfere na ordenação
+            // principal. Primeiro calculamos o custo médio por unidade e depois ordenamos
+            // pelo custo total de forma decrescente. Caso dois itens tenham o mesmo custo
+            // total, utilizamos a quantidade apenas como critério secundário para manter
+            // uma ordenação estável. Isso garante que o ranking "Top 5 peças com maior
+            // custo" reflita corretamente as peças mais onerosas no período filtrado.
             const byPiece = Array.from(pieceMap.values())
                 .map((piece) => ({
                     ...piece,
                     averageUnitCost: piece.quantidade > 0 ? piece.totalCost / piece.quantidade : 0
                 }))
-                .sort((a, b) => (b.quantidade - a.quantidade) || (b.totalCost - a.totalCost));
+                .sort((a, b) => {
+                    const costDiff = (b.totalCost - a.totalCost);
+                    if (costDiff !== 0) {
+                        return costDiff;
+                    }
+                    return b.quantidade - a.quantidade;
+                });
 
             const byRegion = Array.from(regionMap.values())
                 .map((region) => ({
