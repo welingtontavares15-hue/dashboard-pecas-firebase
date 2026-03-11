@@ -51,10 +51,25 @@ function buildMonthlyCostSummary(relatorios, analysis) {
 }
 
 function buildStatusDistribution(solicitations = []) {
+    /*
+     * Agrupa as solicitações por status de maneira normalizada para evitar duplicidade
+     * e garantir consistência entre diferentes grafias. Em vez de utilizar a string
+     * original do status, utilizamos Utils.normalizeStatus para mapear variantes
+     * (por exemplo, "Finalizada", "finalizada", "historico-manual") para uma
+     * chave única. A ordenação aplica uma lista de prioridades conhecida para
+     * exibir os status em ordem lógica (pendente, aprovada, em trânsito, entregue,
+     * finalizada, rejeitada, histórico manual). Dentro de cada grupo, se duas
+     * chaves possuírem a mesma prioridade, ordenamos pelo número de ocorrências
+     * de forma decrescente.
+     */
     const byStatus = {};
     solicitations.forEach((sol) => {
-        const key = String(sol?.status || '').trim();
-        byStatus[key] = (byStatus[key] || 0) + 1;
+        // Normalize status to avoid duplicates (case and accent insensitive)
+        const raw = String(sol?.status || '').trim();
+        const key = typeof Utils.normalizeStatus === 'function' ? Utils.normalizeStatus(raw) : raw;
+        if (key) {
+            byStatus[key] = (byStatus[key] || 0) + 1;
+        }
     });
 
     const priority = ['pendente', 'aprovada', 'em-transito', 'entregue', 'finalizada', 'rejeitada', 'historico-manual'];
@@ -166,6 +181,27 @@ function renderPartsTable(parts, totalCost) {
         return renderCompactEmpty();
     }
 
+    // Calcule a participação de cada peça e a concentração cumulativa.
+    let cumulativeShare = 0;
+    const rows = parts.map((part) => {
+        const partCost = Number(part.totalCost) || 0;
+        const share = totalCost > 0 ? (partCost / totalCost) * 100 : 0;
+        cumulativeShare += share;
+        return `
+            <tr>
+                <td>
+                    <strong>${Utils.escapeHtml(part.codigo || '-')}</strong>
+                    <div class="helper-text">${Utils.escapeHtml(part.descricao || 'Sem descrição')}</div>
+                </td>
+                <td>${Utils.formatNumber(part.quantidade)}</td>
+                <td>${Utils.formatCurrency(part.totalCost)}</td>
+                <td>${Utils.formatCurrency(part.averageUnitCost)}</td>
+                <td>${Utils.formatNumber(share, 1)}%</td>
+                <td>${Utils.formatNumber(cumulativeShare, 1)}%</td>
+            </tr>
+        `;
+    }).join('');
+
     return `
         <div class="table-container dashboard-compact-table">
             <table class="table">
@@ -176,24 +212,11 @@ function renderPartsTable(parts, totalCost) {
                         <th>Custo total</th>
                         <th>Custo médio</th>
                         <th>Participação</th>
+                        <th>Concentração</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${parts.map((part) => {
-        const share = totalCost > 0 ? ((Number(part.totalCost) || 0) / totalCost) * 100 : 0;
-        return `
-                            <tr>
-                                <td>
-                                    <strong>${Utils.escapeHtml(part.codigo || '-')}</strong>
-                                    <div class="helper-text">${Utils.escapeHtml(part.descricao || 'Sem descrição')}</div>
-                                </td>
-                                <td>${Utils.formatNumber(part.quantidade)}</td>
-                                <td>${Utils.formatCurrency(part.totalCost)}</td>
-                                <td>${Utils.formatCurrency(part.averageUnitCost)}</td>
-                                <td>${Utils.formatNumber(share, 1)}%</td>
-                            </tr>
-                        `;
-    }).join('')}
+                    ${rows}
                 </tbody>
             </table>
         </div>
@@ -205,6 +228,27 @@ function renderTechniciansTable(technicians) {
         return renderCompactEmpty();
     }
 
+    // Calcule o custo total para determinar a participação percentual e a concentração de cada técnico.
+    const totalCost = technicians.reduce((sum, tech) => sum + (Number(tech.totalCost) || 0), 0);
+    let cumulativeShare = 0;
+    // Constrói as linhas com participação e concentração acumulada.
+    const rows = technicians.map((technician, index) => {
+        const techCost = Number(technician.totalCost) || 0;
+        const share = totalCost > 0 ? (techCost / totalCost) * 100 : 0;
+        cumulativeShare += share;
+        return `
+            <tr>
+                <td><strong>${index + 1}</strong></td>
+                <td><strong>${Utils.escapeHtml(technician.nome)}</strong></td>
+                <td>${Utils.formatNumber(technician.calls)}</td>
+                <td>${Utils.formatCurrency(techCost)}</td>
+                <td>${Utils.formatCurrency(technician.costPerCall)}</td>
+                <td>${Utils.formatNumber(share, 1)}%</td>
+                <td>${Utils.formatNumber(cumulativeShare, 1)}%</td>
+            </tr>
+        `;
+    }).join('');
+
     return `
         <div class="table-container dashboard-compact-table">
             <table class="table">
@@ -215,18 +259,12 @@ function renderTechniciansTable(technicians) {
                         <th>Solicitações</th>
                         <th>Custo total</th>
                         <th>Custo médio por solicitação</th>
+                        <th>Participação</th>
+                        <th>Concentração</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${technicians.map((technician, index) => `
-                        <tr>
-                            <td><strong>${index + 1}</strong></td>
-                            <td><strong>${Utils.escapeHtml(technician.nome)}</strong></td>
-                            <td>${Utils.formatNumber(technician.calls)}</td>
-                            <td>${Utils.formatCurrency(technician.totalCost)}</td>
-                            <td>${Utils.formatCurrency(technician.costPerCall)}</td>
-                        </tr>
-                    `).join('')}
+                    ${rows}
                 </tbody>
             </table>
         </div>
@@ -599,10 +637,11 @@ export function applyReportsModernization() {
                             </button>
                         </div>
                         <div class="card-body">
-                            <div class="reports-inline-summary">
-                                <span class="tag-soft info"><i class="fas fa-calendar-days"></i> ${Utils.escapeHtml(monthly.latestMonthLabel)}</span>
-                                <span class="tag-soft success"><i class="fas fa-chart-line"></i> Média mensal: ${Utils.formatCurrency(monthly.averageMonthlyCost)}</span>
-                            </div>
+                            <!--
+                                A visão de resumo de custos mensais exibe apenas o gráfico para simplificar a interface.
+                                As tags de período (mês mais recente) e média mensal foram removidas por serem redundantes
+                                com o cabeçalho e os filtros.
+                            -->
                             <div class="chart-wrapper compact-chart-wrapper">
                                 <canvas id="reportOverviewMonthlyChart"></canvas>
                             </div>

@@ -37,8 +37,12 @@ function getPipelineStatusLabel(status) {
 }
 
 function getDefaultFilters() {
-    const period = AnalyticsHelper.getGlobalPeriodFilter();
-
+    // Em vez de depender exclusivamente de um período persistido (que pode conter datas fixas
+    // muito antigas), normalizamos sempre um período a partir do número de dias padrão.
+    // Isso garante que, ao abrir o painel, os filtros reflitam uma janela móvel em relação
+    // à data atual (ex.: últimos 30 dias) e elimina qualquer data fixa pré-configurada.
+    const defaultRange = AnalyticsHelper.getDefaultRangeDays ? AnalyticsHelper.getDefaultRangeDays() : 30;
+    const period = AnalyticsHelper.normalizePeriod({ rangeDays: defaultRange });
     return {
         periodPreset: String(period.rangeDays || 30),
         dateFrom: period.dateFrom,
@@ -398,7 +402,7 @@ export function applyDashboardModernization() {
                         ${renderKpiCard({ title: 'Custo m\u00e9dio por solicita\u00e7\u00e3o', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00f5es com custo`, icon: 'fa-receipt', tone: 'success' })}
                         ${renderKpiCard({ title: 'Custo m\u00e9dio por t\u00e9cnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnicos no per\u00edodo`, icon: 'fa-user-gear', tone: 'info' })}
                         ${renderKpiCard({ title: 'T\u00e9cnico com maior custo', value: Utils.escapeHtml(topTechnician?.nome || 'Sem dados'), subtitle: topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral, icon: 'fa-medal', tone: 'warning' })}
-                        ${renderKpiCard({ title: 'Pe\u00e7a com maior custo', value: Utils.escapeHtml(topPart ? (topPart.descricao || topPart.codigo) : 'Sem dados'), subtitle: topPart ? Utils.formatCurrency(topPart.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral, icon: 'fa-box-open', tone: 'danger' })}
+                        
                     </div>
                 </div>
 
@@ -456,13 +460,32 @@ export function applyDashboardModernization() {
 
     window.Dashboard.bindSaasFilters = function bindSaasFilters() {
         const apply = () => {
-            const periodPreset = document.getElementById('saas-period')?.value || '30';
+            // Read current selections from the form controls
+            let periodPreset = document.getElementById('saas-period')?.value || '30';
             const dateFromInput = document.getElementById('saas-date-from')?.value || this.saasFilters.dateFrom;
             const dateToInput = document.getElementById('saas-date-to')?.value || this.saasFilters.dateTo;
 
             let dateFrom = dateFromInput;
             let dateTo = dateToInput;
 
+            // When the user selects a preset (e.g., 7/30/90 days), the date inputs should reflect
+            // that range. However, if the user manually adjusts either date field while a preset
+            // other than "custom" is selected, the preset should automatically switch to
+            // "custom" so that the chosen dates are respected. We detect this by comparing the
+            // date inputs with the expected range for the selected preset. If they differ, we
+            // force the preset to custom and use the manual dates.
+            if (periodPreset !== 'custom') {
+                const expectedPeriod = AnalyticsHelper.setGlobalPeriodByDays(Number(periodPreset) || 30);
+                const expectedFrom = expectedPeriod.dateFrom;
+                const expectedTo = expectedPeriod.dateTo;
+                const userChanged = (dateFromInput && dateFromInput !== expectedFrom) || (dateToInput && dateToInput !== expectedTo);
+                if (userChanged) {
+                    periodPreset = 'custom';
+                }
+            }
+
+            // If a preset (not custom) is selected after the above adjustment, override the date
+            // inputs with the computed range; otherwise respect the manual values.
             if (periodPreset !== 'custom') {
                 const period = AnalyticsHelper.setGlobalPeriodByDays(Number(periodPreset) || 30);
                 dateFrom = period.dateFrom;
@@ -479,6 +502,7 @@ export function applyDashboardModernization() {
                 status: document.getElementById('saas-status')?.value || ''
             };
 
+            // Persist the chosen period globally so other modules stay in sync
             AnalyticsHelper.saveGlobalPeriodFilter({
                 dateFrom: this.saasFilters.dateFrom,
                 dateTo: this.saasFilters.dateTo

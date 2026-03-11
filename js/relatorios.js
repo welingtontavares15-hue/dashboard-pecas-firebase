@@ -26,19 +26,21 @@ const Relatorios = {
     _activeReportData: null,
 
     getDefaultFilters() {
-        const period = AnalyticsHelper.getGlobalPeriodFilter() || AnalyticsHelper.normalizePeriod({ rangeDays: AnalyticsHelper.getDefaultRangeDays() });
+        // Utilize sempre um período dinâmico baseado no intervalo padrão ao invés de um filtro global possivelmente fixo.
+        const defaultRange = AnalyticsHelper.getDefaultRangeDays();
+        const period = AnalyticsHelper.normalizePeriod({ rangeDays: defaultRange });
         return {
             search: '',
-            dateFrom: period?.dateFrom || '',
-            dateTo: period?.dateTo || '',
+            dateFrom: period.dateFrom,
+            dateTo: period.dateTo,
             /**
-             * Default selected statuses (none).
+             * Default selected statuses (nenhum).
              */
             statuses: [],
             tecnico: '',
             regiao: '',
             cliente: '',
-            rangeDays: period?.rangeDays || AnalyticsHelper.getDefaultRangeDays(),
+            rangeDays: period.rangeDays || defaultRange,
             useDefaultPeriod: true
         };
     },
@@ -1170,16 +1172,18 @@ const Relatorios = {
      * Export costs report
      */
     exportCustos() {
-        const analysis = this.buildCostAnalysis();
+        // Use the filtered solicitations (cost-relevant) instead of relying on buildCostAnalysis().
+        const solicitations = typeof this.getFilteredCostSolicitations === 'function'
+            ? this.getFilteredCostSolicitations()
+            : this.getFilteredSolicitations();
 
-        if (analysis.solicitations.length === 0) {
+        if (!Array.isArray(solicitations) || solicitations.length === 0) {
             Utils.showToast('Não há dados para exportar', 'warning');
             return;
         }
 
         const rows = [];
-
-        analysis.solicitations.forEach((solicitation) => {
+        solicitations.forEach((solicitation) => {
             const date = this.getSolicitationDate(solicitation);
             const monthLabel = date ? this.formatMonthLabel(date) : 'Sem data';
             const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
@@ -1188,7 +1192,6 @@ const Relatorios = {
                 const quantity = Number(item?.quantidade) || 0;
                 const unitValue = Number(item?.valorUnit) || 0;
                 const totalItem = Math.round((quantity * unitValue) * 100) / 100;
-
                 rows.push({
                     Numero: solicitation.numero,
                     Mes: monthLabel,

@@ -19,14 +19,16 @@
     _activeDashboardData: null,
 
     getDefaultFilters() {
-        const period = AnalyticsHelper.getGlobalPeriodFilter() || AnalyticsHelper.normalizePeriod({ rangeDays: AnalyticsHelper.getDefaultRangeDays() });
+        // Normaliza sempre um período baseado no range padrão para evitar datas fixas persistidas
+        const defaultRange = AnalyticsHelper.getDefaultRangeDays();
+        const period = AnalyticsHelper.normalizePeriod({ rangeDays: defaultRange });
         return {
             search: '',
             status: [],
             tecnico: '',
-            dateFrom: period?.dateFrom || '',
-            dateTo: period?.dateTo || '',
-            rangeDays: period?.rangeDays || AnalyticsHelper.getDefaultRangeDays(),
+            dateFrom: period.dateFrom,
+            dateTo: period.dateTo,
+            rangeDays: period.rangeDays || defaultRange,
             useDefaultPeriod: true
         };
     },
