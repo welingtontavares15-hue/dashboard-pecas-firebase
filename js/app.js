@@ -10,11 +10,11 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard.js?v=20260309n',
-        solicitacoes: './pages/solicitacoes.js?v=20260309n',
-        aprovacoes: './pages/aprovacoes.js?v=20260309n',
+        solicitacoes: './pages/solicitacoes.js?v=20260311b',
+        aprovacoes: './pages/aprovacoes.js?v=20260311b',
         pecas: './pages/pecas.js?v=20260309n',
         relatorios: './pages/relatorios.js?v=20260311a',
-        fornecedor: './pages/fornecedor.js?v=20260309n',
+        fornecedor: './pages/fornecedor.js?v=20260311b',
         usuarios: './pages/usuarios.js?v=20260309n'
     },
     fallbackScripts: {
