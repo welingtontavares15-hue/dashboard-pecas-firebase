@@ -469,20 +469,24 @@ const CloudStorage = {
             return false;
         }
 
+        const normalizedRole = String(activeUser.role || '').trim().toLowerCase();
+        const normalizedTecnicoId = String(activeUser.tecnicoId || '').trim() || null;
+        const normalizedFornecedorId = String(activeUser.fornecedorId || '').trim() || null;
+
         await set(FirebaseInit.getRef(`data/diversey_sessions/${uid}`), {
-            username: activeUser.username,
-            role: activeUser.role,
-            tecnicoId: activeUser.tecnicoId || null,
-            fornecedorId: activeUser.fornecedorId || null,
+            username: String(activeUser.username || '').trim() || null,
+            role: normalizedRole,
+            tecnicoId: normalizedTecnicoId,
+            fornecedorId: normalizedFornecedorId,
             expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000)),
             updatedAt: Date.now()
         });
         this.accessSession = {
             userId: uid,
-            username: activeUser.username,
-            role: activeUser.role,
-            tecnicoId: activeUser.tecnicoId || null,
-            fornecedorId: activeUser.fornecedorId || null,
+            username: String(activeUser.username || '').trim() || null,
+            role: normalizedRole,
+            tecnicoId: normalizedTecnicoId,
+            fornecedorId: normalizedFornecedorId,
             expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000))
         };
         return true;

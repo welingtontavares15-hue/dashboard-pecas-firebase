@@ -972,8 +972,11 @@ const DataManager = {
                 slaHours: 24,
                 itemsPerPage: 10,
                 statsRangeDays: 30,
-            orcamentoMensalPecas: 0,
-            sheetIntegration: { provider: 'onedrive', target: '' }
+                preferredRangeDays: 30,
+                managerNotificationEmail: 'wbastostavares@solenis.com',
+                operationalEmailGatewayRecipient: '',
+                orcamentoMensalPecas: 0,
+                sheetIntegration: { provider: 'onedrive', target: '' }
             };
             await CloudStorage.saveData(this.KEYS.SETTINGS, defaultSettings);
             this._sessionCache[this.KEYS.SETTINGS] = defaultSettings;
@@ -3240,6 +3243,8 @@ const DataManager = {
             statsRangeDays: 30,
             preferredRangeDays: 30,
             defaultPeriodFilter: null,
+            managerNotificationEmail: 'wbastostavares@solenis.com',
+            operationalEmailGatewayRecipient: '',
             orcamentoMensalPecas: 0,
             sheetIntegration: { provider: 'onedrive', target: '' }
         };

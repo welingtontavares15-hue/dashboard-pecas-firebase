@@ -23,7 +23,7 @@ const Utils = {
     OP_EMAIL_TEMPLATE: 'box',
     OP_EMAIL_GATEWAY_RECIPIENT: (typeof window !== 'undefined' && window.__FORM_SUBMIT_GATEWAY_RECIPIENT)
         ? String(window.__FORM_SUBMIT_GATEWAY_RECIPIENT).trim().toLowerCase()
-        : 'welingtontavares61m@gmail.com',
+        : '',
     BRAND_NAME: 'Diversey',
     // Display name shown in the portal header and login screen. Updated to use
     // proper Portuguese diacritics and the correct abbreviation (MWW instead of WMW).
@@ -553,6 +553,22 @@ const Utils = {
         return this.isValidEmail(email) ? email : '';
     },
 
+    getTechnicianById(technicianId) {
+        if (!technicianId || typeof DataManager === 'undefined') {
+            return null;
+        }
+
+        if (typeof DataManager.getTechnicianById === 'function') {
+            return DataManager.getTechnicianById(technicianId) || null;
+        }
+
+        if (typeof DataManager.getTechnicians === 'function') {
+            return DataManager.getTechnicians().find((item) => item && item.id === technicianId) || null;
+        }
+
+        return null;
+    },
+
     findUserById(userId) {
         if (!userId || typeof DataManager === 'undefined' || typeof DataManager.getUserById !== 'function') {
             return null;
@@ -650,6 +666,7 @@ const Utils = {
     getManagerNotificationRecipients(solicitation = null, options = {}) {
         const recipients = [];
         const preferAssigned = options?.preferAssigned === true;
+        const preferConfigured = options?.preferConfigured !== false;
 
         const addRecipient = (email) => {
             const normalized = this.normalizeOperationalEmail(email || '');
@@ -666,14 +683,18 @@ const Utils = {
             }
         }
 
+        const configuredManagerEmail = this.getManagerNotificationEmail();
+        if (configuredManagerEmail) {
+            addRecipient(configuredManagerEmail);
+            if (preferConfigured) {
+                return recipients;
+            }
+        }
+
         this.getActiveUsersByRoles(['gestor']).forEach((user) => addRecipient(this.getUserEmail(user)));
 
         if (recipients.length === 0) {
             this.getActiveUsersByRoles(['admin', 'administrador']).forEach((user) => addRecipient(this.getUserEmail(user)));
-        }
-
-        if (recipients.length === 0) {
-            addRecipient(this.getManagerNotificationEmail());
         }
 
         return recipients;
@@ -684,7 +705,12 @@ const Utils = {
     },
 
     getOperationalEmailGatewayRecipient() {
-        const configured = String(this.OP_EMAIL_GATEWAY_RECIPIENT || '').trim().toLowerCase();
+        const settings = (typeof DataManager !== 'undefined' && typeof DataManager.getSettings === 'function')
+            ? DataManager.getSettings()
+            : {};
+        const configured = this.normalizeOperationalEmail(
+            settings?.operationalEmailGatewayRecipient || this.OP_EMAIL_GATEWAY_RECIPIENT || ''
+        );
         return this.isValidEmail(configured) ? configured : null;
     },
 
@@ -821,6 +847,44 @@ const Utils = {
                 ? DataManager.getTechnicianById(technicianId)
                 : null);
 
+        const catalogEmail = this.normalizeOperationalEmail(technician?.email || '');
+        if (catalogEmail && this.isValidEmail(catalogEmail)) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: catalogEmail,
+                source: 'tecnico_catalog'
+            };
+        }
+
+        const linkedTechnicianUsers = this.getLinkedTechnicianUsers(technicianId);
+        const linkedTechnicianUser = linkedTechnicianUsers.find((user) => this.getUserEmail(user)) || null;
+        const linkedTechnicianEmail = this.getUserEmail(linkedTechnicianUser);
+        if (linkedTechnicianEmail) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: linkedTechnicianEmail,
+                source: 'tecnico_user_link'
+            };
+        }
+
+        const tecnicoSnapshotEmail = this.normalizeOperationalEmail(solicitation.tecnicoEmail || '');
+        if (tecnicoSnapshotEmail && this.isValidEmail(tecnicoSnapshotEmail)) {
+            return {
+                success: true,
+                solicitationNumber,
+                technicianId,
+                technician,
+                recipientEmail: tecnicoSnapshotEmail,
+                source: 'tecnico_snapshot'
+            };
+        }
+
         const requesterMatchesTechnician = String(solicitation.requesterTecnicoId || '').trim() === String(technicianId || '').trim();
         const requesterRole = String(solicitation.requesterRole || '').trim().toLowerCase();
 
@@ -838,7 +902,11 @@ const Utils = {
 
         const requesterUser = this.findUserById(solicitation.requesterUserId || null);
         const requesterUserEmail = this.getUserEmail(requesterUser);
-        if (requesterUserEmail && String(requesterUser?.role || '').trim().toLowerCase() === 'tecnico') {
+        if (
+            requesterUserEmail
+            && String(requesterUser?.role || '').trim().toLowerCase() === 'tecnico'
+            && (!requesterUser?.tecnicoId || String(requesterUser.tecnicoId || '').trim() === String(technicianId || '').trim())
+        ) {
             return {
                 success: true,
                 solicitationNumber,
@@ -851,7 +919,10 @@ const Utils = {
 
         const requesterUserByUsername = this.findPreferredUserByUsername(solicitation.requesterUsername || '', ['tecnico']);
         const requesterUserByUsernameEmail = this.getUserEmail(requesterUserByUsername);
-        if (requesterUserByUsernameEmail) {
+        if (
+            requesterUserByUsernameEmail
+            && (!requesterUserByUsername?.tecnicoId || String(requesterUserByUsername.tecnicoId || '').trim() === String(technicianId || '').trim())
+        ) {
             return {
                 success: true,
                 solicitationNumber,
@@ -859,20 +930,6 @@ const Utils = {
                 technician,
                 recipientEmail: requesterUserByUsernameEmail,
                 source: 'requester_username'
-            };
-        }
-
-        const linkedTechnicianUsers = this.getLinkedTechnicianUsers(technicianId);
-        const linkedTechnicianUser = linkedTechnicianUsers.find((user) => this.getUserEmail(user)) || null;
-        const linkedTechnicianEmail = this.getUserEmail(linkedTechnicianUser);
-        if (linkedTechnicianEmail) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: linkedTechnicianEmail,
-                source: 'tecnico_user_link'
             };
         }
 
@@ -1001,7 +1058,7 @@ const Utils = {
             .map((email) => String(email || '').trim().toLowerCase())));
         const resolvedRecipients = recipients.length > 0
             ? recipients.filter((email) => this.isValidEmail(email))
-            : this.getManagerNotificationRecipients();
+            : this.getManagerNotificationRecipients(solicitation);
 
         if (resolvedRecipients.length === 0) {
             return {

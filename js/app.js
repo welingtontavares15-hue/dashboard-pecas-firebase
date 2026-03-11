@@ -10,11 +10,11 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard.js?v=20260309n',
-        solicitacoes: './pages/solicitacoes.js?v=20260311c',
-        aprovacoes: './pages/aprovacoes.js?v=20260311c',
+        solicitacoes: './pages/solicitacoes.js?v=20260311d',
+        aprovacoes: './pages/aprovacoes.js?v=20260311d',
         pecas: './pages/pecas.js?v=20260309n',
         relatorios: './pages/relatorios.js?v=20260311a',
-        fornecedor: './pages/fornecedor.js?v=20260311c',
+        fornecedor: './pages/fornecedor.js?v=20260311d',
         usuarios: './pages/usuarios.js?v=20260309n'
     },
     fallbackScripts: {
@@ -837,6 +837,14 @@ const App = {
                                        ${!canEdit ? 'disabled' : ''}>
                                 <small class="text-muted">Use 0 para desabilitar o alerta de orçamento mensal.</small>
                             </div>
+                            <div class="form-group">
+                                <label for="manager-notification-email">E-mail principal do gestor</label>
+                                <input type="email" id="manager-notification-email" class="form-control"
+                                       value="${Utils.escapeHtml(settings.managerNotificationEmail || '')}"
+                                       placeholder="wbastostavares@solenis.com"
+                                       ${!canEdit ? 'disabled' : ''}>
+                                <small class="text-muted">Usado como destinatário principal das notificações de novas solicitações.</small>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="sheet-target">ID ou link da planilha</label>
@@ -982,16 +990,24 @@ const App = {
         const sheetProviderInput = document.getElementById('sheet-provider');
         const sheetTargetInput = document.getElementById('sheet-target');
         const budgetInput = document.getElementById('orcamento-mensal-pecas');
+        const managerEmailInput = document.getElementById('manager-notification-email');
         const statsRangeDays = parseInt(statsRangeInput && statsRangeInput.value) || 30;
         const sheetProvider = (sheetProviderInput && sheetProviderInput.value) || 'onedrive';
         const sheetTarget = (sheetTargetInput && sheetTargetInput.value.trim()) || '';
         const orcamentoMensalPecas = Math.max(parseFloat((budgetInput && budgetInput.value) || 0) || 0, 0);
+        const managerNotificationEmail = ((managerEmailInput && managerEmailInput.value) || '').trim().toLowerCase();
+
+        if (managerNotificationEmail && !Utils.isValidEmail(managerNotificationEmail)) {
+            Utils.showToast('Informe um e-mail válido para o gestor principal.', 'warning');
+            return;
+        }
 
         const nextSettings = {
             ...DataManager.getSettings(),
             slaHours,
             itemsPerPage,
             statsRangeDays,
+            managerNotificationEmail,
             orcamentoMensalPecas,
             sheetIntegration: { provider: sheetProvider, target: sheetTarget }
         };

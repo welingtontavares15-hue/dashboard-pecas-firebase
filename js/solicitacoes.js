@@ -1804,6 +1804,16 @@ const Solicitacoes = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
         const isNewSolicitation = !this.currentSolicitation?.id;
+        const resolvedTechnicianTarget = typeof Utils.resolveTechnicianNotificationTarget === 'function'
+            ? Utils.resolveTechnicianNotificationTarget({
+                tecnicoId,
+                tecnicoEmail: tech?.email || this.currentSolicitation?.tecnicoEmail || '',
+                requesterTecnicoId: tecnicoId
+            })
+            : null;
+        const technicianRecipientEmail = resolvedTechnicianTarget?.success
+            ? resolvedTechnicianTarget.recipientEmail
+            : (tech?.email || this.currentSolicitation?.tecnicoEmail || currentUser?.email || '');
         const shouldSendManagerEmail = (
             status === 'pendente' &&
             Auth.getRole() === 'tecnico' &&
@@ -1814,7 +1824,7 @@ const Solicitacoes = {
             ...this.currentSolicitation,
             tecnicoId,
             tecnicoNome: tech?.nome || this.currentSolicitation.tecnicoNome,
-            tecnicoEmail: tech?.email || this.currentSolicitation.tecnicoEmail || currentUser?.email || '',
+            tecnicoEmail: technicianRecipientEmail,
             data: normalizedDate,
             cliente,
             observacoes,
@@ -1827,9 +1837,9 @@ const Solicitacoes = {
             solicitation.requesterUserId = currentUser?.id || this.currentSolicitation?.requesterUserId || null;
             solicitation.requesterUsername = currentUser?.username || this.currentSolicitation?.requesterUsername || null;
             solicitation.requesterName = currentUser?.name || tech?.nome || this.currentSolicitation?.requesterName || null;
-            solicitation.requesterEmail = currentUser?.email || tech?.email || this.currentSolicitation?.requesterEmail || '';
+            solicitation.requesterEmail = technicianRecipientEmail || this.currentSolicitation?.requesterEmail || '';
             solicitation.requesterRole = currentUser?.role || 'tecnico';
-            solicitation.requesterTecnicoId = currentUser?.tecnicoId || tecnicoId;
+            solicitation.requesterTecnicoId = tecnicoId;
         }
 
         if (!solicitation.statusHistory) {

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v29';
+const CACHE_VERSION = 'v30';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
