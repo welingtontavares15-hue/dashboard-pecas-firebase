@@ -23,7 +23,7 @@ const Utils = {
     OP_EMAIL_TEMPLATE: 'box',
     OP_EMAIL_GATEWAY_RECIPIENT: (typeof window !== 'undefined' && window.__FORM_SUBMIT_GATEWAY_RECIPIENT)
         ? String(window.__FORM_SUBMIT_GATEWAY_RECIPIENT).trim().toLowerCase()
-        : '',
+        : 'welingtontavares61m@gmail.com',
     BRAND_NAME: 'Diversey',
     // Display name shown in the portal header and login screen. Updated to use
     // proper Portuguese diacritics and the correct abbreviation (MWW instead of WMW).
@@ -510,207 +510,48 @@ const Utils = {
     },
 
     /**
-     * Optional manager notification fallback configured in system settings.
-     * This is intentionally no longer hardcoded to avoid routing alerts to a
-     * fixed recipient when the real manager/approver is another user.
+     * Default manager e-mail recipient for approval notifications.
      */
     getManagerNotificationEmail() {
-        const settings = (typeof DataManager !== 'undefined' && typeof DataManager.getSettings === 'function')
-            ? DataManager.getSettings()
-            : {};
-        const configured = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
-            ? DataManager.normalizeEmail(settings?.managerNotificationEmail || '')
-            : String(settings?.managerNotificationEmail || '').trim().toLowerCase();
-        return this.isValidEmail(configured) ? configured : '';
-    },
-
-    normalizeOperationalEmail(email) {
-        if (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function') {
-            return DataManager.normalizeEmail(email || '');
-        }
-        return String(email || '').trim().toLowerCase();
-    },
-
-    getActiveUsersByRoles(roles = []) {
-        const roleSet = new Set((Array.isArray(roles) ? roles : [roles])
-            .map((role) => String(role || '').trim().toLowerCase())
-            .filter(Boolean));
-
-        if (roleSet.size === 0 || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
-            return [];
-        }
-
-        return DataManager.getUsers().filter((user) => {
-            if (!user || user.disabled === true) {
-                return false;
-            }
-            return roleSet.has(String(user.role || '').trim().toLowerCase());
-        });
-    },
-
-    getUserEmail(user) {
-        const email = this.normalizeOperationalEmail(user?.email || '');
-        return this.isValidEmail(email) ? email : '';
-    },
-
-    getTechnicianById(technicianId) {
-        if (!technicianId || typeof DataManager === 'undefined') {
-            return null;
-        }
-
-        if (typeof DataManager.getTechnicianById === 'function') {
-            return DataManager.getTechnicianById(technicianId) || null;
-        }
-
-        if (typeof DataManager.getTechnicians === 'function') {
-            return DataManager.getTechnicians().find((item) => item && item.id === technicianId) || null;
-        }
-
-        return null;
-    },
-
-    findUserById(userId) {
-        if (!userId || typeof DataManager === 'undefined' || typeof DataManager.getUserById !== 'function') {
-            return null;
-        }
-        return DataManager.getUserById(userId) || null;
-    },
-
-    findPreferredUserByUsername(username, roles = []) {
-        if (!username || typeof DataManager === 'undefined' || typeof DataManager.getUsersByUsername !== 'function') {
-            return null;
-        }
-
-        const candidates = DataManager.getUsersByUsername(username)
-            .filter((user) => user && user.disabled !== true);
-
-        if (!candidates.length) {
-            return null;
-        }
-
-        const roleSet = new Set((Array.isArray(roles) ? roles : [roles])
-            .map((role) => String(role || '').trim().toLowerCase())
-            .filter(Boolean));
-
-        const filtered = roleSet.size > 0
-            ? candidates.filter((user) => roleSet.has(String(user.role || '').trim().toLowerCase()))
-            : candidates;
-
-        const preferred = typeof DataManager.selectPreferredUserRecord === 'function'
-            ? DataManager.selectPreferredUserRecord(filtered.length > 0 ? filtered : candidates, username)
-            : ((filtered.length > 0 ? filtered : candidates)[0] || null);
-
-        return preferred || null;
-    },
-
-    getLinkedTechnicianUsers(technicianId) {
-        if (!technicianId || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
-            return [];
-        }
-
-        return DataManager.getUsers().filter((user) => user
-            && user.disabled !== true
-            && String(user.role || '').trim().toLowerCase() === 'tecnico'
-            && String(user.tecnicoId || '').trim() === String(technicianId || '').trim());
-    },
-
-    getLinkedSupplierUsers(supplierId) {
-        if (!supplierId || typeof DataManager === 'undefined' || typeof DataManager.getUsers !== 'function') {
-            return [];
-        }
-
-        return DataManager.getUsers().filter((user) => user
-            && user.disabled !== true
-            && String(user.role || '').trim().toLowerCase() === 'fornecedor'
-            && String(user.fornecedorId || '').trim() === String(supplierId || '').trim());
-    },
-
-    resolveApprovalManagerTarget(solicitation) {
-        if (!solicitation) {
-            return null;
-        }
-
-        const directCandidates = [
-            solicitation.approvalManagerEmail,
-            solicitation.approvedByEmail,
-            solicitation?.aprovacao?.email
-        ]
-            .map((value) => this.normalizeOperationalEmail(value || ''))
-            .filter((value) => this.isValidEmail(value));
-
-        if (directCandidates.length > 0) {
-            return directCandidates[0];
-        }
-
-        const managerById = this.findUserById(solicitation.approvalManagerUserId || solicitation?.aprovacao?.userId || null);
-        const managerByIdEmail = this.getUserEmail(managerById);
-        if (managerByIdEmail && ['gestor', 'admin', 'administrador'].includes(String(managerById?.role || '').trim().toLowerCase())) {
-            return managerByIdEmail;
-        }
-
-        const managerByUsername = this.findPreferredUserByUsername(
-            solicitation.approvalManagerUsername || solicitation.approvedByUsername || solicitation?.aprovacao?.username || solicitation.approvedBy || '',
-            ['gestor', 'admin', 'administrador']
-        );
-        const managerByUsernameEmail = this.getUserEmail(managerByUsername);
-        if (managerByUsernameEmail) {
-            return managerByUsernameEmail;
-        }
-
-        return null;
+        return 'wbastostavares@solenis.com';
     },
 
     /**
      * Resolve active manager recipients dynamically with safe fallback.
      */
-    getManagerNotificationRecipients(solicitation = null, options = {}) {
+    getManagerNotificationRecipients() {
+        const fallback = String(this.getManagerNotificationEmail() || '').trim().toLowerCase();
+        /*
+         * Regra explícita do fluxo: o gestor wbastostavares@solenis.com deve receber a notificação.
+         * Portanto, usamos sempre esse e-mail como destinatário canônico. Só recorremos à base de
+         * usuários se o endereço fixo estiver ausente/inválido, evitando que outros gestores recebam
+         * alertas fora da regra definida.
+         */
+        if (this.isValidEmail(fallback)) {
+            return [fallback];
+        }
+
         const recipients = [];
-        const preferAssigned = options?.preferAssigned === true;
-        const preferConfigured = options?.preferConfigured !== false;
-
-        const addRecipient = (email) => {
-            const normalized = this.normalizeOperationalEmail(email || '');
-            if (this.isValidEmail(normalized) && !recipients.includes(normalized)) {
-                recipients.push(normalized);
-            }
-        };
-
-        const assignedManagerEmail = this.resolveApprovalManagerTarget(solicitation);
-        if (assignedManagerEmail) {
-            addRecipient(assignedManagerEmail);
-            if (preferAssigned) {
-                return recipients;
-            }
+        if (typeof DataManager !== 'undefined' && typeof DataManager.getGestorUsers === 'function') {
+            DataManager.getGestorUsers()
+                .filter((user) => user && user.disabled !== true)
+                .forEach((user) => {
+                    const email = String(user.email || '').trim().toLowerCase();
+                    if (this.isValidEmail(email)) {
+                        recipients.push(email);
+                    }
+                });
         }
 
-        const configuredManagerEmail = this.getManagerNotificationEmail();
-        if (configuredManagerEmail) {
-            addRecipient(configuredManagerEmail);
-            if (preferConfigured) {
-                return recipients;
-            }
-        }
-
-        this.getActiveUsersByRoles(['gestor']).forEach((user) => addRecipient(this.getUserEmail(user)));
-
-        if (recipients.length === 0) {
-            this.getActiveUsersByRoles(['admin', 'administrador']).forEach((user) => addRecipient(this.getUserEmail(user)));
-        }
-
-        return recipients;
+        return Array.from(new Set(recipients));
     },
 
-    getTrackingManagerCopyRecipients(solicitation = null) {
-        return this.getManagerNotificationRecipients(solicitation, { preferAssigned: true });
+    getTrackingManagerCopyRecipients() {
+        return this.getManagerNotificationRecipients();
     },
 
     getOperationalEmailGatewayRecipient() {
-        const settings = (typeof DataManager !== 'undefined' && typeof DataManager.getSettings === 'function')
-            ? DataManager.getSettings()
-            : {};
-        const configured = this.normalizeOperationalEmail(
-            settings?.operationalEmailGatewayRecipient || this.OP_EMAIL_GATEWAY_RECIPIENT || ''
-        );
+        const configured = String(this.OP_EMAIL_GATEWAY_RECIPIENT || '').trim().toLowerCase();
         return this.isValidEmail(configured) ? configured : null;
     },
 
@@ -720,23 +561,28 @@ const Utils = {
         }
 
         const recipients = [];
-        const addRecipient = (email) => {
-            const normalized = this.normalizeOperationalEmail(email || '');
-            if (this.isValidEmail(normalized) && !recipients.includes(normalized)) {
-                recipients.push(normalized);
-            }
-        };
-
-        this.getLinkedSupplierUsers(solicitation.fornecedorId).forEach((user) => addRecipient(this.getUserEmail(user)));
-
         const supplier = typeof DataManager.getSupplierById === 'function'
             ? DataManager.getSupplierById(solicitation.fornecedorId)
             : null;
 
-        addRecipient(solicitation.fornecedorEmail || '');
-        addRecipient(supplier?.email || '');
+        const supplierEmail = String(supplier?.email || '').trim().toLowerCase();
+        if (this.isValidEmail(supplierEmail)) {
+            recipients.push(supplierEmail);
+        }
 
-        return recipients;
+        if (typeof DataManager.getUsers === 'function') {
+            DataManager.getUsers()
+                .filter((user) => user && user.role === 'fornecedor' && user.disabled !== true)
+                .forEach((user) => {
+                    const isLinked = user.fornecedorId === solicitation.fornecedorId;
+                    const linkedEmail = String(user.email || '').trim().toLowerCase();
+                    if (isLinked && this.isValidEmail(linkedEmail)) {
+                        recipients.push(linkedEmail);
+                    }
+                });
+        }
+
+        return Array.from(new Set(recipients));
     },
 
     /**
@@ -847,92 +693,6 @@ const Utils = {
                 ? DataManager.getTechnicianById(technicianId)
                 : null);
 
-        const catalogEmail = this.normalizeOperationalEmail(technician?.email || '');
-        if (catalogEmail && this.isValidEmail(catalogEmail)) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: catalogEmail,
-                source: 'tecnico_catalog'
-            };
-        }
-
-        const linkedTechnicianUsers = this.getLinkedTechnicianUsers(technicianId);
-        const linkedTechnicianUser = linkedTechnicianUsers.find((user) => this.getUserEmail(user)) || null;
-        const linkedTechnicianEmail = this.getUserEmail(linkedTechnicianUser);
-        if (linkedTechnicianEmail) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: linkedTechnicianEmail,
-                source: 'tecnico_user_link'
-            };
-        }
-
-        const tecnicoSnapshotEmail = this.normalizeOperationalEmail(solicitation.tecnicoEmail || '');
-        if (tecnicoSnapshotEmail && this.isValidEmail(tecnicoSnapshotEmail)) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: tecnicoSnapshotEmail,
-                source: 'tecnico_snapshot'
-            };
-        }
-
-        const requesterMatchesTechnician = String(solicitation.requesterTecnicoId || '').trim() === String(technicianId || '').trim();
-        const requesterRole = String(solicitation.requesterRole || '').trim().toLowerCase();
-
-        const requesterEmail = this.normalizeOperationalEmail(solicitation.requesterEmail || '');
-        if (requesterEmail && this.isValidEmail(requesterEmail) && (requesterRole === 'tecnico' || requesterMatchesTechnician)) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: requesterEmail,
-                source: 'requester_snapshot'
-            };
-        }
-
-        const requesterUser = this.findUserById(solicitation.requesterUserId || null);
-        const requesterUserEmail = this.getUserEmail(requesterUser);
-        if (
-            requesterUserEmail
-            && String(requesterUser?.role || '').trim().toLowerCase() === 'tecnico'
-            && (!requesterUser?.tecnicoId || String(requesterUser.tecnicoId || '').trim() === String(technicianId || '').trim())
-        ) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: requesterUserEmail,
-                source: 'requester_user_id'
-            };
-        }
-
-        const requesterUserByUsername = this.findPreferredUserByUsername(solicitation.requesterUsername || '', ['tecnico']);
-        const requesterUserByUsernameEmail = this.getUserEmail(requesterUserByUsername);
-        if (
-            requesterUserByUsernameEmail
-            && (!requesterUserByUsername?.tecnicoId || String(requesterUserByUsername.tecnicoId || '').trim() === String(technicianId || '').trim())
-        ) {
-            return {
-                success: true,
-                solicitationNumber,
-                technicianId,
-                technician,
-                recipientEmail: requesterUserByUsernameEmail,
-                source: 'requester_username'
-            };
-        }
-
         if (!technician) {
             return {
                 success: false,
@@ -942,7 +702,9 @@ const Utils = {
             };
         }
 
-        const recipientEmail = this.normalizeOperationalEmail(technician.email || solicitation.tecnicoEmail || '');
+        const recipientEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(technician.email || '')
+            : String(technician.email || '').trim().toLowerCase();
 
         if (!recipientEmail) {
             return {
@@ -970,8 +732,7 @@ const Utils = {
             solicitationNumber,
             technicianId,
             technician,
-            recipientEmail,
-            source: 'tecnico_catalog'
+            recipientEmail
         };
     },
     /**
@@ -1058,7 +819,7 @@ const Utils = {
             .map((email) => String(email || '').trim().toLowerCase())));
         const resolvedRecipients = recipients.length > 0
             ? recipients.filter((email) => this.isValidEmail(email))
-            : this.getManagerNotificationRecipients(solicitation);
+            : this.getManagerNotificationRecipients();
 
         if (resolvedRecipients.length === 0) {
             return {
@@ -1715,7 +1476,7 @@ const Utils = {
             trackingCode
         });
         const sender = updatedBy || 'Fornecedor';
-        const managerCopyRecipients = this.getTrackingManagerCopyRecipients(solicitation);
+        const managerCopyRecipients = this.getTrackingManagerCopyRecipients();
 
         if (!details.trackingCode) {
             const log = this.logEmailNotification({

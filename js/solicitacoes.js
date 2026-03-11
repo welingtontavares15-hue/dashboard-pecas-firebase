@@ -1308,13 +1308,8 @@ const Solicitacoes = {
                 trackingCode,
                 trackingUpdatedAt: Date.now(),
                 trackingBy: userName,
-                trackingByEmail: currentUser?.email || null,
                 supplierResponseAt: Date.now(),
-                by: userName,
-                byUserId: currentUser?.id || null,
-                byUsername: currentUser?.username || null,
-                byEmail: currentUser?.email || null,
-                byRole: currentUser?.role || null
+                by: userName
             });
             const success = result === true || (result && result.success !== false && !result.error);
 
@@ -1804,16 +1799,6 @@ const Solicitacoes = {
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
         const isNewSolicitation = !this.currentSolicitation?.id;
-        const resolvedTechnicianTarget = typeof Utils.resolveTechnicianNotificationTarget === 'function'
-            ? Utils.resolveTechnicianNotificationTarget({
-                tecnicoId,
-                tecnicoEmail: tech?.email || this.currentSolicitation?.tecnicoEmail || '',
-                requesterTecnicoId: tecnicoId
-            })
-            : null;
-        const technicianRecipientEmail = resolvedTechnicianTarget?.success
-            ? resolvedTechnicianTarget.recipientEmail
-            : (tech?.email || this.currentSolicitation?.tecnicoEmail || currentUser?.email || '');
         const shouldSendManagerEmail = (
             status === 'pendente' &&
             Auth.getRole() === 'tecnico' &&
@@ -1824,7 +1809,6 @@ const Solicitacoes = {
             ...this.currentSolicitation,
             tecnicoId,
             tecnicoNome: tech?.nome || this.currentSolicitation.tecnicoNome,
-            tecnicoEmail: technicianRecipientEmail,
             data: normalizedDate,
             cliente,
             observacoes,
@@ -1832,15 +1816,6 @@ const Solicitacoes = {
             createdBy: this.currentSolicitation?.createdBy || userName,
             updatedBy: userName
         };
-
-        if (Auth.getRole() === 'tecnico') {
-            solicitation.requesterUserId = currentUser?.id || this.currentSolicitation?.requesterUserId || null;
-            solicitation.requesterUsername = currentUser?.username || this.currentSolicitation?.requesterUsername || null;
-            solicitation.requesterName = currentUser?.name || tech?.nome || this.currentSolicitation?.requesterName || null;
-            solicitation.requesterEmail = technicianRecipientEmail || this.currentSolicitation?.requesterEmail || '';
-            solicitation.requesterRole = currentUser?.role || 'tecnico';
-            solicitation.requesterTecnicoId = tecnicoId;
-        }
 
         if (!solicitation.statusHistory) {
             solicitation.statusHistory = [];

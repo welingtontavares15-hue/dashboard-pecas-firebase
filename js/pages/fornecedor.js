@@ -7,7 +7,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../fornecedor.js?v=20260311d', import.meta.url).href, 'FornecedorPortal');
+    await ensureClassicScript(new URL('../fornecedor.js?v=20260311b', import.meta.url).href, 'FornecedorPortal');
     ready = true;
 }
 
