@@ -11,6 +11,7 @@ const CloudStorage = {
     cloudReady: false,
     database: null,
     accessSession: null,
+    lastOperationError: null,
 
     // Listeners for real-time updates
     listeners: {},
@@ -28,6 +29,38 @@ const CloudStorage = {
         }
 
         Logger[level](Logger.CATEGORY.SYNC, message, data);
+    },
+
+    clearLastOperationError() {
+        this.lastOperationError = null;
+    },
+
+    rememberOperationError(error, context = {}) {
+        this.lastOperationError = {
+            code: String(error?.code || '').toLowerCase(),
+            message: String(error?.message || error || 'unknown_error'),
+            permissionDenied: this.isPermissionDeniedError(error),
+            retryable: this.isRetryableSaveError(error),
+            at: Date.now(),
+            ...context
+        };
+        return this.lastOperationError;
+    },
+
+    rememberSyntheticOperationError(reason, context = {}) {
+        this.lastOperationError = {
+            code: String(reason || 'operation_failed').toLowerCase(),
+            message: String(reason || 'operation_failed'),
+            permissionDenied: false,
+            retryable: false,
+            at: Date.now(),
+            ...context
+        };
+        return this.lastOperationError;
+    },
+
+    getLastOperationError() {
+        return this.lastOperationError ? { ...this.lastOperationError } : null;
     },
 
     async waitForFirebaseBootstrap(timeoutMs = 15000) {
@@ -597,9 +630,15 @@ const CloudStorage = {
             return false;
         }
 
+        this.clearLastOperationError();
+
         const opId = options.opId || this.generateOpId(`recent_parts:${normalizedTecnicoId}`);
         const ready = await this.ensureWriteReady('diversey_recent_parts', opId, options);
         if (!ready) {
+            this.rememberSyntheticOperationError('cloud_not_ready', {
+                key: 'diversey_recent_parts',
+                opId
+            });
             return false;
         }
 
@@ -646,6 +685,10 @@ const CloudStorage = {
             opId,
             error: lastError?.message || 'recent_parts_save_failed'
         });
+        this.rememberOperationError(lastError || 'recent_parts_save_failed', {
+            key: 'diversey_recent_parts',
+            opId
+        });
         return false;
     },
 
@@ -658,10 +701,12 @@ const CloudStorage = {
      */
     async saveData(key, data, options = {}) {
         const opId = (data && data.opId) || this.generateOpId(key);
+        this.clearLastOperationError();
 
         const ready = await this.ensureWriteReady(key, opId, options);
         if (!ready) {
             console.warn('[ONLINE-ONLY] Cannot save - cloud not connected');
+            this.rememberSyntheticOperationError('cloud_not_ready', { key, opId });
             return false;
         }
 
@@ -671,6 +716,7 @@ const CloudStorage = {
             for (let attempt = 1; attempt <= Math.max(1, this.maxRetries); attempt++) {
                 try {
                     await this.saveRecordCollection(key, data, options, opId);
+                    this.clearLastOperationError();
                     return true;
                 } catch (error) {
                     recordSaveError = error;
@@ -688,6 +734,11 @@ const CloudStorage = {
             }
 
             console.error('Error saving record collection to cloud:', recordSaveError);
+            this.rememberOperationError(recordSaveError || 'record_collection_save_failed', {
+                key,
+                opId,
+                scope: 'record_collection'
+            });
             return false;
         }
 
@@ -705,6 +756,7 @@ const CloudStorage = {
                     opId
                 });
                 this.logSyncEvent('debug', 'cloud_data_saved', { key, opId });
+                this.clearLastOperationError();
                 return true;
             } catch (error) {
                 lastError = error;
@@ -722,6 +774,11 @@ const CloudStorage = {
         }
 
         console.error('Error saving to cloud:', lastError);
+        this.rememberOperationError(lastError || 'collection_save_failed', {
+            key,
+            opId,
+            scope: 'collection'
+        });
         return false;
     },
 

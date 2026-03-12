@@ -1173,10 +1173,20 @@ const App = {
         }
 
         let resetEmailSent = false;
+        let resetEmailResult = null;
 
         if (targetEmail) {
             try {
-                if (typeof Utils.sendPasswordResetEmail === 'function') {
+                if (typeof Utils.sendPasswordResetEmailDetailed === 'function') {
+                    resetEmailResult = await Utils.sendPasswordResetEmailDetailed({
+                        to: targetEmail,
+                        username: loginUsername,
+                        password: sanitizedPassword,
+                        name: displayName,
+                        roleLabel: 'gestor'
+                    });
+                    resetEmailSent = resetEmailResult?.success === true;
+                } else if (typeof Utils.sendPasswordResetEmail === 'function') {
                     resetEmailSent = await Utils.sendPasswordResetEmail({
                         to: targetEmail,
                         username: loginUsername,
@@ -1184,29 +1194,50 @@ const App = {
                         name: displayName,
                         roleLabel: 'gestor'
                     });
+                    resetEmailResult = {
+                        success: resetEmailSent,
+                        reason: resetEmailSent ? null : 'send_failed'
+                    };
                 }
-            } catch (_emailError) {
+            } catch (emailError) {
                 resetEmailSent = false;
+                resetEmailResult = {
+                    success: false,
+                    reason: 'request_exception',
+                    error: emailError?.message || 'send_failed'
+                };
             }
 
         }
 
-        if (typeof Logger !== 'undefined' && typeof Logger.info === 'function') {
-            Logger.info(Logger.CATEGORY.AUTH, 'password_reset_email_status', {
+        if (typeof Logger !== 'undefined') {
+            const loggerFn = resetEmailSent
+                ? Logger.info?.bind(Logger)
+                : Logger.warn?.bind(Logger);
+            loggerFn?.(Logger.CATEGORY.AUTH, 'password_reset_email_status', {
                 profile: 'gestor',
                 gestorId: gestor.id,
                 username: loginUsername,
                 recipient: targetEmail || null,
                 emailSent: resetEmailSent,
                 fallbackPrepared: false,
-                hasRecipient: !!targetEmail
+                hasRecipient: !!targetEmail,
+                deliveryMode: resetEmailResult?.deliveryMode || null,
+                deliveryReason: resetEmailResult?.reason || null,
+                provider: resetEmailResult?.provider || null,
+                statusCode: resetEmailResult?.statusCode || null,
+                providerMessage: resetEmailResult?.providerMessage || null,
+                error: resetEmailResult?.error || null
             });
         }
 
         if (resetEmailSent) {
             Utils.showToast(`E-mail de orientação enviado para ${targetEmail}`, 'info');
         } else if (targetEmail) {
-            Utils.showToast('Senha redefinida, mas o provedor não confirmou o envio automático. Confira os dados exibidos.', 'warning');
+            const reasonMessage = (typeof Utils.getOperationalEmailFailureMessage === 'function')
+                ? Utils.getOperationalEmailFailureMessage(resetEmailResult)
+                : 'o provedor não confirmou o envio automático.';
+            Utils.showToast(`Senha redefinida, mas ${reasonMessage} Confira os dados exibidos.`, 'warning');
         }
 
         Utils.showToast('Senha do gestor redefinida com sucesso', 'success');

@@ -685,6 +685,42 @@ const DataManager = {
         return false;
     },
 
+    getLastCloudOperationError() {
+        if (typeof CloudStorage !== 'undefined' && typeof CloudStorage.getLastOperationError === 'function') {
+            return CloudStorage.getLastOperationError();
+        }
+        return null;
+    },
+
+    buildCloudPersistenceFailure(defaultMessage, options = {}) {
+        const cloudError = this.getLastCloudOperationError();
+        const permissionDeniedMessage = options.permissionDeniedMessage
+            || 'A operação foi bloqueada pelas regras de segurança da nuvem. Publique as regras atualizadas do Firebase e tente novamente.';
+        const unavailableMessage = options.unavailableMessage || defaultMessage;
+
+        if (cloudError?.permissionDenied) {
+            return {
+                code: 'permission_denied',
+                message: permissionDeniedMessage,
+                details: cloudError
+            };
+        }
+
+        if (cloudError?.code === 'cloud_not_ready' || cloudError?.retryable) {
+            return {
+                code: 'cloud_unavailable',
+                message: unavailableMessage,
+                details: cloudError
+            };
+        }
+
+        return {
+            code: 'cloud_save_failed',
+            message: defaultMessage,
+            details: cloudError
+        };
+    },
+
     async clearCloudAccessSession() {
         if (typeof CloudStorage === 'undefined' || typeof CloudStorage.clearAccessSession !== 'function') {
             return false;
@@ -1652,14 +1688,21 @@ const DataManager = {
 
         const saved = await this._persistUsersToCloud(users);
         if (!saved) {
+            const failure = this.buildCloudPersistenceFailure(
+                'Não foi possível salvar a nova senha na nuvem. Tente novamente.',
+                {
+                    permissionDeniedMessage: 'A redefinição de senha foi bloqueada pelas regras de segurança do Firebase para usuários. Publique as regras atualizadas e tente novamente.'
+                }
+            );
             if (typeof Logger !== 'undefined' && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.AUTH, 'password_reset_cloud_save_failed', {
                     userId,
                     normalizedUsername,
-                    affectedUserIds: uniqueAffectedUserIds
+                    affectedUserIds: uniqueAffectedUserIds,
+                    cloudError: failure.details || null
                 });
             }
-            return { success: false, error: 'Não foi possível salvar a nova senha na nuvem. Tente novamente.' };
+            return { success: false, error: failure.message, code: failure.code };
         }
 
         this._sessionCache[this.KEYS.USERS] = users;
@@ -2951,6 +2994,21 @@ const DataManager = {
             payload.finalizedAt = payload.finalizedAt || now;
         }
 
+        if (nextStatus === this.STATUS.APROVADA) {
+            payload.approvedAt = Number(payload.approvedAt) || now;
+            payload.approvedBy = payload.approvedBy || payload.by || 'Sistema';
+            payload.rejectedAt = null;
+            payload.rejectedBy = null;
+            payload.rejectionReason = null;
+        }
+
+        if (nextStatus === this.STATUS.REJEITADA) {
+            payload.rejectedAt = Number(payload.rejectedAt) || now;
+            payload.rejectedBy = payload.rejectedBy || payload.by || 'Sistema';
+            payload.approvedAt = null;
+            payload.approvedBy = null;
+        }
+
         solicitation.status = nextStatus;
         solicitation.updatedAt = now;
 
@@ -2987,22 +3045,34 @@ const DataManager = {
             if (!Array.isArray(solicitation.approvals)) {
                 solicitation.approvals = [];
             }
+            const decisionComment = payload.approvalComment || payload.rejectionReason || null;
+            const decisionBy = payload.by || 'Sistema';
+            const decisionAt = nextStatus === this.STATUS.APROVADA
+                ? (Number(payload.approvedAt) || now)
+                : (Number(payload.rejectedAt) || now);
             solicitation.approvals.push({
                 decision: nextStatus === this.STATUS.APROVADA ? 'approved' : 'rejected',
-                at: now,
-                by: payload.by || 'Sistema',
-                comment: payload.approvalComment || payload.rejectionReason || null
+                at: decisionAt,
+                by: decisionBy,
+                comment: decisionComment
             });
 
             solicitation.aprovacao = {
+                ...(solicitation.aprovacao || {}),
                 status: nextStatus,
-                at: now,
-                by: actorSnapshot.name,
+                at: decisionAt,
+                by: decisionBy,
+                updatedAt: now,
                 userId: actorSnapshot.id,
                 username: actorSnapshot.username,
                 email: actorSnapshot.email || null,
                 role: actorSnapshot.role,
-                comment: payload.approvalComment || payload.rejectionReason || null
+                comment: decisionComment,
+                approvedAt: nextStatus === this.STATUS.APROVADA ? decisionAt : null,
+                approvedBy: nextStatus === this.STATUS.APROVADA ? (payload.approvedBy || decisionBy) : null,
+                rejectedAt: nextStatus === this.STATUS.REJEITADA ? decisionAt : null,
+                rejectedBy: nextStatus === this.STATUS.REJEITADA ? (payload.rejectedBy || decisionBy) : null,
+                rejectionReason: nextStatus === this.STATUS.REJEITADA ? (payload.rejectionReason || null) : null
             };
 
             solicitation.approvalManagerUserId = actorSnapshot.id;
@@ -3032,7 +3102,13 @@ const DataManager = {
             changedIds: solicitation?.id ? [solicitation.id] : []
         });
         if (!saved) {
-            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a mudança de status na nuvem.' };
+            const failure = this.buildCloudPersistenceFailure(
+                'Não foi possível persistir a mudança de status na nuvem.',
+                {
+                    permissionDeniedMessage: 'A operação foi bloqueada pelas regras de aprovação do Firebase. Publique as regras atualizadas antes de tentar aprovar ou rejeitar novamente.'
+                }
+            );
+            return { success: false, error: failure.code, message: failure.message };
         }
 
         this.queueOneDriveBackup(solicitation);
@@ -3618,7 +3694,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 

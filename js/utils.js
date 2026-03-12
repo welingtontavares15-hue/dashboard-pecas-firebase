@@ -353,9 +353,12 @@ const Utils = {
     /**
      * Send password reset notification e-mail (automatic).
      */
-    async sendPasswordResetEmail({ to, username, password, name, roleLabel = 'usuário' } = {}) {
+    async sendPasswordResetEmailDetailed({ to, username, password, name, roleLabel = 'usuário' } = {}) {
         if (!to || !this.isValidEmail(to) || !username) {
-            return false;
+            return this.createOperationalEmailResult(false, {
+                recipient: to || null,
+                reason: 'invalid_payload'
+            });
         }
 
         const safeRole = String(roleLabel || 'usuário').trim().toLowerCase();
@@ -376,7 +379,7 @@ const Utils = {
             'Acesse o sistema e altere sua senha após o primeiro login.'
         ].filter(Boolean).join('\n');
 
-        return this.sendOperationalEmail({
+        return this.sendOperationalEmailDetailed({
             recipient: to,
             subject,
             message,
@@ -392,6 +395,11 @@ const Utils = {
             },
             eventLabel: 'password_reset_email'
         });
+    },
+
+    async sendPasswordResetEmail(payload = {}) {
+        const result = await this.sendPasswordResetEmailDetailed(payload);
+        return result.success === true;
     },
 
     async copyText(text = '') {
@@ -686,6 +694,63 @@ const Utils = {
     getOperationalEmailGatewayRecipient() {
         const configured = String(this.OP_EMAIL_GATEWAY_RECIPIENT || '').trim().toLowerCase();
         return this.isValidEmail(configured) ? configured : null;
+    },
+
+    createOperationalEmailResult(success, data = {}) {
+        return {
+            success: success === true,
+            provider: 'formsubmit',
+            recipient: data.recipient || null,
+            gatewayRecipient: data.gatewayRecipient || null,
+            deliveryMode: data.deliveryMode || null,
+            reason: data.reason || (success === true ? null : 'send_failed'),
+            statusCode: Number.isFinite(data.statusCode) ? data.statusCode : null,
+            attempt: Number.isFinite(data.attempt) ? data.attempt : null,
+            endpoint: data.endpoint || null,
+            error: data.error || null,
+            providerMessage: data.providerMessage || null
+        };
+    },
+
+    getOperationalEmailFailureMessage(result = {}) {
+        const reason = String(result?.reason || '').toLowerCase();
+        const providerMessage = String(result?.providerMessage || '').trim();
+
+        if (reason === 'invalid_payload') {
+            return 'o destinatário ou o conteúdo do e-mail está inválido.';
+        }
+        if (reason === 'offline') {
+            return 'o dispositivo está sem conexão com a internet.';
+        }
+        if (reason === 'fetch_unavailable') {
+            return 'o navegador atual não permite o envio HTTP para o provedor.';
+        }
+        if (reason === 'timeout') {
+            return 'o provedor de e-mail excedeu o tempo limite de resposta.';
+        }
+        if (reason === 'connection_error') {
+            return 'houve falha de conexão com o provedor de e-mail.';
+        }
+        if (reason === 'provider_negative_ack') {
+            return providerMessage
+                ? `o provedor rejeitou o envio: ${providerMessage}.`
+                : 'o provedor rejeitou o envio automaticamente.';
+        }
+        if (reason === 'http_422') {
+            return providerMessage
+                ? `o provedor recusou a requisição: ${providerMessage}.`
+                : 'o provedor recusou a requisição. Verifique o destinatário e a ativação do formulário.';
+        }
+        if (reason === 'http_429') {
+            return 'o provedor limitou temporariamente os envios.';
+        }
+        if (reason.startsWith('http_')) {
+            return `o provedor retornou erro ${reason.replace('http_', '')}.`;
+        }
+
+        return providerMessage
+            ? `o envio automático falhou: ${providerMessage}.`
+            : 'o envio automático falhou. Verifique o log técnico.';
     },
 
     getSupplierApprovalRecipients(solicitation) {
@@ -1166,20 +1231,29 @@ const Utils = {
         return scheduled;
     },
 
-    async sendOperationalEmail({ recipient, subject, message, fields = {}, eventLabel = 'email_notification', directFirst = false } = {}) {
+    async sendOperationalEmailDetailed({ recipient, subject, message, fields = {}, eventLabel = 'email_notification', directFirst = false } = {}) {
         const to = String(recipient || '').trim().toLowerCase();
         const maskedRecipient = this.maskEmailForLog(to);
 
         if (!to || !this.isValidEmail(to) || !subject || !message) {
-            return false;
+            return this.createOperationalEmailResult(false, {
+                recipient: to || null,
+                reason: 'invalid_payload'
+            });
         }
 
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            return false;
+            return this.createOperationalEmailResult(false, {
+                recipient: to,
+                reason: 'offline'
+            });
         }
 
         if (typeof fetch !== 'function') {
-            return false;
+            return this.createOperationalEmailResult(false, {
+                recipient: to,
+                reason: 'fetch_unavailable'
+            });
         }
 
         const gatewayRecipient = this.getOperationalEmailGatewayRecipient();
@@ -1219,7 +1293,11 @@ const Utils = {
         }
 
         return this.enqueueOperationalEmail(async () => {
-            let lastError = null;
+            let lastFailure = this.createOperationalEmailResult(false, {
+                recipient: to,
+                gatewayRecipient: gatewayRecipient && gatewayRecipient !== to ? gatewayRecipient : null,
+                reason: 'send_failed'
+            });
 
             for (const deliveryTarget of deliveryTargets) {
                 const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(deliveryTarget.endpointRecipient)}`;
@@ -1246,6 +1324,7 @@ const Utils = {
                         const result = await this.executeOperationalEmailRequest(endpoint, payload, timeoutMs);
                         response = result?.response || null;
                         const parsedPayload = result?.payload || null;
+                        const providerMessage = String(parsedPayload?.message || parsedPayload?.error || '').trim() || null;
 
                         if (response && response.ok) {
                             const success = !parsedPayload || typeof parsedPayload.success === 'undefined'
@@ -1266,20 +1345,56 @@ const Utils = {
                             }
 
                             if (success) {
-                                return true;
+                                return this.createOperationalEmailResult(true, {
+                                    recipient: to,
+                                    gatewayRecipient: deliveryTarget.mode === 'gateway' ? deliveryTarget.endpointRecipient : null,
+                                    deliveryMode: deliveryTarget.mode,
+                                    statusCode: response.status,
+                                    attempt: attempt + 1,
+                                    endpoint
+                                });
                             }
 
-                            lastError = new Error('provider_negative_ack');
+                            lastFailure = this.createOperationalEmailResult(false, {
+                                recipient: to,
+                                gatewayRecipient: deliveryTarget.mode === 'gateway' ? deliveryTarget.endpointRecipient : null,
+                                deliveryMode: deliveryTarget.mode,
+                                reason: 'provider_negative_ack',
+                                statusCode: response.status,
+                                attempt: attempt + 1,
+                                endpoint,
+                                providerMessage
+                            });
                             break;
                         }
 
                         const statusCode = response?.status || 0;
-                        lastError = new Error(`http_${statusCode}`);
+                        lastFailure = this.createOperationalEmailResult(false, {
+                            recipient: to,
+                            gatewayRecipient: deliveryTarget.mode === 'gateway' ? deliveryTarget.endpointRecipient : null,
+                            deliveryMode: deliveryTarget.mode,
+                            reason: `http_${statusCode}`,
+                            statusCode,
+                            attempt: attempt + 1,
+                            endpoint,
+                            providerMessage
+                        });
                         if (statusCode === 429 || (statusCode >= 400 && statusCode < 500)) {
                             break;
                         }
                     } catch (error) {
-                        lastError = error;
+                        const reason = String(error?.name || '').toLowerCase() === 'aborterror'
+                            ? 'timeout'
+                            : (this.isConnectionError(error) ? 'connection_error' : 'request_exception');
+                        lastFailure = this.createOperationalEmailResult(false, {
+                            recipient: to,
+                            gatewayRecipient: deliveryTarget.mode === 'gateway' ? deliveryTarget.endpointRecipient : null,
+                            deliveryMode: deliveryTarget.mode,
+                            reason,
+                            attempt: attempt + 1,
+                            endpoint,
+                            error: error?.message || String(error)
+                        });
                         const transient = this.isConnectionError(error) || String(error?.message || '').includes('abort');
                         if (!transient && attempt >= maxRetries) {
                             break;
@@ -1298,11 +1413,18 @@ const Utils = {
                     gatewayRecipient: gatewayRecipient && gatewayRecipient !== to ? this.maskEmailForLog(gatewayRecipient) : null,
                     deliveryMode: directFirst ? 'direct_then_gateway' : 'gateway_then_direct',
                     success: false,
-                    error: lastError?.message || 'send_failed'
+                    reason: lastFailure.reason || 'send_failed',
+                    statusCode: lastFailure.statusCode || null,
+                    error: lastFailure.error || lastFailure.providerMessage || lastFailure.reason || 'send_failed'
                 });
             }
-            return false;
+            return lastFailure;
         });
+    },
+
+    async sendOperationalEmail(payload = {}) {
+        const result = await this.sendOperationalEmailDetailed(payload);
+        return result.success === true;
     },
 
     async sendSupplierApprovalEmail({ solicitation, approvedBy } = {}) {
@@ -2993,7 +3115,6 @@ const AnalyticsHelper = {
         return this.engine ? this.engine.buildOperationalAnalysis(solicitations, options) : {};
     }
 };
-
 
 
 
