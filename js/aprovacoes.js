@@ -875,6 +875,22 @@ const Aprovacoes = {
         return 'houve falha no envio automático. Verifique o log.';
     },
 
+    showManagerCopyNotificationStatus(result, emptyMessage = 'Não há gestor válido configurado para receber a cópia automática.') {
+        const managerCopySentCount = Number(result?.managerCopySentCount) || 0;
+        const managerCopyFailedCount = Number(result?.managerCopyFailedCount) || 0;
+        const managerCopyTotalRecipients = Number(result?.managerCopyTotalRecipients) || 0;
+
+        if (managerCopySentCount > 0) {
+            Utils.showToast(`${managerCopySentCount} cópia(s) para gestor enviadas por e-mail.`, 'info');
+        } else if (managerCopyTotalRecipients === 0) {
+            Utils.showToast(emptyMessage, 'warning');
+        }
+
+        if (managerCopyFailedCount > 0) {
+            Utils.showToast(`${managerCopyFailedCount} cópia(s) de e-mail para gestor falharam. Verifique o log.`, 'warning');
+        }
+    },
+
     sendTechnicianApprovalNotification(solicitation, approvedBy, options = {}) {
         if (!solicitation || typeof Utils.sendApprovalNotificationToTechnician !== 'function') {
             return Promise.resolve({
@@ -894,16 +910,18 @@ const Aprovacoes = {
             const success = !!result?.success;
             const summary = {
                 success,
-                sentCount: success ? 1 : 0,
-                failedCount: success ? 0 : 1,
-                totalRecipients: 1,
-                results: [result]
+                sentCount: Number(result?.sentCount) || 0,
+                failedCount: Number(result?.failedCount) || 0,
+                totalRecipients: Number(result?.totalRecipients) || 0,
+                results: Array.isArray(result?.results) ? result.results : [result]
             };
 
             if (!silent) {
                 if (success) {
                     Utils.showToast(`Técnico notificado por e-mail (${result.recipient})`, 'info');
+                    this.showManagerCopyNotificationStatus(result);
                 } else {
+                    this.showManagerCopyNotificationStatus(result);
                     const reasonMessage = this.getTechnicianNotificationFailureMessage(result?.reason);
                     Utils.showToast(`Solicitação aprovada, mas ${reasonMessage}`, 'warning');
                 }
@@ -955,16 +973,18 @@ const Aprovacoes = {
             const success = !!result?.success;
             const summary = {
                 success,
-                sentCount: success ? 1 : 0,
-                failedCount: success ? 0 : 1,
-                totalRecipients: 1,
-                results: [result]
+                sentCount: Number(result?.sentCount) || 0,
+                failedCount: Number(result?.failedCount) || 0,
+                totalRecipients: Number(result?.totalRecipients) || 0,
+                results: Array.isArray(result?.results) ? result.results : [result]
             };
 
             if (!silent) {
                 if (success) {
                     Utils.showToast(`Técnico notificado da rejeição por e-mail (${result.recipient})`, 'info');
+                    this.showManagerCopyNotificationStatus(result);
                 } else {
+                    this.showManagerCopyNotificationStatus(result);
                     const reasonMessage = this.getTechnicianNotificationFailureMessage(result?.reason);
                     Utils.showToast(`Solicitação rejeitada, mas ${reasonMessage}`, 'warning');
                 }

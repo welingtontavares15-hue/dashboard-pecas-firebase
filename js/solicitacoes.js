@@ -1874,12 +1874,35 @@ const Solicitacoes = {
                         solicitation: persistedSolicitation,
                         submittedBy: userName
                     });
+                    const managerCopySentCount = Number(notification?.managerCopySentCount) || 0;
+                    const managerCopyFailedCount = Number(notification?.managerCopyFailedCount) || 0;
+                    const managerCopyTotalRecipients = Number(notification?.managerCopyTotalRecipients) || 0;
+                    const showManagerCopyStatus = () => {
+                        if (managerCopySentCount > 0) {
+                            Utils.showToast(`${managerCopySentCount} cópia(s) para gestor enviadas por e-mail.`, 'info');
+                        } else if (managerCopyTotalRecipients === 0) {
+                            Utils.showToast('Solicitação enviada, mas não há gestor válido para receber a cópia automática.', 'warning');
+                        }
 
-                    if ((notification?.sentCount || 0) > 0) {
-                        Utils.showToast(`${notification.sentCount} gestor(es) notificado(s) por e-mail.`, 'info');
-                    } else if (notification?.totalRecipients === 0 || notification?.reason === 'invalid_recipient') {
-                        Utils.showToast('Solicitação enviada, mas não há gestores válidos para notificação automática.', 'warning');
+                        if (managerCopyFailedCount > 0) {
+                            Utils.showToast(`${managerCopyFailedCount} cópia(s) de e-mail para gestor falharam. Verifique o log.`, 'warning');
+                        }
+                    };
+
+                    if (notification?.success) {
+                        Utils.showToast(`Técnico notificado por e-mail (${notification.recipient})`, 'info');
+                        showManagerCopyStatus();
+                    } else if (notification?.reason === 'missing_email') {
+                        showManagerCopyStatus();
+                        Utils.showToast('Solicitação enviada, mas o técnico solicitante está sem e-mail cadastrado na base de Técnicos.', 'warning');
+                    } else if (notification?.reason === 'invalid_email') {
+                        showManagerCopyStatus();
+                        Utils.showToast('Solicitação enviada, mas o e-mail do técnico solicitante é inválido. Atualize o cadastro de Técnicos.', 'warning');
+                    } else if (notification?.reason === 'invalid_technician_link' || notification?.reason === 'technician_not_found') {
+                        showManagerCopyStatus();
+                        Utils.showToast('Solicitação enviada, mas não foi possível validar o vínculo com o técnico solicitante para envio do e-mail.', 'warning');
                     } else {
+                        showManagerCopyStatus();
                         Utils.showToast('Solicitação enviada, mas o e-mail automático não foi disparado.', 'warning');
                     }
                 } catch (_error) {
