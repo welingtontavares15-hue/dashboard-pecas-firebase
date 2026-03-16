@@ -105,6 +105,7 @@ describe('Incident regressions', () => {
     afterEach(() => {
         delete global.fetch;
         delete global.Logger;
+        delete global.DataManager;
     });
 
     describe('approval flow', () => {
@@ -213,6 +214,51 @@ describe('Incident regressions', () => {
             });
             expect(result.message).toContain('regras de aprovação do Firebase');
         });
+
+        it('canonicalizes Hobart approvals to sup-hobart even when production still stores the supplier registry with a legacy ID', async () => {
+            const { DataManager } = loadDataManager();
+
+            DataManager._sessionCache[DataManager.KEYS.SUPPLIERS] = [
+                {
+                    id: 'sup-ebst',
+                    nome: 'EBST',
+                    email: 'pedidos@ebstecnologica.com.br',
+                    ativo: true
+                },
+                {
+                    id: 'mmqo7gg5i4oke5xgel',
+                    nome: 'Hobart',
+                    email: 'tavarespatricia845@gmail.com',
+                    ativo: true
+                }
+            ];
+            DataManager._sessionCache[DataManager.KEYS.SOLICITATIONS] = [
+                {
+                    id: 'sol-hobart',
+                    numero: 'REQ-20260316-0001',
+                    tecnicoId: 'tec-1',
+                    status: 'pendente',
+                    createdAt: 1000,
+                    updatedAt: 1000,
+                    itens: [{ codigo: 'CS001', quantidade: 1, valor: 10 }],
+                    total: 10
+                }
+            ];
+            DataManager.persistCriticalCollection = jest.fn().mockResolvedValue(true);
+
+            const result = await DataManager.updateSolicitationStatus('sol-hobart', 'aprovada', {
+                fornecedorId: 'mmqo7gg5i4oke5xgel',
+                fornecedorNome: 'Hobart',
+                approvedAt: 2000,
+                approvedBy: 'Gestor QA',
+                by: 'Gestor QA'
+            });
+
+            expect(result.success).toBe(true);
+            const persistedSolicitation = DataManager.persistCriticalCollection.mock.calls[0][1][0];
+            expect(persistedSolicitation.fornecedorId).toBe('sup-hobart');
+            expect(persistedSolicitation.fornecedorNome).toBe('Hobart');
+        });
     });
 
     describe('reset flow', () => {
@@ -247,6 +293,68 @@ describe('Incident regressions', () => {
     });
 
     describe('operational e-mail diagnostics', () => {
+        it('routes Hobart approval emails through the legacy production registry record without leaking EBST recipients', async () => {
+            const { DataManager } = loadDataManager();
+            global.DataManager = DataManager;
+            global.Logger = {
+                CATEGORY: {
+                    REQUEST: 'request'
+                },
+                info: jest.fn(),
+                warn: jest.fn()
+            };
+
+            DataManager._sessionCache[DataManager.KEYS.SUPPLIERS] = [
+                {
+                    id: 'sup-ebst',
+                    nome: 'EBST',
+                    email: 'pedidos@ebstecnologica.com.br',
+                    ativo: true
+                },
+                {
+                    id: 'mmqo7gg5i4oke5xgel',
+                    nome: 'Hobart',
+                    email: 'tavarespatricia845@gmail.com',
+                    ativo: true
+                }
+            ];
+
+            const Utils = loadUtils();
+            Utils.sendOperationalEmailDetailed = jest.fn(async ({ recipient }) => Utils.createOperationalEmailResult(true, {
+                recipient
+            }));
+
+            const result = await Utils.sendSupplierApprovalEmail({
+                solicitation: {
+                    id: 'sol-hobart-email',
+                    numero: 'REQ-20260316-0002',
+                    tecnicoId: 'tec-1',
+                    requesterTecnicoId: 'tec-1',
+                    requesterRole: 'tecnico',
+                    requesterEmail: 'joao.tecnico@solenis.com',
+                    requesterName: 'Joao Tecnico',
+                    tecnicoNome: 'Joao Tecnico',
+                    cliente: 'Cliente XPTO',
+                    status: 'aprovada',
+                    fornecedorId: 'sup-hobart',
+                    fornecedorNome: 'Hobart',
+                    itens: [{ quantidade: 1, descricao: 'Painel IHM' }],
+                    total: 3200
+                },
+                approvedBy: 'Gestor QA'
+            });
+
+            expect(result.success).toBe(true);
+            expect(result.recipients).toEqual(['tavarespatricia845@gmail.com']);
+
+            const calledRecipients = Utils.sendOperationalEmailDetailed.mock.calls.map(([payload]) => payload.recipient);
+            expect(calledRecipients).toEqual([
+                'tavarespatricia845@gmail.com',
+                'wbastostavares@solenis.com'
+            ]);
+            expect(calledRecipients).not.toContain('pedidos@ebstecnologica.com.br');
+        });
+
         it('returns detailed FormSubmit diagnostics for 422 provider failures', async () => {
             const Utils = loadUtils();
             global.Logger = {

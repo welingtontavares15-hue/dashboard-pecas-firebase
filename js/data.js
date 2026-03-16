@@ -177,6 +177,7 @@ const DataManager = {
         PARTS: 'diversey_pecas',
         SOLICITATIONS: 'diversey_solicitacoes',
         SETTINGS: 'diversey_settings',
+        NOTIFICATION_LOG: 'diversey_notification_log',
         RECENT_PARTS: 'diversey_recent_parts',
         PARTS_VERSION: 'diversey_parts_version',
         EXPORT_LOG: 'diversey_export_log',
@@ -185,6 +186,7 @@ const DataManager = {
     
     // Export log configuration (cloud-first)
     EXPORT_LOG_LIMIT: 100,
+    NOTIFICATION_LOG_LIMIT: 200,
 
     PARTS_VERSION: PARTS_CATALOG_VERSION,
     SOLICITATIONS_RESET_KEY: 'diversey_solicitations_reset_version',
@@ -517,6 +519,7 @@ const DataManager = {
             subscribeCollection(this.KEYS.SUPPLIERS, 'Suppliers');
             subscribeCollection(this.KEYS.PARTS, 'Parts');
             subscribeCollection(this.KEYS.SETTINGS, 'Settings');
+            subscribeCollection(this.KEYS.NOTIFICATION_LOG, 'Notification log');
             subscribeCollection(this.KEYS.RECENT_PARTS, 'Recent parts');
 
             this.realtimeSubscribed = true;
@@ -1009,6 +1012,8 @@ const DataManager = {
                 itemsPerPage: 10,
                 statsRangeDays: 30,
                 orcamentoMensalPecas: 0,
+                managerNotificationEmail: '',
+                operationalEmailGatewayRecipient: '',
                 sheetIntegration: { provider: 'onedrive', target: '' }
             };
             await CloudStorage.saveData(this.KEYS.SETTINGS, defaultSettings);
@@ -1401,6 +1406,94 @@ const DataManager = {
 
     normalizeEmail(email) {
         return String(email || '').trim().toLowerCase();
+    },
+
+    normalizeSupplierName(name) {
+        return Utils.normalizeText(name || '');
+    },
+
+    getCanonicalSupplierProfiles() {
+        return [
+            {
+                id: 'sup-ebst',
+                tokens: ['sup-ebst', 'ebst', 'ebstecnologica', 'pedidos@ebstecnologica.com.br', '@ebstecnologica.com.br']
+            },
+            {
+                id: 'sup-hobart',
+                tokens: ['sup-hobart', 'hobart', 'pedidos@hobart.com.br', '@hobart.com.br']
+            }
+        ];
+    },
+
+    matchesSupplierProfileToken(candidateValue, token) {
+        const normalizedCandidate = String(candidateValue || '').trim().toLowerCase();
+        const normalizedToken = String(token || '').trim().toLowerCase();
+        if (!normalizedCandidate || !normalizedToken) {
+            return false;
+        }
+
+        const strictToken = normalizedToken.includes('@') || normalizedToken.includes('-') || normalizedToken.includes('.');
+        if (strictToken) {
+            return normalizedCandidate === normalizedToken;
+        }
+
+        return normalizedCandidate === normalizedToken || normalizedCandidate.includes(normalizedToken);
+    },
+
+    getCanonicalSupplierId(value = '', options = {}) {
+        const suppliers = Array.isArray(options.suppliers) ? options.suppliers : this.getSuppliers();
+        const requestedId = String(value || '').trim();
+        const explicitSupplier = options.supplier || (requestedId
+            ? suppliers.find((supplier) => String(supplier?.id || '').trim() === requestedId)
+            : null);
+        const supplierRecipients = (typeof Utils !== 'undefined' && typeof Utils.extractOperationalEmailRecipients === 'function')
+            ? Utils.extractOperationalEmailRecipients(
+                explicitSupplier?.email,
+                explicitSupplier?.emails,
+                explicitSupplier?.notificationEmails
+            )
+            : [this.normalizeEmail(explicitSupplier?.email)];
+        const candidates = [
+            String(value || '').trim().toLowerCase(),
+            this.normalizeSupplierName(options.name || ''),
+            this.normalizeSupplierName(options.username || ''),
+            this.normalizeSupplierName(options.supplierName || ''),
+            this.normalizeEmail(options.email || ''),
+            this.normalizeSupplierName(explicitSupplier?.nome || explicitSupplier?.name || ''),
+            ...supplierRecipients.map((recipient) => this.normalizeEmail(recipient))
+        ].filter(Boolean);
+
+        const matchedProfile = this.getCanonicalSupplierProfiles().find((profile) =>
+            candidates.some((candidate) =>
+                profile.tokens.some((token) => this.matchesSupplierProfileToken(candidate, token))
+            )
+        );
+
+        return matchedProfile?.id || requestedId || null;
+    },
+
+    normalizeSupplierReference(record = {}, options = {}) {
+        const canonicalSupplierId = this.getCanonicalSupplierId(record?.fornecedorId, {
+            name: record?.fornecedorNome || options.name,
+            supplierName: record?.fornecedorNome || options.name,
+            username: options.username,
+            email: record?.fornecedorEmail || options.email
+        });
+        const normalizedSupplierId = canonicalSupplierId || (record?.fornecedorId ? String(record.fornecedorId).trim() : null);
+        const supplier = normalizedSupplierId ? this.getSupplierById(normalizedSupplierId) : null;
+        const normalizedSupplierName = String(
+            record?.fornecedorNome ||
+            supplier?.nome ||
+            supplier?.name ||
+            options.name ||
+            ''
+        ).trim() || null;
+
+        return {
+            fornecedorId: normalizedSupplierId,
+            fornecedorNome: normalizedSupplierName,
+            supplier
+        };
     },
 
     getGestorPassword() {
@@ -2345,7 +2438,31 @@ const DataManager = {
 
     getSupplierById(id) {
         const suppliers = this.getSuppliers();
-        return suppliers.find(s => s.id === id);
+        const requestedId = String(id || '').trim();
+        if (!requestedId) {
+            return null;
+        }
+
+        const canonicalSupplierId = this.getCanonicalSupplierId(requestedId, { suppliers });
+        const exactCanonicalMatch = canonicalSupplierId
+            ? suppliers.find((supplier) => String(supplier?.id || '').trim() === canonicalSupplierId)
+            : null;
+        if (exactCanonicalMatch) {
+            return exactCanonicalMatch;
+        }
+
+        const exactMatch = suppliers.find((supplier) => String(supplier?.id || '').trim() === requestedId);
+        if (exactMatch && (!canonicalSupplierId || canonicalSupplierId === requestedId)) {
+            return exactMatch;
+        }
+
+        if (!canonicalSupplierId) {
+            return exactMatch || null;
+        }
+
+        return suppliers.find((supplier) =>
+            this.getCanonicalSupplierId(supplier?.id, { suppliers, supplier }) === canonicalSupplierId
+        ) || exactMatch || null;
     },
 
     saveSupplier(supplier) {
@@ -2813,6 +2930,14 @@ const DataManager = {
     async saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(this.cloneSerializable(solicitation, { ...solicitation }) || {});
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
+        const normalizedSupplier = this.normalizeSupplierReference(normalizedSolicitation, {
+            name: normalizedSolicitation.fornecedorNome,
+            email: normalizedSolicitation.fornecedorEmail
+        });
+        normalizedSolicitation.fornecedorId = normalizedSupplier.fornecedorId;
+        if (normalizedSupplier.fornecedorNome) {
+            normalizedSolicitation.fornecedorNome = normalizedSupplier.fornecedorNome;
+        }
 
         const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
         const index = solicitations.findIndex(s => s.id === normalizedSolicitation.id);
@@ -2922,6 +3047,30 @@ const DataManager = {
         const nextStatus = this.normalizeWorkflowStatus(status);
         const payload = { ...extra };
         const now = Date.now();
+        const normalizedExistingSupplier = this.normalizeSupplierReference(solicitation, {
+            name: solicitation.fornecedorNome,
+            email: solicitation.fornecedorEmail
+        });
+        if (normalizedExistingSupplier.fornecedorId) {
+            solicitation.fornecedorId = normalizedExistingSupplier.fornecedorId;
+        }
+        if (normalizedExistingSupplier.fornecedorNome) {
+            solicitation.fornecedorNome = normalizedExistingSupplier.fornecedorNome;
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'fornecedorId') || Object.prototype.hasOwnProperty.call(payload, 'fornecedorNome')) {
+            const normalizedPayloadSupplier = this.normalizeSupplierReference({
+                fornecedorId: Object.prototype.hasOwnProperty.call(payload, 'fornecedorId') ? payload.fornecedorId : solicitation.fornecedorId,
+                fornecedorNome: Object.prototype.hasOwnProperty.call(payload, 'fornecedorNome') ? payload.fornecedorNome : solicitation.fornecedorNome,
+                fornecedorEmail: payload.fornecedorEmail || solicitation.fornecedorEmail
+            }, {
+                name: solicitation.fornecedorNome,
+                email: solicitation.fornecedorEmail
+            });
+            payload.fornecedorId = normalizedPayloadSupplier.fornecedorId;
+            if (normalizedPayloadSupplier.fornecedorNome) {
+                payload.fornecedorNome = normalizedPayloadSupplier.fornecedorNome;
+            }
+        }
         const actorSnapshot = {
             id: String(payload.byUserId || '').trim() || null,
             username: String(payload.byUsername || '').trim() || null,
@@ -3329,6 +3478,8 @@ const DataManager = {
             preferredRangeDays: 30,
             defaultPeriodFilter: null,
             orcamentoMensalPecas: 0,
+            managerNotificationEmail: '',
+            operationalEmailGatewayRecipient: '',
             sheetIntegration: { provider: 'onedrive', target: '' }
         };
         const settings = this.loadData(this.KEYS.SETTINGS) || {};
@@ -3347,6 +3498,39 @@ const DataManager = {
             : null;
         const role = String(currentUser?.role || '').trim().toLowerCase();
         return role === 'admin' || role === 'administrador' || role === 'gestor';
+    },
+
+    canPersistNotificationMetadataToCloud() {
+        return this.canPersistExportMetadataToCloud();
+    },
+
+    getNotificationLog() {
+        return this.loadData(this.KEYS.NOTIFICATION_LOG) || [];
+    },
+
+    async logNotification(notificationInfo = {}) {
+        const entry = {
+            id: notificationInfo.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+            createdAt: notificationInfo.createdAt || Date.now(),
+            ...this.cloneSerializable(notificationInfo, notificationInfo)
+        };
+
+        if (!this.canPersistNotificationMetadataToCloud()) {
+            return entry;
+        }
+
+        const logs = this.getNotificationLog();
+        const trimmedLogs = [...logs, entry]
+            .filter(Boolean)
+            .sort((left, right) => Number(left?.createdAt || 0) - Number(right?.createdAt || 0))
+            .slice(-this.NOTIFICATION_LOG_LIMIT);
+
+        const saved = await this.persistCriticalCollection(this.KEYS.NOTIFICATION_LOG, trimmedLogs);
+        if (saved) {
+            this._sessionCache[this.KEYS.NOTIFICATION_LOG] = trimmedLogs;
+        }
+
+        return entry;
     },
 
     // ===== EXPORT LOG (Cloud-First) =====
@@ -3706,7 +3890,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 

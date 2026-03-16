@@ -60,6 +60,14 @@ const App = {
 
             // Check if user is logged in
             if (Auth.init()) {
+                this.setLoginBootstrapState(true, 'Restaurando sessão e sincronizando dados...');
+                if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
+                    try {
+                        await DataManager.syncAll('app_auth_restore');
+                    } catch (_error) {
+                        // Best-effort: a sessão local já foi validada pelo Auth.init()
+                    }
+                }
                 this.showApp();
             } else {
                 this.showLogin();
@@ -838,6 +846,22 @@ const App = {
                                 <small class="text-muted">Use 0 para desabilitar o alerta de orçamento mensal.</small>
                             </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="manager-notification-email">E-mail fixo de cópia do gestor</label>
+                                <input type="email" id="manager-notification-email" class="form-control"
+                                       value="${Utils.escapeHtml(settings.managerNotificationEmail || '')}"
+                                       placeholder="gestor@empresa.com" ${!canEdit ? 'disabled' : ''}>
+                                <small class="text-muted">Opcional. Recebe a cópia automática das notificações operacionais.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="operational-email-gateway">Gateway FormSubmit</label>
+                                <input type="email" id="operational-email-gateway" class="form-control"
+                                       value="${Utils.escapeHtml(settings.operationalEmailGatewayRecipient || '')}"
+                                       placeholder="operacao@empresa.com" ${!canEdit ? 'disabled' : ''}>
+                                <small class="text-muted">Opcional e recomendado para fornecedores como Hobart. O sistema envia para este endpoint e replica ao fornecedor correto sem misturar pedidos entre fornecedores.</small>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label for="sheet-target">ID ou link da planilha</label>
                             <input type="text" id="sheet-target" class="form-control" 
@@ -982,10 +1006,30 @@ const App = {
         const sheetProviderInput = document.getElementById('sheet-provider');
         const sheetTargetInput = document.getElementById('sheet-target');
         const budgetInput = document.getElementById('orcamento-mensal-pecas');
+        const managerEmailInput = document.getElementById('manager-notification-email');
+        const gatewayEmailInput = document.getElementById('operational-email-gateway');
         const statsRangeDays = parseInt(statsRangeInput && statsRangeInput.value) || 30;
         const sheetProvider = (sheetProviderInput && sheetProviderInput.value) || 'onedrive';
         const sheetTarget = (sheetTargetInput && sheetTargetInput.value.trim()) || '';
         const orcamentoMensalPecas = Math.max(parseFloat((budgetInput && budgetInput.value) || 0) || 0, 0);
+        const managerNotificationEmail = (typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(managerEmailInput && managerEmailInput.value)
+            : ((managerEmailInput && managerEmailInput.value) || '').trim().toLowerCase();
+        const operationalEmailGatewayRecipient = (typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(gatewayEmailInput && gatewayEmailInput.value)
+            : ((gatewayEmailInput && gatewayEmailInput.value) || '').trim().toLowerCase();
+
+        if (managerEmailInput && managerNotificationEmail && !Utils.isValidEmail(managerNotificationEmail)) {
+            Utils.showToast('Informe um e-mail válido para a cópia fixa do gestor.', 'error');
+            managerEmailInput.focus();
+            return;
+        }
+
+        if (gatewayEmailInput && operationalEmailGatewayRecipient && !Utils.isValidEmail(operationalEmailGatewayRecipient)) {
+            Utils.showToast('Informe um e-mail válido para o gateway FormSubmit.', 'error');
+            gatewayEmailInput.focus();
+            return;
+        }
 
         const nextSettings = {
             ...DataManager.getSettings(),
@@ -993,6 +1037,8 @@ const App = {
             itemsPerPage,
             statsRangeDays,
             orcamentoMensalPecas,
+            managerNotificationEmail,
+            operationalEmailGatewayRecipient,
             sheetIntegration: { provider: sheetProvider, target: sheetTarget }
         };
 
@@ -1009,6 +1055,13 @@ const App = {
 
             if (typeof OneDriveIntegration !== 'undefined' && typeof OneDriveIntegration.clearCache === 'function') {
                 OneDriveIntegration.clearCache();
+            }
+
+            if (typeof window !== 'undefined') {
+                window.__FORM_SUBMIT_GATEWAY_RECIPIENT = operationalEmailGatewayRecipient || '';
+            }
+            if (typeof Utils !== 'undefined') {
+                Utils.OP_EMAIL_GATEWAY_RECIPIENT = operationalEmailGatewayRecipient || '';
             }
 
             Utils.showToast('Configurações salvas com sucesso', 'success');
@@ -1932,7 +1985,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-
 
 
 

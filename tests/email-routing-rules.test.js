@@ -404,4 +404,47 @@ describe('Email routing rules', () => {
             allowGatewayFallback: false
         }));
     });
+
+    it('routes Hobart approvals only to Hobart registry recipients and keeps EBST isolated', async () => {
+        const Utils = loadUtils();
+        suppliers['sup-hobart'] = {
+            ...suppliers['sup-hobart'],
+            email: 'pedidos@hobart.com.br'
+        };
+        Utils.sendOperationalEmailDetailed = jest.fn(async ({ recipient }) => Utils.createOperationalEmailResult(true, {
+            recipient
+        }));
+
+        const result = await Utils.sendSupplierApprovalEmail({
+            solicitation: {
+                id: 'sol-5',
+                numero: 'REQ-20260312-0005',
+                tecnicoId: 'tec-2',
+                requesterTecnicoId: 'tec-2',
+                requesterRole: 'tecnico',
+                requesterEmail: 'carlos.tecnico@solenis.com',
+                requesterName: 'Carlos Tecnico',
+                tecnicoNome: 'Carlos Tecnico',
+                cliente: 'Cliente XPTO',
+                status: 'aprovada',
+                fornecedorId: 'sup-hobart',
+                fornecedorNome: 'Hobart',
+                itens: [{ quantidade: 1, descricao: 'Painel IHM' }],
+                total: 3200
+            },
+            approvedBy: 'Gestor QA'
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.recipients).toEqual(['pedidos@hobart.com.br']);
+        expect(result.managerCopyRecipients).toEqual(['wbastostavares@solenis.com']);
+
+        const calledRecipients = Utils.sendOperationalEmailDetailed.mock.calls.map(([payload]) => payload.recipient);
+        expect(calledRecipients).toEqual([
+            'pedidos@hobart.com.br',
+            'wbastostavares@solenis.com'
+        ]);
+        expect(calledRecipients).not.toContain('pedidos@ebstecnologica.com.br');
+        expect(calledRecipients).not.toContain('stale-hobart@example.com');
+    });
 });

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cloud Storage Module
  * Handles data synchronization across devices using Firebase Realtime Database
  * Falls back to localStorage when Firebase is unavailable
@@ -299,6 +299,68 @@ const CloudStorage = {
         return Object.values(DataManager.KEYS).filter((value) => typeof value === 'string' && value.length > 0);
     },
 
+    getStoredSessionUser() {
+        if (typeof Auth === 'undefined') {
+            return null;
+        }
+
+        let rawSession = null;
+        try {
+            rawSession = typeof Auth.getStoredSession === 'function'
+                ? Auth.getStoredSession()
+                : ((localStorage.getItem(Auth.SESSION_KEY) || sessionStorage.getItem(Auth.SESSION_KEY)) || null);
+        } catch (_error) {
+            rawSession = null;
+        }
+
+        if (!rawSession) {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(rawSession);
+            if (!parsed || typeof parsed !== 'object') {
+                return null;
+            }
+
+            if (String(parsed.role || '').trim().toLowerCase() === 'fornecedor') {
+                const resolvedSupplierId = String(parsed.fornecedorId || '').trim()
+                    || (typeof Auth.resolveSupplierId === 'function' ? Auth.resolveSupplierId(parsed) : null);
+                if (resolvedSupplierId) {
+                    parsed.fornecedorId = resolvedSupplierId;
+                }
+            }
+
+            return parsed;
+        } catch (_error) {
+            return null;
+        }
+    },
+
+    getScopedSessionUser() {
+        const currentUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
+            ? Auth.getCurrentUser()
+            : null;
+        if (currentUser) {
+            if (String(currentUser.role || '').trim().toLowerCase() === 'fornecedor') {
+                const resolvedSupplierId = String(currentUser.fornecedorId || '').trim()
+                    || (typeof Auth.getFornecedorId === 'function' ? Auth.getFornecedorId() : null)
+                    || (typeof Auth.resolveSupplierId === 'function' ? Auth.resolveSupplierId(currentUser) : null);
+                if (resolvedSupplierId && !currentUser.fornecedorId) {
+                    currentUser.fornecedorId = resolvedSupplierId;
+                }
+            }
+            return currentUser;
+        }
+
+        const storedUser = this.getStoredSessionUser();
+        if (storedUser) {
+            return storedUser;
+        }
+
+        return this.accessSession ? { ...this.accessSession } : null;
+    },
+
     getCollectionRefForRead(key) {
         const sanitizedKey = this.sanitizeKey(key);
         const baseRef = FirebaseInit.getRef(`data/${sanitizedKey}`);
@@ -310,17 +372,31 @@ const CloudStorage = {
             return baseRef;
         }
 
-        const sessionUser = typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function'
-            ? Auth.getCurrentUser()
-            : null;
+        const sessionUser = this.getScopedSessionUser();
+        if (!sessionUser) {
+            this.logSyncEvent('debug', 'cloud_collection_read_skipped_missing_session', { key });
+            return null;
+        }
+
+        const resolvedSupplierId = sessionUser?.role === 'fornecedor' && typeof Auth !== 'undefined' && typeof Auth.getFornecedorId === 'function'
+            ? (Auth.getCurrentUser && Auth.getCurrentUser() ? Auth.getFornecedorId() : (sessionUser.fornecedorId || Auth.resolveSupplierId?.(sessionUser) || null))
+            : (sessionUser?.fornecedorId || null);
         const { query, orderByChild, equalTo } = window.firebaseModules || {};
 
         if (sessionUser?.role === 'tecnico' && sessionUser?.tecnicoId && typeof query === 'function') {
             return query(baseRef, orderByChild('tecnicoId'), equalTo(sessionUser.tecnicoId));
         }
 
-        if (sessionUser?.role === 'fornecedor' && sessionUser?.fornecedorId && typeof query === 'function') {
-            return query(baseRef, orderByChild('fornecedorId'), equalTo(sessionUser.fornecedorId));
+        if (sessionUser?.role === 'fornecedor' && resolvedSupplierId && typeof query === 'function') {
+            return query(baseRef, orderByChild('fornecedorId'), equalTo(resolvedSupplierId));
+        }
+
+        if (sessionUser?.role === 'fornecedor') {
+            this.logSyncEvent('debug', 'cloud_collection_read_skipped_missing_supplier_scope', {
+                key,
+                username: sessionUser?.username || null
+            });
+            return null;
         }
 
         return baseRef;
@@ -502,11 +578,15 @@ const CloudStorage = {
             return false;
         }
 
+        const resolvedSupplierId = activeUser?.role === 'fornecedor' && typeof Auth !== 'undefined' && typeof Auth.getFornecedorId === 'function'
+            ? Auth.getFornecedorId()
+            : (activeUser.fornecedorId || null);
+
         await set(FirebaseInit.getRef(`data/diversey_sessions/${uid}`), {
             username: activeUser.username,
             role: activeUser.role,
             tecnicoId: activeUser.tecnicoId || null,
-            fornecedorId: activeUser.fornecedorId || null,
+            fornecedorId: resolvedSupplierId || null,
             expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000)),
             updatedAt: Date.now()
         });
@@ -515,7 +595,7 @@ const CloudStorage = {
             username: activeUser.username,
             role: activeUser.role,
             tecnicoId: activeUser.tecnicoId || null,
-            fornecedorId: activeUser.fornecedorId || null,
+            fornecedorId: resolvedSupplierId || null,
             expiresAt: Number(activeUser.expiresAt) || (Date.now() + (30 * 24 * 60 * 60 * 1000))
         };
         return true;

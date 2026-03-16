@@ -814,8 +814,25 @@ const Utils = {
     },
 
     getOperationalEmailGatewayRecipient() {
-        const configured = String(this.OP_EMAIL_GATEWAY_RECIPIENT || '').trim().toLowerCase();
-        return this.isValidEmail(configured) ? configured : null;
+        const settings = (typeof DataManager !== 'undefined' && typeof DataManager.getSettings === 'function')
+            ? DataManager.getSettings()
+            : {};
+        const candidates = [
+            settings?.operationalEmailGatewayRecipient || '',
+            this.OP_EMAIL_GATEWAY_RECIPIENT || '',
+            (typeof window !== 'undefined' && window.__FORM_SUBMIT_GATEWAY_RECIPIENT)
+                ? String(window.__FORM_SUBMIT_GATEWAY_RECIPIENT)
+                : ''
+        ];
+
+        for (const value of candidates) {
+            const normalized = this.normalizeOperationalEmail(value || '');
+            if (this.isValidEmail(normalized)) {
+                return normalized;
+            }
+        }
+
+        return null;
     },
 
     createOperationalEmailResult(success, data = {}) {
@@ -1003,7 +1020,13 @@ const Utils = {
                 supplierId: context?.supplierId || null,
                 supplierName: context?.supplierName || null,
                 recipientSource: context?.recipientSource || null,
-                resolvedRecipients: normalizedRecipients
+                resolvedRecipients: normalizedRecipients,
+                gatewayRecipient: result?.gatewayRecipient || null,
+                deliveryMode: result?.deliveryMode || null,
+                statusCode: result?.statusCode || null,
+                attempt: result?.attempt || null,
+                endpoint: result?.endpoint || null,
+                providerMessage: result?.providerMessage || null
             }));
         }
 
@@ -1032,7 +1055,13 @@ const Utils = {
         supplierId = null,
         supplierName = null,
         recipientSource = null,
-        resolvedRecipients = null
+        resolvedRecipients = null,
+        gatewayRecipient = null,
+        deliveryMode = null,
+        statusCode = null,
+        attempt = null,
+        endpoint = null,
+        providerMessage = null
     } = {}) {
         const safeRecipient = this.maskEmailForLog(recipient);
         const recipientDomain = String(recipient || '').includes('@')
@@ -1056,7 +1085,13 @@ const Utils = {
             approvedBy: approvedBy || null,
             supplierId: supplierId || null,
             supplierName: supplierName || null,
-            recipientSource: recipientSource || null
+            recipientSource: recipientSource || null,
+            gatewayRecipient: gatewayRecipient || null,
+            deliveryMode: deliveryMode || null,
+            statusCode: Number.isFinite(statusCode) ? statusCode : null,
+            attempt: Number.isFinite(attempt) ? attempt : null,
+            endpoint: endpoint || null,
+            providerMessage: providerMessage || null
         };
 
         if (typeof Logger !== 'undefined') {
@@ -1065,6 +1100,10 @@ const Utils = {
             } else if (!success && typeof Logger.warn === 'function') {
                 Logger.warn(Logger.CATEGORY.REQUEST, 'email_notification_dispatch', payload);
             }
+        }
+
+        if (typeof DataManager !== 'undefined' && typeof DataManager.logNotification === 'function') {
+            Promise.resolve(DataManager.logNotification(payload)).catch(() => null);
         }
 
         return payload;
@@ -1777,7 +1816,7 @@ const Utils = {
             eventType,
             eventLabel: 'supplier_approval_email',
             profile: 'fornecedor',
-            allowGatewayFallback: false,
+            allowGatewayFallback: true,
             context: {
                 solicitationId: solicitation?.id || null,
                 solicitationNumber: details.number,

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Authentication and RBAC Module
  * Handles login, logout, and role-based access control
  */
@@ -103,6 +103,112 @@ const Auth = {
             { id: 'perfil', icon: 'fa-user-cog', label: 'Meu Perfil', section: 'Suporte' }
         ]
     },
+    normalizeSupplierScopeValue(value) {
+        return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+    },
+
+    inferSupplierIdFromIdentity(user = null) {
+        const candidate = user || this.currentUser;
+        if (!candidate || String(candidate.role || '').trim().toLowerCase() !== 'fornecedor') {
+            return null;
+        }
+
+        const normalizedUsername = this.normalizeSupplierScopeValue(candidate.username || '');
+        const normalizedName = this.normalizeSupplierScopeValue(candidate.name || '');
+        const normalizedEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(candidate.email)
+            : String(candidate.email || '').trim().toLowerCase();
+        const heuristics = [
+            {
+                id: 'sup-hobart',
+                tokens: ['hobart', '@hobart.com.br', 'pedidos@hobart.com.br']
+            },
+            {
+                id: 'sup-ebst',
+                tokens: ['ebst', 'ebstecnologica', '@ebstecnologica.com.br', 'pedidos@ebstecnologica.com.br']
+            }
+        ];
+
+        const matchesToken = (tokens = []) => tokens.some((token) => {
+            const normalizedToken = String(token || '').trim().toLowerCase();
+            if (!normalizedToken) {
+                return false;
+            }
+            return normalizedUsername.includes(normalizedToken)
+                || normalizedName.includes(normalizedToken)
+                || normalizedEmail.includes(normalizedToken);
+        });
+
+        const matchedHeuristic = heuristics.find((entry) => matchesToken(entry.tokens));
+        return matchedHeuristic?.id || null;
+    },
+
+    resolveSupplierId(user = null) {
+        const candidate = user || this.currentUser;
+        if (!candidate || String(candidate.role || '').trim().toLowerCase() !== 'fornecedor') {
+            return null;
+        }
+
+        const explicitSupplierId = String(candidate.fornecedorId || '').trim();
+        const inferredSupplierId = this.inferSupplierIdFromIdentity(candidate);
+
+        if (typeof DataManager !== 'undefined' && typeof DataManager.getCanonicalSupplierId === 'function') {
+            const canonicalSupplierId = DataManager.getCanonicalSupplierId(explicitSupplierId, {
+                username: candidate.username,
+                name: candidate.name,
+                supplierName: candidate.name,
+                email: candidate.email
+            });
+            if (canonicalSupplierId) {
+                return canonicalSupplierId;
+            }
+        }
+
+        if (inferredSupplierId && (!explicitSupplierId || inferredSupplierId !== explicitSupplierId)) {
+            return inferredSupplierId;
+        }
+
+        if (explicitSupplierId) {
+            return explicitSupplierId;
+        }
+
+        const suppliers = (typeof DataManager !== 'undefined' && typeof DataManager.getSuppliers === 'function')
+            ? DataManager.getSuppliers()
+            : [];
+
+        const normalizedEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+            ? DataManager.normalizeEmail(candidate.email)
+            : String(candidate.email || '').trim().toLowerCase();
+        const usernameTokens = this.normalizeSupplierScopeValue(candidate.username || '').split(/[^a-z0-9]+/).filter(Boolean);
+        const nameTokens = this.normalizeSupplierScopeValue(candidate.name || '').split(/[^a-z0-9]+/).filter(Boolean);
+
+        const matchedByEmail = Array.isArray(suppliers) ? suppliers.find((supplier) => {
+            if (typeof Utils !== 'undefined' && typeof Utils.supplierHasOperationalEmail === 'function') {
+                return Utils.supplierHasOperationalEmail(supplier, normalizedEmail);
+            }
+            const supplierEmail = (typeof DataManager !== 'undefined' && typeof DataManager.normalizeEmail === 'function')
+                ? DataManager.normalizeEmail(supplier?.email)
+                : String(supplier?.email || '').trim().toLowerCase();
+            return normalizedEmail && supplierEmail === normalizedEmail;
+        }) : null;
+        if (matchedByEmail?.id) {
+            return matchedByEmail.id;
+        }
+
+        const matchedByName = Array.isArray(suppliers) ? suppliers.find((supplier) => {
+            const normalizedSupplierName = this.normalizeSupplierScopeValue(supplier?.nome || supplier?.name || '');
+            if (!normalizedSupplierName) {
+                return false;
+            }
+            return usernameTokens.includes(normalizedSupplierName) || nameTokens.includes(normalizedSupplierName);
+        }) : null;
+        if (matchedByName?.id) {
+            return matchedByName.id;
+        }
+
+        return inferredSupplierId;
+    },
+
     /**
      * Normalize user object for session storage
      */
@@ -110,6 +216,8 @@ const Auth = {
         if (!user) {
             return null;
         }
+
+        const resolvedFornecedorId = this.resolveSupplierId(user) || String(user.fornecedorId || '').trim() || null;
         return {
             id: user.id,
             username: user.username,
@@ -117,7 +225,7 @@ const Auth = {
             role: user.role,
             email: user.email,
             tecnicoId: user.tecnicoId,
-            fornecedorId: user.fornecedorId,
+            fornecedorId: resolvedFornecedorId,
             expiresAt: Date.now() + this.SESSION_DURATION_MS
         };
     },
@@ -668,7 +776,15 @@ const Auth = {
      */
     getFornecedorId() {
         if (this.currentUser?.role === 'fornecedor') {
-            return this.currentUser.fornecedorId || null;
+            const explicitSupplierId = String(this.currentUser.fornecedorId || '').trim();
+            const resolvedFornecedorId = this.resolveSupplierId(this.currentUser);
+            if (resolvedFornecedorId && resolvedFornecedorId !== explicitSupplierId) {
+                this.currentUser.fornecedorId = resolvedFornecedorId;
+                if (typeof this.persistSession === 'function') {
+                    this.persistSession(this.currentUser);
+                }
+            }
+            return resolvedFornecedorId || explicitSupplierId || null;
         }
         return null;
     },
@@ -820,10 +936,6 @@ const Auth = {
         // Online-only mode: Rate limit state is in-memory only, no persistence
     }
 };
-
-
-
-
 
 
 
