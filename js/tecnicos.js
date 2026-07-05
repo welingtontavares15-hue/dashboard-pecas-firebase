@@ -29,7 +29,7 @@ const Tecnicos = {
             <div class="filters-bar">
                 <div class="search-box">
                     <input type="text" id="tech-search" class="form-control" 
-                           placeholder="Buscar por nome, email ou região..." 
+                           placeholder="Buscar por nome, email, CPF ou região..." 
                            value="${Utils.escapeHtml(this.searchQuery)}">
                     <button class="btn btn-primary" onclick="Tecnicos.search()">
                         <i class="fas fa-search"></i>
@@ -74,6 +74,7 @@ const Tecnicos = {
             technicians = technicians.filter(t => 
                 Utils.normalizeText(t.nome).includes(query) ||
                 Utils.normalizeText(t.email).includes(query) ||
+                Utils.normalizeText(t.cpf).includes(query) ||
                 Utils.normalizeText(t.regiao).includes(query)
             );
         }
@@ -111,6 +112,7 @@ const Tecnicos = {
                         <tr>
                             <th>Nome</th>
                             <th>Email</th>
+                            <th>CPF</th>
                             <th>Telefone</th>
                             <th>Cidade/UF</th>
                             <th>Região</th>
@@ -130,6 +132,7 @@ const Tecnicos = {
                                         ${Utils.escapeHtml(tech.email)}
                                     </a>
                                 </td>
+                                <td>${Utils.escapeHtml(tech.cpf || '-')}</td>
                                 <td>${Utils.escapeHtml(tech.telefone || '-')}</td>
                                 <td>${tech.cidade && tech.estado ? Utils.escapeHtml(tech.cidade + '/' + tech.estado) : '-'}</td>
                                 <td>${Utils.escapeHtml(tech.regiao || '-')}</td>
@@ -225,6 +228,13 @@ const Tecnicos = {
                     </div>
                     
                     <div class="form-row">
+                        <div class="form-group">
+                            <label for="tech-cpf">CPF</label>
+                            <input type="text" id="tech-cpf" class="form-control" 
+                                   value="${Utils.escapeHtml(tech?.cpf || '')}"
+                                   placeholder="000.000.000-00"
+                                   maxlength="14">
+                        </div>
                         <div class="form-group">
                             <label for="tech-telefone">Telefone</label>
                             <input type="text" id="tech-telefone" class="form-control" 
@@ -343,6 +353,7 @@ const Tecnicos = {
         const id = document.getElementById('tech-id').value;
         const nome = document.getElementById('tech-nome').value.trim();
         const email = document.getElementById('tech-email').value.trim();
+        const cpf = document.getElementById('tech-cpf').value.trim();
         const telefone = document.getElementById('tech-telefone').value.trim();
         const regiao = document.getElementById('tech-regiao').value;
         const ativo = document.getElementById('tech-ativo').checked;
@@ -369,6 +380,11 @@ const Tecnicos = {
 
         if (!Utils.isValidEmail(email)) {
             Utils.showToast('E-mail inválido', 'warning');
+            return;
+        }
+
+        if (cpf && !Utils.isValidCPF(cpf)) {
+            Utils.showToast('CPF inválido', 'warning');
             return;
         }
 
@@ -441,6 +457,7 @@ const Tecnicos = {
             id: id || Utils.generateId(),
             nome,
             email: normalizedEmail,
+            cpf: cpf ? Utils.formatCPF(cpf) : '',
             telefone: telefone ? Utils.formatPhone(telefone) : '',
             regiao,
             endereco,
@@ -731,7 +748,6 @@ const Tecnicos = {
 if (typeof window !== 'undefined') {
     window.Tecnicos = Tecnicos;
 }
-
 
 
 

@@ -2262,6 +2262,7 @@ const DataManager = {
                 id: `tech_${index + 1}`, 
                 nome, 
                 email: `${username}@diversey.com`, 
+                cpf: info.cpf || '',
                 telefone: '', 
                 regiao: info.uf || '', 
                 ativo: true,
@@ -3890,7 +3891,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
 
 
 

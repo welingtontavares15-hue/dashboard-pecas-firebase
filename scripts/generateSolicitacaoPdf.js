@@ -11,6 +11,37 @@ function brl(v) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 }
 
+function formatCpf(cpf) {
+    const raw = String(cpf || '').trim();
+    const digits = raw.replace(/[^\d]/g, '');
+    if (digits.length !== 11) {
+        return raw;
+    }
+    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+}
+
+function firstFilled(...values) {
+    const match = values.find((value) => String(value || '').trim());
+    return match === undefined || match === null ? '' : String(match).trim();
+}
+
+function buildAddressLine(data) {
+    const address = firstFilled(data.endereco, data.enderecoEntrega);
+    const number = firstFilled(data.enderecoNumero, data.numeroEndereco, data.numeroEntrega);
+    if (!address || !number || address.includes(number)) {
+        return address;
+    }
+    return `${address}, ${number}`;
+}
+
+function buildCidadeUf(data) {
+    const cidadeUf = firstFilled(data.cidadeUf);
+    if (cidadeUf) {
+        return cidadeUf;
+    }
+    return [data.cidade || '', data.estado || ''].filter(Boolean).join(' / ');
+}
+
 function ddmmyyyy(iso) {
     const use = iso || new Date().toISOString().slice(0, 10);
     const [y, m, d] = use.split('-');
@@ -63,14 +94,19 @@ async function generateSolicitacaoPdf(data) {
     const descontoNum = data.desconto || 0;
     const freteNum = data.frete || 0;
     const totalNum = subtotalNum - descontoNum + freteNum;
+    const tecnico = firstFilled(data.tecnico, data.tecnicoNome, data.requesterName);
+    const cpf = formatCpf(data.tecnicoCpf ?? data.cpfTecnico ?? data.cpf ?? '');
+    const endereco = buildAddressLine(data);
+    const cidadeUf = buildCidadeUf(data);
 
     let html = fs.readFileSync(tplPath, 'utf8');
     html = html
         .replaceAll('{{NUMERO}}', data.numero ?? '')
-        .replaceAll('{{TECNICO}}', data.tecnico ?? '')
+        .replaceAll('{{TECNICO}}', tecnico)
+        .replaceAll('{{CPF}}', cpf)
         .replaceAll('{{DATA}}', ddmmyyyy(data.data))
-        .replaceAll('{{ENDERECO}}', data.endereco ?? '')
-        .replaceAll('{{CIDADE_UF}}', data.cidadeUf ?? '')
+        .replaceAll('{{ENDERECO}}', endereco)
+        .replaceAll('{{CIDADE_UF}}', cidadeUf)
         .replaceAll('{{ENVIO}}', data.envio ?? '')
         .replaceAll('{{CEP}}', data.cep ?? '')
         .replaceAll('{{ITENS_ROWS}}', buildItemsRows(itens))
@@ -118,6 +154,7 @@ async function runSample() {
     const data = {
         numero: 'REQ-20251218-0010',
         tecnico: 'Welington Bastos Tavares',
+        tecnicoCpf: '52998224725',
         data: '2025-12-18',
         endereco: 'AV Morumbi Qd 34 Lt 11',
         cidadeUf: 'Anápolis / GO',

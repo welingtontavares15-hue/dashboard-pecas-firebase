@@ -233,6 +233,36 @@ describe('AnalyticsEngine', () => {
         expect(state.rangeDays).toBe(9);
     });
 
+    it('uses explicit dates from a caller without freezing declared dynamic presets', () => {
+        const explicitState = AnalyticsEngine.buildFilterState({
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-31',
+            rangeDays: 31
+        }, {
+            moduleKey: 'dashboard',
+            defaults: AnalyticsEngine.getModuleDefaults('dashboard'),
+            useDefaultPeriod: true
+        });
+        const dynamicPreset = AnalyticsEngine.buildFilterState({
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-31',
+            rangeDays: 7,
+            useDefaultPeriod: true
+        }, {
+            moduleKey: 'dashboard',
+            defaults: AnalyticsEngine.getModuleDefaults('dashboard'),
+            useDefaultPeriod: true
+        });
+        const expectedPresetPeriod = AnalyticsEngine.normalizePeriod({ rangeDays: 7 });
+
+        expect(explicitState.dateFrom).toBe('2026-03-01');
+        expect(explicitState.dateTo).toBe('2026-03-31');
+        expect(explicitState.useDefaultPeriod).toBe(false);
+        expect(dynamicPreset.dateFrom).toBe(expectedPresetPeriod.dateFrom);
+        expect(dynamicPreset.dateTo).toBe(expectedPresetPeriod.dateTo);
+        expect(dynamicPreset.useDefaultPeriod).toBe(true);
+    });
+
     it('keeps explicit normalizePeriod labels aligned with the provided boundaries', () => {
         const period = AnalyticsEngine.normalizePeriod({
             dateFrom: '2026-03-01',

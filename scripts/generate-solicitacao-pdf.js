@@ -12,6 +12,37 @@ function formatGeneratedAt(date) {
     return `Gerado em: ${stamp.toLocaleDateString('pt-BR')}, ${stamp.toLocaleTimeString('pt-BR')}`;
 }
 
+function formatCpf(cpf) {
+    const raw = String(cpf || '').trim();
+    const digits = raw.replace(/[^\d]/g, '');
+    if (digits.length !== 11) {
+        return raw;
+    }
+    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+}
+
+function firstFilled(...values) {
+    const match = values.find((value) => String(value || '').trim());
+    return match === undefined || match === null ? '' : String(match).trim();
+}
+
+function buildAddressLine(data) {
+    const address = firstFilled(data.endereco, data.enderecoEntrega);
+    const number = firstFilled(data.enderecoNumero, data.numeroEndereco, data.numeroEntrega);
+    if (!address || !number || address.includes(number)) {
+        return address;
+    }
+    return `${address}, ${number}`;
+}
+
+function buildCidadeUf(data) {
+    const cidadeUf = firstFilled(data.cidadeUf);
+    if (cidadeUf) {
+        return cidadeUf;
+    }
+    return [data.cidade || '', data.estado || ''].filter(Boolean).join(' / ');
+}
+
 function getExecutablePath() {
     const fromEnv = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROMIUM_PATH;
     if (fromEnv && path.isAbsolute(fromEnv) && fs.existsSync(fromEnv)) {
@@ -33,9 +64,17 @@ function buildPayload(data) {
     const frete = Number(data.frete || 0);
     const total = subtotalItens - desconto + frete;
     const generatedAt = new Date();
+    const tecnicoCpf = formatCpf(data.tecnicoCpf ?? data.cpfTecnico ?? data.cpf ?? '');
+    const tecnico = firstFilled(data.tecnico, data.tecnicoNome, data.requesterName);
+    const endereco = buildAddressLine(data);
+    const cidadeUf = buildCidadeUf(data);
 
     return {
         ...data,
+        tecnico,
+        tecnicoCpf,
+        endereco,
+        cidadeUf,
         subtotalItens,
         total,
         generatedAt: generatedAt.toISOString(),
@@ -114,6 +153,7 @@ async function runSample() {
     const sampleData = {
         numero: 'REQ-20251218-0010',
         tecnico: 'Welington Bastos Tavares',
+        tecnicoCpf: '52998224725',
         data: '2025-12-18',
         endereco: 'AV Morumbi Qd 34 Lt 11',
         cidadeUf: 'Anápolis / GO',
