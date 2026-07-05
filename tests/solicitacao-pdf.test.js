@@ -25,6 +25,7 @@ describe('generateSolicitacaoPdf', () => {
         const data = {
             numero: 'REQ-20251218-0010',
             tecnico: 'Welington Bastos Tavares',
+            tecnicoCpf: '52998224725',
             data: '2025-12-18',
             endereco: 'AV Morumbi Qd 34 Lt 11',
             cidadeUf: 'Anápolis / GO',
@@ -46,6 +47,9 @@ describe('generateSolicitacaoPdf', () => {
         expect(result.path).toContain(`Solicitacao_${data.numero}.pdf`);
         expect(result.subtotal).toBeCloseTo(265.08);
         expect(result.total).toBeCloseTo(265.08);
+        const html = puppeteer.__mock.setContentMock.mock.calls[0][0];
+        expect(html).toContain('529.982.247-25');
+        expect(html).toContain(data.endereco);
         expect(puppeteer.launch).toHaveBeenCalled();
         expect(puppeteer.__mock.pdfMock).toHaveBeenCalledWith(
             expect.objectContaining({

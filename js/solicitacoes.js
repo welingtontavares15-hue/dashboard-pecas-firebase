@@ -1498,6 +1498,7 @@ const Solicitacoes = {
             const tech = technicians.find(t => t.id === this.currentSolicitation.tecnicoId);
             if (tech) {
                 this.currentSolicitation.tecnicoNome = tech.nome;
+                Object.assign(this.currentSolicitation, this.buildTechnicianSnapshot(tech, this.currentSolicitation));
             }
         }
         
@@ -1687,8 +1688,10 @@ const Solicitacoes = {
         const select = document.getElementById('sol-tecnico');
         const option = select.options[select.selectedIndex];
         if (option && option.value) {
+            const tech = DataManager.getTechnicianById(option.value);
             this.currentSolicitation.tecnicoId = option.value;
-            this.currentSolicitation.tecnicoNome = option.text;
+            this.currentSolicitation.tecnicoNome = tech?.nome || option.text;
+            Object.assign(this.currentSolicitation, this.buildTechnicianSnapshot(tech, this.currentSolicitation));
         }
     },
 
@@ -1821,6 +1824,20 @@ const Solicitacoes = {
         `;
     },
 
+    buildTechnicianSnapshot(tech, fallback = {}) {
+        return {
+            tecnicoCpf: tech?.cpf || fallback.tecnicoCpf || fallback.cpfTecnico || fallback.cpf || '',
+            enderecoEntrega: tech?.endereco || fallback.enderecoEntrega || fallback.endereco || '',
+            enderecoNumero: tech?.numero || fallback.enderecoNumero || fallback.numeroEndereco || fallback.numeroEntrega || '',
+            complemento: tech?.complemento || fallback.complemento || '',
+            bairro: tech?.bairro || fallback.bairro || '',
+            cidade: tech?.cidade || fallback.cidade || '',
+            estado: tech?.estado || fallback.estado || '',
+            cep: tech?.cep || fallback.cep || '',
+            telefone: tech?.telefone || fallback.telefone || fallback.contato || ''
+        };
+    },
+
     /**
      * Save solicitation
      */
@@ -1890,6 +1907,7 @@ const Solicitacoes = {
         this.currentSolicitation.total = total;
 
         const tech = DataManager.getTechnicianById(tecnicoId);
+        const technicianSnapshot = this.buildTechnicianSnapshot(tech, this.currentSolicitation);
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
         const isNewSolicitation = !this.currentSolicitation?.id;
@@ -1904,6 +1922,7 @@ const Solicitacoes = {
             tecnicoId,
             tecnicoNome: tech?.nome || this.currentSolicitation.tecnicoNome,
             tecnicoEmail: tech?.email || this.currentSolicitation.tecnicoEmail || currentUser?.email || '',
+            ...technicianSnapshot,
             data: normalizedDate,
             cliente,
             observacoes,
@@ -2194,8 +2213,6 @@ const Solicitacoes = {
 if (typeof window !== 'undefined') {
     window.Solicitacoes = Solicitacoes;
 }
-
-
 
 
 

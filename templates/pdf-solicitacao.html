@@ -247,8 +247,8 @@
                     <span class="value" id="data"></span>
                 </td>
                 <td>
-                    <span class="label">Endereço</span>
-                    <span class="value" id="endereco"></span>
+                    <span class="label">CPF</span>
+                    <span class="value" id="cpf"></span>
                 </td>
             </tr>
             <tr>
@@ -257,8 +257,8 @@
                     <span class="value" id="envio"></span>
                 </td>
                 <td>
-                    <span class="label">Cidade / UF</span>
-                    <span class="value" id="cidade"></span>
+                    <span class="label">Endereço</span>
+                    <span class="value" id="endereco"></span>
                 </td>
             </tr>
             <tr>
@@ -267,8 +267,18 @@
                     <span class="value" id="cep"></span>
                 </td>
                 <td>
+                    <span class="label">Cidade / UF</span>
+                    <span class="value" id="cidade"></span>
+                </td>
+            </tr>
+            <tr>
+                <td>
                     <span class="label">Complemento</span>
                     <span class="value" id="complemento"></span>
+                </td>
+                <td>
+                    <span class="label">&nbsp;</span>
+                    <span class="value">&nbsp;</span>
                 </td>
             </tr>
         </table>
@@ -365,6 +375,7 @@
             fill('numero', data.numero);
             fill('tecnico', data.tecnico);
             fill('data', formatDate(data.data));
+            fill('cpf', data.tecnicoCpf || data.cpfTecnico || data.cpf || '');
             fill('endereco', data.endereco);
             fill('envio', data.envio);
             fill('cidade', data.cidadeUf);

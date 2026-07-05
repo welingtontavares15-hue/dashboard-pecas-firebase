@@ -194,6 +194,89 @@ describe('Utils', () => {
         });
     });
 
+    describe('isValidCPF', () => {
+        it('should validate correct CPF', () => {
+            expect(Utils.isValidCPF('529.982.247-25')).toBe(true);
+        });
+
+        it('should reject invalid CPF', () => {
+            expect(Utils.isValidCPF('000.000.000-00')).toBe(false);
+            expect(Utils.isValidCPF('111.111.111-11')).toBe(false);
+            expect(Utils.isValidCPF('123.456.789-00')).toBe(false);
+        });
+
+        it('should handle CPF with wrong length', () => {
+            expect(Utils.isValidCPF('123')).toBe(false);
+            expect(Utils.isValidCPF('')).toBe(false);
+        });
+    });
+
+    describe('formatCPF', () => {
+        it('should format CPF digits', () => {
+            expect(Utils.formatCPF('52998224725')).toBe('529.982.247-25');
+        });
+
+        it('should preserve non-standard values', () => {
+            expect(Utils.formatCPF('sem-cpf')).toBe('sem-cpf');
+        });
+    });
+
+    describe('resolveSolicitationTechnicianDetails', () => {
+        afterEach(() => {
+            delete global.DataManager;
+        });
+
+        it('should prefer technician registry address and CPF', () => {
+            global.DataManager = {
+                getTechnicianById: jest.fn().mockReturnValue({
+                    nome: 'Tecnico Cadastro',
+                    cpf: '52998224725',
+                    endereco: 'Rua Cadastro',
+                    numero: '100',
+                    bairro: 'Centro',
+                    cidade: 'Goiania',
+                    estado: 'GO',
+                    cep: '74000-000',
+                    telefone: '(62) 99999-0000'
+                })
+            };
+
+            const details = Utils.resolveSolicitationTechnicianDetails({
+                tecnicoId: 'tec-1',
+                tecnicoNome: 'Tecnico Snapshot',
+                tecnicoCpf: '39053344705',
+                enderecoEntrega: 'Rua Snapshot'
+            });
+
+            expect(details.name).toBe('Tecnico Snapshot');
+            expect(details.cpf).toBe('529.982.247-25');
+            expect(details.address.endereco).toBe('Rua Cadastro');
+            expect(details.address.numero).toBe('100');
+        });
+
+        it('should fallback to solicitation snapshot when technician is not found', () => {
+            global.DataManager = {
+                getTechnicianById: jest.fn().mockReturnValue(null)
+            };
+
+            const details = Utils.resolveSolicitationTechnicianDetails({
+                tecnicoId: 'tec-1',
+                tecnicoNome: 'Tecnico Snapshot',
+                tecnicoCpf: '52998224725',
+                enderecoEntrega: 'Rua Snapshot',
+                enderecoNumero: '200',
+                bairro: 'Setor Sul',
+                cidade: 'Goiania',
+                estado: 'GO',
+                cep: '74000-000'
+            });
+
+            expect(details.cpf).toBe('529.982.247-25');
+            expect(details.address.endereco).toBe('Rua Snapshot');
+            expect(details.address.numero).toBe('200');
+        });
+    });
+
     describe('getStatusInfo', () => {
         it('should return info for known status', () => {
             const info = Utils.getStatusInfo('pendente');

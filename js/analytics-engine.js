@@ -356,15 +356,21 @@
                 && raw.rangeDays !== ''
                 && raw.rangeDays !== null
                 && raw.rangeDays !== undefined;
+            const hasRawUseDefaultPeriod = hasOwn(raw, 'useDefaultPeriod');
+            const hasExplicitDateInput = Boolean(
+                (hasOwn(raw, 'dateFrom') && rawDateFrom)
+                || (hasOwn(raw, 'dateTo') && rawDateTo)
+            );
             const requestedUseDefaultPeriod = typeof options.useDefaultPeriod === 'boolean'
                 ? options.useDefaultPeriod
-                : Boolean(hasOwn(raw, 'useDefaultPeriod') ? raw.useDefaultPeriod : merged.useDefaultPeriod);
-            const shouldUseDefaultPeriod = requestedUseDefaultPeriod;
+                : Boolean(hasRawUseDefaultPeriod ? raw.useDefaultPeriod : merged.useDefaultPeriod);
+            const shouldUseDefaultPeriod = requestedUseDefaultPeriod && (hasRawUseDefaultPeriod || !hasExplicitDateInput);
+            const defaultPeriodRangeDays = explicitRangeDays
+                ? raw.rangeDays
+                : (merged.rangeDays || defaults.rangeDays || this.getDefaultRangeDays());
             const period = shouldUseDefaultPeriod
                 ? this.normalizePeriod({
-                    dateFrom: defaults.dateFrom,
-                    dateTo: defaults.dateTo,
-                    rangeDays: defaults.rangeDays
+                    rangeDays: defaultPeriodRangeDays
                 }, defaults.rangeDays || this.getDefaultRangeDays())
                 : this.buildExplicitPeriod({
                     dateFrom: rawDateFrom,

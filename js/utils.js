@@ -2447,6 +2447,50 @@ const Utils = {
     },
 
     /**
+     * Validate CPF format
+     */
+    isValidCPF(cpf) {
+        cpf = String(cpf || '').replace(/[^\d]/g, '');
+        if (cpf.length !== 11) {
+            return false;
+        }
+        if (/^(\d)\1+$/.test(cpf)) {
+            return false;
+        }
+
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+            sum += parseInt(cpf.charAt(i), 10) * (10 - i);
+        }
+        let checkDigit = 11 - (sum % 11);
+        checkDigit = checkDigit >= 10 ? 0 : checkDigit;
+        if (checkDigit !== parseInt(cpf.charAt(9), 10)) {
+            return false;
+        }
+
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+            sum += parseInt(cpf.charAt(i), 10) * (11 - i);
+        }
+        checkDigit = 11 - (sum % 11);
+        checkDigit = checkDigit >= 10 ? 0 : checkDigit;
+
+        return checkDigit === parseInt(cpf.charAt(10), 10);
+    },
+
+    /**
+     * Format CPF
+     */
+    formatCPF(cpf) {
+        const rawValue = String(cpf || '').trim();
+        const digits = rawValue.replace(/[^\d]/g, '');
+        if (digits.length !== 11) {
+            return rawValue;
+        }
+        return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    },
+
+    /**
      * Format phone number
      */
     formatPhone(phone) {
@@ -2468,12 +2512,65 @@ const Utils = {
         if (!address) {
             return { line1: '', line2: '', line3: '' };
         }
-        
-        const line1 = `${address.endereco || ''}${address.numero ? ', ' + address.numero : ''}${address.complemento ? ' - ' + address.complemento : ''}`;
-        const line2 = `${address.bairro || ''} - ${address.cidade || ''}/${address.estado || ''}`;
-        const line3 = `CEP: ${address.cep || ''}${address.telefone ? ' | Tel: ' + address.telefone : ''}`;
-        
+
+        const cityUf = [address.cidade || '', address.estado || ''].filter(Boolean).join('/');
+        const line1 = `${address.endereco || ''}${address.numero ? ', ' + address.numero : ''}${address.complemento ? ' - ' + address.complemento : ''}`.trim();
+        const line2 = [address.bairro || '', cityUf].filter(Boolean).join(' - ');
+        const line3Parts = [];
+        if (address.cep) {
+            line3Parts.push(`CEP: ${address.cep}`);
+        }
+        if (address.telefone) {
+            line3Parts.push(`Tel: ${address.telefone}`);
+        }
+        const line3 = line3Parts.join(' | ');
+
         return { line1, line2, line3 };
+    },
+
+    /**
+     * Resolve technician identity and delivery address for a solicitation PDF.
+     */
+    resolveSolicitationTechnicianDetails(solicitation = {}) {
+        let technician = (typeof DataManager !== 'undefined' && solicitation?.tecnicoId && typeof DataManager.getTechnicianById === 'function')
+            ? DataManager.getTechnicianById(solicitation.tecnicoId)
+            : null;
+        const firstFilled = (...values) => {
+            const match = values.find((value) => String(value || '').trim());
+            return match === undefined || match === null ? '' : String(match).trim();
+        };
+        if (!technician && typeof DataManager !== 'undefined' && typeof DataManager.getTechnicians === 'function') {
+            const normalizedName = this.normalizeText(firstFilled(solicitation.tecnicoNome, solicitation.requesterName));
+            const normalizedEmail = String(firstFilled(solicitation.tecnicoEmail, solicitation.requesterEmail)).toLowerCase();
+            technician = (DataManager.getTechnicians() || []).find((item) => {
+                if (!item) {
+                    return false;
+                }
+                const itemName = this.normalizeText(item.nome);
+                const itemEmail = String(item.email || '').toLowerCase();
+                return (normalizedName && itemName === normalizedName) ||
+                    (normalizedEmail && itemEmail === normalizedEmail);
+            }) || null;
+        }
+        const address = {
+            endereco: firstFilled(technician?.endereco, solicitation.enderecoEntrega, solicitation.endereco),
+            numero: firstFilled(technician?.numero, solicitation.enderecoNumero, solicitation.numeroEndereco, solicitation.numeroEntrega),
+            complemento: firstFilled(technician?.complemento, solicitation.complemento),
+            bairro: firstFilled(technician?.bairro, solicitation.bairro),
+            cidade: firstFilled(technician?.cidade, solicitation.cidade),
+            estado: firstFilled(technician?.estado, solicitation.estado),
+            cep: firstFilled(technician?.cep, solicitation.cep),
+            telefone: firstFilled(technician?.telefone, solicitation.telefone, solicitation.contato)
+        };
+        const hasAddress = Object.values(address).some(Boolean);
+        const cpf = firstFilled(technician?.cpf, solicitation.tecnicoCpf, solicitation.cpfTecnico, solicitation.cpf);
+
+        return {
+            technician,
+            name: firstFilled(solicitation.tecnicoNome, technician?.nome),
+            cpf: cpf ? this.formatCPF(cpf) : '',
+            address: hasAddress ? address : null
+        };
     },
 
     /**
@@ -2829,7 +2926,7 @@ const Utils = {
         const brandName = this.BRAND_NAME;
         const brandTagline = this.PORTAL_DISPLAY_NAME;
         const { preview } = options || {};
-        const technician = DataManager.getTechnicianById(solicitation.tecnicoId);
+        const technicianDetails = Utils.resolveSolicitationTechnicianDetails(solicitation);
         const supplier = solicitation.fornecedorId ? DataManager.getSupplierById(solicitation.fornecedorId) : null;
         const statusLabel = (Utils.getStatusInfo(solicitation.status)?.label || solicitation.status || '').toUpperCase();
         const clientLabel = solicitation.cliente || 'Não informado';
@@ -2837,7 +2934,8 @@ const Utils = {
         const supplierLabel = supplier?.nome || 'Não definido';
         const formatMoney = (value) => Utils.formatCurrency(Number(value) || 0);
         const FALLBACK_TECHNICIAN_NAME = 'tecnico';
-        const technicianName = solicitation.tecnicoNome || technician?.nome || FALLBACK_TECHNICIAN_NAME;
+        const technicianName = technicianDetails.name || FALLBACK_TECHNICIAN_NAME;
+        const technicianCpfLabel = technicianDetails.cpf || 'Não informado';
         const sanitizedTechName = Utils.sanitizeFilename(technicianName, FALLBACK_TECHNICIAN_NAME);
         const contentWidth = pageWidth - margin * 2;
         const SPACING = {
@@ -2932,15 +3030,16 @@ const Utils = {
         const valueWidth = contentWidth / 2 - 10; // Width for each value column
         
         // Prepare summary data with proper structure
-        const tecnicoValue = solicitation.tecnicoNome || 'Não informado';
+        const tecnicoValue = technicianName || 'Não informado';
         const criadoPorValue = solicitation.createdBy || 'Não informado';
         
         // Wrap long text values
         const tecnicoLines = wrapText(tecnicoValue, valueWidth - 5);
+        const cpfLines = wrapText(technicianCpfLabel, valueWidth - 5);
         const criadoPorLines = wrapText(criadoPorValue, valueWidth - 5);
         
         // Calculate dynamic box height based on wrapped content
-        const maxLines = Math.max(tecnicoLines.length, criadoPorLines.length, 1);
+        const maxLines = Math.max(tecnicoLines.length, cpfLines.length, criadoPorLines.length, 1);
         const summaryRowHeight = lineHeight * maxLines + 2;
         const summaryBoxHeight = summaryRowHeight * 3 + 6;
         
@@ -2971,12 +3070,17 @@ const Utils = {
         doc.setFont(undefined, 'normal');
         doc.text(formatMoney(solicitation.total), margin + contentWidth / 2 + 4 + 14, row2Y);
         
-        // Row 3: Criado por
+        // Row 3: CPF and Criado por
         const row3Y = row2Y + summaryRowHeight;
         doc.setFont(undefined, 'bold');
-        doc.text('Criado por:', margin + 4, row3Y);
+        doc.text('CPF:', margin + 4, row3Y);
         doc.setFont(undefined, 'normal');
-        doc.text(criadoPorLines, margin + 4 + 24, row3Y);
+        doc.text(cpfLines, margin + 4 + 12, row3Y);
+
+        doc.setFont(undefined, 'bold');
+        doc.text('Criado por:', margin + contentWidth / 2 + 4, row3Y);
+        doc.setFont(undefined, 'normal');
+        doc.text(criadoPorLines, margin + contentWidth / 2 + 4 + 24, row3Y);
         
         y += summaryBoxHeight + 4;
 
@@ -3013,22 +3117,8 @@ const Utils = {
 
         y += operationalBoxHeight + 4;
         
-        // Technician or solicitation address (fallback always visible)
-        const solicitationAddress = {
-            endereco: solicitation.enderecoEntrega || solicitation.endereco || '',
-            numero: solicitation.enderecoNumero || solicitation.numero || '',
-            complemento: solicitation.complemento || '',
-            bairro: solicitation.bairro || '',
-            cidade: solicitation.cidade || '',
-            estado: solicitation.estado || '',
-            cep: solicitation.cep || '',
-            telefone: solicitation.telefone || solicitation.contato || ''
-        };
-        const hasSolicitationAddress = Object.values(solicitationAddress).some(Boolean);
-        const addressSource = (technician && technician.endereco) ? technician : (hasSolicitationAddress ? solicitationAddress : null);
-        
         drawSectionTitle('Endereço para envio');
-        const address = addressSource ? Utils.formatAddress(addressSource) : { line1: 'Endereço não informado', line2: '', line3: '' };
+        const address = technicianDetails.address ? Utils.formatAddress(technicianDetails.address) : { line1: 'Endereço não informado', line2: '', line3: '' };
         
         // Wrap address lines if needed
         const addressLine1Wrapped = wrapText(address.line1, contentWidth - 8);
@@ -3523,10 +3613,6 @@ const AnalyticsHelper = {
 if (typeof window !== 'undefined') {
     window.AnalyticsHelper = AnalyticsHelper;
 }
-
-
-
-
 
 
 
