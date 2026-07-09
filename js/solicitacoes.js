@@ -138,7 +138,6 @@ const Solicitacoes = {
                 <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             </div>
-            ${canExport ? '' : '<p class="text-muted mt-1 helper-text">Para exportar, certifique-se de que a biblioteca XLSX esteja disponível.</p>'}
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
             <details class="filter-panel compact" id="sol-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>

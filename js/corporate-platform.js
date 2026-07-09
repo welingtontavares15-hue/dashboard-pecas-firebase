@@ -1,19 +1,18 @@
 (function () {
-    const DENSITY_KEY = 'corporatePlatform.density';
     const PAGE_CONFIG = {
-        dashboard: { icon: 'fa-chart-pie', context: 'GESTAO OPERACIONAL', kicker: 'Visao executiva' },
-        solicitacoes: { icon: 'fa-clipboard-list', context: 'OPERACAO', kicker: 'Fluxo operacional' },
-        'minhas-solicitacoes': { icon: 'fa-clipboard-list', context: 'OPERACAO', kicker: 'Fluxo operacional' },
-        'nova-solicitacao': { icon: 'fa-plus-circle', context: 'OPERACAO', kicker: 'Abertura de chamado' },
-        aprovacoes: { icon: 'fa-check-double', context: 'GOVERNANCA', kicker: 'Controle de aprovacao' },
-        pecas: { icon: 'fa-cogs', context: 'CADASTROS', kicker: 'Catalogo operacional' },
-        catalogo: { icon: 'fa-cogs', context: 'CADASTROS', kicker: 'Catalogo operacional' },
-        tecnicos: { icon: 'fa-users', context: 'CADASTROS', kicker: 'Equipe tecnica' },
-        fornecedores: { icon: 'fa-truck', context: 'CADASTROS', kicker: 'Rede de fornecimento' },
-        relatorios: { icon: 'fa-chart-line', context: 'ANALISES', kicker: 'Inteligencia operacional' },
-        fornecedor: { icon: 'fa-truck-loading', context: 'PORTAL', kicker: 'Atendimento fornecedor' },
-        configuracoes: { icon: 'fa-cog', context: 'ADMINISTRACAO', kicker: 'Parametros da plataforma' },
-        perfil: { icon: 'fa-user-circle', context: 'CONTA', kicker: 'Perfil de acesso' }
+        dashboard: { icon: 'fa-chart-pie', kicker: 'Visão executiva' },
+        solicitacoes: { icon: 'fa-clipboard-list', kicker: 'Fluxo operacional' },
+        'minhas-solicitacoes': { icon: 'fa-clipboard-list', kicker: 'Fluxo operacional' },
+        'nova-solicitacao': { icon: 'fa-plus-circle', kicker: 'Abertura de chamado' },
+        aprovacoes: { icon: 'fa-check-double', kicker: 'Controle de aprovação' },
+        pecas: { icon: 'fa-cogs', kicker: 'Catálogo operacional' },
+        catalogo: { icon: 'fa-cogs', kicker: 'Catálogo operacional' },
+        tecnicos: { icon: 'fa-users', kicker: 'Equipe técnica' },
+        fornecedores: { icon: 'fa-truck', kicker: 'Rede de fornecimento' },
+        relatorios: { icon: 'fa-chart-line', kicker: 'Inteligência operacional' },
+        fornecedor: { icon: 'fa-truck-loading', kicker: 'Atendimento ao fornecedor' },
+        configuracoes: { icon: 'fa-cog', kicker: 'Parâmetros da plataforma' },
+        perfil: { icon: 'fa-user-circle', kicker: 'Perfil de acesso' }
     };
 
     let enhancementScheduled = false;
@@ -27,72 +26,7 @@
     }
 
     function getConfig(pageId = currentPage()) {
-        return PAGE_CONFIG[pageId] || { icon: 'fa-layer-group', context: 'PLATAFORMA', kicker: 'Gestao corporativa' };
-    }
-
-    function applyDensity() {
-        const compact = localStorage.getItem(DENSITY_KEY) === 'compact';
-        document.body.classList.toggle('corporate-density-compact', compact);
-        document.documentElement.dataset.corporateDensity = compact ? 'compact' : 'comfortable';
-        updateDensityButton();
-    }
-
-    function updateDensityButton() {
-        const button = document.getElementById('corporate-density-toggle');
-        if (!button) {
-            return;
-        }
-
-        const compact = document.body.classList.contains('corporate-density-compact');
-        button.classList.toggle('active', compact);
-        button.setAttribute('aria-pressed', compact ? 'true' : 'false');
-    }
-
-    function ensureDensityToggle() {
-        const controls = document.querySelector('.header-controls');
-        if (!controls || document.getElementById('corporate-density-toggle')) {
-            return;
-        }
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.id = 'corporate-density-toggle';
-        button.className = 'btn-icon corporate-density-toggle';
-        button.title = 'Alternar densidade';
-        button.setAttribute('aria-label', 'Alternar densidade visual');
-        button.setAttribute('aria-pressed', 'false');
-        button.innerHTML = '<i class="fas fa-layer-group"></i>';
-        button.addEventListener('click', () => {
-            const nextValue = document.body.classList.contains('corporate-density-compact') ? 'comfortable' : 'compact';
-            if (nextValue === 'compact') {
-                localStorage.setItem(DENSITY_KEY, 'compact');
-            } else {
-                localStorage.removeItem(DENSITY_KEY);
-            }
-            applyDensity();
-        });
-
-        controls.insertBefore(button, controls.firstChild);
-        updateDensityButton();
-    }
-
-    function ensureContextPill() {
-        const headerLeft = document.querySelector('.header-left');
-        const breadcrumb = document.getElementById('breadcrumb');
-        if (!headerLeft || !breadcrumb) {
-            return;
-        }
-
-        let pill = document.getElementById('corporate-context-pill');
-        if (!pill) {
-            pill = document.createElement('div');
-            pill.id = 'corporate-context-pill';
-            pill.className = 'corporate-context-pill';
-            headerLeft.insertBefore(pill, breadcrumb);
-        }
-
-        const config = getConfig();
-        pill.innerHTML = `<i class="fas ${config.icon}"></i><span>${config.context}</span>`;
+        return PAGE_CONFIG[pageId] || { icon: 'fa-layer-group', kicker: 'Gestão corporativa' };
     }
 
     function enhanceNavigation() {
@@ -239,9 +173,6 @@
 
     function enhanceAll() {
         document.body.classList.add('corporate-platform-enabled');
-        applyDensity();
-        ensureDensityToggle();
-        ensureContextPill();
         enhanceNavigation();
         enhancePageHeader();
         enhanceFilters();
@@ -315,7 +246,6 @@
 
     function init() {
         document.body.classList.add('corporate-platform-enabled');
-        applyDensity();
         patchLifecycle();
         setupObservers();
         scheduleEnhancement();

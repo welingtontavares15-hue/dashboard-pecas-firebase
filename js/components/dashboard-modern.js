@@ -11,16 +11,6 @@ const DASHBOARD_TEXTS = {
     emptyHistory: 'Sem dados no per\u00edodo selecionado.'
 };
 
-const FLOW_STEPS = [
-    'T\u00e9cnico abre a solicita\u00e7\u00e3o.',
-    'Gestor avalia a solicita\u00e7\u00e3o.',
-    'Se rejeitar, retorna para o t\u00e9cnico.',
-    'Se aprovar, a solicita\u00e7\u00e3o \u00e9 enviada ao fornecedor em PDF por e-mail.',
-    'Fornecedor responde com os dados do envio.',
-    'Gestor registra o rastreio no sistema.',
-    'Quando o material chega, o t\u00e9cnico marca como entregue.',
-    'A solicita\u00e7\u00e3o \u00e9 finalizada.'
-];
 
 const FLOW_STATUSES = ['PENDENTE_APROVACAO', 'APROVADO', 'EM_COMPRA', 'CONCLUIDO', 'REPROVADO'];
 
@@ -246,53 +236,6 @@ function renderTopPartsTable(items = []) {
     `;
 }
 
-function renderExecutiveSummary(analysis, topTechnician) {
-    return `
-        <div class="dashboard-executive-panel">
-            <div class="dashboard-executive-grid">
-                <div class="dashboard-summary-item primary">
-                    <span>Total gasto no per\u00edodo</span>
-                    <strong>${Utils.formatCurrency(analysis.totalCost || 0)}</strong>
-                    <small>${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es) com custo</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>Custo m\u00e9dio por solicita\u00e7\u00e3o</span>
-                    <strong>${Utils.formatCurrency(analysis.averageCostPerSolicitation || 0)}</strong>
-                    <small>Base de ${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00e3o(\u00f5es)</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>Custo m\u00e9dio por t\u00e9cnico</span>
-                    <strong>${Utils.formatCurrency(analysis.avgCostPerTech || 0)}</strong>
-                    <small>${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnico(s) com custo</small>
-                </div>
-                <div class="dashboard-summary-item primary">
-                    <span>T\u00e9cnico com maior custo</span>
-                    <strong>${Utils.escapeHtml(topTechnician?.nome || 'Sem dados')}</strong>
-                    <small>${topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral}</small>
-                </div>
-            </div>
-
-            <div class="dashboard-flow-head">Fluxo visual da solicita\u00e7\u00e3o</div>
-            <p class="dashboard-flow-support">Abertura t\u00e9cnica, avalia\u00e7\u00e3o do gestor, envio ao fornecedor, rastreio e entrega final.</p>
-            <ol class="dashboard-flow-list">
-                ${FLOW_STEPS.map((step, index) => `
-                    <li class="dashboard-flow-item">
-                        <span class="dashboard-flow-index">${index + 1}</span>
-                        <span>${Utils.escapeHtml(step)}</span>
-                    </li>
-                `).join('')}
-            </ol>
-
-            <div class="dashboard-flow-status-head">Status acompanhados na vis\u00e3o geral</div>
-            <div class="dashboard-flow-status-list">
-                ${FLOW_STATUSES.map((status) => `
-                    <span>${Utils.escapeHtml(getPipelineStatusLabel(status))}</span>
-                `).join('')}
-            </div>
-        </div>
-    `;
-}
-
 function renderHistoryRows(solicitations = []) {
     return solicitations.slice(0, 10).map((sol) => {
         const piece = (sol.itens || [])[0];
@@ -350,10 +293,8 @@ export function applyDashboardModernization() {
         const highValueSolicitations = getHighValueSolicitations(solicitations);
         const analysis = buildAnalysis(filters);
         const technicians = DataManager.getTechnicians().filter((t) => t.ativo !== false);
-        const regions = Array.from(new Set(technicians.map((t) => (t.regiao || t.estado || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
         const openCount = getOpenSolicitationsCount(solicitations);
         const topTechnicians = (analysis.byTechnician || []).slice(0, 5);
-        const topTechnician = topTechnicians[0] || null;
         // Calcular as peças com maior custo para a visão executiva
         const topParts = (analysis.byPiece || []).slice(0, 5);
         const topPart = topParts[0] || null;
@@ -378,13 +319,6 @@ export function applyDashboardModernization() {
                     `)}
                     ${renderFilterField('De', `<input id="saas-date-from" type="date" class="form-control" value="${filters.dateFrom}">`)}
                     ${renderFilterField('At\u00e9', `<input id="saas-date-to" type="date" class="form-control" value="${filters.dateTo}">`)}
-                    ${renderFilterField('Estado', `
-                        <select id="saas-estado" class="form-control">
-                            <option value="">Todos</option>
-                            ${regions.map((region) => `<option value="${Utils.escapeHtml(region)}" ${filters.estado === region ? 'selected' : ''}>${Utils.escapeHtml(region)}</option>`).join('')}
-                        </select>
-                    `)}
-                    ${renderFilterField('Cliente', `<input id="saas-cliente" class="form-control" placeholder="Nome do cliente" value="${Utils.escapeHtml(filters.cliente)}">`)}
                     ${renderFilterField('T\u00e9cnico', `
                         <select id="saas-tecnico" class="form-control">
                             <option value="">Todos</option>
@@ -410,7 +344,7 @@ export function applyDashboardModernization() {
                         ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es com custo', value: Utils.formatNumber(analysis.totalApproved || 0), subtitle: 'Chamados com custo no per\u00edodo', icon: 'fa-clipboard-list', tone: 'info' })}
                         ${renderKpiCard({ title: 'Custo m\u00e9dio por solicita\u00e7\u00e3o', value: Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), subtitle: `${Utils.formatNumber(analysis.totalApproved || 0)} solicita\u00e7\u00f5es com custo`, icon: 'fa-receipt', tone: 'success' })}
                         ${renderKpiCard({ title: 'Custo m\u00e9dio por t\u00e9cnico', value: Utils.formatCurrency(analysis.avgCostPerTech || 0), subtitle: `${Utils.formatNumber(analysis.uniqueTechCount || 0)} t\u00e9cnicos no per\u00edodo`, icon: 'fa-user-gear', tone: 'info' })}
-                        ${renderKpiCard({ title: 'T\u00e9cnico com maior custo', value: Utils.escapeHtml(topTechnician?.nome || 'Sem dados'), subtitle: topTechnician ? Utils.formatCurrency(topTechnician.totalCost || 0) : DASHBOARD_TEXTS.emptyGeneral, icon: 'fa-medal', tone: 'warning' })}
+                        ${renderKpiCard({ title: 'Solicita\u00e7\u00f5es abertas', value: Utils.formatNumber(openCount), subtitle: 'Em aprova\u00e7\u00e3o, aprovadas ou em tr\u00e2nsito', icon: 'fa-inbox', tone: 'warning' })}
                         
                     </div>
                 </div>
@@ -505,8 +439,8 @@ export function applyDashboardModernization() {
                 periodPreset,
                 dateFrom,
                 dateTo,
-                estado: document.getElementById('saas-estado')?.value || '',
-                cliente: document.getElementById('saas-cliente')?.value || '',
+                estado: '',
+                cliente: '',
                 tecnico: document.getElementById('saas-tecnico')?.value || '',
                 fornecedor: document.getElementById('saas-fornecedor')?.value || '',
                 status: document.getElementById('saas-status')?.value || ''
@@ -521,23 +455,12 @@ export function applyDashboardModernization() {
             this.render();
         };
 
-        ['saas-period', 'saas-date-from', 'saas-date-to', 'saas-estado', 'saas-tecnico', 'saas-fornecedor', 'saas-status'].forEach((id) => {
+        ['saas-period', 'saas-date-from', 'saas-date-to', 'saas-tecnico', 'saas-fornecedor', 'saas-status'].forEach((id) => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('change', apply);
             }
         });
-
-        const clientInput = document.getElementById('saas-cliente');
-        if (clientInput) {
-            clientInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    apply();
-                }
-            });
-            clientInput.addEventListener('blur', apply);
-        }
     };
 
     window.Dashboard.resetSaasFilters = function resetSaasFilters() {

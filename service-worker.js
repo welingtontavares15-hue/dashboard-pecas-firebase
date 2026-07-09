@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v39-solicitante-snapshot';
+const CACHE_VERSION = 'v40-clean-ui';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -17,6 +17,7 @@ const PRECACHE = {
     './offline.html',
     './clear-cache.html',
     './css/style.css',
+    './css/clean-ui.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',

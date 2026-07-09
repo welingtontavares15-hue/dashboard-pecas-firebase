@@ -1,0 +1,15 @@
+# Dependências
+node_modules/
+
+# Logs e caches
+npm-debug.log*
+.eslintcache
+
+# Arquivos temporários de harness/preview (não versionar)
+__*_harness.html
+__*_seed.js
+.claude/launch.json
+
+# SO / editor
+.DS_Store
+Thumbs.db

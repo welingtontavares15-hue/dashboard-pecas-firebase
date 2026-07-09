@@ -54,22 +54,27 @@
             return;
         }
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'table-toolbar';
-        toolbar.innerHTML = '<input type="text" class="table-quick-filter form-control" placeholder="Filtro rápido da tabela">';
+        // Quick filter only pays off on longer lists; small ranking/preview
+        // tables stay clean without an extra input above them.
+        const rowCount = table.querySelectorAll('tbody tr').length;
+        if (rowCount >= 8) {
+            const toolbar = document.createElement('div');
+            toolbar.className = 'table-toolbar';
+            toolbar.innerHTML = '<input type="text" class="table-quick-filter form-control" placeholder="Filtro rápido da tabela">';
 
-        tableContainer.parentElement.insertBefore(toolbar, tableContainer);
+            tableContainer.parentElement.insertBefore(toolbar, tableContainer);
 
-        const filterInput = toolbar.querySelector('.table-quick-filter');
-        const tbody = table.querySelector('tbody');
-        if (filterInput && tbody) {
-            filterInput.addEventListener('input', debounce(() => {
-                const query = (filterInput.value || '').toLowerCase().trim();
-                Array.from(tbody.rows).forEach((row) => {
-                    const text = (row.textContent || '').toLowerCase();
-                    row.style.display = text.includes(query) ? '' : 'none';
-                });
-            }, 120));
+            const filterInput = toolbar.querySelector('.table-quick-filter');
+            const tbody = table.querySelector('tbody');
+            if (filterInput && tbody) {
+                filterInput.addEventListener('input', debounce(() => {
+                    const query = (filterInput.value || '').toLowerCase().trim();
+                    Array.from(tbody.rows).forEach((row) => {
+                        const text = (row.textContent || '').toLowerCase();
+                        row.style.display = text.includes(query) ? '' : 'none';
+                    });
+                }, 120));
+            }
         }
 
         const headers = Array.from(table.querySelectorAll('thead th'));

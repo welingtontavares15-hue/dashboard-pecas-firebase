@@ -7,7 +7,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../solicitacoes.js?v=20260709a', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20260709b', import.meta.url).href, 'Solicitacoes');
     await ensureClassicScript(new URL('../aprovacoes.js?v=20260709a', import.meta.url).href, 'Aprovacoes');
 
     ready = true;

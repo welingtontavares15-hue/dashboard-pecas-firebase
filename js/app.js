@@ -9,9 +9,9 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260309n',
-        solicitacoes: './pages/solicitacoes.js?v=20260709a',
-        aprovacoes: './pages/aprovacoes.js?v=20260709a',
+        dashboard: './pages/dashboard.js?v=20260709b',
+        solicitacoes: './pages/solicitacoes.js?v=20260709b',
+        aprovacoes: './pages/aprovacoes.js?v=20260709b',
         pecas: './pages/pecas.js?v=20260309n',
         relatorios: './pages/relatorios.js?v=20260709a',
         fornecedor: './pages/fornecedor.js?v=20260709a',

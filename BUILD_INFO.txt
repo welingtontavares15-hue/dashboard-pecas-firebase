@@ -8,3 +8,5 @@ HOBART_FIX_2=Session supplier fallback + service worker cache bump
 BLOCO_09_PDF_CORPORATIVO=Fix endereco/CPF no PDF (backfill snapshot + lookup normalizado) + PDF layout corporativo + SW v38
 
 BLOCO_10_SOLICITANTE_SNAPSHOT=Resolvedor unico de solicitante aplicado em PDF/detalhes/portal/relatorios + validacao de tecnico + SW v39
+
+BLOCO_10_CLEAN_UI=Redesign visual: clean-ui.css (camada final), header/sidebar limpos, KPIs compactos, filtros padronizados, SW v40
