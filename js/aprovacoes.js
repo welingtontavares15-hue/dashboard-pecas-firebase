@@ -219,6 +219,25 @@ const Aprovacoes = {
         });
     },
 
+    sameId(a, b) {
+        return typeof Utils.sameId === 'function'
+            ? Utils.sameId(a, b)
+            : String(a ?? '').trim() !== '' && String(a ?? '').trim() === String(b ?? '').trim();
+    },
+
+    getRequesterDetails(sol) {
+        return typeof Utils.resolveSolicitationRequesterDetails === 'function'
+            ? Utils.resolveSolicitationRequesterDetails(sol)
+            : (typeof Utils.resolveSolicitationTechnicianDetails === 'function'
+                ? Utils.resolveSolicitationTechnicianDetails(sol)
+                : null);
+    },
+
+    getRequesterName(sol, fallback = '-') {
+        const details = this.getRequesterDetails(sol);
+        return details?.name || sol?.tecnicoNome || sol?.requesterName || fallback;
+    },
+
     /**
      * Render approvals table
      */
@@ -289,7 +308,7 @@ const Aprovacoes = {
                                         </td>
                                     ` : ''}
                                     <td><strong>#${sol.numero}</strong></td>
-                                    <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
+                                    <td>${Utils.escapeHtml(this.getRequesterName(sol))}</td>
                                     <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                                     <td>${Utils.escapeHtml(this.getSolicitationRegion(sol))}</td>
                                     <td>${this.renderPriorityBadge(priority)}</td>
@@ -361,7 +380,8 @@ const Aprovacoes = {
     },
 
     getSolicitationRegion(sol) {
-        const technician = sol?.tecnicoId ? DataManager.getTechnicianById(sol.tecnicoId) : null;
+        const details = this.getRequesterDetails(sol);
+        const technician = details?.technician || (sol?.tecnicoId ? DataManager.getTechnicianById(sol.tecnicoId) : null);
         return (technician?.regiao || technician?.estado || '').trim() || 'Sem região';
     },
 
@@ -703,7 +723,7 @@ const Aprovacoes = {
                 <div class="form-row">
                     <div class="form-group">
                         <label>Técnico</label>
-                        <p><strong>${Utils.escapeHtml(sol.tecnicoNome)}</strong></p>
+                        <p><strong>${Utils.escapeHtml(this.getRequesterName(sol))}</strong></p>
                     </div>
                     <div class="form-group">
                         <label>Total</label>
@@ -730,8 +750,8 @@ const Aprovacoes = {
                 
                 ${sol.fornecedorId ? (() => {
         const sup = DataManager.getSupplierById(sol.fornecedorId);
-        const nome = sup ? sup.nome : (sol.fornecedorId === 'sup-hobart' ? 'Hobart' : 'EBST');
-        const isHobart = sol.fornecedorId === 'sup-hobart';
+        const nome = sup ? sup.nome : (this.sameId(sol.fornecedorId, 'sup-hobart') ? 'Hobart' : 'EBST');
+        const isHobart = this.sameId(sol.fornecedorId, 'sup-hobart');
         const iconBg = isHobart ? '#d97706' : '#2563eb';
         const tagBg  = isHobart ? '#fef3c7' : '#dbeafe';
         const tagTxt = isHobart ? '#92400e'  : '#1d4ed8';
@@ -1130,7 +1150,7 @@ const Aprovacoes = {
                 <div class="form-row">
                     <div class="form-group">
                         <label>Técnico</label>
-                        <p><strong>${Utils.escapeHtml(sol.tecnicoNome)}</strong></p>
+                        <p><strong>${Utils.escapeHtml(this.getRequesterName(sol))}</strong></p>
                     </div>
                     <div class="form-group">
                         <label>Total</label>
@@ -1366,8 +1386,6 @@ const Aprovacoes = {
 if (typeof window !== 'undefined') {
     window.Aprovacoes = Aprovacoes;
 }
-
-
 
 
 

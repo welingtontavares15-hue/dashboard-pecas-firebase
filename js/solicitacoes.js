@@ -422,7 +422,7 @@ const Solicitacoes = {
         if (events.length === 0) {
             events.push({
                 label: 'Técnico abriu a solicitação',
-                by: sol.createdBy || sol.tecnicoNome || 'Sistema',
+                by: sol.createdBy || this.getRequesterName(sol, 'Sistema'),
                 at: sol.createdAt || Date.now()
             });
         }
@@ -462,6 +462,61 @@ const Solicitacoes = {
             this.filters.dateTo ||
             (Array.isArray(this.filters.statuses) && this.filters.statuses.length > 0)
         );
+    },
+
+    sameId(a, b) {
+        return typeof Utils.sameId === 'function'
+            ? Utils.sameId(a, b)
+            : String(a ?? '').trim() !== '' && String(a ?? '').trim() === String(b ?? '').trim();
+    },
+
+    getRequesterDetails(sol) {
+        return typeof Utils.resolveSolicitationRequesterDetails === 'function'
+            ? Utils.resolveSolicitationRequesterDetails(sol)
+            : Utils.resolveSolicitationTechnicianDetails(sol);
+    },
+
+    getRequesterName(sol, fallback = 'Não informado') {
+        const details = this.getRequesterDetails(sol);
+        return details?.name || sol?.tecnicoNome || sol?.requesterName || fallback;
+    },
+
+    renderRequesterDeliveryCard(sol) {
+        const details = this.getRequesterDetails(sol);
+        const address = details?.address ? Utils.formatAddress(details.address) : null;
+        const addressLines = address
+            ? [address.line1, address.line2, address.line3].filter(Boolean)
+            : [];
+        const addressHtml = addressLines.length > 0
+            ? addressLines.map((line) => `<div>${Utils.escapeHtml(line)}</div>`).join('')
+            : '<span class="text-muted">Não informado</span>';
+        const value = (current) => Utils.escapeHtml(current || 'Não informado');
+
+        return `
+            <h4 class="mt-3 mb-2">Solicitante e entrega</h4>
+            <div class="technician-summary-grid requester-delivery-grid">
+                <div class="technician-summary-card">
+                    <label>Solicitante</label>
+                    <strong>${value(details?.name)}</strong>
+                </div>
+                <div class="technician-summary-card">
+                    <label>CPF</label>
+                    <strong>${value(details?.cpf)}</strong>
+                </div>
+                <div class="technician-summary-card">
+                    <label>E-mail</label>
+                    <strong>${value(details?.email)}</strong>
+                </div>
+                <div class="technician-summary-card">
+                    <label>Telefone</label>
+                    <strong>${value(details?.phone)}</strong>
+                </div>
+                <div class="technician-summary-card technician-summary-card-wide">
+                    <label>Endereço de entrega</label>
+                    <div class="requester-address-lines">${addressHtml}</div>
+                </div>
+            </div>
+        `;
     },
 
     setStatusFilter(statuses = []) {
@@ -561,7 +616,7 @@ const Solicitacoes = {
                                 <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
                                     <i class="fas fa-copy"></i>
                                 </button>
-                                ${sol.tecnicoId === currentTecnicoId && normalizedStatus === 'em-transito' ? `
+                                ${(this.sameId(sol.tecnicoId, currentTecnicoId) || this.sameId(sol.requesterTecnicoId, currentTecnicoId)) && normalizedStatus === 'em-transito' ? `
                                     <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar recebimento">
                                         <i class="fas fa-check-circle"></i>
                                     </button>
@@ -578,7 +633,7 @@ const Solicitacoes = {
             return `
                 <tr>
                     <td><strong>#${sol.numero}</strong></td>
-                    <td>${Utils.escapeHtml(sol.tecnicoNome || '-')}</td>
+                    <td>${Utils.escapeHtml(this.getRequesterName(sol, '-'))}</td>
                     <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                     <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
                     <td>${Utils.formatCurrency(sol.total)}</td>
@@ -607,7 +662,7 @@ const Solicitacoes = {
                                     <i class="fas fa-check"></i>
                                 </button>
                             ` : ''}
-                            ${isTecnico && sol.tecnicoId === currentTecnicoId && normalizedStatus === 'em-transito' ? `
+                            ${isTecnico && (this.sameId(sol.tecnicoId, currentTecnicoId) || this.sameId(sol.requesterTecnicoId, currentTecnicoId)) && normalizedStatus === 'em-transito' ? `
                                 <button class="btn btn-sm btn-success" onclick="Solicitacoes.confirmDelivery('${sol.id}')" title="Confirmar entrega">
                                     <i class="fas fa-check-circle"></i>
                                 </button>
@@ -720,9 +775,9 @@ const Solicitacoes = {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-        const tecnicoId = sol.tecnicoId;
+        const tecnicoId = sol.tecnicoId || sol.requesterTecnicoId;
         const tecnicoMonth = allSolicitations.filter((item) => {
-            if (item.tecnicoId !== tecnicoId) {
+            if (!this.sameId(item.tecnicoId, tecnicoId) && !this.sameId(item.requesterTecnicoId, tecnicoId)) {
                 return false;
             }
             const date = parseDate(item);
@@ -827,7 +882,7 @@ const Solicitacoes = {
 
         if (role === 'tecnico') {
             const tecnicoId = Auth.getTecnicoId();
-            solicitations = solicitations.filter(s => s.tecnicoId === tecnicoId);
+            solicitations = solicitations.filter(s => this.sameId(s.tecnicoId, tecnicoId) || this.sameId(s.requesterTecnicoId, tecnicoId));
         }
 
         if (role === 'fornecedor') {
@@ -925,7 +980,7 @@ const Solicitacoes = {
         }
 
         if (role === 'tecnico') {
-            return sol.tecnicoId === Auth.getTecnicoId();
+            return this.sameId(sol.tecnicoId, Auth.getTecnicoId()) || this.sameId(sol.requesterTecnicoId, Auth.getTecnicoId());
         }
 
         if (role === 'fornecedor') {
@@ -938,7 +993,7 @@ const Solicitacoes = {
 
             const fornecedorId = (typeof Auth.getFornecedorId === 'function') ? Auth.getFornecedorId() : null;
             if (fornecedorId) {
-                return sol.fornecedorId === fornecedorId;
+                return this.sameId(sol.fornecedorId, fornecedorId);
             }
 
             const normalizeEmail = (value) => {
@@ -984,10 +1039,10 @@ const Solicitacoes = {
             return;
         }
 
-        const isTecnicoOwner = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
+        const isTecnicoOwner = Auth.getRole() === 'tecnico' && (this.sameId(sol.tecnicoId, Auth.getTecnicoId()) || this.sameId(sol.requesterTecnicoId, Auth.getTecnicoId()));
         const supplier = sol.fornecedorId ? DataManager.getSupplierById(sol.fornecedorId) : null;
         const canManageTracking = Auth.getRole() === 'fornecedor' && this.canCurrentUserAccessSolicitation(sol);
-        const canConfirmDelivery = Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId();
+        const canConfirmDelivery = Auth.getRole() === 'tecnico' && (this.sameId(sol.tecnicoId, Auth.getTecnicoId()) || this.sameId(sol.requesterTecnicoId, Auth.getTecnicoId()));
         const normalizedStatus = (typeof DataManager.normalizeWorkflowStatus === 'function')
             ? DataManager.normalizeWorkflowStatus(sol.status)
             : String(sol.status || '').trim();
@@ -1029,6 +1084,8 @@ const Solicitacoes = {
                             <strong>${Utils.formatNumber(itemQuantity)} peça(s)</strong>
                         </div>
                     </div>
+
+                    ${this.renderRequesterDeliveryCard(sol)}
 
                     <h4 class="mt-3 mb-2">Itens/peças solicitadas</h4>
                     <div class="table-container">
@@ -1085,7 +1142,7 @@ const Solicitacoes = {
                 <div class="form-row">
                     <div class="form-group">
                         <label>Técnico</label>
-                        <p><strong>${Utils.escapeHtml(sol.tecnicoNome)}</strong></p>
+                        <p><strong>${Utils.escapeHtml(this.getRequesterName(sol))}</strong></p>
                     </div>
                     <div class="form-group">
                         <label>Data</label>
@@ -1100,6 +1157,8 @@ const Solicitacoes = {
                         <p><strong>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</strong></p>
                     </div>
                 </div>
+
+                ${this.renderRequesterDeliveryCard(sol)}
 
                 ${this.renderDecisionSidePanel(sol)}
 
@@ -1418,7 +1477,7 @@ const Solicitacoes = {
             return;
         }
 
-        if (!(Auth.getRole() === 'tecnico' && sol.tecnicoId === Auth.getTecnicoId())) {
+        if (!(Auth.getRole() === 'tecnico' && (this.sameId(sol.tecnicoId, Auth.getTecnicoId()) || this.sameId(sol.requesterTecnicoId, Auth.getTecnicoId())))) {
             Utils.showToast('Apenas o técnico responsável pode confirmar a entrega', 'warning');
             return;
         }
@@ -1518,7 +1577,7 @@ const Solicitacoes = {
                                 <select id="sol-tecnico" class="form-control" required onchange="Solicitacoes.updateTecnicoName()">
                                     <option value="">Selecione...</option>
                                     ${technicians.filter(t => t.ativo !== false).map(t => 
-        `<option value="${t.id}" ${this.currentSolicitation.tecnicoId === t.id ? 'selected' : ''}>
+        `<option value="${t.id}" ${this.sameId(this.currentSolicitation.tecnicoId, t.id) ? 'selected' : ''}>
                                             ${Utils.escapeHtml(t.nome)}
                                         </option>`
     ).join('')}
@@ -2022,7 +2081,7 @@ const Solicitacoes = {
             if (!sol) {
                 return false;
             }
-            if (sol.tecnicoId !== snapshot.tecnicoId) {
+            if (!this.sameId(sol.tecnicoId, snapshot.tecnicoId) && !this.sameId(sol.requesterTecnicoId, snapshot.requesterTecnicoId || snapshot.tecnicoId)) {
                 return false;
             }
             if ((sol.data || '') !== (snapshot.data || '')) {
@@ -2056,7 +2115,7 @@ const Solicitacoes = {
         this.currentSolicitation = {
             id: null,
             tecnicoId: Auth.getRole() === 'tecnico' ? Auth.getTecnicoId() : sol.tecnicoId,
-            tecnicoNome: Auth.getRole() === 'tecnico' ? (currentUser?.name || 'Não identificado') : sol.tecnicoNome,
+            tecnicoNome: Auth.getRole() === 'tecnico' ? (currentUser?.name || 'Não identificado') : this.getRequesterName(sol),
             data: Utils.getLocalDateString(),
             cliente: sol.cliente || '',
             observacoes: sol.observacoes,
@@ -2191,7 +2250,7 @@ const Solicitacoes = {
 
         const data = solicitations.map(sol => ({
             Numero: sol.numero,
-            Tecnico: sol.tecnicoNome,
+            Tecnico: this.getRequesterName(sol),
             Cliente: sol.cliente || 'Nao informado',
             Peca: this.getPieceSummary(sol.itens || []).full,
             Data: Utils.formatDate(sol.data),
@@ -2213,19 +2272,6 @@ const Solicitacoes = {
 if (typeof window !== 'undefined') {
     window.Solicitacoes = Solicitacoes;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

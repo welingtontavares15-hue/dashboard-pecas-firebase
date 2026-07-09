@@ -221,6 +221,25 @@ describe('Utils', () => {
         });
     });
 
+    describe('formatCEP', () => {
+        it('should format CEP digits', () => {
+            expect(Utils.formatCEP('75134550')).toBe('75134-550');
+        });
+
+        it('should preserve non-standard values', () => {
+            expect(Utils.formatCEP('sem-cep')).toBe('sem-cep');
+        });
+    });
+
+    describe('sameId', () => {
+        it('should compare numeric and string legacy ids safely', () => {
+            expect(Utils.sameId(1024, '1024')).toBe(true);
+            expect(Utils.sameId('abc', 'abc')).toBe(true);
+            expect(Utils.sameId('', '')).toBe(false);
+            expect(Utils.sameId(null, '1')).toBe(false);
+        });
+    });
+
     describe('resolveSolicitationTechnicianDetails', () => {
         afterEach(() => {
             delete global.DataManager;
@@ -248,10 +267,33 @@ describe('Utils', () => {
                 enderecoEntrega: 'Rua Snapshot'
             });
 
-            expect(details.name).toBe('Tecnico Snapshot');
+            expect(details.name).toBe('Tecnico Cadastro');
             expect(details.cpf).toBe('529.982.247-25');
             expect(details.address.endereco).toBe('Rua Cadastro');
             expect(details.address.numero).toBe('100');
+        });
+
+        it('should use legacy city/state aliases from technician registry', () => {
+            global.DataManager = {
+                getTechnicianById: jest.fn().mockReturnValue({
+                    nome: 'Tecnico Legado',
+                    cpf: '52998224725',
+                    endereco: 'Rua Legada',
+                    municipio: 'Anapolis',
+                    uf: 'GO',
+                    cep: '75134550'
+                })
+            };
+
+            const details = Utils.resolveSolicitationTechnicianDetails({
+                tecnicoId: 1024,
+                tecnicoNome: 'Snapshot'
+            });
+
+            expect(details.name).toBe('Tecnico Legado');
+            expect(details.address.cidade).toBe('Anapolis');
+            expect(details.address.estado).toBe('GO');
+            expect(Utils.formatAddress(details.address).line3).toContain('75134-550');
         });
 
         it('should fallback to solicitation snapshot when technician is not found', () => {

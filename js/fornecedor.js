@@ -208,7 +208,9 @@ const FornecedorPortal = {
         }
 
         if (scope.fornecedorId) {
-            return sol.fornecedorId === scope.fornecedorId;
+            return typeof Utils.sameId === 'function'
+                ? Utils.sameId(sol.fornecedorId, scope.fornecedorId)
+                : String(sol.fornecedorId || '').trim() === String(scope.fornecedorId || '').trim();
         }
 
         if (!scope.email) {
@@ -302,13 +304,12 @@ const FornecedorPortal = {
         });
     },
     getTechnicianName(sol) {
-        if (sol?.tecnicoNome) {
-            return sol.tecnicoNome;
-        }
-        if (sol?.tecnicoId) {
-            return DataManager.getTechnicianById(sol.tecnicoId)?.nome || 'Não identificado';
-        }
-        return 'Não identificado';
+        const details = typeof Utils.resolveSolicitationRequesterDetails === 'function'
+            ? Utils.resolveSolicitationRequesterDetails(sol)
+            : (typeof Utils.resolveSolicitationTechnicianDetails === 'function'
+                ? Utils.resolveSolicitationTechnicianDetails(sol)
+                : null);
+        return details?.name || 'Não identificado';
     },
 
     getSupplierName(sol) {
@@ -1042,6 +1043,4 @@ const FornecedorPortal = {
 if (typeof window !== 'undefined') {
     window.FornecedorPortal = FornecedorPortal;
 }
-
-
 
