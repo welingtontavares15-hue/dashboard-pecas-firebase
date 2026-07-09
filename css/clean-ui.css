@@ -39,7 +39,7 @@
     --cui-green-soft: #d8f5e9;
     --cui-amber:      #92400e;
     --cui-amber-soft: #fef3c7;
-    --cui-amber-btn:  #d97706;
+    --cui-amber-strong:  #d97706;
     --cui-red:        #b91c1c;
     --cui-red-soft:   #fee2e2;
     --cui-blue:       #1e40af;
@@ -57,8 +57,8 @@
     --cui-sidebar-muted:    rgba(148, 163, 184, 0.6);
 
     /* Dimensions */
-    --cui-sidebar-w: 256px;
-    --cui-header-h:  60px;
+    --cui-sidebar-width: 256px;
+    --cui-header-height:  60px;
     --cui-control-h: 36px;
 
     /* Radius */
@@ -482,7 +482,7 @@ body .sidebar {
     background: var(--cui-sidebar) !important;
     border-right: 1px solid rgba(148, 163, 184, 0.08) !important;
     box-shadow: 2px 0 20px rgba(0, 0, 0, 0.18) !important;
-    width: var(--cui-sidebar-w);
+    width: var(--cui-sidebar-width);
     transition: width var(--cui-normal) var(--cui-ease);
 }
 
@@ -754,8 +754,8 @@ body .sidebar-backdrop {
 
 body.corporate-platform-enabled .main-header,
 body .main-header {
-    height: var(--cui-header-h);
-    min-height: var(--cui-header-h);
+    height: var(--cui-header-height);
+    min-height: var(--cui-header-height);
     padding: 0 20px;
     background: var(--cui-surface) !important;
     border: 0 !important;
@@ -988,7 +988,7 @@ body .alert-dot {
 /* Notification panel */
 body .notification-panel {
     position: absolute;
-    top: calc(var(--cui-header-h) + 4px);
+    top: calc(var(--cui-header-height) + 4px);
     right: 16px;
     width: 340px;
     max-height: 460px;
@@ -1198,8 +1198,10 @@ body.corporate-platform-enabled .supplier-summary-card {
     transform: none !important;
 }
 
-body .kpi-card::before,  body .kpi-card::after,
-body .metric-card::before, body .metric-card::after,
+body .kpi-card::before,
+body .kpi-card::after,
+body .metric-card::before,
+body .metric-card::after,
 body.premium-plus-enabled .kpi-card::before,
 body.premium-plus-enabled .kpi-card::after,
 body.premium-plus-enabled .metric-card::before,
@@ -1496,11 +1498,12 @@ body .btn {
         color var(--cui-fast) var(--cui-ease),
         box-shadow var(--cui-fast) var(--cui-ease);
     white-space: nowrap;
-    transform: none !important; /* override base shimmer effect */
+    transform: none !important; /* override translateY shimmer from style.css .btn:hover */
     overflow: visible;
     position: static;
 }
 
+/* Suppress shimmer pseudo-element injected by style.css .btn::before */
 body .btn::before { display: none !important; }
 
 body .btn.btn-sm  { height: 30px; padding: 0 10px; font-size: 12px; }
@@ -1554,8 +1557,8 @@ body .btn-danger:hover {
 
 /* Warning — amber-btn for default, amber for hover (darker shade) */
 body .btn-warning {
-    background: var(--cui-amber-btn) !important;
-    border-color: var(--cui-amber-btn) !important;
+    background: var(--cui-amber-strong) !important;
+    border-color: var(--cui-amber-strong) !important;
     color: #fff !important;
 }
 body .btn-warning:hover {
@@ -1838,7 +1841,8 @@ body .empty-state-icon {
     margin-bottom: 4px;
 }
 
-body .empty-state i:not(.empty-state-icon i) {
+/* Direct-child <i> (legacy pattern without .empty-state-icon wrapper) */
+body .empty-state > i {
     font-size: 32px;
     color: var(--cui-faint);
 }
@@ -2253,7 +2257,7 @@ body .progress-bar {
 }
 
 body .progress-bar.success { background: var(--cui-green); }
-body .progress-bar.warning { background: var(--cui-amber-btn); }
+body .progress-bar.warning { background: var(--cui-amber-strong); }
 body .progress-bar.danger  { background: var(--cui-red); }
 
 /* ==========================================================================
