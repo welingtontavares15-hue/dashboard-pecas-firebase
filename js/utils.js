@@ -2530,15 +2530,19 @@ const Utils = {
 
     /**
      * Resolve technician identity and delivery address for a solicitation PDF.
+     * Resolution order per field: technician registry (when readable by the
+     * current profile) -> snapshot stored on the solicitation record. Supplier
+     * sessions cannot read the registry, so the snapshot is their only source.
      */
     resolveSolicitationTechnicianDetails(solicitation = {}) {
-        let technician = (typeof DataManager !== 'undefined' && solicitation?.tecnicoId && typeof DataManager.getTechnicianById === 'function')
-            ? DataManager.getTechnicianById(solicitation.tecnicoId)
-            : null;
         const firstFilled = (...values) => {
             const match = values.find((value) => String(value || '').trim());
             return match === undefined || match === null ? '' : String(match).trim();
         };
+        const lookupId = firstFilled(solicitation?.tecnicoId, solicitation?.requesterTecnicoId);
+        let technician = (typeof DataManager !== 'undefined' && lookupId && typeof DataManager.getTechnicianById === 'function')
+            ? DataManager.getTechnicianById(lookupId)
+            : null;
         if (!technician && typeof DataManager !== 'undefined' && typeof DataManager.getTechnicians === 'function') {
             const normalizedName = this.normalizeText(firstFilled(solicitation.tecnicoNome, solicitation.requesterName));
             const normalizedEmail = String(firstFilled(solicitation.tecnicoEmail, solicitation.requesterEmail)).toLowerCase();
@@ -2567,8 +2571,10 @@ const Utils = {
 
         return {
             technician,
-            name: firstFilled(solicitation.tecnicoNome, technician?.nome),
+            name: firstFilled(solicitation.tecnicoNome, technician?.nome, solicitation.requesterName),
             cpf: cpf ? this.formatCPF(cpf) : '',
+            email: firstFilled(technician?.email, solicitation.tecnicoEmail, solicitation.requesterEmail),
+            phone: address.telefone,
             address: hasAddress ? address : null
         };
     },
@@ -2904,395 +2910,461 @@ const Utils = {
     },
 
     /**
-     * Generate PDF for solicitation
+     * Generate PDF for solicitation — corporate print layout (A4).
+     * Sections: branded header, status strip, requester identity (name, CPF,
+     * e-mail, phone), delivery address, operational data, itemized table with
+     * automatic pagination, financial summary, observations and signatures.
+     * Missing requester data is highlighted instead of silently omitted.
+     * @param {object} solicitation - Solicitation record
+     * @param {object} options - { preview: boolean, source: string }
+     * @returns {string|undefined} filename saved (or data URI when preview=true)
      */
     generatePDF(solicitation, options = {}) {
         if (!window.jspdf) {
             this.showToast('Biblioteca jsPDF não carregada', 'error');
             return;
         }
-        
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 14;
-        // Reduced line height (from 6 to 5) to fit more content and prevent overflow
-        const lineHeight = 5;
-        const primary = { r: 0, g: 123, b: 255 };
-        const softBg = { r: 244, g: 246, b: 248 };
-        const pageBg = { r: 248, g: 250, b: 252 };
-        const headerHeight = 32;
-        const brandName = this.BRAND_NAME;
-        const brandTagline = this.PORTAL_DISPLAY_NAME;
-        const { preview } = options || {};
-        const technicianDetails = Utils.resolveSolicitationTechnicianDetails(solicitation);
-        const supplier = solicitation.fornecedorId ? DataManager.getSupplierById(solicitation.fornecedorId) : null;
-        const statusLabel = (Utils.getStatusInfo(solicitation.status)?.label || solicitation.status || '').toUpperCase();
-        const clientLabel = solicitation.cliente || 'Não informado';
-        const trackingLabel = solicitation.trackingCode || 'Aguardando rastreio';
-        const supplierLabel = supplier?.nome || 'Não definido';
-        const formatMoney = (value) => Utils.formatCurrency(Number(value) || 0);
-        const FALLBACK_TECHNICIAN_NAME = 'tecnico';
-        const technicianName = technicianDetails.name || FALLBACK_TECHNICIAN_NAME;
-        const technicianCpfLabel = technicianDetails.cpf || 'Não informado';
-        const sanitizedTechName = Utils.sanitizeFilename(technicianName, FALLBACK_TECHNICIAN_NAME);
         const contentWidth = pageWidth - margin * 2;
-        const SPACING = {
-            footer: 16, // mm reserved for footer safe area
-            observationSection: 10, // mm between sections before the observations block
-            observationBoxMargin: 12 // mm of extra margin when validating the block
+        const lineHeight = 4.6;
+        const { preview } = options || {};
+
+        // Corporate palette
+        const COLORS = {
+            navy: { r: 15, g: 42, b: 67 },
+            navySoft: { r: 189, g: 210, b: 232 },
+            accent: { r: 37, g: 99, b: 235 },
+            ink: { r: 30, g: 41, b: 59 },
+            slate: { r: 71, g: 85, b: 105 },
+            muted: { r: 130, g: 141, b: 155 },
+            faint: { r: 244, g: 246, b: 250 },
+            border: { r: 224, g: 230, b: 238 },
+            white: { r: 255, g: 255, b: 255 },
+            warn: { r: 180, g: 83, b: 9 }
         };
-        
-        // Font size constants for consistency
-        const FONT_SIZE = {
-            HEADER_BRAND: 17,
-            HEADER_TAGLINE: 10,
-            HEADER_TITLE: 12,
-            SECTION_TITLE: 11,
-            SUMMARY: 9,
-            TABLE_HEADER: 8,
-            TABLE_BODY: 8,
-            TOTALS: 9,
-            FOOTER: 8
+        const STATUS_THEME = {
+            'status-pendente-aprovacao': { r: 180, g: 83, b: 9, soft: { r: 254, g: 243, b: 219 } },
+            'status-aprovado': { r: 21, g: 128, b: 61, soft: { r: 222, g: 247, b: 231 } },
+            'status-reprovado': { r: 185, g: 28, b: 28, soft: { r: 254, g: 226, b: 226 } },
+            'status-em-compra': { r: 29, g: 78, b: 216, soft: { r: 224, g: 234, b: 254 } },
+            'status-concluido': { r: 13, g: 105, b: 99, soft: { r: 214, g: 244, b: 241 } }
         };
-        
-        // Column width constants for items table
-        const TABLE_COLS = {
-            CODE_MAX_CHARS: 10  // Maximum characters for code column before truncation
+        const FONT = {
+            brand: 17,
+            tagline: 8,
+            docLabel: 8.5,
+            docNumber: 15,
+            section: 8.5,
+            label: 7,
+            value: 9,
+            chip: 8,
+            tableHead: 8,
+            tableBody: 8.5,
+            totals: 9,
+            totalMain: 11,
+            footer: 7.5
         };
-        
-        // Helper function to wrap text within a given width
-        const wrapText = (text, maxWidth) => {
-            return doc.splitTextToSize(text || '', maxWidth);
+
+        const setFill = (c) => doc.setFillColor(c.r, c.g, c.b);
+        const setDraw = (c) => doc.setDrawColor(c.r, c.g, c.b);
+        const setText = (c) => doc.setTextColor(c.r, c.g, c.b);
+        const font = (style = 'normal', size = FONT.value, color = COLORS.ink) => {
+            doc.setFont('helvetica', style);
+            doc.setFontSize(size);
+            setText(color);
         };
-        const resetPageBackground = () => {
-            doc.setFillColor(pageBg.r, pageBg.g, pageBg.b);
-            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        const wrapText = (text, maxWidth) => doc.splitTextToSize(String(text ?? ''), maxWidth);
+        const formatMoney = (value) => Utils.formatCurrency(Number(value) || 0);
+
+        // Data resolution (registry -> snapshot fallback handled inside)
+        const technicianDetails = Utils.resolveSolicitationTechnicianDetails(solicitation);
+        const supplier = (typeof DataManager !== 'undefined' && solicitation.fornecedorId && typeof DataManager.getSupplierById === 'function')
+            ? DataManager.getSupplierById(solicitation.fornecedorId)
+            : null;
+        const statusInfo = Utils.getStatusInfo(solicitation.status) || {};
+        const statusLabel = (statusInfo.label || solicitation.status || 'Indefinido').toUpperCase();
+        const statusTheme = STATUS_THEME[statusInfo.class] || { ...COLORS.slate, soft: COLORS.faint };
+        const FALLBACK_TECHNICIAN_NAME = 'tecnico';
+        const sanitizedTechName = Utils.sanitizeFilename(technicianDetails.name || FALLBACK_TECHNICIAN_NAME, FALLBACK_TECHNICIAN_NAME);
+        const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
+        const generatedAtLabel = Utils.formatDate(new Date(), true);
+
+        const requesterRows = [
+            { label: 'Nome', value: technicianDetails.name },
+            { label: 'CPF', value: technicianDetails.cpf },
+            { label: 'E-mail', value: technicianDetails.email },
+            { label: 'Telefone', value: technicianDetails.phone }
+        ];
+        const formattedAddress = technicianDetails.address ? Utils.formatAddress(technicianDetails.address) : null;
+        const addressLines = formattedAddress
+            ? [formattedAddress.line1, formattedAddress.line2, formattedAddress.line3].filter(Boolean)
+            : [];
+        const operationalRows = [
+            { label: 'Cliente', value: solicitation.cliente },
+            { label: 'Fornecedor', value: supplier?.nome || solicitation.fornecedorNome },
+            { label: 'Rastreio', value: solicitation.trackingCode },
+            { label: 'Criado por', value: solicitation.createdBy }
+        ];
+
+        // Layout engine
+        const FOOTER_SPACE = 20;
+        const getSafeBottom = () => pageHeight - FOOTER_SPACE;
+        let y = 0;
+
+        const drawRunningHeader = () => {
+            setFill(COLORS.navy);
+            doc.rect(0, 0, pageWidth, 12, 'F');
+            font('bold', 9, COLORS.white);
+            doc.text(`${this.BRAND_NAME} — Solicitação Nº ${solicitation.numero || '—'}`, margin, 7.6);
+            font('normal', 7, COLORS.navySoft);
+            doc.text('CONTINUAÇÃO', pageWidth - margin, 7.6, { align: 'right' });
+            y = 19;
         };
-        const getSafeBottom = () => pageHeight - margin - SPACING.footer;
-        const ensureSpace = (height, { renderHeader = false } = {}) => {
-            const safeBottom = getSafeBottom();
-            if (y + height <= safeBottom) {
-                return;
-            }
+        const addPage = () => {
             doc.addPage();
-            resetPageBackground();
-            y = margin;
-            if (renderHeader && typeof renderTableHeader === 'function') {
-                renderTableHeader();
+            drawRunningHeader();
+        };
+        const ensureSpace = (height, onBreak) => {
+            if (y + height > getSafeBottom()) {
+                addPage();
+                if (typeof onBreak === 'function') {
+                    onBreak();
+                }
             }
         };
-        
-        // Background
-        resetPageBackground();
-        
-        // Header bar
-        doc.setFillColor(primary.r, primary.g, primary.b);
-        doc.rect(0, 0, pageWidth, headerHeight, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(FONT_SIZE.HEADER_BRAND);
-        doc.setFont(undefined, 'bold');
-        doc.text(brandName, margin, 12);
-        doc.setFontSize(FONT_SIZE.HEADER_TAGLINE);
-        doc.setFont(undefined, 'italic');
-        doc.text(brandTagline, margin, 18);
-        doc.setFontSize(FONT_SIZE.HEADER_TITLE);
-        doc.setFont(undefined, 'normal');
-        doc.text('Solicitação de Peças', margin, 25);
-        doc.setFont(undefined, 'bold');
-        doc.text(`#${solicitation.numero || '-'}`, pageWidth - margin, 12, { align: 'right' });
-        doc.setFont(undefined, 'normal');
-        doc.text(Utils.formatDate(solicitation.data), pageWidth - margin, 18, { align: 'right' });
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.4);
-        doc.line(margin, headerHeight - 2, pageWidth - margin, headerHeight - 2);
-        
-        let y = headerHeight + 12;
+
+        const drawMainHeader = () => {
+            const headerHeight = 30;
+            setFill(COLORS.navy);
+            doc.rect(0, 0, pageWidth, headerHeight, 'F');
+            setFill(COLORS.accent);
+            doc.rect(0, headerHeight, pageWidth, 1.1, 'F');
+
+            font('bold', FONT.brand, COLORS.white);
+            doc.text(this.BRAND_NAME, margin, 13);
+            font('normal', FONT.tagline, COLORS.navySoft);
+            doc.text(this.PORTAL_DISPLAY_NAME.toUpperCase(), margin, 19.5);
+
+            font('normal', FONT.docLabel, COLORS.navySoft);
+            doc.text('SOLICITAÇÃO DE PEÇAS', pageWidth - margin, 10.5, { align: 'right' });
+            font('bold', FONT.docNumber, COLORS.white);
+            doc.text(`Nº ${solicitation.numero || '—'}`, pageWidth - margin, 18, { align: 'right' });
+            font('normal', FONT.docLabel, COLORS.navySoft);
+            doc.text(`Data da solicitação: ${Utils.formatDate(solicitation.data)}`, pageWidth - margin, 24.5, { align: 'right' });
+
+            y = headerHeight + 9;
+        };
+
+        const drawStatusRow = () => {
+            const chipH = 7;
+            const chipPadding = 3.5;
+            font('bold', FONT.chip, statusTheme);
+            const chipW = doc.getTextWidth(statusLabel) + chipPadding * 2;
+            setFill(statusTheme.soft);
+            doc.roundedRect(margin, y, chipW, chipH, 1.6, 1.6, 'F');
+            doc.text(statusLabel, margin + chipPadding, y + 4.7);
+
+            font('normal', FONT.label, COLORS.muted);
+            doc.text(`Documento emitido em ${generatedAtLabel}`, pageWidth - margin, y + 4.7, { align: 'right' });
+            y += chipH + 8;
+        };
+
         const drawSectionTitle = (title) => {
-            doc.setFontSize(FONT_SIZE.SECTION_TITLE);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(34, 43, 54);
-            doc.text(title, margin, y);
+            ensureSpace(12);
+            const upper = title.toUpperCase();
+            font('bold', FONT.section, COLORS.navy);
+            doc.text(upper, margin, y);
+            const titleWidth = doc.getTextWidth(upper);
+            setDraw(COLORS.border);
+            doc.setLineWidth(0.3);
+            doc.line(margin + titleWidth + 4, y - 1.2, pageWidth - margin, y - 1.2);
             y += 6;
         };
-        const getObservationAvailableHeight = () => getSafeBottom() - y - SPACING.observationSection;
-        
-        // Summary section - redesigned to avoid overlap
-        drawSectionTitle('Dados da Solicitação');
-        doc.setFillColor(softBg.r, softBg.g, softBg.b);
-        doc.setDrawColor(232, 236, 241);
-        
-        // Calculate content for summary section with text wrapping
-        doc.setFontSize(FONT_SIZE.SUMMARY);
-        doc.setFont(undefined, 'normal');
-        const _labelWidth = 55; // Width for label column
-        const valueWidth = contentWidth / 2 - 10; // Width for each value column
-        
-        // Prepare summary data with proper structure
-        const tecnicoValue = technicianName || 'Não informado';
-        const criadoPorValue = solicitation.createdBy || 'Não informado';
-        
-        // Wrap long text values
-        const tecnicoLines = wrapText(tecnicoValue, valueWidth - 5);
-        const cpfLines = wrapText(technicianCpfLabel, valueWidth - 5);
-        const criadoPorLines = wrapText(criadoPorValue, valueWidth - 5);
-        
-        // Calculate dynamic box height based on wrapped content
-        const maxLines = Math.max(tecnicoLines.length, cpfLines.length, criadoPorLines.length, 1);
-        const summaryRowHeight = lineHeight * maxLines + 2;
-        const summaryBoxHeight = summaryRowHeight * 3 + 6;
-        
-        doc.roundedRect(margin, y - 3, contentWidth, summaryBoxHeight, 2, 2, 'F');
-        doc.setTextColor(64, 70, 79);
-        
-        // Row 1: Técnico and Status
-        const row1Y = y + 3;
-        doc.setFont(undefined, 'bold');
-        doc.text('Técnico:', margin + 4, row1Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(tecnicoLines, margin + 4 + 18, row1Y);
-        
-        doc.setFont(undefined, 'bold');
-        doc.text('Status:', margin + contentWidth / 2 + 4, row1Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(statusLabel, margin + contentWidth / 2 + 4 + 15, row1Y);
-        
-        // Row 2: Itens and Total
-        const row2Y = row1Y + summaryRowHeight;
-        doc.setFont(undefined, 'bold');
-        doc.text('Itens:', margin + 4, row2Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(String((solicitation.itens || []).length), margin + 4 + 14, row2Y);
-        
-        doc.setFont(undefined, 'bold');
-        doc.text('Total:', margin + contentWidth / 2 + 4, row2Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(formatMoney(solicitation.total), margin + contentWidth / 2 + 4 + 14, row2Y);
-        
-        // Row 3: CPF and Criado por
-        const row3Y = row2Y + summaryRowHeight;
-        doc.setFont(undefined, 'bold');
-        doc.text('CPF:', margin + 4, row3Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(cpfLines, margin + 4 + 12, row3Y);
 
-        doc.setFont(undefined, 'bold');
-        doc.text('Criado por:', margin + contentWidth / 2 + 4, row3Y);
-        doc.setFont(undefined, 'normal');
-        doc.text(criadoPorLines, margin + contentWidth / 2 + 4 + 24, row3Y);
-        
-        y += summaryBoxHeight + 4;
+        // Info cards -------------------------------------------------------------
+        const CARD = { pad: 4.5, titleGap: 6.5, labelWidth: 20, rowGap: 1.8 };
 
-        drawSectionTitle('Dados operacionais');
-        const clientLines = wrapText(clientLabel, contentWidth - 30);
-        const trackingLines = wrapText(trackingLabel, contentWidth - 30);
-        const supplierLines = wrapText(supplierLabel, contentWidth - 34);
-        const rowsHeight = [clientLines, trackingLines, supplierLines].reduce((acc, lines) => {
-            const lineCount = Math.max(lines.length, 1);
-            return acc + (lineCount * lineHeight) + 2;
-        }, 0);
-        const operationalBoxHeight = rowsHeight + 8;
-
-        ensureSpace(operationalBoxHeight + 10);
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(232, 236, 241);
-        doc.roundedRect(margin, y - 3, contentWidth, operationalBoxHeight, 2, 2, 'S');
-        doc.setFontSize(FONT_SIZE.SUMMARY);
-        doc.setTextColor(64, 70, 79);
-
-        let operationalY = y + 3;
-        const drawOperationalRow = (label, lines, labelOffset = 0) => {
-            const safeLines = (Array.isArray(lines) && lines.length > 0) ? lines : ['-'];
-            doc.setFont(undefined, 'bold');
-            doc.text(label, margin + 4 + labelOffset, operationalY);
-            doc.setFont(undefined, 'normal');
-            doc.text(safeLines, margin + 24 + labelOffset, operationalY);
-            operationalY += (Math.max(safeLines.length, 1) * lineHeight) + 2;
+        const measureLabelRows = (rows, valueWidth) => {
+            font('normal', FONT.value);
+            return rows.map((row) => {
+                const rawValue = String(row.value || '').trim();
+                const missing = !rawValue;
+                const lines = wrapText(missing ? 'Não informado' : rawValue, valueWidth);
+                const height = Math.max(lines.length, 1) * lineHeight + CARD.rowGap;
+                return { ...row, lines, missing, height };
+            });
         };
 
-        drawOperationalRow('Cliente:', clientLines);
-        drawOperationalRow('Rastreio:', trackingLines);
-        drawOperationalRow('Fornecedor:', supplierLines);
+        const drawCardFrame = (x, width, height, title, accent = false) => {
+            setFill(COLORS.white);
+            setDraw(COLORS.border);
+            doc.setLineWidth(0.35);
+            doc.roundedRect(x, y, width, height, 1.8, 1.8, 'FD');
+            setFill(accent ? COLORS.accent : COLORS.navy);
+            doc.rect(x, y + 1.2, 0.9, height - 2.4, 'F');
+            font('bold', FONT.label, COLORS.muted);
+            doc.text(title.toUpperCase(), x + CARD.pad, y + 5);
+        };
 
-        y += operationalBoxHeight + 4;
-        
-        drawSectionTitle('Endereço para envio');
-        const address = technicianDetails.address ? Utils.formatAddress(technicianDetails.address) : { line1: 'Endereço não informado', line2: '', line3: '' };
-        
-        // Wrap address lines if needed
-        const addressLine1Wrapped = wrapText(address.line1, contentWidth - 8);
-        const addressLine2Wrapped = wrapText(address.line2, contentWidth - 8);
-        const addressLine3Wrapped = wrapText(address.line3, contentWidth - 8);
-        const totalAddressLines = addressLine1Wrapped.length + addressLine2Wrapped.length + addressLine3Wrapped.length;
-        const addressBoxHeight = Math.max(20, totalAddressLines * lineHeight + 6);
-        
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(232, 236, 241);
-        doc.roundedRect(margin, y - 3, contentWidth, addressBoxHeight, 2, 2, 'S');
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(64, 70, 79);
-        
-        let addressY = y + 3;
-        doc.text(addressLine1Wrapped, margin + 4, addressY);
-        addressY += addressLine1Wrapped.length * lineHeight;
-        doc.text(addressLine2Wrapped, margin + 4, addressY);
-        addressY += addressLine2Wrapped.length * lineHeight;
-        doc.text(addressLine3Wrapped, margin + 4, addressY);
-        
-        y += addressBoxHeight + 4;
-        
-        // Items table - improved with proper column widths
-        drawSectionTitle('Itens solicitados');
-        
-        // Define column structure with fixed widths to prevent overlap
-        const colCode = { x: margin + 3, width: 22 };
-        const colDesc = { x: margin + 27, width: 68 }; // Wider description column
-        const colQty = { x: margin + 97, width: 20 };
-        const colUnit = { x: margin + 119, width: 30 };
-        const colTotal = { x: pageWidth - margin - 3, width: 25 };
-        
+        const drawLabelRows = (x, width, measuredRows, startY) => {
+            let rowY = startY;
+            measuredRows.forEach((row) => {
+                font('bold', FONT.label, COLORS.slate);
+                doc.text(String(row.label || '').toUpperCase(), x + CARD.pad, rowY);
+                font(row.missing ? 'italic' : 'normal', FONT.value, row.missing ? COLORS.warn : COLORS.ink);
+                doc.text(row.lines, x + CARD.pad + CARD.labelWidth, rowY);
+                rowY += row.height;
+            });
+            return rowY;
+        };
+
+        const drawIdentityCards = () => {
+            const gap = 6;
+            const cardWidth = (contentWidth - gap) / 2;
+            const valueWidth = cardWidth - CARD.pad * 2 - CARD.labelWidth;
+
+            const requesterMeasured = measureLabelRows(requesterRows, valueWidth);
+            const requesterContentHeight = requesterMeasured.reduce((acc, row) => acc + row.height, 0);
+
+            font('normal', FONT.value);
+            const addressTextWidth = cardWidth - CARD.pad * 2;
+            const addressWrapped = addressLines.length > 0
+                ? addressLines.flatMap((line) => wrapText(line, addressTextWidth))
+                : [];
+            const addressMissing = addressWrapped.length === 0;
+            const addressBody = addressMissing
+                ? wrapText('Endereço não informado. Atualize o cadastro do técnico para os próximos envios.', addressTextWidth)
+                : addressWrapped;
+            const addressContentHeight = addressBody.length * lineHeight + CARD.rowGap;
+
+            const cardHeight = CARD.titleGap + Math.max(requesterContentHeight, addressContentHeight) + CARD.pad;
+            ensureSpace(cardHeight + 6);
+
+            drawCardFrame(margin, cardWidth, cardHeight, 'Solicitante');
+            drawLabelRows(margin, cardWidth, requesterMeasured, y + CARD.titleGap + 3.2);
+
+            const addressX = margin + cardWidth + gap;
+            drawCardFrame(addressX, cardWidth, cardHeight, 'Endereço de entrega', true);
+            font(addressMissing ? 'italic' : 'normal', FONT.value, addressMissing ? COLORS.warn : COLORS.ink);
+            doc.text(addressBody, addressX + CARD.pad, y + CARD.titleGap + 3.2);
+
+            y += cardHeight + 7;
+        };
+
+        const drawOperationalCard = () => {
+            const columnGap = 8;
+            const columnWidth = (contentWidth - CARD.pad * 2 - columnGap) / 2;
+            const valueWidth = columnWidth - CARD.labelWidth;
+            const leftRows = measureLabelRows(operationalRows.slice(0, 2), valueWidth);
+            const rightRows = measureLabelRows(operationalRows.slice(2), valueWidth);
+            const leftHeight = leftRows.reduce((acc, row) => acc + row.height, 0);
+            const rightHeight = rightRows.reduce((acc, row) => acc + row.height, 0);
+            const cardHeight = CARD.titleGap + Math.max(leftHeight, rightHeight) + CARD.pad;
+            ensureSpace(cardHeight + 6);
+
+            drawCardFrame(margin, contentWidth, cardHeight, 'Dados operacionais');
+            drawLabelRows(margin, columnWidth, leftRows, y + CARD.titleGap + 3.2);
+            drawLabelRows(margin + CARD.pad + columnWidth + columnGap - CARD.pad, columnWidth, rightRows, y + CARD.titleGap + 3.2);
+
+            y += cardHeight + 7;
+        };
+
+        // Items table -------------------------------------------------------------
+        const table = {
+            idx: { x: margin + 3 },
+            code: { x: margin + 11, width: 21 },
+            desc: { x: margin + 34, width: 78 },
+            qty: { x: margin + 121 },
+            unit: { x: margin + 150 },
+            total: { x: pageWidth - margin - 3 }
+        };
+
         const renderTableHeader = () => {
-            doc.setFillColor(primary.r, primary.g, primary.b);
-            doc.setTextColor(255, 255, 255);
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(FONT_SIZE.TABLE_HEADER);
-            doc.roundedRect(margin, y - 3, contentWidth, 8, 2, 2, 'F');
-            doc.text('Código', colCode.x, y + 2);
-            doc.text('Descrição', colDesc.x, y + 2);
-            doc.text('Qtd', colQty.x + colQty.width / 2, y + 2, { align: 'center' });
-            doc.text('Vlr Unit', colUnit.x + colUnit.width / 2, y + 2, { align: 'center' });
-            doc.text('Total', colTotal.x, y + 2, { align: 'right' });
-            y += 10;
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(34, 43, 54);
+            setFill(COLORS.navy);
+            doc.roundedRect(margin, y, contentWidth, 8, 1.4, 1.4, 'F');
+            font('bold', FONT.tableHead, COLORS.white);
+            const headY = y + 5.3;
+            doc.text('#', table.idx.x, headY);
+            doc.text('CÓDIGO', table.code.x, headY);
+            doc.text('DESCRIÇÃO', table.desc.x, headY);
+            doc.text('QTD', table.qty.x, headY, { align: 'center' });
+            doc.text('VLR. UNIT.', table.unit.x, headY, { align: 'right' });
+            doc.text('TOTAL', table.total.x, headY, { align: 'right' });
+            y += 11;
         };
-        renderTableHeader();
-        
-        const items = solicitation.itens || [];
-        if (items.length === 0) {
-            doc.setFontSize(FONT_SIZE.SUMMARY);
-            doc.text('Nenhum item informado.', margin, y + 2);
-            y += 10;
-        } else {
-            doc.setFontSize(FONT_SIZE.TABLE_BODY);
+
+        const drawItemsTable = () => {
+            drawSectionTitle('Itens solicitados');
+            renderTableHeader();
+
+            if (items.length === 0) {
+                font('italic', FONT.tableBody, COLORS.muted);
+                doc.text('Nenhum item informado.', margin + 3, y + 1);
+                y += 9;
+                return;
+            }
+
             items.forEach((item, idx) => {
-                // Wrap description text to fit in column
-                const descLines = wrapText(item.descricao || '-', colDesc.width);
-                const rowHeight = Math.max(6, descLines.length * lineHeight);
-                
-                // Check for page break
-                ensureSpace(rowHeight + 8, { renderHeader: true });
-                
-                // Alternating row background
-                if (idx % 2 === 0) {
-                    doc.setFillColor(softBg.r, softBg.g, softBg.b);
-                    doc.rect(margin, y - 4, contentWidth, rowHeight + 2, 'F');
+                font('normal', FONT.tableBody);
+                const descLines = wrapText(item.descricao || '-', table.desc.width);
+                const codeLines = wrapText(item.codigo || '-', table.code.width);
+                const rowLines = Math.max(descLines.length, codeLines.length, 1);
+                const rowHeight = rowLines * lineHeight + 2.6;
+
+                ensureSpace(rowHeight + 4, renderTableHeader);
+
+                if (idx % 2 === 1) {
+                    setFill(COLORS.faint);
+                    doc.rect(margin, y - 3.2, contentWidth, rowHeight, 'F');
                 }
-                
-                // Draw cell content
-                doc.setTextColor(34, 43, 54);
-                const codeText = (item.codigo || '-').substring(0, TABLE_COLS.CODE_MAX_CHARS);
-                doc.text(codeText, colCode.x, y);
-                doc.text(descLines, colDesc.x, y);
-                doc.text(String(item.quantidade || 0), colQty.x + colQty.width / 2, y, { align: 'center' });
-                doc.text(formatMoney(item.valorUnit), colUnit.x + colUnit.width, y, { align: 'right' });
-                doc.text(formatMoney((item.quantidade || 0) * (item.valorUnit || 0)), colTotal.x, y, { align: 'right' });
-                
+
+                const qty = Number(item.quantidade) || 0;
+                const unit = Number(item.valorUnit) || 0;
+                font('normal', FONT.tableBody, COLORS.muted);
+                doc.text(String(idx + 1), table.idx.x, y);
+                font('normal', FONT.tableBody, COLORS.slate);
+                doc.text(codeLines, table.code.x, y);
+                font('normal', FONT.tableBody, COLORS.ink);
+                doc.text(descLines, table.desc.x, y);
+                doc.text(String(qty), table.qty.x, y, { align: 'center' });
+                doc.text(formatMoney(unit), table.unit.x, y, { align: 'right' });
+                font('bold', FONT.tableBody, COLORS.ink);
+                doc.text(formatMoney(qty * unit), table.total.x, y, { align: 'right' });
+
                 y += rowHeight;
             });
-        }
-        
-        // Totals
-        y += 4;
-        ensureSpace(36);
-        doc.setDrawColor(232, 236, 241);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 8;
-        doc.setFontSize(FONT_SIZE.TOTALS);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(34, 43, 54);
-        doc.text('Resumo financeiro', margin, y);
-        doc.setFont(undefined, 'normal');
-        doc.text(`Subtotal: ${formatMoney(solicitation.subtotal)}`, pageWidth - margin, y, { align: 'right' });
-        y += lineHeight + 1;
-        doc.text(`Desconto: ${formatMoney(solicitation.desconto)}`, pageWidth - margin, y, { align: 'right' });
-        y += lineHeight + 1;
-        doc.text(`Frete: ${formatMoney(solicitation.frete)}`, pageWidth - margin, y, { align: 'right' });
-        y += lineHeight + 3;
-        doc.setFont(undefined, 'bold');
-        doc.text(`Total: ${formatMoney(solicitation.total)}`, pageWidth - margin, y, { align: 'right' });
-        
-        // Observations
-        if (solicitation.observacoes) {
-            const obsLines = wrapText(solicitation.observacoes, contentWidth - 8);
-            const minimumObservationRequirement = Math.max(
-                lineHeight,
-                Math.max(0, pageHeight - (2 * margin + SPACING.footer + SPACING.observationSection))
-            );
-            let obsIndex = 0;
-            let chunkIndex = 0;
-            
-            while (obsIndex < obsLines.length) {
-                if (chunkIndex === 0) {
-                    y += SPACING.observationSection;
-                }
-                
-                let availableHeight = getObservationAvailableHeight();
-                if (availableHeight < minimumObservationRequirement) {
-                    doc.addPage();
-                    resetPageBackground();
-                    y = margin;
-                    availableHeight = getObservationAvailableHeight();
-                }
-                if (availableHeight < lineHeight) {
-                    const availableText = Math.max(availableHeight, 0).toFixed(2);
-                    const requiredText = minimumObservationRequirement.toFixed(2);
-                    console.warn(`PDF observations: ${availableText}mm available but minimum usable height is ${requiredText}mm. Reduce observation text or adjust SPACING.footer / margins before exporting.`);
-                    break;
-                }
+            y += 2;
+        };
 
-                const effectiveHeight = Math.max(availableHeight, lineHeight);
-                const maxLinesPerPage = Math.floor(effectiveHeight / lineHeight);
-                if (maxLinesPerPage < 1) {
-                    break;
-                }
-                const nextIndex = Math.min(obsLines.length, obsIndex + maxLinesPerPage);
-                const linesForChunk = obsLines.slice(obsIndex, nextIndex);
-                const boxHeight = linesForChunk.length * lineHeight + 6;
-                
-                ensureSpace(boxHeight + SPACING.observationBoxMargin);
-                drawSectionTitle(chunkIndex === 0 ? 'Observações' : 'Observações (cont.)');
-                
-                doc.setFillColor(softBg.r, softBg.g, softBg.b);
-                doc.roundedRect(margin, y - 4, contentWidth, boxHeight, 2, 2, 'F');
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(FONT_SIZE.SUMMARY);
-                doc.setTextColor(64, 70, 79);
-                doc.text(linesForChunk, margin + 4, y + 2);
-                y += boxHeight + 4;
-                
-                obsIndex = nextIndex;
+        const drawFinancialSummary = () => {
+            const boxWidth = 74;
+            const rowH = 6.2;
+            const totalRowH = 9;
+            const boxHeight = rowH * 3 + totalRowH + 5;
+            ensureSpace(boxHeight + 8);
+
+            const boxX = pageWidth - margin - boxWidth;
+            const totalQty = items.reduce((acc, item) => acc + (Number(item.quantidade) || 0), 0);
+            font('normal', FONT.label, COLORS.muted);
+            doc.text(`${items.length} item(ns) • ${totalQty} unidade(s)`, margin, y + 5);
+
+            setFill(COLORS.white);
+            setDraw(COLORS.border);
+            doc.setLineWidth(0.35);
+            doc.roundedRect(boxX, y, boxWidth, boxHeight, 1.8, 1.8, 'FD');
+
+            let rowY = y + 5.4;
+            const summaryRow = (label, value, signal = '') => {
+                font('normal', FONT.totals, COLORS.slate);
+                doc.text(label, boxX + 4, rowY);
+                doc.text(`${signal}${value}`, boxX + boxWidth - 4, rowY, { align: 'right' });
+                rowY += rowH;
+            };
+            summaryRow('Subtotal', formatMoney(solicitation.subtotal));
+            summaryRow('Desconto', formatMoney(solicitation.desconto), '- ');
+            summaryRow('Frete', formatMoney(solicitation.frete), '+ ');
+
+            setFill(COLORS.navy);
+            doc.roundedRect(boxX, rowY - 3.4, boxWidth, totalRowH, 1.4, 1.4, 'F');
+            font('bold', FONT.totalMain, COLORS.white);
+            doc.text('TOTAL', boxX + 4, rowY + 2.4);
+            doc.text(formatMoney(solicitation.total), boxX + boxWidth - 4, rowY + 2.4, { align: 'right' });
+
+            y += boxHeight + 9;
+        };
+
+        const drawObservations = () => {
+            const text = String(solicitation.observacoes || '').trim();
+            if (!text) {
+                return;
+            }
+            font('normal', FONT.value);
+            const obsLines = wrapText(text, contentWidth - CARD.pad * 2);
+            let index = 0;
+            let chunkIndex = 0;
+            while (index < obsLines.length) {
+                ensureSpace(CARD.titleGap + lineHeight * 2 + CARD.pad + 8);
+                const available = getSafeBottom() - y - CARD.titleGap - CARD.pad - 6;
+                const maxLines = Math.max(1, Math.floor(available / lineHeight));
+                const chunk = obsLines.slice(index, index + maxLines);
+                const cardHeight = CARD.titleGap + chunk.length * lineHeight + CARD.pad;
+
+                drawSectionTitle(chunkIndex === 0 ? 'Observações' : 'Observações (continuação)');
+                setFill(COLORS.faint);
+                setDraw(COLORS.border);
+                doc.setLineWidth(0.35);
+                doc.roundedRect(margin, y - 2, contentWidth, cardHeight, 1.8, 1.8, 'FD');
+                font('normal', FONT.value, COLORS.slate);
+                doc.text(chunk, margin + CARD.pad, y + 4);
+                y += cardHeight + 6;
+
+                index += chunk.length;
                 chunkIndex += 1;
             }
-        }
-        
-        // Footer
-        const footerY = pageHeight - 12;
-        doc.setFontSize(FONT_SIZE.FOOTER);
-        doc.setTextColor(120, 126, 135);
-        doc.text(`ID: ${solicitation.id}`, margin, footerY);
-        doc.text(`Gerado em: ${Utils.formatDate(new Date(), true)}`, pageWidth - margin, footerY, { align: 'right' });
-        
+        };
+
+        const drawSignatures = () => {
+            // Flows right after the last section instead of pinning to the page
+            // bottom, so a signatures-only continuation page stays compact.
+            const gapBefore = 10;
+            const blockHeight = 22;
+            ensureSpace(gapBefore + blockHeight);
+            y += gapBefore;
+            const colWidth = (contentWidth - 20) / 2;
+            const leftX = margin + 4;
+            const rightX = margin + colWidth + 16;
+            setDraw(COLORS.slate);
+            doc.setLineWidth(0.3);
+            doc.line(leftX, y + 8, leftX + colWidth - 8, y + 8);
+            doc.line(rightX, y + 8, rightX + colWidth - 8, y + 8);
+            font('normal', FONT.label, COLORS.slate);
+            doc.text('Solicitante', leftX, y + 12.5);
+            doc.text('Recebido por', rightX, y + 12.5);
+            font('normal', 6.8, COLORS.muted);
+            doc.text(technicianDetails.name || 'Não informado', leftX, y + 16.5);
+            y += blockHeight;
+        };
+
+        const drawFooters = () => {
+            const totalPages = doc.getNumberOfPages();
+            for (let page = 1; page <= totalPages; page += 1) {
+                doc.setPage(page);
+                setDraw(COLORS.border);
+                doc.setLineWidth(0.3);
+                doc.line(margin, pageHeight - 13, pageWidth - margin, pageHeight - 13);
+                font('normal', FONT.footer, COLORS.muted);
+                doc.text(`${this.BRAND_NAME} • ${this.PORTAL_DISPLAY_NAME}`, margin, pageHeight - 8.6);
+                doc.text(`Página ${page} de ${totalPages}`, pageWidth - margin, pageHeight - 8.6, { align: 'right' });
+                font('normal', 6.5, COLORS.muted);
+                doc.text(`Documento ${solicitation.id || '—'} • Gerado em ${generatedAtLabel}`, margin, pageHeight - 5.2);
+            }
+        };
+
+        // Render
+        drawMainHeader();
+        drawStatusRow();
+        drawIdentityCards();
+        drawOperationalCard();
+        drawItemsTable();
+        drawFinancialSummary();
+        drawObservations();
+        drawSignatures();
+        drawFooters();
+
         const filename = `solicitacao_${solicitation.numero || 'sem-numero'}_${sanitizedTechName}.pdf`;
-        
+
         // Save or preview
         if (preview) {
             return doc.output('datauristring');
         }
-        
+
         doc.save(filename);
-        
+
         // Log export for cloud-first tracking
         if (typeof DataManager !== 'undefined' && DataManager.logExport) {
             const entry = DataManager.logExport({
@@ -3302,7 +3374,7 @@ const Utils = {
                 solicitationId: solicitation.id,
                 recordCount: (solicitation.itens || []).length
             });
-            
+
             const allowCloud = (typeof APP_CONFIG === 'undefined') || APP_CONFIG.features.exportCloudStorage !== false;
             const dataUri = doc.output('datauristring');
             const payloadBase64 = (typeof dataUri === 'string' && dataUri.includes(',')) ? dataUri.split(',')[1] : null;
@@ -3315,7 +3387,7 @@ const Utils = {
                 });
             }
         }
-        
+
         return filename;
     },
 

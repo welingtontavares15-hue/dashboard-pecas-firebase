@@ -2283,8 +2283,14 @@ const DataManager = {
     },
 
     getTechnicianById(id) {
+        // Normalized comparison: legacy records may carry numeric ids while
+        // form inputs always provide strings, so a strict === lookup misses them.
+        const normalizedId = String(id ?? '').trim();
+        if (!normalizedId) {
+            return undefined;
+        }
         const technicians = this.getTechnicians();
-        return technicians.find(t => t.id === id);
+        return technicians.find(t => String(t?.id ?? '').trim() === normalizedId);
     },
 
     saveTechnician(technician) {
@@ -2928,9 +2934,61 @@ const DataManager = {
         );
     },
 
+    /**
+     * Fields copied from the technician registry into each solicitation record.
+     * The snapshot is what scoped profiles (fornecedor) rely on for the PDF,
+     * since Firebase rules block them from reading diversey_tecnicos directly.
+     */
+    TECHNICIAN_SNAPSHOT_FIELD_MAP: {
+        tecnicoCpf: 'cpf',
+        enderecoEntrega: 'endereco',
+        enderecoNumero: 'numero',
+        complemento: 'complemento',
+        bairro: 'bairro',
+        cidade: 'cidade',
+        estado: 'estado',
+        cep: 'cep',
+        telefone: 'telefone'
+    },
+
+    /**
+     * Backfill missing technician snapshot fields (CPF, delivery address)
+     * on a solicitation record using the technician registry. Only fills
+     * blanks — never overwrites data already stored on the record — so a
+     * privileged save/approval permanently repairs legacy records that were
+     * created before the snapshot existed.
+     * @returns {boolean} true when at least one field was filled
+     */
+    applyTechnicianSnapshotBackfill(solicitation) {
+        if (!solicitation) {
+            return false;
+        }
+        const technician = this.getTechnicianById(solicitation.tecnicoId)
+            || this.getTechnicianById(solicitation.requesterTecnicoId);
+        if (!technician) {
+            return false;
+        }
+        let changed = false;
+        const fillIfBlank = (target, value) => {
+            const current = String(solicitation[target] || '').trim();
+            const incoming = String(value || '').trim();
+            if (!current && incoming) {
+                solicitation[target] = incoming;
+                changed = true;
+            }
+        };
+        Object.entries(this.TECHNICIAN_SNAPSHOT_FIELD_MAP).forEach(([target, source]) => {
+            fillIfBlank(target, technician[source]);
+        });
+        fillIfBlank('tecnicoNome', technician.nome);
+        fillIfBlank('tecnicoEmail', technician.email);
+        return changed;
+    },
+
     async saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(this.cloneSerializable(solicitation, { ...solicitation }) || {});
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);
+        this.applyTechnicianSnapshotBackfill(normalizedSolicitation);
         const normalizedSupplier = this.normalizeSupplierReference(normalizedSolicitation, {
             name: normalizedSolicitation.fornecedorNome,
             email: normalizedSolicitation.fornecedorEmail
@@ -3044,6 +3102,9 @@ const DataManager = {
         }
 
         const solicitation = solicitations[index];
+        // Approvals run under admin/gestor sessions, which can read the technician
+        // registry — persist the snapshot here so supplier-side PDFs stay complete.
+        this.applyTechnicianSnapshotBackfill(solicitation);
         const previousStatus = this.normalizeWorkflowStatus(solicitation.status || this.STATUS.PENDENTE);
         const nextStatus = this.normalizeWorkflowStatus(status);
         const payload = { ...extra };

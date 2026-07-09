@@ -925,6 +925,7 @@ const FornecedorPortal = {
                         <strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio'}</strong>
                         ${sol.trackingUpdatedAt ? `<small>Atualizado em ${Utils.formatDate(sol.trackingUpdatedAt, true)}${sol.trackingBy ? ` por ${Utils.escapeHtml(sol.trackingBy)}` : ''}</small>` : ''}
                     </div>
+                    ${this.renderDeliveryCard(sol)}
                 </div>
 
                 ${canEditTracking ? `
@@ -981,6 +982,31 @@ const FornecedorPortal = {
         `;
 
         Utils.showModal(content, { size: 'lg' });
+    },
+
+    /**
+     * Delivery block for the supplier detail modal. Uses the same resolver as
+     * the PDF, so it works from the snapshot stored on the record even though
+     * supplier sessions cannot read the technician registry.
+     */
+    renderDeliveryCard(sol) {
+        const details = Utils.resolveSolicitationTechnicianDetails(sol);
+        const address = details.address ? Utils.formatAddress(details.address) : null;
+        const addressLines = address
+            ? [address.line1, address.line2, address.line3].filter(Boolean)
+            : [];
+        const addressHtml = addressLines.length > 0
+            ? addressLines.map((line) => `<div>${Utils.escapeHtml(line)}</div>`).join('')
+            : '<div class="text-muted">Endereço não informado</div>';
+        const cpfHtml = details.cpf
+            ? `<small>CPF do solicitante: ${Utils.escapeHtml(details.cpf)}</small>`
+            : '<small class="text-muted">CPF do solicitante não informado</small>';
+        return `
+                    <div class="supplier-detail-card supplier-detail-card-wide">
+                        <label>Endereço de entrega</label>
+                        <strong>${addressHtml}</strong>
+                        ${cpfHtml}
+                    </div>`;
     },
 
     generateSolicitationPdf(id) {
