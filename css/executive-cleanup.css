@@ -579,6 +579,59 @@ textarea.form-control:focus {
     background: var(--clean-surface);
 }
 
+.kpi-card,
+.metric-card {
+    border-color: var(--clean-border);
+    border-radius: 16px;
+    background: var(--clean-surface);
+    box-shadow: var(--clean-shadow-soft);
+    transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.kpi-card:hover,
+.metric-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--clean-shadow);
+}
+
+.kpi-card::after,
+.kpi-card::before,
+.metric-card::after,
+.metric-card::before {
+    display: none;
+}
+
+.kpi-label,
+.metric-card .kpi-content h4 {
+    display: block;
+    color: var(--clean-text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 0.28rem;
+}
+
+.kpi-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--clean-text);
+    line-height: 1.15;
+}
+
+.kpi-change {
+    margin-top: 0.22rem;
+    color: var(--clean-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.kpi-icon {
+    opacity: 0.84;
+    flex-shrink: 0;
+}
+
 .report-summary-card h4 {
     margin: 0;
     color: var(--clean-text-muted);
@@ -911,6 +964,8 @@ body.dark-mode .btn-icon,
 body.dark-mode .global-search,
 body.dark-mode .summary-inline-card,
 body.dark-mode .report-summary-card,
+body.dark-mode .kpi-card,
+body.dark-mode .metric-card,
 body.dark-mode .compact-empty-state {
     background: var(--clean-surface);
     border-color: var(--clean-border);
@@ -969,8 +1024,15 @@ body.dark-mode .card-header h4,
 body.dark-mode .compact-card-header h4,
 body.dark-mode .summary-inline-card strong,
 body.dark-mode .report-summary-card strong,
+body.dark-mode .kpi-value,
 body.dark-mode .system-panel-header h5 {
     color: var(--clean-text);
+}
+
+body.dark-mode .kpi-label,
+body.dark-mode .metric-card .kpi-content h4,
+body.dark-mode .kpi-change {
+    color: var(--clean-text-muted);
 }
 
 body.dark-mode .health-status-hero {
