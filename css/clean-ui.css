@@ -39,6 +39,7 @@
     --cui-green-soft: #d8f5e9;
     --cui-amber:      #92400e;
     --cui-amber-soft: #fef3c7;
+    --cui-amber-btn:  #d97706;
     --cui-red:        #b91c1c;
     --cui-red-soft:   #fee2e2;
     --cui-blue:       #1e40af;
@@ -200,7 +201,7 @@ body .login-brand-inner {
 body .login-brand-logo-mark {
     width: 64px;
     height: 64px;
-    border-radius: 18px;
+    border-radius: var(--cui-radius-xl);
     background: linear-gradient(135deg, #1d4ed8 0%, #0052cc 100%);
     display: flex;
     align-items: center;
@@ -1553,13 +1554,13 @@ body .btn-danger:hover {
 
 /* Warning */
 body .btn-warning {
-    background: #d97706 !important;
-    border-color: #d97706 !important;
+    background: var(--cui-amber-btn) !important;
+    border-color: var(--cui-amber-btn) !important;
     color: #fff !important;
 }
 body .btn-warning:hover {
-    background: #b45309 !important;
-    border-color: #b45309 !important;
+    background: var(--cui-amber) !important;
+    border-color: var(--cui-amber) !important;
 }
 
 /* Secondary / Outline */
