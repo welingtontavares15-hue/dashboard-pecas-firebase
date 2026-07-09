@@ -1,5 +1,5 @@
 ﻿import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyReportsModernization } from '../components/reports-modern.js?v=20260315g';
+import { applyReportsModernization } from '../components/reports-modern.js?v=20260709a';
 
 let ready = false;
 
@@ -9,7 +9,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../relatorios.js', import.meta.url).href, 'Relatorios');
+    await ensureClassicScript(new URL('../relatorios.js?v=20260709a', import.meta.url).href, 'Relatorios');
     applyReportsModernization();
     ready = true;
 }
@@ -19,7 +19,6 @@ export function render() {
         window.Relatorios.render();
     }
 }
-
 
 
 

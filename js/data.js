@@ -2285,17 +2285,23 @@ const DataManager = {
     getTechnicianById(id) {
         // Normalized comparison: legacy records may carry numeric ids while
         // form inputs always provide strings, so a strict === lookup misses them.
-        const normalizedId = String(id ?? '').trim();
+        const normalizedId = typeof Utils.sameId === 'function'
+            ? Utils.normalizeId(id)
+            : String(id ?? '').trim();
         if (!normalizedId) {
             return undefined;
         }
         const technicians = this.getTechnicians();
-        return technicians.find(t => String(t?.id ?? '').trim() === normalizedId);
+        return technicians.find(t => typeof Utils.sameId === 'function'
+            ? Utils.sameId(t?.id, normalizedId)
+            : String(t?.id ?? '').trim() === normalizedId);
     },
 
     saveTechnician(technician) {
         const technicians = this.getTechnicians();
-        const index = technicians.findIndex(t => t.id === technician.id);
+        const index = technicians.findIndex(t => typeof Utils.sameId === 'function'
+            ? Utils.sameId(t.id, technician.id)
+            : t.id === technician.id);
         
         if (index >= 0) {
             technicians[index] = technician;
@@ -2308,7 +2314,9 @@ const DataManager = {
     },
 
     deleteTechnician(id) {
-        const technicians = this.getTechnicians().filter(t => t.id !== id);
+        const technicians = this.getTechnicians().filter(t => typeof Utils.sameId === 'function'
+            ? !Utils.sameId(t.id, id)
+            : t.id !== id);
         return this.saveData(this.KEYS.TECHNICIANS, technicians);
     },
 
@@ -2328,7 +2336,9 @@ const DataManager = {
             return { success: false, error: 'Informe um usuário para o técnico.' };
         }
 
-        const technicianIndex = technicians.findIndex(t => t.id === technicianId);
+        const technicianIndex = technicians.findIndex(t => typeof Utils.sameId === 'function'
+            ? Utils.sameId(t.id, technicianId)
+            : t.id === technicianId);
         const nextTechnicians = technicianIndex >= 0
             ? technicians.map((t, idx) => (idx === technicianIndex ? { ...t, ...normalizedTechnician } : t))
             : [...technicians, normalizedTechnician];
@@ -2366,7 +2376,7 @@ const DataManager = {
 
         const linkedUserIndex = users.findIndex(u =>
             u.id === candidateUser.id ||
-            u.tecnicoId === technicianId ||
+            (typeof Utils.sameId === 'function' ? Utils.sameId(u.tecnicoId, technicianId) : u.tecnicoId === technicianId) ||
             (u.role === 'tecnico' && this.normalizeUsername(u.username) === this.normalizeUsername(candidateUser.username))
         );
 
@@ -2399,16 +2409,20 @@ const DataManager = {
         }
 
         const technicians = this.getTechnicians();
-        const target = technicians.find(t => t.id === technicianId);
+        const target = technicians.find(t => typeof Utils.sameId === 'function'
+            ? Utils.sameId(t.id, technicianId)
+            : t.id === technicianId);
         if (!target) {
             return { success: false, error: 'Técnico não encontrado.' };
         }
 
-        const nextTechnicians = technicians.filter(t => t.id !== technicianId);
+        const nextTechnicians = technicians.filter(t => typeof Utils.sameId === 'function'
+            ? !Utils.sameId(t.id, technicianId)
+            : t.id !== technicianId);
         const users = this.getUsers();
         const normalizedUsername = this.normalizeUsername(target.username);
         const nextUsers = users.filter(u =>
-            u.tecnicoId !== technicianId &&
+            (typeof Utils.sameId === 'function' ? !Utils.sameId(u.tecnicoId, technicianId) : u.tecnicoId !== technicianId) &&
             !(u.role === 'tecnico' && this.normalizeUsername(u.username) === normalizedUsername)
         );
         const removedUsers = users.filter(u => !nextUsers.includes(u));
@@ -2452,13 +2466,17 @@ const DataManager = {
 
         const canonicalSupplierId = this.getCanonicalSupplierId(requestedId, { suppliers });
         const exactCanonicalMatch = canonicalSupplierId
-            ? suppliers.find((supplier) => String(supplier?.id || '').trim() === canonicalSupplierId)
+            ? suppliers.find((supplier) => typeof Utils.sameId === 'function'
+                ? Utils.sameId(supplier?.id, canonicalSupplierId)
+                : String(supplier?.id || '').trim() === canonicalSupplierId)
             : null;
         if (exactCanonicalMatch) {
             return exactCanonicalMatch;
         }
 
-        const exactMatch = suppliers.find((supplier) => String(supplier?.id || '').trim() === requestedId);
+        const exactMatch = suppliers.find((supplier) => typeof Utils.sameId === 'function'
+            ? Utils.sameId(supplier?.id, requestedId)
+            : String(supplier?.id || '').trim() === requestedId);
         if (exactMatch && (!canonicalSupplierId || canonicalSupplierId === requestedId)) {
             return exactMatch;
         }
@@ -2545,7 +2563,7 @@ const DataManager = {
 
         const linkedUserIndex = users.findIndex(u =>
             u.id === candidateUser.id ||
-            u.fornecedorId === supplierId ||
+            (typeof Utils.sameId === 'function' ? Utils.sameId(u.fornecedorId, supplierId) : u.fornecedorId === supplierId) ||
             (u.role === 'fornecedor' && this.normalizeUsername(u.username) === this.normalizeUsername(candidateUser.username))
         );
 
@@ -2588,7 +2606,7 @@ const DataManager = {
         const normalizedUsername = this.normalizeUsername(target.username || '');
         const normalizedEmail = this.normalizeEmail(target.email || '');
         const nextUsers = users.filter((u) => {
-            if (u.fornecedorId === supplierId) {
+            if (typeof Utils.sameId === 'function' ? Utils.sameId(u.fornecedorId, supplierId) : u.fornecedorId === supplierId) {
                 return false;
             }
             if (u.role !== 'fornecedor') {
@@ -2923,7 +2941,9 @@ const DataManager = {
 
     getSolicitationsByTechnician(tecnicoId) {
         const solicitations = this.getSolicitations();
-        return solicitations.filter(s => s.tecnicoId === tecnicoId);
+        return solicitations.filter(s => typeof Utils.sameId === 'function'
+            ? Utils.sameId(s.tecnicoId, tecnicoId) || Utils.sameId(s.requesterTecnicoId, tecnicoId)
+            : s.tecnicoId === tecnicoId || s.requesterTecnicoId === tecnicoId);
     },
 
     getPendingSolicitations() {
@@ -2980,6 +3000,8 @@ const DataManager = {
         Object.entries(this.TECHNICIAN_SNAPSHOT_FIELD_MAP).forEach(([target, source]) => {
             fillIfBlank(target, technician[source]);
         });
+        fillIfBlank('cidade', technician.municipio);
+        fillIfBlank('estado', technician.uf);
         fillIfBlank('tecnicoNome', technician.nome);
         fillIfBlank('tecnicoEmail', technician.email);
         return changed;
@@ -3952,10 +3974,6 @@ const DataManager = {
 
 // Initialize data on load
 DataManager.init();
-
-
-
-
 
 
 

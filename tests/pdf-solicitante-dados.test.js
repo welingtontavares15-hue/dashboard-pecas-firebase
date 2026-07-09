@@ -145,6 +145,17 @@ describe('PDF do solicitante — endereço e CPF', () => {
             expect(DataManager.getTechnicianById('')).toBeUndefined();
             expect(DataManager.getTechnicianById(null)).toBeUndefined();
         });
+
+        it('filtra solicitações do técnico com id string ou numérico', () => {
+            const { DataManager } = loadDataManager();
+            jest.spyOn(DataManager, 'getSolicitations').mockReturnValue([
+                { id: 'sol-num', tecnicoId: 1024 },
+                { id: 'sol-str', requesterTecnicoId: '1024' },
+                { id: 'sol-other', tecnicoId: '9999' }
+            ]);
+
+            expect(DataManager.getSolicitationsByTechnician('1024').map((item) => item.id)).toEqual(['sol-num', 'sol-str']);
+        });
     });
 
     describe('DataManager.applyTechnicianSnapshotBackfill', () => {
@@ -185,6 +196,21 @@ describe('PDF do solicitante — endereço e CPF', () => {
             const record = { id: 'sol-2', tecnicoId: 'fantasma' };
             expect(DataManager.applyTechnicianSnapshotBackfill(record)).toBe(false);
             expect(record.tecnicoCpf).toBeUndefined();
+        });
+
+        it('preenche cidade e estado a partir de campos legados municipio/uf', () => {
+            const { DataManager } = loadDataManager();
+            jest.spyOn(DataManager, 'getTechnicians').mockReturnValue([{
+                id: 'tec-legado',
+                nome: 'Tecnico Legado',
+                municipio: 'Anápolis',
+                uf: 'GO'
+            }]);
+
+            const record = { id: 'sol-3', tecnicoId: 'tec-legado' };
+            expect(DataManager.applyTechnicianSnapshotBackfill(record)).toBe(true);
+            expect(record.cidade).toBe('Anápolis');
+            expect(record.estado).toBe('GO');
         });
     });
 

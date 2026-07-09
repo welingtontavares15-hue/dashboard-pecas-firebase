@@ -26,6 +26,15 @@ const Relatorios = {
     _filtersInitialized: false,
     _activeReportData: null,
 
+    getRequesterName(solicitation, fallback = 'Não identificado') {
+        const details = typeof Utils.resolveSolicitationRequesterDetails === 'function'
+            ? Utils.resolveSolicitationRequesterDetails(solicitation)
+            : (typeof Utils.resolveSolicitationTechnicianDetails === 'function'
+                ? Utils.resolveSolicitationTechnicianDetails(solicitation)
+                : null);
+        return details?.name || solicitation?.tecnicoNome || solicitation?.requesterName || fallback;
+    },
+
     getDefaultFilters() {
         // Utilize sempre um período dinâmico baseado no intervalo padrão ao invés de um filtro global possivelmente fixo.
         const defaultRange = AnalyticsHelper.getDefaultRangeDays();
@@ -408,7 +417,7 @@ const Relatorios = {
                                     <strong>#${sol.numero}</strong>
                                     ${highCostIds.has(sol.id) ? '<div class="helper-text text-danger">Solicitação com custo elevado</div>' : ''}
                                 </td>
-                                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não identificado')}</td>
+                                <td>${Utils.escapeHtml(this.getRequesterName(sol))}</td>
                                 <td>${Utils.escapeHtml(this.getSolicitationClientName(sol))}</td>
                                 <td>${Utils.escapeHtml(this.getSolicitationRegion(sol))}</td>
                                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
@@ -1268,7 +1277,7 @@ const Relatorios = {
 
                 data.push({
                     Numero: solicitation.numero,
-                    Técnico: solicitation.tecnicoNome,
+                    Técnico: this.getRequesterName(solicitation),
                     Cliente: this.getSolicitationClientName(solicitation),
                     Região: this.getSolicitationRegion(solicitation),
                     Data: Utils.formatDate(solicitation.data),
@@ -1320,7 +1329,7 @@ const Relatorios = {
                     Numero: solicitation.numero,
                     Mes: monthLabel,
                     Data: Utils.formatDate(solicitation.data || solicitation.createdAt),
-                    Técnico: solicitation.tecnicoNome || 'Não identificado',
+                    Técnico: this.getRequesterName(solicitation),
                     Cliente: this.getSolicitationClientName(solicitation),
                     Região: this.getSolicitationRegion(solicitation),
                     Código: item?.codigo || '',
@@ -1715,7 +1724,6 @@ const Relatorios = {
 if (typeof window !== 'undefined') {
     window.Relatorios = Relatorios;
 }
-
 
 
 

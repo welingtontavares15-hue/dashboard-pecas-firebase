@@ -2491,16 +2491,42 @@ const Utils = {
     },
 
     /**
+     * Format CEP
+     */
+    formatCEP(cep) {
+        const rawValue = String(cep || '').trim();
+        const digits = rawValue.replace(/[^\d]/g, '');
+        if (digits.length !== 8) {
+            return rawValue;
+        }
+        return digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+    },
+
+    /**
+     * Normalize ids safely for string/number legacy comparisons.
+     */
+    normalizeId(id) {
+        return String(id ?? '').trim();
+    },
+
+    sameId(a, b) {
+        const left = this.normalizeId(a);
+        const right = this.normalizeId(b);
+        return !!left && !!right && left === right;
+    },
+
+    /**
      * Format phone number
      */
     formatPhone(phone) {
-        phone = phone.replace(/[^\d]/g, '');
+        const rawValue = String(phone || '').trim();
+        phone = rawValue.replace(/[^\d]/g, '');
         if (phone.length === 11) {
             return phone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
         } else if (phone.length === 10) {
             return phone.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
         }
-        return phone;
+        return rawValue;
     },
 
     /**
@@ -2513,15 +2539,15 @@ const Utils = {
             return { line1: '', line2: '', line3: '' };
         }
 
-        const cityUf = [address.cidade || '', address.estado || ''].filter(Boolean).join('/');
+        const cityUf = [address.cidade || address.municipio || '', address.estado || address.uf || ''].filter(Boolean).join('/');
         const line1 = `${address.endereco || ''}${address.numero ? ', ' + address.numero : ''}${address.complemento ? ' - ' + address.complemento : ''}`.trim();
         const line2 = [address.bairro || '', cityUf].filter(Boolean).join(' - ');
         const line3Parts = [];
         if (address.cep) {
-            line3Parts.push(`CEP: ${address.cep}`);
+            line3Parts.push(`CEP: ${this.formatCEP(address.cep)}`);
         }
         if (address.telefone) {
-            line3Parts.push(`Tel: ${address.telefone}`);
+            line3Parts.push(`Tel: ${this.formatPhone(address.telefone)}`);
         }
         const line3 = line3Parts.join(' | ');
 
@@ -2557,26 +2583,31 @@ const Utils = {
             }) || null;
         }
         const address = {
-            endereco: firstFilled(technician?.endereco, solicitation.enderecoEntrega, solicitation.endereco),
+            endereco: firstFilled(technician?.endereco, solicitation.enderecoEntrega, solicitation.endereco, solicitation.logradouro),
             numero: firstFilled(technician?.numero, solicitation.enderecoNumero, solicitation.numeroEndereco, solicitation.numeroEntrega),
             complemento: firstFilled(technician?.complemento, solicitation.complemento),
             bairro: firstFilled(technician?.bairro, solicitation.bairro),
-            cidade: firstFilled(technician?.cidade, solicitation.cidade),
-            estado: firstFilled(technician?.estado, solicitation.estado),
-            cep: firstFilled(technician?.cep, solicitation.cep),
-            telefone: firstFilled(technician?.telefone, solicitation.telefone, solicitation.contato)
+            cidade: firstFilled(technician?.cidade, technician?.municipio, solicitation.cidade, solicitation.municipio),
+            estado: firstFilled(technician?.estado, technician?.uf, solicitation.estado, solicitation.uf),
+            cep: firstFilled(technician?.cep, solicitation.cep, solicitation.cepEntrega),
+            telefone: firstFilled(technician?.telefone, solicitation.telefone, solicitation.telefoneTecnico, solicitation.contato, solicitation.celular)
         };
         const hasAddress = Object.values(address).some(Boolean);
-        const cpf = firstFilled(technician?.cpf, solicitation.tecnicoCpf, solicitation.cpfTecnico, solicitation.cpf);
+        const cpf = firstFilled(technician?.cpf, solicitation.tecnicoCpf, solicitation.cpfTecnico, solicitation.requesterCpf, solicitation.solicitanteCpf, solicitation.cpf);
 
         return {
             technician,
-            name: firstFilled(solicitation.tecnicoNome, technician?.nome, solicitation.requesterName),
+            id: lookupId,
+            name: firstFilled(technician?.nome, solicitation.tecnicoNome, solicitation.requesterName, solicitation.tecnico, solicitation.solicitante),
             cpf: cpf ? this.formatCPF(cpf) : '',
-            email: firstFilled(technician?.email, solicitation.tecnicoEmail, solicitation.requesterEmail),
-            phone: address.telefone,
+            email: firstFilled(technician?.email, solicitation.tecnicoEmail, solicitation.requesterEmail, solicitation.emailTecnico, solicitation.email),
+            phone: address.telefone ? this.formatPhone(address.telefone) : '',
             address: hasAddress ? address : null
         };
+    },
+
+    resolveSolicitationRequesterDetails(solicitation = {}) {
+        return this.resolveSolicitationTechnicianDetails(solicitation);
     },
 
     /**
@@ -3685,8 +3716,6 @@ const AnalyticsHelper = {
 if (typeof window !== 'undefined') {
     window.AnalyticsHelper = AnalyticsHelper;
 }
-
-
 
 
 

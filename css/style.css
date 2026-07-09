@@ -5760,6 +5760,14 @@ body.dark-mode .status-filter-option:hover {
     font-size: 0.94rem;
 }
 
+.requester-address-lines {
+    display: grid;
+    gap: 0.18rem;
+    color: var(--text-primary);
+    font-size: 0.94rem;
+    line-height: 1.45;
+}
+
 .technician-summary-card-wide {
     grid-column: span 2;
 }

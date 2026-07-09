@@ -229,17 +229,17 @@ const Tecnicos = {
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="tech-cpf">CPF</label>
+                            <label for="tech-cpf">CPF *</label>
                             <input type="text" id="tech-cpf" class="form-control" 
                                    value="${Utils.escapeHtml(tech?.cpf || '')}"
                                    placeholder="000.000.000-00"
-                                   maxlength="14">
+                                   maxlength="14" required>
                         </div>
                         <div class="form-group">
-                            <label for="tech-telefone">Telefone</label>
+                            <label for="tech-telefone">Telefone *</label>
                             <input type="text" id="tech-telefone" class="form-control" 
                                    value="${Utils.escapeHtml(tech?.telefone || '')}"
-                                   placeholder="(00) 00000-0000">
+                                   placeholder="(00) 00000-0000" required>
                         </div>
                         <div class="form-group">
                             <label for="tech-regiao">Região</label>
@@ -262,10 +262,10 @@ const Tecnicos = {
                                    placeholder="Rua, Avenida, etc." required>
                         </div>
                         <div class="form-group" style="flex: 1;">
-                            <label for="tech-numero">Número</label>
+                            <label for="tech-numero">Número *</label>
                             <input type="text" id="tech-numero" class="form-control" 
                                    value="${Utils.escapeHtml(tech?.numero || '')}"
-                                   placeholder="123">
+                                   placeholder="123 ou S/N" required>
                         </div>
                     </div>
                     
@@ -344,6 +344,42 @@ const Tecnicos = {
         `;
         
         Utils.showModal(content, { size: 'lg' });
+        this.bindFormMasks();
+    },
+
+    bindFormMasks() {
+        const bind = (id, formatter) => {
+            const input = document.getElementById(id);
+            if (!input) {
+                return;
+            }
+            input.addEventListener('input', () => {
+                input.value = formatter(input.value);
+            });
+        };
+
+        bind('tech-cpf', (value) => {
+            const digits = String(value || '').replace(/[^\d]/g, '').slice(0, 11);
+            return digits
+                .replace(/^(\d{3})(\d)/, '$1.$2')
+                .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+                .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+        });
+        bind('tech-cep', (value) => {
+            const digits = String(value || '').replace(/[^\d]/g, '').slice(0, 8);
+            return digits.replace(/^(\d{5})(\d)/, '$1-$2');
+        });
+        bind('tech-telefone', (value) => {
+            const digits = String(value || '').replace(/[^\d]/g, '').slice(0, 11);
+            if (digits.length <= 10) {
+                return digits
+                    .replace(/^(\d{2})(\d)/, '($1) $2')
+                    .replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            return digits
+                .replace(/^(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{5})(\d)/, '$1-$2');
+        });
     },
 
     /**
@@ -383,12 +419,28 @@ const Tecnicos = {
             return;
         }
 
-        if (cpf && !Utils.isValidCPF(cpf)) {
+        if (!cpf) {
+            Utils.showToast('Informe o CPF do técnico para geração do PDF e entrega', 'warning');
+            return;
+        }
+
+        if (!Utils.isValidCPF(cpf)) {
             Utils.showToast('CPF inválido', 'warning');
             return;
         }
 
-        if (!endereco || !bairro || !cidade || !estado || !cep) {
+        if (!telefone) {
+            Utils.showToast('Informe o telefone do técnico para contato de entrega', 'warning');
+            return;
+        }
+
+        const cleanPhone = telefone.replace(/[^\d]/g, '');
+        if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+            Utils.showToast('Telefone deve ter DDD e 10 ou 11 dígitos', 'warning');
+            return;
+        }
+
+        if (!endereco || !numero || !bairro || !cidade || !estado || !cep) {
             Utils.showToast('Preencha o endereço completo para envio de materiais', 'warning');
             return;
         }
@@ -425,7 +477,9 @@ const Tecnicos = {
         const cleanCep = cep.replace(/[^\d]/g, '');
         let formattedCep = cleanCep;
         if (cleanCep.length === 8) {
-            formattedCep = cleanCep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+            formattedCep = typeof Utils.formatCEP === 'function'
+                ? Utils.formatCEP(cleanCep)
+                : cleanCep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
         } else if (cleanCep.length > 0) {
             Utils.showToast('CEP deve ter 8 dígitos', 'warning');
             return;
@@ -748,7 +802,6 @@ const Tecnicos = {
 if (typeof window !== 'undefined') {
     window.Tecnicos = Tecnicos;
 }
-
 
 
 

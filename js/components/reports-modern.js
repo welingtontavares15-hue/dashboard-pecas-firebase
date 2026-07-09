@@ -126,6 +126,19 @@ function relatoriosSafeClient(sol) {
     return String(sol?.cliente || sol?.clienteNome || '').trim() || 'Não informado';
 }
 
+function relatoriosRequesterName(sol) {
+    if (typeof Relatorios !== 'undefined' && typeof Relatorios.getRequesterName === 'function') {
+        return Relatorios.getRequesterName(sol);
+    }
+    if (typeof Utils.resolveSolicitationRequesterDetails === 'function') {
+        return Utils.resolveSolicitationRequesterDetails(sol)?.name || 'Não informado';
+    }
+    if (typeof Utils.resolveSolicitationTechnicianDetails === 'function') {
+        return Utils.resolveSolicitationTechnicianDetails(sol)?.name || 'Não informado';
+    }
+    return sol?.tecnicoNome || sol?.requesterName || 'Não informado';
+}
+
 function renderCompactEmpty(message = 'Sem dados no período selecionado.', description = 'Ajuste os filtros para continuar.') {
     return `
         <div class="empty-state compact-empty-state">
@@ -200,7 +213,7 @@ function renderRecentRows(solicitations) {
             <tr>
                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                 <td><strong>#${sol.numero}</strong></td>
-                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
+                <td>${Utils.escapeHtml(relatoriosRequesterName(sol))}</td>
                 <td>${Utils.escapeHtml(relatoriosSafeClient(sol))}</td>
                 <td>${Utils.formatCurrency(cost)}</td>
                 <td>${Utils.renderStatusBadge(sol.status)}</td>
@@ -326,7 +339,7 @@ function renderHistoryTable(relatorios, solicitations) {
                             <tr>
                                 <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                                 <td><strong>#${sol.numero}</strong></td>
-                                <td>${Utils.escapeHtml(sol.tecnicoNome || 'Não informado')}</td>
+                                <td>${Utils.escapeHtml(relatoriosRequesterName(sol))}</td>
                                 <td>${Utils.escapeHtml(relatorios.getSolicitationClientName(sol))}</td>
                                 <td>${Utils.formatCurrency(Number(sol?._analysisCost ?? sol?.total) || 0)}</td>
                                 <td>${Utils.renderStatusBadge(sol.status)}</td>
@@ -1127,7 +1140,6 @@ export function applyReportsModernization() {
         }
     };
 }
-
 
 
 

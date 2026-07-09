@@ -10,12 +10,12 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard.js?v=20260309n',
-        solicitacoes: './pages/solicitacoes.js?v=20260315i',
-        aprovacoes: './pages/aprovacoes.js?v=20260315i',
+        solicitacoes: './pages/solicitacoes.js?v=20260709a',
+        aprovacoes: './pages/aprovacoes.js?v=20260709a',
         pecas: './pages/pecas.js?v=20260309n',
-        relatorios: './pages/relatorios.js?v=20260315g',
-        fornecedor: './pages/fornecedor.js?v=20260315i',
-        usuarios: './pages/usuarios.js?v=20260309n'
+        relatorios: './pages/relatorios.js?v=20260709a',
+        fornecedor: './pages/fornecedor.js?v=20260709a',
+        usuarios: './pages/usuarios.js?v=20260709a'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1985,8 +1985,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-
-
 
 
 
