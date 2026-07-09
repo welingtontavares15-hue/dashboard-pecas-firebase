@@ -34,12 +34,14 @@
     --cui-primary-mid:    rgba(0, 82, 204, 0.12);
     --cui-ring:           rgba(0, 82, 204, 0.22);
 
-    /* Semantic */
+    /* Semantic — each color has a base (text/badge), soft (background tint) and
+       optionally a "strong" variant (vivid/interactive, e.g. button backgrounds).
+       This mirrors the --cui-primary / --cui-primary-strong pattern. */
     --cui-green:      #0a7a4a;
     --cui-green-soft: #d8f5e9;
-    --cui-amber:      #92400e;
+    --cui-amber:      #92400e; /* text / badge emphasis */
     --cui-amber-soft: #fef3c7;
-    --cui-amber-strong:  #d97706;
+    --cui-amber-strong: #d97706; /* vivid amber for interactive elements (buttons, progress) */
     --cui-red:        #b91c1c;
     --cui-red-soft:   #fee2e2;
     --cui-blue:       #1e40af;
@@ -1498,12 +1500,17 @@ body .btn {
         color var(--cui-fast) var(--cui-ease),
         box-shadow var(--cui-fast) var(--cui-ease);
     white-space: nowrap;
-    transform: none !important; /* override translateY shimmer from style.css .btn:hover */
+    /* style.css adds `transform: translateY(-1px)` on `.btn:hover` with specificity (0,0,2,0).
+       Our base rule `body .btn` has (0,0,1,1), which is lower than the hover pseudo-class.
+       We therefore need `!important` here to win; the hover animations are intentionally removed. */
+    transform: none !important;
     overflow: visible;
     position: static;
 }
 
-/* Suppress shimmer pseudo-element injected by style.css .btn::before */
+/* style.css injects a shine sweep via `.btn::before` (specificity 0,0,1,1).
+   `body .btn::before` reaches (0,0,1,2) which beats it, but `!important`
+   is added as a belt-and-suspenders guard across all specificity layers. */
 body .btn::before { display: none !important; }
 
 body .btn.btn-sm  { height: 30px; padding: 0 10px; font-size: 12px; }
