@@ -309,7 +309,7 @@ body .login-logo {
 body .login-logo .brand-emblem {
     width: 48px;
     height: 48px;
-    border-radius: 14px;
+    border-radius: var(--cui-radius-xl);
     background: linear-gradient(135deg, #1d4ed8 0%, #0052cc 100%);
     display: inline-flex;
     align-items: center;
@@ -1552,7 +1552,7 @@ body .btn-danger:hover {
     border-color: #a31616 !important;
 }
 
-/* Warning */
+/* Warning — amber-btn for default, amber for hover (darker shade) */
 body .btn-warning {
     background: var(--cui-amber-btn) !important;
     border-color: var(--cui-amber-btn) !important;
@@ -2253,7 +2253,7 @@ body .progress-bar {
 }
 
 body .progress-bar.success { background: var(--cui-green); }
-body .progress-bar.warning { background: #d97706; }
+body .progress-bar.warning { background: var(--cui-amber-btn); }
 body .progress-bar.danger  { background: var(--cui-red); }
 
 /* ==========================================================================
