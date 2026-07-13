@@ -18,50 +18,268 @@
     <link rel="stylesheet" href="css/login-corporate-v3.css?v=20260713b">
     <link rel="stylesheet" href="css/ui-consolidation.css?v=20260713d">
     <link rel="stylesheet" href="css/screen-fixes-v5.css?v=20260713e">
+    <style>
+        :root { --portal-sidebar-width: 268px; }
+
+        /* Login simples: somente o cartão de acesso. */
+        #login-screen.login-container:not(.hidden) {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            grid-template-rows: minmax(0, 1fr) !important;
+            place-items: center !important;
+            width: 100% !important;
+            height: 100vh !important;
+            height: 100svh !important;
+            min-height: 100vh !important;
+            min-height: 100svh !important;
+            padding: 24px !important;
+            overflow: auto !important;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(37, 112, 205, .22), transparent 32%),
+                radial-gradient(circle at 84% 88%, rgba(12, 129, 145, .18), transparent 35%),
+                linear-gradient(145deg, #07152b 0%, #0b2343 58%, #0f4856 100%) !important;
+        }
+
+        #login-screen .login-brand-panel,
+        #login-screen .login-mobile-brand,
+        #login-screen .login-info-card,
+        #login-screen .login-card-footer {
+            display: none !important;
+        }
+
+        #login-screen .login-card {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            display: block !important;
+            width: min(100%, 440px) !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+
+        #login-screen .login-card-inner {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 38px !important;
+            color: #eef5ff !important;
+            background: rgba(10, 24, 43, .96) !important;
+            border: 1px solid rgba(129, 158, 196, .22) !important;
+            border-radius: 18px !important;
+            box-shadow: 0 28px 72px rgba(0, 10, 27, .38) !important;
+        }
+
+        #login-screen .login-simple-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            margin-bottom: 20px;
+            color: #fff;
+            background: linear-gradient(145deg, #2479df, #0b55ad);
+            border-radius: 13px;
+            font-size: 20px;
+            font-weight: 800;
+            box-shadow: 0 12px 28px rgba(24, 105, 207, .28);
+        }
+
+        #login-screen .login-logo {
+            margin: 0 0 24px !important;
+            text-align: left !important;
+        }
+
+        #login-screen .login-logo h1 {
+            margin: 4px 0 0 !important;
+            color: #f5f9ff !important;
+            font-size: 28px !important;
+            line-height: 1.15 !important;
+            -webkit-text-fill-color: currentColor !important;
+        }
+
+        #login-screen .login-form-kicker { color: #62aef7 !important; }
+        #login-screen .login-form label { color: #b7c7db !important; }
+        #login-screen .login-form .form-control {
+            color: #edf5ff !important;
+            background: #101f35 !important;
+            border-color: #2b405d !important;
+        }
+        #login-screen .login-form .form-control::placeholder { color: #7f91a9 !important; }
+        #login-screen .login-form .form-control:focus {
+            background: #12243d !important;
+            border-color: #4b9ee9 !important;
+            box-shadow: 0 0 0 3px rgba(75, 158, 233, .18) !important;
+        }
+        #login-screen .toggle-password { color: #a7bad0 !important; }
+        #login-screen .credentials-panel { margin-top: 18px !important; }
+
+        /* Menu lateral completo no desktop, mesmo quando ficou salvo como recolhido. */
+        @media (min-width: 981px) {
+            #app-container:not(.hidden) { display: block !important; min-height: 100vh !important; }
+
+            #sidebar.sidebar,
+            #sidebar.sidebar.collapsed {
+                position: fixed !important;
+                top: 0 !important;
+                right: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                z-index: 1200 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                width: var(--portal-sidebar-width) !important;
+                min-width: var(--portal-sidebar-width) !important;
+                max-width: var(--portal-sidebar-width) !important;
+                height: 100vh !important;
+                max-height: 100vh !important;
+                margin: 0 !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+                transform: none !important;
+                border-radius: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #sidebar .sidebar-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                min-height: 72px !important;
+                padding: 0 16px !important;
+            }
+
+            #sidebar .logo {
+                display: flex !important;
+                align-items: center !important;
+                gap: 11px !important;
+                min-width: 0 !important;
+            }
+
+            #sidebar .logo-meta,
+            #sidebar .user-details,
+            #sidebar .nav-group-toggle span,
+            #sidebar .nav-item > span,
+            #sidebar.collapsed .logo-meta,
+            #sidebar.collapsed .user-details,
+            #sidebar.collapsed .nav-group-toggle span,
+            #sidebar.collapsed .nav-item > span {
+                display: block !important;
+                width: auto !important;
+                max-width: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+
+            #sidebar .sidebar-toggle { display: none !important; }
+
+            #sidebar .sidebar-nav {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+                max-height: none !important;
+                padding: 10px 12px 18px !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+            }
+
+            #sidebar .nav-group { width: 100% !important; margin: 0 0 12px !important; }
+            #sidebar .nav-group-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                width: 100% !important;
+                min-height: 34px !important;
+                padding: 6px 10px !important;
+                text-align: left !important;
+            }
+            #sidebar .nav-group-items { display: grid !important; gap: 3px !important; width: 100% !important; }
+            #sidebar .nav-group.collapsed .nav-group-items { display: none !important; }
+
+            #sidebar .nav-item,
+            #sidebar.collapsed .nav-item {
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+                width: 100% !important;
+                min-height: 42px !important;
+                margin: 0 !important;
+                padding: 0 12px !important;
+                border-radius: 9px !important;
+                text-align: left !important;
+            }
+
+            #sidebar .nav-item i {
+                width: 18px !important;
+                min-width: 18px !important;
+                margin: 0 !important;
+                text-align: center !important;
+            }
+
+            #sidebar .nav-item-sub { padding-left: 36px !important; }
+            #sidebar .nav-badge { display: inline-flex !important; margin-left: auto !important; }
+
+            #sidebar .sidebar-footer {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 10px !important;
+                width: 100% !important;
+                margin-top: auto !important;
+                padding: 14px 16px !important;
+            }
+            #sidebar .user-info { display: flex !important; align-items: center !important; gap: 10px !important; min-width: 0 !important; }
+            #sidebar .sidebar-actions { display: flex !important; align-items: center !important; gap: 4px !important; }
+
+            #app-container .main-content {
+                width: calc(100% - var(--portal-sidebar-width)) !important;
+                min-width: 0 !important;
+                margin-left: var(--portal-sidebar-width) !important;
+            }
+
+            #app-container .main-header {
+                left: var(--portal-sidebar-width) !important;
+                width: calc(100% - var(--portal-sidebar-width)) !important;
+            }
+
+            #app-container .mobile-nav-buttons,
+            #app-container #mobile-menu-btn { display: none !important; }
+        }
+
+        @media (max-width: 980px) {
+            #login-screen.login-container:not(.hidden) { padding: 18px !important; }
+            #login-screen .login-card-inner { padding: 30px 24px !important; }
+            #sidebar.active .logo-meta,
+            #sidebar.active .user-details,
+            #sidebar.active .nav-group-toggle span,
+            #sidebar.active .nav-item > span {
+                display: block !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+        }
+    </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnVBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script type="module" src="./js/firebase-init.js"></script>
 </head>
 <body class="light-mode" data-theme="light">
-    <!-- Login Screen -->
     <div id="login-screen" class="login-container">
-        <section class="login-brand-panel" aria-hidden="true">
-            <div class="login-brand-inner">
-                <div class="login-brand-lockup">
-                    <div class="login-brand-logo-mark"><span>D</span></div>
-                    <div class="login-brand-meta">
-                        <strong>Diversey</strong>
-                        <span>A Solenis Company</span>
-                    </div>
-                </div>
-                <div class="login-brand-eyebrow">Operações &amp; Suprimentos</div>
-                <div class="login-brand-headline">Solicitações de peças com <span>mais controle.</span></div>
-                <p class="login-brand-desc">Acompanhe aprovações, custos e fornecedores em uma plataforma única, segura e orientada à operação.</p>
-                <ul class="login-brand-features">
-                    <li><i class="fas fa-user-shield"></i><span>Controle de acesso por perfil</span></li>
-                    <li><i class="fas fa-arrows-rotate"></i><span>Sincronização em tempo real</span></li>
-                    <li><i class="fas fa-chart-column"></i><span>Indicadores executivos</span></li>
-                    <li><i class="fas fa-route"></i><span>Rastreabilidade ponta a ponta</span></li>
-                </ul>
-            </div>
-        </section>
-        <main class="login-card">
+        <main class="login-card" aria-labelledby="login-title">
             <div class="login-card-inner">
-                <div class="login-mobile-brand" aria-hidden="true">
-                    <div class="login-mobile-brand-mark"><span>D</span></div>
-                    <div class="login-mobile-brand-meta">
-                        <strong>Diversey</strong>
-                        <span>A Solenis Company</span>
-                    </div>
-                </div>
                 <div class="login-logo">
+                    <div class="login-simple-mark" aria-hidden="true">D</div>
                     <span class="login-form-kicker">Portal de Peças MWW</span>
-                    <h1>Bem-vindo</h1>
-                    <p>Entre com suas credenciais corporativas para acessar a plataforma.</p>
+                    <h1 id="login-title">Acesso ao sistema</h1>
                 </div>
                 <form id="login-form" class="login-form">
                     <div class="form-group">
@@ -72,167 +290,76 @@
                         <label for="login-password">Senha</label>
                         <div class="password-field">
                             <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
-                            <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                            <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
-                    <button type="submit" id="login-submit" class="btn btn-primary btn-block">
-                        <i class="fas fa-arrow-right-to-bracket"></i> Acessar plataforma
-                    </button>
+                    <button type="submit" id="login-submit" class="btn btn-primary btn-block"><i class="fas fa-arrow-right-to-bracket"></i> Entrar</button>
                     <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
-                    <div id="login-error" class="error-message hidden"></div>
+                    <div id="login-error" class="error-message hidden" role="alert"></div>
                 </form>
-                <div class="login-info-card">
-                    <h3><i class="fas fa-shield-halved"></i> Ambiente corporativo seguro</h3>
-                    <p>O acesso é individual e controlado por perfil. Em caso de bloqueio, contate o administrador.</p>
-                </div>
-                <div class="login-card-footer">Uso interno · Operações MWW</div>
                 <div id="login-credentials" class="credentials-panel hidden">
-                    <div class="credentials-header">
-                        <div>
-                            <h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3>
-                            <p>Use um dos usuários abaixo para acessar imediatamente.</p>
-                        </div>
-                        <span class="badge-info"><i class="fas fa-shield-alt"></i> RBAC ativo</span>
-                    </div>
+                    <div class="credentials-header"><div><h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3><p>Use um dos usuários abaixo para acessar.</p></div></div>
                     <div class="credentials-table-wrapper">
-                        <table class="credentials-table">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Usuário</th>
-                                    <th>Perfil</th>
-                                </tr>
-                            </thead>
-                            <tbody id="login-credentials-body"></tbody>
-                        </table>
+                        <table class="credentials-table"><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th></tr></thead><tbody id="login-credentials-body"></tbody></table>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Main Application -->
     <div id="app-container" class="app-container hidden">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar">
+        <aside id="sidebar" class="sidebar" aria-label="Menu de módulos">
             <div class="sidebar-header">
                 <div class="logo">
                     <div class="brand-emblem sidebar-brand" aria-hidden="true"><span>D</span></div>
-                    <div class="logo-meta">
-                        <span class="logo-title">Diversey</span>
-                        <small class="logo-subtitle">A Solenis Company</small>
-                    </div>
+                    <div class="logo-meta"><span class="logo-title">Diversey</span><small class="logo-subtitle">A Solenis Company</small></div>
                 </div>
-                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Recolher menu lateral">
-                    <i class="fas fa-bars"></i>
-                </button>
+                <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Recolher menu lateral"><i class="fas fa-bars"></i></button>
             </div>
-            <nav id="sidebar-nav" class="sidebar-nav">
-                <!-- Menu items will be dynamically inserted based on user role -->
-            </nav>
+            <nav id="sidebar-nav" class="sidebar-nav"></nav>
             <div class="sidebar-footer">
                 <div class="user-info">
-                    <div class="user-avatar">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="user-details">
-                        <span id="user-name">Usuário</span>
-                        <span id="user-role" class="user-role">Perfil</span>
-                    </div>
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details"><span id="user-name">Usuário</span><span id="user-role" class="user-role">Perfil</span></div>
                 </div>
                 <div class="sidebar-actions">
-                    <button id="theme-toggle" class="btn-icon" title="Alternar tema">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <button id="logout-btn" class="btn-icon" title="Sair">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+                    <button id="theme-toggle" class="btn-icon" title="Alternar tema"><i class="fas fa-moon"></i></button>
+                    <button id="logout-btn" class="btn-icon" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
         </aside>
         <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
             <header class="main-header">
                 <div class="header-left">
                     <div class="mobile-nav-buttons">
-                        <button id="mobile-menu-btn" class="btn-icon" aria-label="Abrir menu">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                        <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para início">
-                            <i class="fas fa-home"></i>
-                        </button>
+                        <button id="mobile-menu-btn" class="btn-icon" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+                        <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para início"><i class="fas fa-home"></i></button>
                     </div>
-                    <div class="breadcrumb" id="breadcrumb">
-                        <span>Visão Geral</span>
-                    </div>
+                    <div class="breadcrumb" id="breadcrumb"><span>Visão Geral</span></div>
                 </div>
                 <div class="header-actions">
-                    <div class="header-search-zone">
-                        <div class="global-search">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico">
-                        </div>
-                    </div>
+                    <div class="header-search-zone"><div class="global-search"><i class="fas fa-search"></i><input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico"></div></div>
                     <div class="header-controls">
-                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
-                            <i class="fas fa-bell"></i>
-                            <span id="header-notification-dot" class="alert-dot hidden"></span>
-                        </button>
-                        <div class="header-profile">
-                            <div class="header-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="header-profile-meta">
-                                <span id="header-user-name">Usuário</span>
-                                <small id="header-user-role">Perfil</small>
-                            </div>
-                        </div>
+                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados"><i class="fas fa-sync-alt"></i></button>
+                        <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações"><i class="fas fa-bell"></i><span id="header-notification-dot" class="alert-dot hidden"></span></button>
+                        <div class="header-profile"><div class="header-avatar"><i class="fas fa-user"></i></div><div class="header-profile-meta"><span id="header-user-name">Usuário</span><small id="header-user-role">Perfil</small></div></div>
                     </div>
                 </div>
             </header>
             <div id="notification-panel" class="notification-panel hidden">
-                <div class="notification-panel-header">
-                    <h4>Notificações</h4>
-                    <button id="notification-panel-close" class="btn-icon" aria-label="Fechar notificações">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
+                <div class="notification-panel-header"><h4>Notificações</h4><button id="notification-panel-close" class="btn-icon" aria-label="Fechar notificações"><i class="fas fa-times"></i></button></div>
                 <div id="notification-list" class="notification-list"></div>
             </div>
-
-            <!-- Content Area -->
-            <div id="content-area" class="content-area">
-                <!-- Dynamic content will be loaded here -->
-            </div>
+            <div id="content-area" class="content-area"></div>
         </main>
     </div>
 
-    <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
+    <div id="modal-container" class="modal-container hidden"><div class="modal-backdrop"></div><div id="modal-content" class="modal-content"></div></div>
+    <div id="loading-overlay" class="loading-overlay hidden"><div class="spinner"></div><span>Carregando...</span></div>
 
-    <!-- Modal Container -->
-    <div id="modal-container" class="modal-container hidden">
-        <div class="modal-backdrop"></div>
-        <div id="modal-content" class="modal-content">
-            <!-- Modal content will be dynamically inserted -->
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <span>Carregando...</span>
-    </div>
-
-    <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/pwa.js"></script>
