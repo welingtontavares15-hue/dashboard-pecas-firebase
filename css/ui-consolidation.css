@@ -1,4 +1,4 @@
-/* ==========================================================================
+/* ========================================================================== 
    UI Consolidation — camada final de reconciliação (carrega por último)
    --------------------------------------------------------------------------
    Objetivo: eliminar as incoerências deixadas pelo empilhamento das 7 camadas
@@ -163,4 +163,33 @@ body textarea:focus-visible,
 body [tabindex]:focus-visible {
     outline: 2px solid var(--cp-accent, #2a7de1);
     outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   5) Login: neutraliza deslocamentos herdados das camadas antigas.
+   O container já usa grid centralizado; o cartão precisa permanecer no fluxo
+   normal para que o centro geométrico do viewport seja respeitado.
+   -------------------------------------------------------------------------- */
+#login-screen.login-container:not(.hidden) {
+    align-content: center !important;
+    justify-content: center !important;
+}
+
+#login-screen .login-card,
+#login-screen .login-card-inner {
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    translate: none !important;
+    transform: none !important;
+    animation: none !important;
+}
+
+#login-screen .login-card {
+    place-self: center !important;
+    align-self: center !important;
+    justify-self: center !important;
 }
