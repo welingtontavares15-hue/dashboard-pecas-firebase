@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v45-login-position';
+const CACHE_VERSION = 'v46-runtime-login-center';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -43,6 +43,7 @@ const PRECACHE = {
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
+    './js/corporate-platform.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
     './js/pages/solicitacoes.js',
