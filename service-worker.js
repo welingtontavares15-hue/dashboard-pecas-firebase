@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v44-login-sidebar';
+const CACHE_VERSION = 'v45-login-position';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
