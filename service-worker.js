@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v42-ui-consolidation';
+const CACHE_VERSION = 'v43-screen-fixes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -24,6 +24,7 @@ const PRECACHE = {
     './css/corporate-premium-v2.css',
     './css/login-corporate-v3.css',
     './css/ui-consolidation.css',
+    './css/screen-fixes-v5.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
