@@ -18,6 +18,52 @@
     let enhancementScheduled = false;
     let observersReady = false;
 
+    function forceLoginViewportCenter() {
+        const loginScreen = document.getElementById('login-screen');
+        const loginCard = loginScreen?.querySelector('.login-card');
+
+        if (!loginScreen || !loginCard || loginScreen.classList.contains('hidden')) {
+            return;
+        }
+
+        const screenStyles = {
+            position: 'fixed',
+            inset: '0',
+            width: '100vw',
+            height: '100dvh',
+            minHeight: '100dvh',
+            margin: '0',
+            padding: '0',
+            overflow: 'hidden'
+        };
+
+        Object.entries(screenStyles).forEach(([property, value]) => {
+            const cssProperty = property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+            loginScreen.style.setProperty(cssProperty, value, 'important');
+        });
+
+        const cardStyles = {
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            right: 'auto',
+            bottom: 'auto',
+            width: 'min(calc(100vw - 32px), 440px)',
+            maxHeight: 'calc(100dvh - 32px)',
+            margin: '0',
+            padding: '0',
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            translate: 'none',
+            transform: 'translate(-50%, -50%)'
+        };
+
+        Object.entries(cardStyles).forEach(([property, value]) => {
+            const cssProperty = property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+            loginCard.style.setProperty(cssProperty, value, 'important');
+        });
+    }
+
     function currentPage() {
         if (typeof App !== 'undefined' && App.currentPage) {
             return App.currentPage;
@@ -173,6 +219,7 @@
 
     function enhanceAll() {
         document.body.classList.add('corporate-platform-enabled');
+        forceLoginViewportCenter();
         enhanceNavigation();
         enhancePageHeader();
         enhanceFilters();
@@ -242,16 +289,32 @@
                 subtree: true
             });
         });
+
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) {
+            const loginObserver = new MutationObserver(() => {
+                if (!loginScreen.classList.contains('hidden')) {
+                    requestAnimationFrame(forceLoginViewportCenter);
+                }
+            });
+            loginObserver.observe(loginScreen, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        }
     }
 
     function init() {
         document.body.classList.add('corporate-platform-enabled');
+        forceLoginViewportCenter();
         patchLifecycle();
         setupObservers();
         scheduleEnhancement();
+        window.addEventListener('resize', forceLoginViewportCenter);
         window.addEventListener('resize', scheduleEnhancement);
         window.CorporatePlatform = {
-            enhance: scheduleEnhancement
+            enhance: scheduleEnhancement,
+            centerLogin: forceLoginViewportCenter
         };
     }
 
