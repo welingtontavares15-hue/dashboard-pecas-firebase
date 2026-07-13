@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v40-clean-ui';
+const CACHE_VERSION = 'v41-premium-ultra-security';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -17,7 +17,11 @@ const PRECACHE = {
     './offline.html',
     './clear-cache.html',
     './css/style.css',
+    './css/executive-cleanup.css',
+    './css/premium-plus.css',
+    './css/corporate-platform.css',
     './css/clean-ui.css',
+    './css/premium-ultra.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -33,9 +37,12 @@ const PRECACHE = {
     './js/storage.js',
     './js/data.js',
     './js/auth.js',
+    './js/security-hardening.js',
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
+    './js/premium-plus.js',
+    './js/corporate-platform.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
     './js/pages/solicitacoes.js',

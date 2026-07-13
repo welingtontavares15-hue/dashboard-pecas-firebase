@@ -1,8 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#0c1728">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebaseio.com wss://*.firebasedatabase.app; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=()">
     <title>Portal de Solicitação de Peças MWW</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +17,7 @@
     <link rel="stylesheet" href="css/premium-plus.css?v=20260705a">
     <link rel="stylesheet" href="css/corporate-platform.css?v=20260705a">
     <link rel="stylesheet" href="css/clean-ui.css?v=20260709c">
+    <link rel="stylesheet" href="css/premium-ultra.css?v=20260712a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
@@ -21,6 +27,8 @@
     <script type="module" src="./js/firebase-init.js"></script>
 </head>
 <body class="light-mode" data-theme="light">
+    <a class="skip-link" href="#main-app-content">Ir para o conteúdo principal</a>
+
     <!-- Login Screen -->
     <div id="login-screen" class="login-container">
         <div class="login-brand-panel" aria-hidden="true">
@@ -37,23 +45,22 @@
                 </ul>
             </div>
         </div>
-            <div class="login-card">
+        <div class="login-card">
             <div class="login-logo">
                 <div class="brand-emblem" aria-hidden="true"><span>D</span></div>
                 <h1>Diversey</h1>
-                <!-- Corrected portal name with proper diacritics and updated abbreviation -->
                 <div class="login-slogan">Portal de Solicitação de Peças MWW</div>
                 <p>A Solenis Company</p>
             </div>
             <form id="login-form" class="login-form">
                 <div class="form-group">
                     <label for="login-username">Usuário</label>
-                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
+                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="80">
                 </div>
                 <div class="form-group">
                     <label for="login-password">Senha</label>
                     <div class="password-field">
-                        <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
+                        <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password" maxlength="128">
                         <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha">
                             <i class="fas fa-eye"></i>
                         </button>
@@ -63,11 +70,11 @@
                     <i class="fas fa-sign-in-alt"></i> Entrar
                 </button>
                 <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
-                <div id="login-error" class="error-message hidden"></div>
+                <div id="login-error" class="error-message hidden" role="alert"></div>
             </form>
             <div class="login-info-card">
-                <h3>Bem-vindo ao portal</h3>
-                <p>Para acessar o sistema, utilize suas credenciais ou solicite liberação ao administrador.</p>
+                <h3>Acesso corporativo</h3>
+                <p>Utilize suas credenciais individuais. O sistema encerra sessões inativas e limita o tempo de acesso.</p>
             </div>
             <div id="login-credentials" class="credentials-panel hidden">
                 <div class="credentials-header">
@@ -109,7 +116,7 @@
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
-            <nav id="sidebar-nav" class="sidebar-nav">
+            <nav id="sidebar-nav" class="sidebar-nav" aria-label="Navegação principal">
                 <!-- Menu items will be dynamically inserted based on user role -->
             </nav>
             <div class="sidebar-footer">
@@ -123,10 +130,10 @@
                     </div>
                 </div>
                 <div class="sidebar-actions">
-                    <button id="theme-toggle" class="btn-icon" title="Alternar tema">
+                    <button id="theme-toggle" class="btn-icon" title="Alternar tema" aria-label="Alternar tema">
                         <i class="fas fa-moon"></i>
                     </button>
-                    <button id="logout-btn" class="btn-icon" title="Sair">
+                    <button id="logout-btn" class="btn-icon" title="Sair" aria-label="Encerrar sessão">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
@@ -135,7 +142,7 @@
         <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main id="main-app-content" class="main-content" tabindex="-1">
             <!-- Header -->
             <header class="main-header">
                 <div class="header-left">
@@ -155,11 +162,11 @@
                     <div class="header-search-zone">
                         <div class="global-search">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
+                            <input type="search" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico" autocomplete="off" aria-label="Busca global">
                         </div>
                     </div>
                     <div class="header-controls">
-                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados">
+                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados" aria-label="Sincronizar dados">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                         <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações">
@@ -189,17 +196,17 @@
             </div>
 
             <!-- Content Area -->
-            <div id="content-area" class="content-area">
+            <div id="content-area" class="content-area" aria-live="polite">
                 <!-- Dynamic content will be loaded here -->
             </div>
         </main>
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" class="toast-container"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <!-- Modal Container -->
-    <div id="modal-container" class="modal-container hidden">
+    <div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true">
         <div class="modal-backdrop"></div>
         <div id="modal-content" class="modal-content">
             <!-- Modal content will be dynamically inserted -->
@@ -207,7 +214,7 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay hidden">
+    <div id="loading-overlay" class="loading-overlay hidden" role="status" aria-live="polite">
         <div class="spinner"></div>
         <span>Carregando...</span>
     </div>
@@ -225,6 +232,7 @@
     <script src="js/storage.js?v=20260316b"></script>
     <script src="js/data.js?v=20260709a"></script>
     <script src="js/auth.js?v=20260316b"></script>
+    <script src="js/security-hardening.js?v=20260712a"></script>
     <script src="js/audit-log.js"></script>
     <script src="js/app.js?v=20260709b"></script>
     <script src="js/ui-modern.js?v=20260709b"></script>
@@ -232,34 +240,3 @@
     <script src="js/corporate-platform.js?v=20260709b"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
