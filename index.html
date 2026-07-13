@@ -1,9 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Solicitação de Peças MWW</title>
+    <meta name="theme-color" content="#0a1730">
+    <meta name="color-scheme" content="light dark">
+    <title>Portal Corporativo de Solicitação de Peças MWW</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,6 +14,7 @@
     <link rel="stylesheet" href="css/premium-plus.css?v=20260705a">
     <link rel="stylesheet" href="css/corporate-platform.css?v=20260705a">
     <link rel="stylesheet" href="css/clean-ui.css?v=20260709c">
+    <link rel="stylesheet" href="css/corporate-premium-v2.css?v=20260713a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
@@ -27,22 +30,21 @@
             <div class="login-brand-inner">
                 <div class="login-brand-logo-mark"><span>D</span></div>
                 <div class="login-brand-headline">Diversey</div>
-                <div class="login-brand-sub">A Solenis Company</div>
-                <p class="login-brand-desc">Portal corporativo para gerenciamento de solicitações de peças, aprovações e acompanhamento de fornecedores.</p>
+                <div class="login-brand-sub">Operações &amp; Suprimentos · A Solenis Company</div>
+                <p class="login-brand-desc">Centralize solicitações, aprovações, custos e acompanhamento de fornecedores em uma única plataforma operacional.</p>
                 <ul class="login-brand-features">
-                    <li><i class="fas fa-shield-halved"></i><span>Controle de acesso por perfil (RBAC)</span></li>
-                    <li><i class="fas fa-rotate"></i><span>Sincronização em tempo real com Firebase</span></li>
-                    <li><i class="fas fa-chart-pie"></i><span>Painel executivo e relatórios integrados</span></li>
-                    <li><i class="fas fa-truck-fast"></i><span>Rastreamento de pedidos e fornecedores</span></li>
+                    <li><i class="fas fa-shield-halved"></i><span>Acesso controlado por perfil e responsabilidade</span></li>
+                    <li><i class="fas fa-rotate"></i><span>Dados sincronizados em tempo real com Firebase</span></li>
+                    <li><i class="fas fa-chart-pie"></i><span>Indicadores executivos e relatórios integrados</span></li>
+                    <li><i class="fas fa-truck-fast"></i><span>Visibilidade do pedido até a conclusão</span></li>
                 </ul>
             </div>
         </div>
-            <div class="login-card">
+        <div class="login-card">
             <div class="login-logo">
                 <div class="brand-emblem" aria-hidden="true"><span>D</span></div>
                 <h1>Diversey</h1>
-                <!-- Corrected portal name with proper diacritics and updated abbreviation -->
-                <div class="login-slogan">Portal de Solicitação de Peças MWW</div>
+                <div class="login-slogan">Portal Corporativo de Peças MWW</div>
                 <p>A Solenis Company</p>
             </div>
             <form id="login-form" class="login-form">
@@ -60,14 +62,14 @@
                     </div>
                 </div>
                 <button type="submit" id="login-submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-sign-in-alt"></i> Entrar
+                    <i class="fas fa-arrow-right-to-bracket"></i> Acessar plataforma
                 </button>
                 <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
                 <div id="login-error" class="error-message hidden"></div>
             </form>
             <div class="login-info-card">
-                <h3>Bem-vindo ao portal</h3>
-                <p>Para acessar o sistema, utilize suas credenciais ou solicite liberação ao administrador.</p>
+                <h3><i class="fas fa-lock"></i> Acesso seguro</h3>
+                <p>Utilize suas credenciais corporativas. Para nova liberação ou ajuste de perfil, contate o administrador do sistema.</p>
             </div>
             <div id="login-credentials" class="credentials-panel hidden">
                 <div class="credentials-header">
@@ -155,7 +157,7 @@
                     <div class="header-search-zone">
                         <div class="global-search">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico.">
+                            <input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico">
                         </div>
                     </div>
                     <div class="header-controls">
@@ -232,34 +234,3 @@
     <script src="js/corporate-platform.js?v=20260709b"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
