@@ -1,0 +1,478 @@
+/* ========================================================================== 
+   Screen fixes v5 — login, operational summary and reports/history
+   Final layer loaded after ui-consolidation.css.
+   ========================================================================== */
+
+/* Login: force both panels onto the same viewport row. This also neutralizes
+   stale/legacy flex rules that can place the form below the brand panel. */
+#login-screen.login-container:not(.hidden) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.08fr) minmax(460px, 0.92fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    height: 100vh !important;
+    height: 100svh !important;
+    min-height: 100vh !important;
+    min-height: 100svh !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+#login-screen .login-brand-panel {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: clamp(34px, 4.8vw, 76px) !important;
+    overflow: hidden !important;
+}
+
+#login-screen .login-card {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: stretch !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: clamp(24px, 3.4vw, 54px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+#login-screen .login-card-inner {
+    width: min(100%, 440px) !important;
+    max-width: 440px !important;
+    margin: auto !important;
+}
+
+@media (max-height: 820px) and (min-width: 981px) {
+    #login-screen .login-brand-panel {
+        padding-top: 28px !important;
+        padding-bottom: 28px !important;
+    }
+
+    #login-screen .login-brand-lockup {
+        margin-bottom: 24px !important;
+    }
+
+    #login-screen .login-brand-headline {
+        margin-bottom: 12px !important;
+        font-size: clamp(36px, 3.4vw, 48px) !important;
+    }
+
+    #login-screen .login-brand-desc {
+        margin-bottom: 20px !important;
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+    }
+
+    #login-screen .login-brand-features {
+        gap: 10px 22px !important;
+    }
+
+    #login-screen .login-card {
+        padding-top: 20px !important;
+        padding-bottom: 20px !important;
+    }
+
+    #login-screen .login-card-inner {
+        padding: 26px 32px 24px !important;
+    }
+
+    #login-screen .login-logo {
+        margin-bottom: 18px !important;
+    }
+
+    #login-screen .login-form {
+        gap: 12px !important;
+    }
+
+    #login-screen .login-info-card {
+        margin-top: 14px !important;
+        padding: 12px 14px !important;
+    }
+
+    #login-screen .login-card-footer {
+        margin-top: 10px !important;
+    }
+}
+
+@media (max-width: 980px) {
+    #login-screen.login-container:not(.hidden) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(100svh, auto) !important;
+        height: auto !important;
+        min-height: 100svh !important;
+        overflow-y: auto !important;
+    }
+
+    #login-screen .login-brand-panel {
+        display: none !important;
+    }
+
+    #login-screen .login-card {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        min-height: 100svh !important;
+        height: auto !important;
+        padding: 24px 18px !important;
+    }
+}
+
+/* Operational summary: the renderer uses focus-* classes. These rules are
+   intentionally independent from the old focus shell so the permanent sidebar
+   and corporate header remain unchanged. */
+.focus-dashboard {
+    display: grid !important;
+    gap: 18px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.focus-dashboard-header {
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 18px !important;
+    flex-wrap: wrap !important;
+}
+
+.focus-dashboard-title small {
+    display: block !important;
+    margin: 0 0 6px !important;
+    color: var(--cp-primary, var(--cui-primary, #2a7de1)) !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+}
+
+.focus-dashboard-title h2 {
+    margin: 0 0 6px !important;
+    color: var(--cp-ink, var(--cui-ink, #102039)) !important;
+    font-size: clamp(1.55rem, 2.4vw, 2.15rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.04em !important;
+}
+
+.focus-dashboard-title p {
+    margin: 0 !important;
+    color: var(--cp-muted, var(--cui-muted, #68778c)) !important;
+}
+
+.focus-dashboard-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+}
+
+.focus-dashboard-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    padding: 14px 16px !important;
+    background: var(--cp-surface, var(--cui-surface, #fff)) !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-radius: var(--cp-radius, 12px) !important;
+    box-shadow: var(--cp-shadow-xs, 0 1px 2px rgba(15, 32, 57, 0.04)) !important;
+}
+
+.focus-dashboard-toolbar label {
+    margin: 0 !important;
+    color: var(--cp-text, var(--cui-text, #34445b)) !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+}
+
+.focus-dashboard-toolbar select {
+    width: auto !important;
+    min-width: 180px !important;
+    height: 38px !important;
+}
+
+.focus-kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+.focus-kpi {
+    display: block !important;
+    min-width: 0 !important;
+    padding: 18px !important;
+    background: var(--cp-surface, var(--cui-surface, #fff)) !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-radius: var(--cp-radius, 12px) !important;
+    box-shadow: var(--cp-shadow-xs, 0 1px 2px rgba(15, 32, 57, 0.04)) !important;
+}
+
+.focus-kpi-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+
+.focus-kpi-label {
+    color: var(--cp-muted, var(--cui-muted, #68778c)) !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+}
+
+.focus-kpi-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    flex: 0 0 36px !important;
+    border-radius: 10px !important;
+    color: var(--cp-primary, var(--cui-primary, #2a7de1)) !important;
+    background: var(--cp-primary-soft, var(--cui-primary-soft, #e9f1fb)) !important;
+}
+
+.focus-kpi-value {
+    margin-top: 14px !important;
+    color: var(--cp-ink, var(--cui-ink, #102039)) !important;
+    font-size: clamp(1.45rem, 2vw, 1.85rem) !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.035em !important;
+    overflow-wrap: anywhere !important;
+}
+
+.focus-kpi-note {
+    margin-top: 5px !important;
+    color: var(--cp-muted, var(--cui-muted, #68778c)) !important;
+    font-size: 0.78rem !important;
+}
+
+.focus-alert {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 14px !important;
+    padding: 14px 16px !important;
+    color: var(--cp-text, var(--cui-text, #34445b)) !important;
+    background: var(--cp-surface, var(--cui-surface, #fff)) !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-left: 4px solid var(--cp-warning, #9a5a05) !important;
+    border-radius: var(--cp-radius, 12px) !important;
+}
+
+.focus-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    background: var(--cp-surface, var(--cui-surface, #fff)) !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-radius: var(--cp-radius, 12px) !important;
+    box-shadow: var(--cp-shadow-xs, 0 1px 2px rgba(15, 32, 57, 0.04)) !important;
+}
+
+.focus-panel-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 16px 18px !important;
+    border-bottom: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+}
+
+.focus-panel-header h3 {
+    margin: 0 !important;
+    color: var(--cp-ink, var(--cui-ink, #102039)) !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+}
+
+.focus-panel-header p {
+    margin: 4px 0 0 !important;
+    color: var(--cp-muted, var(--cui-muted, #68778c)) !important;
+    font-size: 0.78rem !important;
+}
+
+.focus-table-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+}
+
+.focus-table {
+    width: 100% !important;
+    min-width: 700px !important;
+    border-collapse: collapse !important;
+}
+
+.focus-table th {
+    padding: 11px 16px !important;
+    color: var(--cp-muted, var(--cui-muted, #68778c)) !important;
+    background: var(--cp-bg-subtle, var(--cui-surface-2, #f7f9fc)) !important;
+    border-bottom: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+}
+
+.focus-table td {
+    padding: 13px 16px !important;
+    color: var(--cp-text, var(--cui-text, #34445b)) !important;
+    border-bottom: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    font-size: 0.82rem !important;
+    vertical-align: middle !important;
+}
+
+.focus-table tr:last-child td {
+    border-bottom: 0 !important;
+}
+
+.focus-table strong {
+    color: var(--cp-ink, var(--cui-ink, #102039)) !important;
+}
+
+/* Reports / History: preserve a full-width card, compact summaries and a
+   horizontally scrollable table instead of a compressed text column. */
+.reports-shell {
+    display: grid !important;
+    gap: 16px !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+.reports-shell .page-filters,
+.reports-shell .page-kpis,
+.reports-shell .page-content,
+.reports-content-stack,
+#report-content {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.reports-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+}
+
+.report-summary-card {
+    min-width: 0 !important;
+}
+
+.report-panel-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+.report-panel-card > .card-header,
+.report-panel-card .compact-card-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    flex-wrap: wrap !important;
+}
+
+.report-panel-card > .card-body {
+    display: grid !important;
+    gap: 14px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.reports-inline-summary,
+.reports-inline-summary-spread,
+.reports-status-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+}
+
+.reports-inline-summary-spread {
+    justify-content: flex-start !important;
+}
+
+.reports-status-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    min-height: 32px !important;
+    padding: 6px 10px !important;
+    color: var(--cp-text, var(--cui-text, #34445b)) !important;
+    background: var(--cp-bg-subtle, var(--cui-surface-2, #f7f9fc)) !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+}
+
+.reports-status-chip strong {
+    color: var(--cp-ink, var(--cui-ink, #102039)) !important;
+}
+
+.reports-shell .table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    border: 1px solid var(--cp-border, var(--cui-border, #dfe5ed)) !important;
+    border-radius: var(--cp-radius, 12px) !important;
+}
+
+.reports-shell .table {
+    width: 100% !important;
+    min-width: 900px !important;
+    margin: 0 !important;
+    border-collapse: collapse !important;
+}
+
+.reports-shell .table th,
+.reports-shell .table td {
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+}
+
+@media (max-width: 1200px) {
+    .focus-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .reports-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 720px) {
+    .focus-dashboard-header,
+    .focus-dashboard-toolbar,
+    .focus-alert,
+    .focus-panel-header {
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    .focus-dashboard-actions,
+    .focus-dashboard-actions .btn,
+    .focus-dashboard-toolbar select {
+        width: 100% !important;
+    }
+
+    .focus-kpi-grid,
+    .reports-summary-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
