@@ -1,10 +1,10 @@
 {
-  "name": "Dashboard de Solicitacao de Pecas",
-  "short_name": "Dashboard Pecas",
+  "name": "Portal Corporativo de Solicitação de Peças MWW",
+  "short_name": "Portal de Peças",
   "start_url": "./index.html",
   "display": "standalone",
-  "theme_color": "#1f4b99",
-  "background_color": "#ffffff",
+  "theme_color": "#0a1730",
+  "background_color": "#f1f4f8",
   "icons": [
     {
       "src": "./icons/icon.svg",
