@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v40-clean-ui';
+const CACHE_VERSION = 'v42-focus-ui';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -17,7 +17,11 @@ const PRECACHE = {
     './offline.html',
     './clear-cache.html',
     './css/style.css',
+    './css/executive-cleanup.css',
+    './css/premium-plus.css',
+    './css/corporate-platform.css',
     './css/clean-ui.css',
+    './css/focus-ui.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -36,6 +40,7 @@ const PRECACHE = {
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
+    './js/focus-ui.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
     './js/pages/solicitacoes.js',
@@ -44,7 +49,8 @@ const PRECACHE = {
     './js/pages/relatorios.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
-    './js/components/reports-modern.js'
+    './js/components/reports-modern.js',
+    './js/components/dashboard-focus.js'
   ],
   dashboard: [
     './js/dashboard.js',
