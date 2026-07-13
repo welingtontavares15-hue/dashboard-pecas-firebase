@@ -15,84 +15,100 @@
     <link rel="stylesheet" href="css/corporate-platform.css?v=20260705a">
     <link rel="stylesheet" href="css/clean-ui.css?v=20260709c">
     <link rel="stylesheet" href="css/corporate-premium-v2.css?v=20260713a">
+    <link rel="stylesheet" href="css/login-corporate-v3.css?v=20260713b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnVBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script type="module" src="./js/firebase-init.js"></script>
 </head>
 <body class="light-mode" data-theme="light">
     <!-- Login Screen -->
     <div id="login-screen" class="login-container">
-        <div class="login-brand-panel" aria-hidden="true">
+        <section class="login-brand-panel" aria-hidden="true">
             <div class="login-brand-inner">
-                <div class="login-brand-logo-mark"><span>D</span></div>
-                <div class="login-brand-headline">Diversey</div>
-                <div class="login-brand-sub">Operações &amp; Suprimentos · A Solenis Company</div>
-                <p class="login-brand-desc">Centralize solicitações, aprovações, custos e acompanhamento de fornecedores em uma única plataforma operacional.</p>
+                <div class="login-brand-lockup">
+                    <div class="login-brand-logo-mark"><span>D</span></div>
+                    <div class="login-brand-meta">
+                        <strong>Diversey</strong>
+                        <span>A Solenis Company</span>
+                    </div>
+                </div>
+                <div class="login-brand-eyebrow">Operações &amp; Suprimentos</div>
+                <div class="login-brand-headline">Solicitações de peças com <span>mais controle.</span></div>
+                <p class="login-brand-desc">Acompanhe aprovações, custos e fornecedores em uma plataforma única, segura e orientada à operação.</p>
                 <ul class="login-brand-features">
-                    <li><i class="fas fa-shield-halved"></i><span>Acesso controlado por perfil e responsabilidade</span></li>
-                    <li><i class="fas fa-rotate"></i><span>Dados sincronizados em tempo real com Firebase</span></li>
-                    <li><i class="fas fa-chart-pie"></i><span>Indicadores executivos e relatórios integrados</span></li>
-                    <li><i class="fas fa-truck-fast"></i><span>Visibilidade do pedido até a conclusão</span></li>
+                    <li><i class="fas fa-user-shield"></i><span>Controle de acesso por perfil</span></li>
+                    <li><i class="fas fa-arrows-rotate"></i><span>Sincronização em tempo real</span></li>
+                    <li><i class="fas fa-chart-column"></i><span>Indicadores executivos</span></li>
+                    <li><i class="fas fa-route"></i><span>Rastreabilidade ponta a ponta</span></li>
                 </ul>
             </div>
-        </div>
-        <div class="login-card">
-            <div class="login-logo">
-                <div class="brand-emblem" aria-hidden="true"><span>D</span></div>
-                <h1>Diversey</h1>
-                <div class="login-slogan">Portal Corporativo de Peças MWW</div>
-                <p>A Solenis Company</p>
-            </div>
-            <form id="login-form" class="login-form">
-                <div class="form-group">
-                    <label for="login-username">Usuário</label>
-                    <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Senha</label>
-                    <div class="password-field">
-                        <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
-                        <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha">
-                            <i class="fas fa-eye"></i>
-                        </button>
+        </section>
+        <main class="login-card">
+            <div class="login-card-inner">
+                <div class="login-mobile-brand" aria-hidden="true">
+                    <div class="login-mobile-brand-mark"><span>D</span></div>
+                    <div class="login-mobile-brand-meta">
+                        <strong>Diversey</strong>
+                        <span>A Solenis Company</span>
                     </div>
                 </div>
-                <button type="submit" id="login-submit" class="btn btn-primary btn-block">
-                    <i class="fas fa-arrow-right-to-bracket"></i> Acessar plataforma
-                </button>
-                <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
-                <div id="login-error" class="error-message hidden"></div>
-            </form>
-            <div class="login-info-card">
-                <h3><i class="fas fa-lock"></i> Acesso seguro</h3>
-                <p>Utilize suas credenciais corporativas. Para nova liberação ou ajuste de perfil, contate o administrador do sistema.</p>
-            </div>
-            <div id="login-credentials" class="credentials-panel hidden">
-                <div class="credentials-header">
-                    <div>
-                        <h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3>
-                        <p>Use um dos usuários abaixo para acessar imediatamente.</p>
+                <div class="login-logo">
+                    <span class="login-form-kicker">Portal de Peças MWW</span>
+                    <h1>Bem-vindo</h1>
+                    <p>Entre com suas credenciais corporativas para acessar a plataforma.</p>
+                </div>
+                <form id="login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="login-username">Usuário</label>
+                        <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
                     </div>
-                    <span class="badge-info"><i class="fas fa-shield-alt"></i> RBAC ativo</span>
+                    <div class="form-group">
+                        <label for="login-password">Senha</label>
+                        <div class="password-field">
+                            <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
+                            <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="login-submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-arrow-right-to-bracket"></i> Acessar plataforma
+                    </button>
+                    <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
+                    <div id="login-error" class="error-message hidden"></div>
+                </form>
+                <div class="login-info-card">
+                    <h3><i class="fas fa-shield-halved"></i> Ambiente corporativo seguro</h3>
+                    <p>O acesso é individual e controlado por perfil. Em caso de bloqueio, contate o administrador.</p>
                 </div>
-                <div class="credentials-table-wrapper">
-                    <table class="credentials-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Usuário</th>
-                                <th>Perfil</th>
-                            </tr>
-                        </thead>
-                        <tbody id="login-credentials-body"></tbody>
-                    </table>
+                <div class="login-card-footer">Uso interno · Operações MWW</div>
+                <div id="login-credentials" class="credentials-panel hidden">
+                    <div class="credentials-header">
+                        <div>
+                            <h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3>
+                            <p>Use um dos usuários abaixo para acessar imediatamente.</p>
+                        </div>
+                        <span class="badge-info"><i class="fas fa-shield-alt"></i> RBAC ativo</span>
+                    </div>
+                    <div class="credentials-table-wrapper">
+                        <table class="credentials-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Usuário</th>
+                                    <th>Perfil</th>
+                                </tr>
+                            </thead>
+                            <tbody id="login-credentials-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- Main Application -->
