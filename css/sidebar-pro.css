@@ -1,0 +1,649 @@
+/* ==========================================================================
+   SIDEBAR PRO — camada final do menu lateral e do offset do shell
+   --------------------------------------------------------------------------
+   Substitui o bloco <style> inline que existia no index.html.
+
+   Motivo desta camada:
+   `executive-cleanup.css` declara `.sidebar-nav { display: grid }` e
+   `.nav-group { display: grid }`. Como `.sidebar-nav` é filho flex com
+   `flex: 1`, ele fica mais alto que o conteúdo e o `align-content: normal`
+   do grid (= stretch) estica TODAS as linhas automáticas por igual — os
+   grupos e os próprios rótulos de grupo ganhavam dezenas de pixels de altura
+   vazia. Era esse o "buraco" entre OPERAÇÃO / CONSULTA / SUPORTE.
+
+   Aqui o menu volta a ser flex com alinhamento no topo, e este arquivo passa
+   a ser o dono do layout do menu + do deslocamento do conteúdo principal.
+   Prefixos #sidebar / #app-container garantem a especificidade necessária
+   sobre as camadas anteriores sem espalhar !important.
+   ========================================================================== */
+
+:root {
+    --sbp-w: 264px;
+    --sbp-rail: 78px;
+    --portal-sidebar-width: var(--sbp-w);
+
+    --sbp-bg-top: #10203a;
+    --sbp-bg-bottom: #0a1526;
+    --sbp-line: rgba(148, 163, 184, 0.14);
+    --sbp-text: #c6d4e6;
+    --sbp-text-strong: #ffffff;
+    --sbp-muted: #94a3b8;
+    --sbp-hover: rgba(255, 255, 255, 0.06);
+    --sbp-accent: #2dd4bf;
+    --sbp-radius: 10px;
+}
+
+/* ==========================================================================
+   1. SHELL
+   ========================================================================== */
+
+#app-container:not(.hidden) {
+    display: block;
+    min-height: 100vh;
+}
+
+#sidebar.sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    width: var(--sbp-w);
+    min-width: var(--sbp-w);
+    max-width: var(--sbp-w);
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 0;
+    background: linear-gradient(180deg, var(--sbp-bg-top) 0%, var(--sbp-bg-bottom) 100%) !important;
+    border-right: 1px solid var(--sbp-line) !important;
+    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.25), 12px 0 32px rgba(6, 15, 28, 0.20) !important;
+    backdrop-filter: none;
+    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   2. CABEÇALHO DA MARCA
+   ========================================================================== */
+
+#sidebar .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-height: 68px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--sbp-line);
+}
+
+#sidebar .logo {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#sidebar .brand-emblem,
+#sidebar .logo .brand-emblem {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: linear-gradient(140deg, #2563eb 0%, #0d9488 100%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.28);
+}
+
+#sidebar .logo-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+#sidebar .logo-title {
+    color: var(--sbp-text-strong);
+    font-size: 14.5px;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sidebar .logo-subtitle {
+    color: #8ea1b8;
+    font-size: 8.8px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sidebar .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(190, 205, 224, 0.8);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+}
+
+#sidebar .sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+#sidebar .sidebar-toggle:focus-visible,
+#sidebar .nav-item:focus-visible,
+#sidebar .nav-group-toggle:focus-visible,
+#sidebar .btn-icon:focus-visible {
+    outline: 2px solid rgba(45, 212, 191, 0.7);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   3. NAVEGAÇÃO — a correção do esticamento mora aqui
+   ========================================================================== */
+
+#sidebar .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    align-content: flex-start;
+    justify-content: flex-start;
+    flex: 1 1 auto;
+    gap: 0;
+    width: 100%;
+    min-height: 0;
+    padding: 12px 10px 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+#sidebar .sidebar-nav::-webkit-scrollbar { width: 6px; }
+#sidebar .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+#sidebar .sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.24);
+    border-radius: 999px;
+}
+#sidebar .sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+
+#sidebar .nav-group {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Separador enxuto entre grupos, no lugar do vão vazio. */
+#sidebar .nav-group + .nav-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.10);
+}
+
+#sidebar .nav-group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 26px;
+    margin: 0 0 4px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sbp-muted);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.16s ease, background 0.16s ease;
+}
+
+#sidebar .nav-group-toggle:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #dbe4ef;
+    transform: none;
+}
+
+#sidebar .nav-group-toggle span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#sidebar .nav-group-toggle i {
+    flex: 0 0 auto;
+    font-size: 8.5px;
+    opacity: 0.55;
+    transition: transform 0.18s ease;
+}
+
+#sidebar .nav-group.collapsed .nav-group-toggle i { transform: rotate(-90deg); }
+#sidebar .nav-group.collapsed .nav-group-items { display: none !important; }
+
+#sidebar .nav-group-items {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    width: 100%;
+}
+
+/* ---- Itens ---- */
+
+#sidebar .nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 40px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-left: 0;
+    border-radius: var(--sbp-radius);
+    background: transparent;
+    color: var(--sbp-text);
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+}
+
+#sidebar .nav-item:hover {
+    background: var(--sbp-hover);
+    color: var(--sbp-text-strong);
+    transform: none;
+}
+
+#sidebar .nav-item i {
+    flex: 0 0 auto;
+    width: 18px;
+    min-width: 18px;
+    margin: 0;
+    color: rgba(148, 163, 184, 0.82);
+    font-size: 14.5px;
+    text-align: center;
+    transition: color 0.16s ease;
+}
+
+#sidebar .nav-item:hover i { color: rgba(203, 220, 240, 0.95); }
+
+/* :not(.nav-badge) porque o contador também é um <span> filho direto do item. */
+#sidebar .nav-item > span:not(.nav-badge) {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#sidebar .nav-item.active {
+    background: linear-gradient(90deg, rgba(45, 212, 191, 0.16) 0%, rgba(37, 99, 235, 0.10) 100%) !important;
+    color: var(--sbp-text-strong) !important;
+    border: 0;
+    box-shadow: none;
+}
+
+#sidebar .nav-item.active i { color: #5eead4 !important; }
+
+#sidebar .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--sbp-accent);
+}
+
+/* Subitens (atalhos de relatórios) */
+#sidebar .nav-item.nav-item-sub {
+    min-height: 36px;
+    margin: 0;
+    padding: 0 12px 0 34px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: rgba(180, 195, 214, 0.82);
+}
+
+#sidebar .nav-item.nav-item-sub i {
+    width: 16px;
+    min-width: 16px;
+    font-size: 12.5px;
+}
+
+#sidebar .nav-item.nav-item-sub.active::before { top: 7px; bottom: 7px; }
+
+/* Guia vertical ligando os subitens ao item pai (top/bottom negativos fecham o gap). */
+#sidebar .nav-item.nav-item-sub::after {
+    content: '';
+    position: absolute;
+    left: 21px;
+    top: -1px;
+    bottom: -1px;
+    width: 1px;
+    background: rgba(148, 163, 184, 0.20);
+    pointer-events: none;
+}
+
+/* Contador de pendências */
+#sidebar .nav-item > .nav-badge,
+#sidebar .nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 20px;
+    height: 19px;
+    margin-left: auto;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #e11d48;
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* ==========================================================================
+   4. RODAPÉ (usuário + ações)
+   ========================================================================== */
+
+#sidebar .sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0;
+    padding: 12px;
+    border-top: 1px solid var(--sbp-line);
+    background: rgba(0, 0, 0, 0.16);
+}
+
+#sidebar .sidebar-footer .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
+#sidebar .user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(140deg, rgba(37, 99, 235, 0.85), rgba(13, 148, 136, 0.85));
+    color: #fff;
+    font-size: 13px;
+}
+
+#sidebar .user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+#sidebar .user-details #user-name {
+    color: #e7eefa;
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* !important porque style.css marca `.user-role { color: ... !important }`. */
+#sidebar .user-details .user-role {
+    color: #a2b2c6 !important;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sidebar .sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+#sidebar .sidebar-actions .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(190, 205, 224, 0.8);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+}
+
+#sidebar .sidebar-actions .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.13);
+    color: #fff;
+}
+
+#sidebar #logout-btn:hover {
+    background: rgba(225, 29, 72, 0.18);
+    color: #fda4af;
+}
+
+/* ==========================================================================
+   5. DESKTOP — offset do conteúdo e modo compacto (rail)
+   ========================================================================== */
+
+@media (min-width: 993px) {
+    #app-container .main-content {
+        width: calc(100% - var(--sbp-w));
+        max-width: calc(100% - var(--sbp-w));
+        min-width: 0;
+        margin-left: var(--sbp-w);
+        transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+                    width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #app-container .main-header {
+        left: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #app-container .mobile-nav-buttons,
+    #app-container #mobile-menu-btn,
+    #sidebar-backdrop { display: none; }
+
+    /* ---- Rail: menu recolhido só com ícones ---- */
+
+    #sidebar.sidebar.collapsed {
+        width: var(--sbp-rail);
+        min-width: var(--sbp-rail);
+        max-width: var(--sbp-rail);
+    }
+
+    #sidebar.collapsed .sidebar-header {
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+        min-height: 0;
+        padding: 14px 0;
+    }
+
+    #sidebar.collapsed .logo { justify-content: center; }
+    #sidebar.collapsed .logo-meta { display: none; }
+
+    #sidebar.collapsed .sidebar-nav { padding: 12px 10px 16px; }
+
+    #sidebar.collapsed .nav-group-toggle { display: none; }
+
+    #sidebar.collapsed .nav-group + .nav-group {
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+
+    #sidebar.collapsed .nav-item,
+    #sidebar.collapsed .nav-item.nav-item-sub {
+        justify-content: center;
+        gap: 0;
+        width: 100%;
+        min-height: 42px;
+        padding: 0;
+    }
+
+    #sidebar.collapsed .nav-item > span:not(.nav-badge) { display: none; }
+    #sidebar.collapsed .nav-item.nav-item-sub::after { display: none; }
+
+    #sidebar.collapsed .nav-item i {
+        width: auto;
+        min-width: 0;
+        font-size: 15.5px;
+    }
+
+    #sidebar.collapsed .nav-item.active::before {
+        top: 9px;
+        bottom: 9px;
+    }
+
+    #sidebar.collapsed .nav-item > .nav-badge,
+    #sidebar.collapsed .nav-badge {
+        position: absolute;
+        top: 5px;
+        right: 14px;
+        min-width: 9px;
+        width: 9px;
+        height: 9px;
+        margin: 0;
+        padding: 0;
+        font-size: 0;
+        box-shadow: 0 0 0 2px var(--sbp-bg-top);
+    }
+
+    #sidebar.collapsed .sidebar-footer {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 8px;
+    }
+
+    #sidebar.collapsed .user-details { display: none; }
+    #sidebar.collapsed .sidebar-footer .user-info { flex: 0 0 auto; justify-content: center; }
+
+    #sidebar.collapsed ~ .main-content,
+    #app-container .sidebar.collapsed ~ .main-content {
+        width: calc(100% - var(--sbp-rail));
+        max-width: calc(100% - var(--sbp-rail));
+        margin-left: var(--sbp-rail);
+    }
+}
+
+/* ==========================================================================
+   6. MOBILE / TABLET — gaveta fora da tela
+   ========================================================================== */
+
+@media (max-width: 992px) {
+    #sidebar.sidebar,
+    #sidebar.sidebar.collapsed {
+        width: min(300px, 86vw);
+        min-width: min(300px, 86vw);
+        max-width: min(300px, 86vw);
+        transform: translateX(-100%);
+        box-shadow: none !important;
+    }
+
+    #sidebar.sidebar.active {
+        transform: translateX(0);
+        box-shadow: 24px 0 60px rgba(4, 12, 24, 0.45) !important;
+    }
+
+    #sidebar .sidebar-toggle { display: inline-flex; }
+
+    #app-container .main-content,
+    #app-container .sidebar.collapsed ~ .main-content {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+    }
+
+    #app-container .main-header {
+        left: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1100;
+        display: none;
+        background: rgba(3, 10, 20, 0.5);
+        backdrop-filter: blur(2px);
+    }
+
+    #sidebar-backdrop.active { display: block; }
+
+    body.sidebar-open { overflow: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #sidebar.sidebar,
+    #app-container .main-content,
+    #sidebar .nav-item,
+    #sidebar .nav-group-toggle i { transition: none; }
+}

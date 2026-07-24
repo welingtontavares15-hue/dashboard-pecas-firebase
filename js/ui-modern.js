@@ -277,7 +277,8 @@
                 const onclickAttr = ` onclick="window.__reportTarget='${reportSeed}'"`;
                 const dataReport = reportTarget ? ` data-report-target="${reportTarget}"` : '';
 
-                return `<a class="${className}" data-page="${pageId}"${dataReport}${onclickAttr}>`
+                // title serve de tooltip quando o menu está no modo compacto (só ícones).
+                return `<a class="${className}" data-page="${pageId}"${dataReport}${onclickAttr} title="${entry.label}">`
                     + `<i class="fas ${entry.icon}"></i>`
                     + `<span>${entry.label}</span>`
                     + ((entry.badge && badgeCount > 0) ? `<span class="nav-badge">${badgeCount}</span>` : '')
@@ -292,8 +293,8 @@
                     }
                     const collapsed = this._menuGroupsCollapsed[group.key] === true;
                     return `<section class="nav-group ${collapsed ? 'collapsed' : ''}" data-nav-group="${group.key}">`
-                        + `<button type="button" class="nav-group-toggle" data-group-toggle="${group.key}">`
-                        + `<span>${group.title}</span><i class="fas fa-chevron-down"></i>`
+                        + `<button type="button" class="nav-group-toggle" data-group-toggle="${group.key}" aria-expanded="${collapsed ? 'false' : 'true'}">`
+                        + `<span>${group.title}</span><i class="fas fa-chevron-down" aria-hidden="true"></i>`
                         + '</button>'
                         + `<div class="nav-group-items">${entries.map(buildEntry).join('')}</div>`
                         + '</section>';
@@ -310,6 +311,7 @@
                     }
                     const collapsed = !container.classList.contains('collapsed');
                     container.classList.toggle('collapsed', collapsed);
+                    button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                     this._menuGroupsCollapsed[key] = collapsed;
                 });
             });

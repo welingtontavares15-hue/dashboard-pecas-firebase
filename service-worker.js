@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v46-runtime-login-center';
+const CACHE_VERSION = 'v47-sidebar-pro';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -21,10 +21,10 @@ const PRECACHE = {
     './css/premium-plus.css',
     './css/corporate-platform.css',
     './css/clean-ui.css',
-    './css/corporate-premium-v2.css',
-    './css/login-corporate-v3.css',
     './css/ui-consolidation.css',
     './css/screen-fixes-v5.css',
+    './css/visual-refresh.css',
+    './css/sidebar-pro.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',

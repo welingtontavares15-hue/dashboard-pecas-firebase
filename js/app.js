@@ -748,7 +748,13 @@ const App = {
             }
         } else {
             // Desktop: toggle collapsed class
-            sidebar.classList.toggle('collapsed');
+            const collapsed = sidebar.classList.toggle('collapsed');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            if (sidebarToggle) {
+                sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                sidebarToggle.setAttribute('aria-label', collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral');
+                sidebarToggle.title = collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral';
+            }
         }
     },
 
