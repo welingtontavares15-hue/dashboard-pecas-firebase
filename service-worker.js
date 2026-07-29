@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v47-sidebar-pro';
+const CACHE_VERSION = 'v48-premium-dashboard';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -25,6 +25,7 @@ const PRECACHE = {
     './css/screen-fixes-v5.css',
     './css/visual-refresh.css',
     './css/sidebar-pro.css',
+    './css/premium-dashboard-v2.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -39,6 +40,7 @@ const PRECACHE = {
     './js/indexeddb-storage.js',
     './js/storage.js',
     './js/data.js',
+    './js/electrical-catalog-policy.js',
     './js/auth.js',
     './js/audit-log.js',
     './js/app.js',
@@ -59,7 +61,9 @@ const PRECACHE = {
     './js/sheets.js',
     './js/onedrive.js',
     './js/relatorios.js',
-    './js/vendor/chart.umd.js'
+    './js/vendor/chart.umd.js',
+    './js/components/dashboard-modern.js',
+    './js/components/dashboard-focus.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
