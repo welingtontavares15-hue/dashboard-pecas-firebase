@@ -1,169 +1,148 @@
 const DEFAULT_RANGE_DAYS = 30;
+const STATUS_GROUPS = [
+    { key: 'pending', label: 'Em aprovação', statuses: ['pendente', 'rascunho', 'enviada'], tone: 'warning' },
+    { key: 'approved', label: 'Aprovadas', statuses: ['aprovada'], tone: 'success' },
+    { key: 'transit', label: 'Em trânsito', statuses: ['em-transito'], tone: 'info' },
+    { key: 'completed', label: 'Finalizadas', statuses: ['finalizada', 'entregue', 'historico-manual'], tone: 'neutral' },
+    { key: 'rejected', label: 'Rejeitadas', statuses: ['rejeitada'], tone: 'danger' }
+];
 
-function normalizeStatus(value) {
-    if (typeof AnalyticsHelper !== 'undefined' && typeof AnalyticsHelper.normalizeStatus === 'function') {
-        return AnalyticsHelper.normalizeStatus(value);
-    }
-    return String(value || '').trim().toLowerCase().replace(/_/g, '-');
-}
-
-function getSolicitationCost(solicitation = {}) {
-    const items = Array.isArray(solicitation.itens) ? solicitation.itens : [];
-    const itemsTotal = items.reduce((sum, item) => {
-        const quantity = Number(item?.quantidade) || 0;
-        const unitValue = Number(item?.valorUnit) || 0;
-        return sum + (quantity * unitValue);
-    }, 0);
-    return itemsTotal > 0 ? itemsTotal : (Number(solicitation.total) || 0);
-}
-
-function getPeriod(days) {
-    if (typeof AnalyticsHelper !== 'undefined' && typeof AnalyticsHelper.normalizePeriod === 'function') {
-        return AnalyticsHelper.normalizePeriod({ rangeDays: days });
-    }
+function periodFor(days) {
+    if (window.AnalyticsHelper?.normalizePeriod) return AnalyticsHelper.normalizePeriod({ rangeDays: days });
     const end = new Date();
     const start = new Date(end);
     start.setDate(start.getDate() - Math.max(days - 1, 0));
-    const toInput = (date) => date.toISOString().slice(0, 10);
-    return { dateFrom: toInput(start), dateTo: toInput(end), rangeDays: days };
+    return { dateFrom: start.toISOString().slice(0, 10), dateTo: end.toISOString().slice(0, 10), rangeDays: days };
 }
 
-function getDateValue(solicitation = {}) {
-    const value = solicitation.createdAt || solicitation.data || solicitation.updatedAt || 0;
-    const date = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+function accessibleSolicitations() {
+    const rows = window.DataManager?.getSolicitations?.() || [];
+    return rows.filter((row) => typeof Dashboard.canAccessDashboardRecord !== 'function' || Dashboard.canAccessDashboardRecord(row));
 }
 
-function getVisibleSolicitations(days) {
-    const period = getPeriod(days);
-    const from = new Date(`${period.dateFrom}T00:00:00`).getTime();
-    const to = new Date(`${period.dateTo}T23:59:59.999`).getTime();
-    const all = DataManager.getSolicitations().filter((item) => {
-        return typeof Dashboard.canAccessDashboardRecord !== 'function' || Dashboard.canAccessDashboardRecord(item);
+function analyse(days) {
+    const period = periodFor(days);
+    const source = accessibleSolicitations();
+    const analysis = window.AnalyticsHelper?.buildOperationalAnalysis
+        ? AnalyticsHelper.buildOperationalAnalysis(source, {
+            moduleKey: 'dashboard-premium',
+            period: { dateFrom: period.dateFrom, dateTo: period.dateTo },
+            useDefaultPeriod: false,
+            cacheKey: `dashboard-premium:${window.Auth?.getRole?.() || 'anon'}`
+        })
+        : { solicitations: source, totalRequests: source.length, byStatus: {}, byMonth: [], topPieces: [] };
+    return { period, analysis };
+}
+
+function statusDistribution(analysis) {
+    const raw = analysis.byStatus || {};
+    return STATUS_GROUPS.map((group) => ({
+        ...group,
+        value: group.statuses.reduce((sum, status) => sum + (Number(raw[status]) || 0), 0)
+    }));
+}
+
+function metric(label, value, note, icon) {
+    return `<article class="premium-kpi"><div class="premium-kpi-heading"><span class="premium-kpi-label">${Utils.escapeHtml(label)}</span><span class="premium-kpi-icon" aria-hidden="true"><i class="fas ${icon}"></i></span></div><strong class="premium-kpi-value">${value}</strong><div class="premium-kpi-footer"><span>${Utils.escapeHtml(note)}</span></div></article>`;
+}
+
+function actions() {
+    const html = [];
+    if (Auth.hasPermission('solicitacoes', 'create')) html.push('<button class="btn btn-primary btn-sm" onclick="App.navigate(\'nova-solicitacao\')"><i class="fas fa-plus"></i> Nova solicitação</button>');
+    if (Auth.hasPermission('aprovacoes', 'view')) html.push('<button class="btn btn-outline btn-sm" onclick="App.navigate(\'aprovacoes\')"><i class="fas fa-check-double"></i> Aprovações</button>');
+    return html.join('');
+}
+
+function solicitationCost(row) {
+    const items = Array.isArray(row?.itens) ? row.itens : [];
+    const total = items.reduce((sum, item) => sum + (Number(item?.quantidade) || 0) * (Number(item?.valorUnit) || 0), 0);
+    return total || Number(row?.total) || 0;
+}
+
+function recentRows(rows) {
+    return (rows || []).slice(0, 7).map((row) => `<tr><td>${Utils.formatDate(row.data || row.createdAt)}</td><td><strong>#${Utils.escapeHtml(String(row.numero || 'Sem número'))}</strong></td><td>${Utils.escapeHtml(row.cliente || row.clienteNome || 'Não informado')}</td><td>${Utils.escapeHtml(row.tecnicoNome || 'Não informado')}</td><td class="premium-money-cell">${Utils.formatCurrency(solicitationCost(row))}</td><td>${Utils.renderStatusBadge(row.status)}</td></tr>`).join('');
+}
+
+function topParts(items) {
+    if (!items?.length) return '<div class="premium-empty"><i class="fas fa-chart-bar"></i><span>Sem custos de peças no período.</span></div>';
+    const max = Number(items[0]?.totalCost) || 1;
+    return `<div class="premium-ranking-list">${items.slice(0, 5).map((item, index) => {
+        const width = Math.max(8, Math.round(((Number(item.totalCost) || 0) / max) * 100));
+        return `<div class="premium-ranking-item"><div class="premium-ranking-topline"><span><b>${index + 1}</b>${Utils.escapeHtml(item.descricao || item.codigo || 'Sem descrição')}</span><strong>${Utils.formatCurrency(item.totalCost || 0)}</strong></div><div class="premium-ranking-track"><span style="width:${width}%"></span></div><small>${Utils.formatNumber(item.quantidade || 0)} unidade(s)</small></div>`;
+    }).join('')}</div>`;
+}
+
+function destroyCharts(dashboard) {
+    Object.values(dashboard._premiumCharts || {}).forEach((chart) => chart?.destroy?.());
+    dashboard._premiumCharts = {};
+}
+
+function palette() {
+    const styles = getComputedStyle(document.body);
+    return {
+        primary: styles.getPropertyValue('--premium-accent').trim() || '#1261a6',
+        secondary: styles.getPropertyValue('--premium-teal').trim() || '#0b7d78',
+        warning: styles.getPropertyValue('--premium-warning').trim() || '#c87800',
+        danger: styles.getPropertyValue('--premium-danger').trim() || '#bd3f4b',
+        muted: styles.getPropertyValue('--premium-muted').trim() || '#66758a',
+        surface: styles.getPropertyValue('--premium-surface').trim() || '#fff'
+    };
+}
+
+function drawCharts(dashboard, analysis, statuses) {
+    destroyCharts(dashboard);
+    if (!window.Chart) return;
+    const colors = palette();
+    const monthly = analysis.byMonth || [];
+    const trend = document.getElementById('premium-cost-trend-chart');
+    if (trend && monthly.length) dashboard._premiumCharts.trend = new Chart(trend, {
+        type: 'line',
+        data: { labels: monthly.map((item) => item.label), datasets: [{ label: 'Custo de peças', data: monthly.map((item) => Number(item.totalCost) || 0), borderColor: colors.primary, backgroundColor: `${colors.primary}1f`, fill: true, tension: .35, borderWidth: 3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
     });
-
-    return all.filter((item) => {
-        const timestamp = getDateValue(item);
-        return timestamp >= from && timestamp <= to;
-    }).sort((a, b) => getDateValue(b) - getDateValue(a));
+    const active = statuses.filter((item) => item.value > 0);
+    const status = document.getElementById('premium-status-chart');
+    if (status && active.length) dashboard._premiumCharts.status = new Chart(status, {
+        type: 'doughnut',
+        data: { labels: active.map((item) => item.label), datasets: [{ data: active.map((item) => item.value), backgroundColor: [colors.warning, colors.secondary, colors.primary, colors.muted, colors.danger], borderColor: colors.surface, borderWidth: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } }
+    });
 }
 
-function metricCard(label, value, note, icon) {
-    return `
-        <article class="focus-kpi">
-            <div class="focus-kpi-top">
-                <span class="focus-kpi-label">${Utils.escapeHtml(label)}</span>
-                <span class="focus-kpi-icon"><i class="fas ${icon}"></i></span>
-            </div>
-            <div class="focus-kpi-value">${value}</div>
-            <div class="focus-kpi-note">${Utils.escapeHtml(note)}</div>
-        </article>
-    `;
-}
-
-function renderActions() {
-    const actions = [];
-    if (Auth.hasPermission('solicitacoes', 'create')) {
-        actions.push('<button class="btn btn-primary btn-sm" onclick="App.navigate(\'nova-solicitacao\')"><i class="fas fa-plus"></i> Nova solicitação</button>');
-    }
-    if (Auth.hasPermission('solicitacoes', 'view')) {
-        actions.push('<button class="btn btn-outline btn-sm" onclick="App.navigate(\'solicitacoes\')"><i class="fas fa-list"></i> Solicitações</button>');
-    }
-    if (Auth.hasPermission('aprovacoes', 'view')) {
-        actions.push('<button class="btn btn-outline btn-sm" onclick="App.navigate(\'aprovacoes\')"><i class="fas fa-check-double"></i> Aprovações</button>');
-    }
-    return actions.join('');
-}
-
-function renderRecentRows(items = []) {
-    return items.slice(0, 6).map((item) => `
-        <tr>
-            <td>${Utils.formatDate(item.data || item.createdAt)}</td>
-            <td><strong>#${Utils.escapeHtml(String(item.numero || 'Sem número'))}</strong></td>
-            <td>${Utils.escapeHtml(item.tecnicoNome || 'Não informado')}</td>
-            <td>${Utils.renderStatusBadge(item.status)}</td>
-        </tr>
-    `).join('');
+function textualSummary(label, rows, value) {
+    return `<ul class="premium-chart-summary" aria-label="${Utils.escapeHtml(label)}">${rows.map((row) => `<li>${Utils.escapeHtml(row.label || 'Período')}: ${value(row)}</li>`).join('')}</ul>`;
 }
 
 export function applyDashboardFocus() {
-    if (typeof window.Dashboard === 'undefined' || window.Dashboard.__focusDashboard) return;
+    if (!window.Dashboard || Dashboard.__premiumDashboard) return;
+    Dashboard.__premiumDashboard = true;
+    Dashboard.focusRangeDays = Number(Dashboard.focusRangeDays) || DEFAULT_RANGE_DAYS;
+    Dashboard._premiumCharts = {};
 
-    window.Dashboard.__focusDashboard = true;
-    window.Dashboard.focusRangeDays = Number(window.Dashboard.focusRangeDays) || DEFAULT_RANGE_DAYS;
-
-    window.Dashboard.render = function renderFocusDashboard() {
+    Dashboard.render = function renderPremiumDashboard() {
         const content = document.getElementById('content-area');
         if (!content) return;
-
         const rangeDays = Number(this.focusRangeDays) || DEFAULT_RANGE_DAYS;
-        const items = getVisibleSolicitations(rangeDays);
-        const pendingStatuses = new Set(['pendente', 'rascunho', 'enviada']);
-        const transitStatuses = new Set(['em-transito']);
-        const completedStatuses = new Set(['finalizada', 'entregue', 'historico-manual']);
-        const pending = items.filter((item) => pendingStatuses.has(normalizeStatus(item.status))).length;
-        const transit = items.filter((item) => transitStatuses.has(normalizeStatus(item.status))).length;
-        const completed = items.filter((item) => completedStatuses.has(normalizeStatus(item.status))).length;
-        const totalCost = items.reduce((sum, item) => sum + getSolicitationCost(item), 0);
-        const recentRows = renderRecentRows(items);
+        const { period, analysis } = analyse(rangeDays);
+        const statuses = statusDistribution(analysis);
+        const pending = statuses.find((item) => item.key === 'pending')?.value || 0;
+        const rows = recentRows(analysis.solicitations || []);
+        const parts = window.ElectricalCatalogPolicy?.filterParts(window.DataManager?.getParts?.() || []) || window.DataManager?.getParts?.() || [];
+        destroyCharts(this);
 
-        content.innerHTML = `
-            <div class="focus-dashboard">
-                <header class="focus-dashboard-header">
-                    <div class="focus-dashboard-title">
-                        <small>Visão geral</small>
-                        <h2>Resumo operacional</h2>
-                        <p>Somente os indicadores necessários para decidir e agir.</p>
-                    </div>
-                    <div class="focus-dashboard-actions">${renderActions()}</div>
-                </header>
-
-                <div class="focus-dashboard-toolbar">
-                    <label for="focus-period">Período dos indicadores</label>
-                    <select id="focus-period" class="form-control" aria-label="Período dos indicadores">
-                        <option value="7" ${rangeDays === 7 ? 'selected' : ''}>Últimos 7 dias</option>
-                        <option value="30" ${rangeDays === 30 ? 'selected' : ''}>Últimos 30 dias</option>
-                        <option value="90" ${rangeDays === 90 ? 'selected' : ''}>Últimos 90 dias</option>
-                    </select>
-                </div>
-
-                <section class="focus-kpi-grid" aria-label="Indicadores principais">
-                    ${metricCard('Aguardando aprovação', Utils.formatNumber(pending), 'Itens que exigem decisão', 'fa-clock')}
-                    ${metricCard('Em trânsito', Utils.formatNumber(transit), 'Pedidos em deslocamento', 'fa-truck-fast')}
-                    ${metricCard('Concluídas', Utils.formatNumber(completed), `No período de ${rangeDays} dias`, 'fa-circle-check')}
-                    ${metricCard('Custo no período', Utils.formatCurrency(totalCost), `${Utils.formatNumber(items.length)} solicitações consideradas`, 'fa-sack-dollar')}
-                </section>
-
-                ${pending > 0 && Auth.hasPermission('aprovacoes', 'view') ? `
-                    <div class="focus-alert">
-                        <div><strong>${Utils.formatNumber(pending)} solicitação(ões)</strong> aguardando análise.</div>
-                        <button class="btn btn-outline btn-sm" onclick="App.navigate('aprovacoes')">Revisar agora</button>
-                    </div>
-                ` : ''}
-
-                <section class="focus-panel">
-                    <div class="focus-panel-header">
-                        <div>
-                            <h3>Solicitações recentes</h3>
-                            <p>As seis movimentações mais recentes do período.</p>
-                        </div>
-                        <button class="btn btn-outline btn-sm" onclick="App.navigate('solicitacoes')">Ver todas</button>
-                    </div>
-                    ${recentRows ? `
-                        <div class="focus-table-wrap">
-                            <table class="focus-table">
-                                <thead><tr><th>Data</th><th>Solicitação</th><th>Técnico</th><th>Status</th></tr></thead>
-                                <tbody>${recentRows}</tbody>
-                            </table>
-                        </div>
-                    ` : '<div class="focus-empty">Nenhuma solicitação encontrada neste período.</div>'}
-                </section>
-            </div>
-        `;
+        content.innerHTML = `<div class="premium-dashboard" data-testid="premium-dashboard">
+            <header class="premium-dashboard-hero"><div class="premium-hero-copy"><span class="premium-eyebrow"><i class="fas fa-sparkles"></i> Gestão executiva de peças</span><h1>Visão operacional e financeira</h1><p>Indicadores consolidados para priorizar aprovações, controlar custos e antecipar desvios.</p><div class="premium-hero-meta"><span><i class="fas fa-calendar-days"></i>${Utils.formatDate(period.dateFrom)} a ${Utils.formatDate(period.dateTo)}</span><span><i class="fas fa-shield-halved"></i>${Utils.formatNumber(parts.length)} peças ativas no catálogo</span></div></div><div class="premium-hero-controls"><label for="focus-period">Período</label><select id="focus-period" class="form-control"><option value="7" ${rangeDays === 7 ? 'selected' : ''}>Últimos 7 dias</option><option value="30" ${rangeDays === 30 ? 'selected' : ''}>Últimos 30 dias</option><option value="90" ${rangeDays === 90 ? 'selected' : ''}>Últimos 90 dias</option></select><div class="premium-hero-actions">${actions()}</div></div></header>
+            <section class="premium-kpi-grid" aria-label="Indicadores principais">${metric('Custo no período', Utils.formatCurrency(analysis.totalCost || 0), `${Utils.formatNumber(analysis.totalRequests || 0)} solicitações`, 'fa-sack-dollar')}${metric('Aguardando aprovação', Utils.formatNumber(pending), 'Itens que exigem decisão', 'fa-clock')}${metric('Custo médio', Utils.formatCurrency(analysis.averageCostPerSolicitation || 0), 'Por solicitação', 'fa-receipt')}${metric('Peças movimentadas', Utils.formatNumber(analysis.totalPieces || 0), 'No período selecionado', 'fa-boxes-stacked')}</section>
+            <section class="premium-status-strip" aria-label="Resumo por status">${statuses.map((item) => `<div class="premium-status-item is-${item.tone}"><span>${Utils.escapeHtml(item.label)}</span><strong>${Utils.formatNumber(item.value)}</strong></div>`).join('')}</section>
+            ${pending && Auth.hasPermission('aprovacoes', 'view') ? `<div class="premium-action-alert"><div><span class="premium-alert-icon"><i class="fas fa-bolt"></i></span><div><strong>${Utils.formatNumber(pending)} solicitação(ões) aguardando análise</strong><small>Priorize os itens mais antigos para reduzir o tempo de ciclo.</small></div></div><button class="btn btn-primary btn-sm" onclick="App.navigate('aprovacoes')">Revisar aprovações</button></div>` : ''}
+            <section class="premium-chart-grid"><article class="premium-panel premium-panel-wide"><div class="premium-panel-header"><div><span class="premium-panel-kicker">Tendência</span><h2>Evolução do custo mensal</h2><p>Somatório do período selecionado.</p></div></div><div class="premium-chart-shell">${analysis.byMonth?.length ? `<canvas id="premium-cost-trend-chart" role="img" aria-label="Gráfico de evolução do custo mensal"></canvas>${textualSummary('Resumo textual do custo mensal', analysis.byMonth, (item) => Utils.formatCurrency(Number(item.totalCost) || 0))}` : '<div class="premium-empty">Sem dados mensais.</div>'}</div></article><article class="premium-panel"><div class="premium-panel-header"><div><span class="premium-panel-kicker">Fluxo</span><h2>Distribuição por status</h2><p>Volume em cada etapa operacional.</p></div></div><div class="premium-chart-shell premium-chart-shell-donut">${statuses.some((item) => item.value) ? `<canvas id="premium-status-chart" role="img" aria-label="Gráfico de distribuição por status"></canvas>${textualSummary('Resumo textual da distribuição por status', statuses, (item) => Utils.formatNumber(item.value || 0))}` : '<div class="premium-empty">Sem solicitações.</div>'}</div></article></section>
+            <section class="premium-detail-grid"><article class="premium-panel"><div class="premium-panel-header"><div><span class="premium-panel-kicker">Concentração</span><h2>Peças com maior impacto</h2></div><button class="btn btn-outline btn-sm" onclick="App.navigate('relatorios')">Abrir relatórios</button></div>${topParts(analysis.topPieces || [])}</article><article class="premium-panel"><div class="premium-panel-header"><div><span class="premium-panel-kicker">Movimentação</span><h2>Solicitações recentes</h2></div><button class="btn btn-outline btn-sm" onclick="App.navigate('solicitacoes')">Ver todas</button></div>${rows ? `<div class="premium-table-wrap"><table class="premium-table"><thead><tr><th>Data</th><th>Solicitação</th><th>Cliente</th><th>Técnico</th><th>Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="premium-empty">Nenhuma solicitação encontrada.</div>'}</article></section>
+        </div>`;
 
         document.getElementById('focus-period')?.addEventListener('change', (event) => {
             this.focusRangeDays = Number(event.target.value) || DEFAULT_RANGE_DAYS;
             this.render();
         });
+        requestAnimationFrame(() => drawCharts(this, analysis, statuses));
     };
 }

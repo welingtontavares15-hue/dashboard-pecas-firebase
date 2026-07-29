@@ -16,7 +16,7 @@ export async function ensureLoaded() {
         patch.applyDashboardModernization();
     }
 
-    const focusPatch = await import(new URL('../components/dashboard-focus.js?v=20260713a', import.meta.url).href);
+    const focusPatch = await import(new URL('../components/dashboard-focus.js?v=20260729a', import.meta.url).href);
     if (focusPatch && typeof focusPatch.applyDashboardFocus === 'function') {
         focusPatch.applyDashboardFocus();
     }
@@ -29,4 +29,3 @@ export function render() {
         window.Dashboard.render();
     }
 }
-
