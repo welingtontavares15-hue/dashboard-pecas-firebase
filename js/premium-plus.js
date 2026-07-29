@@ -102,6 +102,26 @@
         document.body.dataset.currentPage = page;
     }
 
+    function loadNavigationMaster() {
+        if (window.NavigationMaster || document.querySelector('script[data-navigation-master]')) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'js/navigation-master.js?v=20260729a';
+        script.async = false;
+        script.dataset.navigationMaster = 'true';
+        script.addEventListener('load', () => {
+            if (typeof Auth !== 'undefined' && typeof Auth.renderMenu === 'function') {
+                const activePage = (typeof App !== 'undefined' && App.currentPage)
+                    ? App.currentPage
+                    : (typeof App !== 'undefined' && typeof App.getDefaultPage === 'function' ? App.getDefaultPage() : 'dashboard');
+                Auth.renderMenu(activePage);
+            }
+        }, { once: true });
+        document.head.appendChild(script);
+    }
+
     function enhanceLifecycle() {
         if (typeof App === 'undefined' || App.__premiumPlusPatched) {
             return;
@@ -114,6 +134,7 @@
         App.showApp = function () {
             originalShowApp();
             setTimeout(() => {
+                loadNavigationMaster();
                 ensureSystemStatus();
                 updateSystemStatus();
                 bindSidebarPersistence();
@@ -148,6 +169,7 @@
 
     function init() {
         setBodyReady();
+        loadNavigationMaster();
         bindGlobalSearchShortcut();
         enhanceLifecycle();
         ensureSystemStatus();
