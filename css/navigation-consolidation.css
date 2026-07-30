@@ -1,0 +1,109 @@
+/* Camada final: alinhamento e contenção após os temas legados. */
+:root {
+    --navigation-content-max: 1440px;
+    --navigation-gap: clamp(16px, 2vw, 28px);
+}
+
+body .content-area > .page-container,
+body .content-area > .page-content,
+body .content-area > section {
+    width: min(100%, var(--navigation-content-max));
+    margin-inline: auto;
+}
+
+body .page-header,
+body .page-header-group,
+body .page-actions,
+body .filters-row,
+body .toolbar,
+body .table-info {
+    align-items: center;
+    gap: var(--navigation-gap);
+}
+
+body .page-header,
+body .page-header-group,
+body .page-actions,
+body .filters-row,
+body .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+body .page-header > *,
+body .page-header-group > *,
+body .page-actions > *,
+body .filters-row > *,
+body .toolbar > * {
+    min-width: 0;
+}
+
+body .card,
+body .kpi-card,
+body .metric-card,
+body .table-container {
+    box-sizing: border-box;
+}
+
+body .kpi-grid,
+body .report-kpi-grid,
+body .dashboard-kpi-grid {
+    align-items: stretch;
+}
+
+body .kpi-card,
+body .metric-card {
+    height: 100%;
+}
+
+body .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+body .nav-item[aria-current="page"] {
+    font-weight: 700;
+}
+
+body .technician-bottom-navigation [data-route-action] {
+    position: relative;
+}
+
+body .technician-bottom-navigation [data-route-action]::after {
+    content: "+";
+    position: absolute;
+    top: 4px;
+    right: 18%;
+    width: 16px;
+    height: 16px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
+    background: currentColor;
+    color: var(--surface, #fff);
+}
+
+@media (max-width: 768px) {
+    body .content-area {
+        padding-inline: 14px;
+    }
+
+    body .page-header,
+    body .page-header-group,
+    body .page-actions,
+    body .filters-row,
+    body .toolbar {
+        align-items: stretch;
+    }
+
+    body .page-actions .btn,
+    body .filters-row .form-control,
+    body .filters-row select,
+    body .toolbar .form-control {
+        width: 100%;
+    }
+}
