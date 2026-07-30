@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v49-navigation-master';
+const CACHE_VERSION = 'v50-system-ui-master';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -26,6 +26,7 @@ const PRECACHE = {
     './css/visual-refresh.css',
     './css/sidebar-pro.css',
     './css/premium-dashboard-v2.css',
+    './css/system-ui-master.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
