@@ -2,7 +2,6 @@
     'use strict';
 
     const ROUTE_DEFINITIONS = Object.freeze({
-        dashboard: { label: 'Visão Geral', icon: 'fa-chart-pie', permission: ['dashboard', null] },
         solicitacoes: { label: 'Solicitações', icon: 'fa-clipboard-list', permission: ['solicitacoes', 'view'] },
         aprovacoes: { label: 'Aprovações', icon: 'fa-check-double', badge: true, permission: ['aprovacoes', 'view'] },
         pecas: { label: 'Peças', icon: 'fa-boxes-stacked', permission: ['pecas', 'view'] },
@@ -17,6 +16,7 @@
 
     // Compatibilidade: links antigos continuam válidos, mas não criam telas extras.
     const ROUTE_ALIASES = Object.freeze({
+        dashboard: { pageId: 'solicitacoes' },
         'minhas-solicitacoes': { pageId: 'solicitacoes' },
         'nova-solicitacao': { pageId: 'solicitacoes', action: 'create-solicitacao' },
         catalogo: { pageId: 'pecas' }
@@ -24,14 +24,12 @@
 
     const NAVIGATION_MODEL = Object.freeze({
         administrador: [
-            { key: 'inicio', title: 'INÍCIO', items: ['dashboard'] },
             { key: 'operacao', title: 'OPERAÇÃO', items: ['solicitacoes', 'aprovacoes'] },
             { key: 'cadastros', title: 'CADASTROS', items: ['pecas', 'tecnicos', 'fornecedores'] },
             { key: 'analises', title: 'ANÁLISES', items: ['relatorios'] },
             { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
         ],
         gestor: [
-            { key: 'inicio', title: 'INÍCIO', items: ['dashboard'] },
             { key: 'operacao', title: 'OPERAÇÃO', items: ['solicitacoes', 'aprovacoes'] },
             { key: 'analises', title: 'ANÁLISES', items: ['relatorios'] },
             { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
