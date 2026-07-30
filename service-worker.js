@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v48-premium-dashboard';
+const CACHE_VERSION = 'v49-navigation-master';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -45,6 +45,8 @@ const PRECACHE = {
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
+    './js/navigation-master.js',
+    './js/premium-plus.js',
     './js/corporate-platform.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
