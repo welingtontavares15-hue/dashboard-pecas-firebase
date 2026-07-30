@@ -7,6 +7,16 @@
         catalogo: { pageId: 'pecas' }
     });
 
+    function ensureStylesheet() {
+        const id = 'navigation-consolidation-styles';
+        if (document.getElementById(id)) return;
+        const link = document.createElement('link');
+        link.id = id;
+        link.rel = 'stylesheet';
+        link.href = 'css/navigation-consolidation.css?v=20260730a';
+        document.head.appendChild(link);
+    }
+
     function resolveRoute(routeId) {
         if (window.NavigationMaster?.resolveRoute) {
             return window.NavigationMaster.resolveRoute(routeId);
@@ -136,6 +146,7 @@
     }
 
     function reassertAuthority() {
+        ensureStylesheet();
         installAuthAuthority();
         installAppAuthority();
         canonicalizeNavigationNodes(document);
