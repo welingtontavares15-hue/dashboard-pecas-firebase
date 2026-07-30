@@ -5,6 +5,18 @@
         document.body.classList.add('premium-plus-enabled');
     }
 
+    function ensureSystemUiMaster() {
+        if (document.querySelector('link[data-system-ui-master]')) {
+            return;
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'css/system-ui-master.css?v=20260729a';
+        link.dataset.systemUiMaster = 'true';
+        document.head.appendChild(link);
+    }
+
     function getOnlineLabel() {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             return { label: 'Offline', className: 'offline' };
@@ -134,6 +146,7 @@
         App.showApp = function () {
             originalShowApp();
             setTimeout(() => {
+                ensureSystemUiMaster();
                 loadNavigationMaster();
                 ensureSystemStatus();
                 updateSystemStatus();
@@ -144,6 +157,7 @@
 
         App.renderPage = async function (pageId, renderSequence) {
             await originalRenderPage(pageId, renderSequence);
+            ensureSystemUiMaster();
             markCurrentPage();
             ensureSystemStatus();
             updateSystemStatus();
@@ -169,6 +183,7 @@
 
     function init() {
         setBodyReady();
+        ensureSystemUiMaster();
         loadNavigationMaster();
         bindGlobalSearchShortcut();
         enhanceLifecycle();
