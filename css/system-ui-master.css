@@ -1,0 +1,600 @@
+/* ========================================================================
+   SYSTEM UI MASTER
+   Camada transversal de alinhamento, densidade e responsividade.
+   Deve permanecer como a ultima folha de estilo do sistema.
+   ======================================================================== */
+
+:root {
+  --sum-content-max: 1560px;
+  --sum-page-gap: clamp(16px, 2vw, 28px);
+  --sum-section-gap: 20px;
+  --sum-card-radius: 16px;
+  --sum-control-radius: 10px;
+  --sum-control-h: 42px;
+  --sum-line: color-mix(in srgb, var(--border-color, #d9e2ec) 82%, transparent);
+  --sum-surface: var(--card-bg, #ffffff);
+  --sum-surface-soft: color-mix(in srgb, var(--card-bg, #ffffff) 94%, var(--primary-color, #2563eb));
+  --sum-shadow: 0 10px 30px rgba(15, 23, 42, .07);
+}
+
+/* 1. Estrutura comum das paginas */
+#content-area,
+.main-content,
+.page-content {
+  width: 100%;
+  min-width: 0;
+}
+
+#content-area > *,
+.main-content > .page,
+.page-content > .page {
+  width: min(100%, var(--sum-content-max));
+  margin-inline: auto;
+}
+
+.page,
+.dashboard-page,
+.reports-page,
+.supplier-page,
+.settings-page,
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sum-section-gap);
+  min-width: 0;
+  padding: var(--sum-page-gap);
+}
+
+.page-header,
+.dashboard-header-compact,
+.reports-header-compact,
+.supplier-header,
+.corporate-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+}
+
+.page-header h1,
+.page-header h2,
+.dashboard-header-compact h2,
+.reports-header-compact h2,
+.supplier-header h2 {
+  margin: 0;
+  line-height: 1.18;
+  letter-spacing: -.025em;
+}
+
+.page-header p,
+.dashboard-header-compact p,
+.reports-header-compact p,
+.supplier-header p {
+  max-width: 760px;
+  margin: 6px 0 0;
+  line-height: 1.55;
+}
+
+.corporate-page-actions,
+.page-actions,
+.header-actions,
+.actions,
+.btn-group,
+.modal-footer,
+.corporate-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 2. Superficies e secoes */
+.card,
+.panel,
+.dashboard-panel-card,
+.dashboard-chart-card,
+.report-panel-card,
+.report-chart-card,
+.filter-panel,
+.filters-bar,
+.report-filters-modern,
+.supplier-filters-bar,
+.corporate-surface {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-card-radius);
+  background: var(--sum-surface);
+  box-shadow: var(--sum-shadow);
+}
+
+.card-header,
+.panel-header,
+.section-header,
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--sum-line);
+}
+
+.card-body,
+.panel-body,
+.section-body {
+  min-width: 0;
+  padding: 20px;
+}
+
+.kpi-grid,
+.metrics-grid,
+.dashboard-kpi-grid,
+.report-summary-grid,
+.supplier-summary-grid,
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.kpi-card,
+.metric-card,
+.report-summary-card,
+.supplier-summary-card,
+.corporate-stat-card {
+  min-width: 0;
+  height: 100%;
+  padding: 18px;
+  border: 1px solid var(--sum-line);
+  border-radius: 14px;
+  background: var(--sum-surface);
+}
+
+/* 3. Formularios */
+form,
+.form-grid,
+.form-row,
+.corporate-form-row {
+  min-width: 0;
+}
+
+.form-grid,
+.form-row,
+.corporate-form-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: end;
+}
+
+.form-group,
+.input-group,
+.field,
+.filter-group {
+  grid-column: span 6;
+  min-width: 0;
+  margin: 0;
+}
+
+.form-group.full-width,
+.form-group.form-group-full,
+.field-full,
+.form-row > .form-group:only-child {
+  grid-column: 1 / -1;
+}
+
+label,
+.form-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: .82rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.form-control,
+.form-select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--sum-control-h);
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-control-radius);
+  background: var(--input-bg, var(--sum-surface));
+  color: inherit;
+  font: inherit;
+  line-height: 1.35;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+textarea,
+textarea.form-control {
+  min-height: 104px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: 0;
+  border-color: var(--primary-color, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #2563eb) 18%, transparent);
+}
+
+.form-help,
+.help-text,
+.field-help,
+.form-error {
+  display: block;
+  margin-top: 5px;
+  font-size: .76rem;
+  line-height: 1.4;
+}
+
+/* 4. Botoes e acoes */
+.btn,
+button.btn,
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--sum-control-h);
+  max-width: 100%;
+  padding: 9px 14px;
+  border-radius: var(--sum-control-radius);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+}
+
+.btn-sm,
+button.btn-sm {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: .8rem;
+}
+
+.btn-icon,
+.action-btn,
+.table-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 9px;
+}
+
+/* 5. Filtros */
+.filter-panel,
+.filters-bar,
+.report-filters-modern,
+.dashboard-filters-compact,
+.supplier-filters-bar,
+.corporate-filter-surface {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+}
+
+.filter-panel .form-group,
+.filters-bar .form-group,
+.report-filters-modern .form-group,
+.dashboard-filters-compact .form-group,
+.supplier-filters-bar .form-group {
+  grid-column: auto;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.table-quick-filter {
+  width: min(100%, 360px) !important;
+}
+
+/* 6. Tabelas */
+.table-container,
+.corporate-grid-shell {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--sum-line);
+  border-radius: 14px;
+  background: var(--sum-surface);
+  box-shadow: var(--sum-shadow);
+  -webkit-overflow-scrolling: touch;
+}
+
+table,
+table.table,
+.corporate-data-grid {
+  width: 100%;
+  min-width: 720px;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+table th,
+table td,
+.table th,
+.table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--sum-line);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+table th,
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sum-surface-soft);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+table tbody tr:last-child td,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+table tbody tr:hover,
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary-color, #2563eb) 4%, transparent);
+}
+
+.table-actions,
+.actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* 7. Modais */
+.modal-overlay,
+.modal-container {
+  padding: clamp(12px, 3vw, 28px);
+}
+
+.modal-content,
+.corporate-modal {
+  width: min(100%, 760px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--sum-line);
+  border-radius: 18px;
+  background: var(--sum-surface);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, .24);
+}
+
+.modal-body {
+  min-width: 0;
+  max-height: calc(100dvh - 180px);
+  padding: 20px;
+  overflow: auto;
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--sum-line);
+}
+
+/* 8. Estados e mensagens */
+.empty-state,
+.no-data,
+.loading-state,
+.error-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 180px;
+  padding: 28px;
+  border: 1px dashed var(--sum-line);
+  border-radius: 14px;
+  text-align: center;
+  background: var(--sum-surface-soft);
+}
+
+.status-badge,
+.badge,
+.chip,
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+/* 9. Responsividade */
+@media (max-width: 992px) {
+  .page,
+  .dashboard-page,
+  .reports-page,
+  .supplier-page,
+  .settings-page,
+  .profile-page {
+    padding: 18px;
+  }
+
+  .page-header,
+  .dashboard-header-compact,
+  .reports-header-compact,
+  .supplier-header,
+  .corporate-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .corporate-page-actions,
+  .page-actions,
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .form-group,
+  .input-group,
+  .field,
+  .filter-group {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --sum-section-gap: 14px;
+    --sum-card-radius: 14px;
+  }
+
+  .page,
+  .dashboard-page,
+  .reports-page,
+  .supplier-page,
+  .settings-page,
+  .profile-page {
+    padding: 12px;
+  }
+
+  .card-header,
+  .panel-header,
+  .section-header,
+  .card-body,
+  .panel-body,
+  .section-body,
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 14px;
+  }
+
+  .form-grid,
+  .form-row,
+  .corporate-form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .form-group,
+  .input-group,
+  .field,
+  .filter-group,
+  .form-group.full-width,
+  .form-group.form-group-full,
+  .field-full {
+    grid-column: 1;
+  }
+
+  .filter-panel,
+  .filters-bar,
+  .report-filters-modern,
+  .dashboard-filters-compact,
+  .supplier-filters-bar,
+  .corporate-filter-surface {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .corporate-page-actions,
+  .page-actions,
+  .header-actions,
+  .modal-footer,
+  .corporate-action-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .corporate-page-actions .btn,
+  .page-actions .btn,
+  .header-actions .btn,
+  .modal-footer .btn,
+  .corporate-action-row .btn {
+    width: 100%;
+  }
+
+  table,
+  table.table,
+  .corporate-data-grid {
+    min-width: 640px;
+  }
+}
+
+/* 10. Preferencias de movimento e impressao */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media print {
+  .sidebar,
+  .app-header,
+  .page-actions,
+  .header-actions,
+  .table-toolbar,
+  .btn,
+  button {
+    display: none !important;
+  }
+
+  #content-area,
+  .main-content,
+  .page,
+  .dashboard-page,
+  .reports-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .card,
+  .panel,
+  .table-container {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
