@@ -3,6 +3,7 @@
 
     const ROUTE_DEFINITIONS = Object.freeze({
         solicitacoes: { label: 'Solicitações', icon: 'fa-clipboard-list', permission: ['solicitacoes', 'view'] },
+        historico: { label: 'Histórico', icon: 'fa-clock-rotate-left', permission: ['solicitacoes', 'view'], roles: ['tecnico'] },
         aprovacoes: { label: 'Aprovações', icon: 'fa-check-double', badge: true, permission: ['aprovacoes', 'view'] },
         pecas: { label: 'Peças', icon: 'fa-boxes-stacked', permission: ['pecas', 'view'] },
         tecnicos: { label: 'Técnicos', icon: 'fa-users-gear', permission: ['tecnicos', 'view'] },
@@ -19,7 +20,8 @@
         dashboard: { pageId: 'solicitacoes' },
         'minhas-solicitacoes': { pageId: 'solicitacoes' },
         'nova-solicitacao': { pageId: 'solicitacoes', action: 'create-solicitacao' },
-        catalogo: { pageId: 'pecas' }
+        catalogo: { pageId: 'pecas' },
+        historico: { pageId: 'solicitacoes', action: 'focus-technician-history' }
     });
 
     const NAVIGATION_MODEL = Object.freeze({
@@ -39,6 +41,7 @@
                 { id: 'solicitacoes', label: 'Minhas Solicitações' }
             ] },
             { key: 'consulta', title: 'CONSULTA', items: [
+                { id: 'historico', label: 'Histórico', icon: 'fa-clock-rotate-left' },
                 { id: 'pecas', label: 'Catálogo de Peças', icon: 'fa-magnifying-glass' }
             ] },
             { key: 'conta', title: 'CONTA', items: ['perfil', 'ajuda'] }
@@ -82,19 +85,23 @@
     }
 
     function getRouteLabel(routeId, role) {
-        const { pageId } = resolveRoute(routeId);
-        const menuItem = getMenuItems(role).find((item) => item.id === pageId);
-        return menuItem?.label || ROUTE_DEFINITIONS[pageId]?.label || pageId;
+        const { requestedId, pageId } = resolveRoute(routeId);
+        const menuItem = getMenuItems(role).find((item) => item.id === requestedId)
+            || getMenuItems(role).find((item) => item.id === pageId);
+        return menuItem?.label || ROUTE_DEFINITIONS[requestedId]?.label || ROUTE_DEFINITIONS[pageId]?.label || pageId;
     }
 
     function canAccessRoute(auth, routeId) {
         if (!auth) return false;
-        const { pageId, action } = resolveRoute(routeId);
+        const { requestedId, pageId, action } = resolveRoute(routeId);
         const role = auth.getRole();
-        const definition = ROUTE_DEFINITIONS[pageId];
-        if (!role || !definition) return false;
+        const pageDefinition = ROUTE_DEFINITIONS[pageId];
+        const requestedDefinition = ROUTE_DEFINITIONS[requestedId];
+        const definition = requestedDefinition || pageDefinition;
+        if (!role || !pageDefinition || !definition) return false;
 
-        const visibleForRole = getMenuItems(role).some((item) => item.id === pageId);
+        const visibilityId = requestedDefinition ? requestedId : pageId;
+        const visibleForRole = getMenuItems(role).some((item) => item.id === visibilityId);
         if (!visibleForRole) return false;
 
         if (Array.isArray(definition.roles) && !definition.roles.includes(role)) {
@@ -163,7 +170,8 @@
             const badge = item.badge && pendingCount > 0
                 ? `<span class="nav-badge" aria-label="${pendingCount} pendente(s)">${pendingCount}</span>`
                 : '';
-            return `<a class="nav-item ${active ? 'active' : ''}" data-page="${item.id}" title="${item.label}"${active ? ' aria-current="page"' : ''}>`
+            const historyMarker = item.id === 'historico' ? ' data-technician-history-nav="true"' : '';
+            return `<a class="nav-item ${active ? 'active' : ''}" data-page="${item.id}" title="${item.label}"${historyMarker}${active ? ' aria-current="page"' : ''}>`
                 + `<i class="fas ${item.icon}" aria-hidden="true"></i>`
                 + `<span>${item.label}</span>${badge}</a>`;
         };
