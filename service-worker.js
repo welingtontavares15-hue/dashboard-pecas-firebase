@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v50-technician-history';
+const CACHE_VERSION = 'v51-technician-history-nav';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
