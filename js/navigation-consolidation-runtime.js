@@ -4,7 +4,8 @@
     const LEGACY_ROUTE_ALIASES = Object.freeze({
         'minhas-solicitacoes': { pageId: 'solicitacoes' },
         'nova-solicitacao': { pageId: 'solicitacoes', action: 'create-solicitacao' },
-        catalogo: { pageId: 'pecas' }
+        catalogo: { pageId: 'pecas' },
+        historico: { pageId: 'solicitacoes', action: 'focus-technician-history' }
     });
 
     function ensureStylesheet() {
@@ -30,7 +31,29 @@
         };
     }
 
+    function focusTechnicianHistory(attempt = 0) {
+        const target = document.getElementById('sol-technician-history')
+            || document.querySelector('.technician-history-panel');
+        if (!target) {
+            if (attempt < 30) window.setTimeout(() => focusTechnicianHistory(attempt + 1), 100);
+            return false;
+        }
+
+        target.setAttribute('tabindex', '-1');
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        try {
+            target.focus({ preventScroll: true });
+        } catch (_error) {
+            target.focus();
+        }
+        return true;
+    }
+
     function runRouteAction(action) {
+        if (action === 'focus-technician-history') {
+            focusTechnicianHistory();
+            return;
+        }
         if (action !== 'create-solicitacao') return;
         const openForm = () => {
             if (window.Solicitacoes && typeof window.Solicitacoes.openForm === 'function') {
@@ -88,6 +111,7 @@
         const resolved = resolveRoute(routeId);
         node.dataset.page = resolved.pageId;
         if (resolved.action) node.dataset.routeAction = resolved.action;
+        else delete node.dataset.routeAction;
     }
 
     function canonicalizeNavigationNodes(root) {
@@ -99,7 +123,7 @@
         canonicalizeNavigationNodes(document);
 
         document.querySelectorAll('.nav-item[data-page]').forEach((item) => {
-            const active = item.dataset.page === canonicalPage;
+            const active = item.dataset.page === canonicalPage && !item.dataset.routeAction;
             item.classList.toggle('active', active);
             if (active) item.setAttribute('aria-current', 'page');
             else item.removeAttribute('aria-current');
@@ -139,7 +163,7 @@
         const seen = new Set();
         sidebar.querySelectorAll('.nav-item[data-page]').forEach((item) => {
             canonicalizeNode(item);
-            const key = item.dataset.page;
+            const key = `${item.dataset.page}:${item.dataset.routeAction || ''}`;
             if (seen.has(key)) item.remove();
             else seen.add(key);
         });
