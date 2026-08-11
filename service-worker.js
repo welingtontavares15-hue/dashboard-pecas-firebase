@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v49-navigation-master';
+const CACHE_VERSION = 'v50-technician-history';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -69,6 +69,8 @@ const PRECACHE = {
   ],
   solicitacoes: [
     './js/solicitacoes.js',
+    './js/technician-experience.js',
+    './css/technician-history.css',
     './js/aprovacoes.js',
     './js/fornecedor.js',
     './js/tecnicos.js'

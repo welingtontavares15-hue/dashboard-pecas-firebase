@@ -10,3 +10,5 @@ BLOCO_09_PDF_CORPORATIVO=Fix endereco/CPF no PDF (backfill snapshot + lookup nor
 BLOCO_10_SOLICITANTE_SNAPSHOT=Resolvedor unico de solicitante aplicado em PDF/detalhes/portal/relatorios + validacao de tecnico + SW v39
 
 BLOCO_10_CLEAN_UI=Redesign visual: clean-ui.css (camada final), header/sidebar limpos, KPIs compactos, filtros padronizados, SW v40
+
+BLOCO_11_SOLICITANTE_HISTORICO=Historico de pecas derivado das solicitacoes + KPIs operacionais + backup admin-only + SW v50

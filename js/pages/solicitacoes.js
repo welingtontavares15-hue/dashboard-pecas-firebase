@@ -3,12 +3,15 @@
 let ready = false;
 
 export async function ensureLoaded() {
-    if (ready && typeof window.Solicitacoes !== 'undefined') {
+    if (ready
+        && typeof window.Solicitacoes !== 'undefined'
+        && typeof window.TechnicianExperience !== 'undefined') {
         return;
     }
 
     await ensureClassicScript(new URL('../pecas.js?v=20260315i', import.meta.url).href, 'Pecas');
-    await ensureClassicScript(new URL('../solicitacoes.js?v=20260709b', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20260811a', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../technician-experience.js?v=20260811a', import.meta.url).href, 'TechnicianExperience');
 
     ready = true;
 }

@@ -1,128 +1,25 @@
-(function () {
-    'use strict';
-
-    function isTechnician() {
-        return typeof Auth !== 'undefined' && Auth.getRole() === 'tecnico';
-    }
-
-    function normalizeStatus(sol) {
-        return typeof DataManager !== 'undefined' && typeof DataManager.normalizeWorkflowStatus === 'function'
-            ? DataManager.normalizeWorkflowStatus(sol.status)
-            : String(sol.status || '').trim();
-    }
-
-    function ensureBottomNavigation() {
-        let nav = document.getElementById('technician-bottom-navigation');
-        if (!isTechnician()) {
-            nav?.remove();
-            document.body.classList.remove('technician-mobile-shell');
-            return;
-        }
-
-        if (!nav) {
-            nav = document.createElement('nav');
-            nav.id = 'technician-bottom-navigation';
-            nav.className = 'technician-bottom-navigation';
-            nav.setAttribute('aria-label', 'Navegação principal do técnico');
-            nav.innerHTML = `
-                <button type="button" data-page="nova-solicitacao"><i class="fas fa-plus"></i><span>Nova</span></button>
-                <button type="button" data-page="minhas-solicitacoes"><i class="fas fa-clipboard-list"></i><span>Pedidos</span></button>
-                <button type="button" data-page="catalogo"><i class="fas fa-magnifying-glass"></i><span>Catálogo</span></button>
-                <button type="button" data-page="perfil"><i class="fas fa-user"></i><span>Conta</span></button>`;
-            nav.addEventListener('click', (event) => {
-                const button = event.target.closest('[data-page]');
-                if (button && typeof App !== 'undefined') App.navigate(button.dataset.page);
-            });
-            document.body.appendChild(nav);
-        }
-
-        const currentPage = typeof App !== 'undefined' ? App.currentPage : '';
-        nav.querySelectorAll('[data-page]').forEach((button) => {
-            const active = button.dataset.page === currentPage
-                || (button.dataset.page === 'minhas-solicitacoes' && currentPage === 'nova-solicitacao');
-            button.classList.toggle('active', active);
-            button.setAttribute('aria-current', active ? 'page' : 'false');
-        });
-        document.body.classList.add('technician-mobile-shell');
-    }
-
-    function renderTechnicianList(solicitacoes) {
-        const requests = solicitacoes.getFilteredSolicitations();
-        const total = requests.length;
-        const totalPages = Math.max(Math.ceil(total / solicitacoes.itemsPerPage), 1);
-        solicitacoes.currentPage = Math.min(solicitacoes.currentPage, totalPages);
-        const start = (solicitacoes.currentPage - 1) * solicitacoes.itemsPerPage;
-        const pageItems = requests.slice(start, start + solicitacoes.itemsPerPage);
-
-        if (!total) {
-            return `<div class="technician-empty-state"><i class="fas fa-clipboard-list"></i><h3>Nenhum pedido encontrado</h3><p>${solicitacoes.hasActiveFilters() ? 'Ajuste os filtros para ampliar a busca.' : 'Crie sua primeira solicitação de peças.'}</p><button class="btn btn-primary" type="button" onclick="Solicitacoes.openForm()"><i class="fas fa-plus"></i> Nova solicitação</button></div>`;
-        }
-
-        const currentTecnicoId = Auth.getTecnicoId();
-        const canEdit = Auth.hasPermission('solicitacoes', 'edit');
-        const cards = pageItems.map((sol) => {
-            const status = normalizeStatus(sol);
-            const parts = solicitacoes.getPieceSummary(sol.itens || []);
-            const quantity = solicitacoes.getItemsQuantity(sol.itens || []);
-            const canReceive = (solicitacoes.sameId(sol.tecnicoId, currentTecnicoId)
-                || solicitacoes.sameId(sol.requesterTecnicoId, currentTecnicoId)) && status === 'em-transito';
-
-            return `<article class="technician-request-card">
-                <button class="technician-request-summary" type="button" onclick="Solicitacoes.viewDetails('${sol.id}')">
-                    <div class="technician-request-heading"><strong>#${Utils.escapeHtml(String(sol.numero || '-'))}</strong>${Utils.renderStatusBadge(status)}</div>
-                    <h3>${Utils.escapeHtml(sol.cliente || 'Cliente não informado')}</h3>
-                    <p class="technician-request-part"><i class="fas fa-gears"></i><span>${Utils.escapeHtml(parts.short)}</span></p>
-                    <div class="technician-request-metadata">
-                        <span><i class="far fa-calendar"></i>${Utils.formatDate(sol.data || sol.createdAt)}</span>
-                        <span><i class="fas fa-box"></i>${Utils.formatNumber(quantity)} ${quantity === 1 ? 'item' : 'itens'}</span>
-                        ${sol.trackingCode ? `<span><i class="fas fa-truck"></i>${Utils.escapeHtml(sol.trackingCode)}</span>` : ''}
-                    </div>
-                </button>
-                <div class="technician-request-actions">
-                    <button class="primary" type="button" onclick="Solicitacoes.viewDetails('${sol.id}')"><i class="fas fa-eye"></i><span>Detalhes</span></button>
-                    ${canEdit && status === 'pendente' ? `<button type="button" onclick="Solicitacoes.openForm('${sol.id}')"><i class="fas fa-pen"></i><span>Editar</span></button>` : ''}
-                    <button type="button" onclick="Solicitacoes.duplicate('${sol.id}')"><i class="fas fa-copy"></i><span>Duplicar</span></button>
-                    ${canReceive ? `<button class="success" type="button" onclick="Solicitacoes.confirmDelivery('${sol.id}')"><i class="fas fa-check-circle"></i><span>Recebi</span></button>` : ''}
-                    <button type="button" onclick="Solicitacoes.downloadPDF('${sol.id}')"><i class="fas fa-file-pdf"></i><span>PDF</span></button>
-                </div>
-            </article>`;
-        }).join('');
-
-        return `<section class="technician-request-list" aria-label="Histórico de pedidos"><div class="technician-list-counter">${total} ${total === 1 ? 'pedido' : 'pedidos'}</div><div class="technician-request-cards">${cards}</div>${Utils.renderPagination(solicitacoes.currentPage, totalPages, (page) => { solicitacoes.currentPage = page; solicitacoes.refreshTable(); })}</section>`;
-    }
-
-    function patchSolicitations() {
-        if (typeof Solicitacoes === 'undefined' || Solicitacoes.__technicianExperiencePatched) return false;
-        const originalRender = Solicitacoes.render.bind(Solicitacoes);
-        const originalRenderTable = Solicitacoes.renderTable.bind(Solicitacoes);
-
-        Solicitacoes.render = function () {
-            const result = originalRender();
-            const content = document.getElementById('content-area');
-            if (content) content.dataset.productPage = isTechnician() ? 'minhas-solicitacoes' : 'solicitacoes';
-            ensureBottomNavigation();
-            return result;
-        };
-
-        Solicitacoes.renderTable = function () {
-            return isTechnician() ? renderTechnicianList(this) : originalRenderTable();
-        };
-        Solicitacoes.__technicianExperiencePatched = true;
-        return true;
-    }
-
-    function init() {
-        let attempts = 0;
-        const timer = setInterval(() => {
-            attempts += 1;
-            patchSolicitations();
-            ensureBottomNavigation();
-            if (attempts >= 120 || (typeof Solicitacoes !== 'undefined' && Solicitacoes.__technicianExperiencePatched)) clearInterval(timer);
-        }, 100);
-        window.addEventListener('resize', ensureBottomNavigation);
-        window.addEventListener('data:updated', () => setTimeout(ensureBottomNavigation, 0));
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-    else init();
-})();
+(function(root,factory){'use strict';const api=factory(root||{});if(root)root.TechnicianExperience=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;})(typeof window!=='undefined'?window:globalThis,function(root){'use strict';
+const ACTIVE=new Set(['pendente','aprovada','em-transito']);
+const FINAL=new Set(['finalizada','entregue','historico-manual']);
+const LABEL={pendente:'Pendente',aprovada:'Aprovada','em-transito':'Em trânsito',finalizada:'Finalizada',entregue:'Entregue',cancelada:'Cancelada',rejeitada:'Rejeitada','historico-manual':'Histórico'};
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+const text=v=>String(v??'').trim().replace(/\s+/g,' ');
+function status(v){const r=text(v).toLowerCase().replace(/-/g,'_');return({enviada:'pendente',criado:'pendente',criada:'pendente',pendente:'pendente',pendente_aprovacao:'pendente',aprovada:'aprovada',aprovado:'aprovada',rejeitada:'rejeitada',reprovado:'rejeitada',em_transito:'em-transito',emtransito:'em-transito',transito:'em-transito',em_compra:'em-transito',entregue:'finalizada',finalizada:'finalizada',concluida:'finalizada',concluido:'finalizada',enviado:'finalizada',historico_manual:'historico-manual'})[r]||text(v);}
+function ts(r){for(const v of [r?.updatedAt,r?.createdAt,r?.data]){if(v==null||v==='')continue;if(v&&typeof v.toDate==='function'){const n=v.toDate().getTime();if(Number.isFinite(n))return n;}if(v&&Number.isFinite(Number(v.seconds)))return Number(v.seconds)*1000;if(typeof v==='number'&&Number.isFinite(v))return v;const n=Date.parse(v);if(Number.isFinite(n))return n;}return 0;}
+const qty=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?n:0;};
+const fmtQty=v=>Number.isInteger(Number(v))?String(Number(v)||0):(Number(v)||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
+function fmtDate(v){if(!v)return'Data não informada';try{return root.Utils?.formatDate?root.Utils.formatDate(new Date(v)):new Date(v).toLocaleDateString('pt-BR');}catch{return'Data não informada';}}
+function aggregatePartHistory(requests=[]){const map=new Map();(Array.isArray(requests)?requests:[]).forEach(r=>{const lastAt=ts(r),lastStatus=status(r?.status),number=text(r?.numero||r?.id||'-'),client=text(r?.cliente||r?.clienteNome||''),seen=new Set();(Array.isArray(r?.itens)?r.itens:[]).forEach(p=>{const code=text(p?.codigo||p?.codigoPeca||p?.sku||''),description=text(p?.descricao||p?.nome||p?.peca||'Peça sem descrição'),key=code?`code:${code.toLocaleLowerCase('pt-BR')}`:`description:${description.toLocaleLowerCase('pt-BR')}`;if(!map.has(key))map.set(key,{code:code||'SEM CÓDIGO',description,totalQuantity:0,requestCount:0,lastAt:0,lastRequestNumber:'-',lastStatus:'',lastClient:''});const x=map.get(key);x.totalQuantity+=qty(p?.quantidade??p?.qtd??p?.quantity);if(!seen.has(key)){x.requestCount++;seen.add(key);}if(lastAt>=x.lastAt){Object.assign(x,{lastAt,lastRequestNumber:number,lastStatus,lastClient:client});}});});return Array.from(map.values()).sort((a,b)=>(b.lastAt-a.lastAt)||(b.requestCount-a.requestCount)||(b.totalQuantity-a.totalQuantity)||a.code.localeCompare(b.code,'pt-BR'));}
+function buildSummary(requests=[]){const list=Array.isArray(requests)?requests:[],history=aggregatePartHistory(list);let activeRequests=0,inTransit=0,finalized=0,totalQuantity=0;list.forEach(r=>{const s=status(r?.status);if(ACTIVE.has(s))activeRequests++;if(s==='em-transito')inTransit++;if(FINAL.has(s))finalized++;(Array.isArray(r?.itens)?r.itens:[]).forEach(p=>totalQuantity+=qty(p?.quantidade??p?.qtd??p?.quantity));});return{totalRequests:list.length,activeRequests,inTransit,finalized,totalQuantity,uniqueParts:history.length};}
+function renderSummaryCards(requests=[]){const s=buildSummary(requests),card=(icon,title,value,sub,cls='info')=>`<div class="kpi-card"><div class="kpi-icon ${cls}"><i class="fas ${icon}"></i></div><div class="kpi-content"><h4>${title}</h4><div class="kpi-value">${esc(value)}</div><div class="kpi-change">${esc(sub)}</div></div></div>`;return`<div class="kpi-grid technician-kpi-grid" aria-label="Resumo das minhas solicitações">${card('fa-clipboard-list','Meus pedidos',s.totalRequests,`${s.finalized} finalizados no histórico`)}${card('fa-hourglass-half','Em andamento',s.activeRequests,'Pendentes, aprovados ou em trânsito','warning')}${card('fa-truck','Em trânsito',s.inTransit,'Aguardando confirmação de recebimento','success')}${card('fa-gears','Peças solicitadas',fmtQty(s.totalQuantity),`${s.uniqueParts} tipos de peça no histórico`,'primary')}</div>`;}
+function renderHistoryPanel(requests=[],options={}){const h=aggregatePartHistory(requests),visible=h.slice(0,Math.max(1,Number(options.limit)||12));if(!visible.length)return`<section class="technician-history-panel" aria-labelledby="technician-history-title"><div class="technician-history-header"><div><span class="technician-history-eyebrow">Rastreabilidade pessoal</span><h3 id="technician-history-title"><i class="fas fa-clock-rotate-left"></i> Histórico de peças</h3></div></div><div class="technician-history-empty"><i class="fas fa-box-open"></i><div><strong>Nenhuma peça no histórico atual.</strong><span>As peças aparecerão aqui conforme suas solicitações forem registradas.</span></div></div></section>`;const rows=visible.map(x=>{const q=fmtQty(x.totalQuantity),qLabel=Number(x.totalQuantity)===1?'peça':'peças',rLabel=x.requestCount===1?'pedido':'pedidos',st=LABEL[x.lastStatus]||text(x.lastStatus)||'Status não informado',client=x.lastClient?` · ${esc(x.lastClient)}`:'';return`<article class="technician-history-item"><div class="technician-history-part"><span class="technician-history-code">${esc(x.code)}</span><strong>${esc(x.description)}</strong><span class="technician-history-last">Último pedido #${esc(x.lastRequestNumber)} · ${esc(fmtDate(x.lastAt))}${client}</span></div><div class="technician-history-metrics"><span class="technician-history-quantity">${esc(q)} ${qLabel}</span><span>${esc(x.requestCount)} ${rLabel}</span><span class="technician-history-status">${esc(st)}</span></div></article>`;}).join(''),remaining=h.length-visible.length;return`<section class="technician-history-panel" aria-labelledby="technician-history-title"><div class="technician-history-header"><div><span class="technician-history-eyebrow">Rastreabilidade pessoal</span><h3 id="technician-history-title"><i class="fas fa-clock-rotate-left"></i> Histórico de peças</h3><p>Consolidado das peças presentes nas suas solicitações, sem duplicar dados no Firebase.</p></div><span class="technician-history-total">${esc(h.length)} ${h.length===1?'peça':'peças'} diferentes</span></div><div class="technician-history-list">${rows}</div>${remaining>0?`<p class="technician-history-more">+${esc(remaining)} peças no histórico. Use os filtros ou a busca para refinar.</p>`:''}</section>`;}
+const isTechnician=()=>root.Auth?.getRole?.()==='tecnico';
+function ensureStyles(){if(!root.document||root.document.querySelector('link[data-technician-history]'))return;const l=root.document.createElement('link');l.rel='stylesheet';l.href='css/technician-history.css?v=20260811a';l.dataset.technicianHistory='true';root.document.head?.appendChild(l);}
+function ensureBottomNav(){if(!root.document)return;let n=root.document.getElementById('technician-bottom-navigation');if(!isTechnician()){n?.remove();return;}if(!n){n=root.document.createElement('nav');n.id='technician-bottom-navigation';n.className='technician-bottom-navigation';n.innerHTML='<button data-page="nova-solicitacao"><i class="fas fa-plus"></i><span>Nova</span></button><button data-page="minhas-solicitacoes"><i class="fas fa-clipboard-list"></i><span>Pedidos</span></button><button data-page="catalogo"><i class="fas fa-magnifying-glass"></i><span>Catálogo</span></button><button data-page="perfil"><i class="fas fa-user"></i><span>Conta</span></button>';n.addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)root.App?.navigate?.(b.dataset.page);});root.document.body.appendChild(n);}}
+function renderTechnicianList(s){const req=s.getFilteredSolicitations(),total=req.length,pages=Math.max(Math.ceil(total/s.itemsPerPage),1);s.currentPage=Math.min(s.currentPage,pages);if(!total)return'<div class="technician-empty-state"><h3>Nenhum pedido encontrado</h3><button class="btn btn-primary" onclick="Solicitacoes.openForm()">Nova solicitação</button></div>';const items=req.slice((s.currentPage-1)*s.itemsPerPage,s.currentPage*s.itemsPerPage),id=root.Auth.getTecnicoId(),edit=root.Auth.hasPermission('solicitacoes','edit');const cards=items.map(sol=>{const st=root.DataManager?.normalizeWorkflowStatus?.(sol.status)||status(sol.status),parts=s.getPieceSummary(sol.itens||[]),q=s.getItemsQuantity(sol.itens||[]),receive=(s.sameId(sol.tecnicoId,id)||s.sameId(sol.requesterTecnicoId,id))&&st==='em-transito';return`<article class="technician-request-card"><button class="technician-request-summary" onclick="Solicitacoes.viewDetails('${sol.id}')"><div class="technician-request-heading"><strong>#${esc(sol.numero||'-')}</strong>${root.Utils.renderStatusBadge(st)}</div><h3>${esc(sol.cliente||'Cliente não informado')}</h3><p class="technician-request-part"><i class="fas fa-gears"></i><span>${esc(parts.short)}</span></p><div class="technician-request-metadata"><span>${root.Utils.formatDate(sol.data||sol.createdAt)}</span><span>${root.Utils.formatNumber(q)} ${q===1?'item':'itens'}</span></div></button><div class="technician-request-actions"><button class="primary" onclick="Solicitacoes.viewDetails('${sol.id}')">Detalhes</button>${edit&&st==='pendente'?`<button onclick="Solicitacoes.openForm('${sol.id}')">Editar</button>`:''}<button onclick="Solicitacoes.duplicate('${sol.id}')">Duplicar</button>${receive?`<button class="success" onclick="Solicitacoes.confirmDelivery('${sol.id}')">Recebi</button>`:''}<button onclick="Solicitacoes.downloadPDF('${sol.id}')">PDF</button></div></article>`;}).join('');return`<section class="technician-request-list"><div class="technician-list-counter">${total} ${total===1?'pedido':'pedidos'}</div><div class="technician-request-cards">${cards}</div>${root.Utils.renderPagination(s.currentPage,pages,p=>{s.currentPage=p;s.refreshTable();})}</section>`;}
+function sync(s){if(!isTechnician()||!root.document)return;ensureStyles();const sum=root.document.getElementById('sol-summary-container');if(sum)sum.innerHTML=renderSummaryCards(s.getFilteredSolicitations());let h=root.document.getElementById('sol-technician-history');if(!h&&sum){h=root.document.createElement('div');h.id='sol-technician-history';sum.insertAdjacentElement('afterend',h);}if(h)h.innerHTML=renderHistoryPanel(s.getFilteredSolicitations(),{limit:12});const search=root.document.getElementById('sol-search');if(search)search.placeholder='Buscar por número, cliente ou peça...';['downloadBackup','triggerRestoreBackup'].forEach(m=>root.document.querySelectorAll(`[onclick*="Solicitacoes.${m}"]`).forEach(el=>el.remove()));}
+function patchSolicitations(){const s=root.Solicitacoes;if(!s||s.__technicianHistoryPatched)return false;const render=s.render.bind(s),table=s.renderTable.bind(s),refresh=s.refreshTable.bind(s);s.canManageSolicitationBackup=()=>root.Auth?.getRole?.()==='administrador';s.renderTable=function(){return isTechnician()?renderTechnicianList(this):table();};s.render=function(){const r=render();sync(this);ensureBottomNav();return r;};s.refreshTable=function(){const r=refresh();sync(this);return r;};for(const m of ['downloadBackup','triggerRestoreBackup','handleRestoreBackup'])if(typeof s[m]==='function'){const original=s[m].bind(s);s[m]=function(...args){if(!this.canManageSolicitationBackup()){root.Utils?.showToast?.('Apenas administradores podem gerenciar backups de solicitações.','error');if(m==='handleRestoreBackup'&&args[0]?.target)args[0].target.value='';return;}return original(...args);};}s.__technicianHistoryPatched=true;return true;}
+function init(){ensureStyles();if(patchSolicitations())return;let attempts=0;const t=root.setInterval?.(()=>{attempts++;if(patchSolicitations()||attempts>=120)root.clearInterval?.(t);},100);}
+if(root.document){root.document.readyState==='loading'?root.document.addEventListener('DOMContentLoaded',init,{once:true}):init();root.addEventListener?.('resize',ensureBottomNav);root.addEventListener?.('data:updated',()=>root.setTimeout?.(()=>{if(root.Solicitacoes)sync(root.Solicitacoes);},0));}
+return Object.freeze({aggregatePartHistory,buildSummary,renderHistoryPanel,renderSummaryCards,patchSolicitations});
+});
