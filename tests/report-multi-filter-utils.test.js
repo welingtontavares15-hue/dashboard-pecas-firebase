@@ -1,12 +1,20 @@
-import {
-    normalizeMultiValues,
-    normalizeComparable,
-    matchesAnySelected,
-    getRecordSupplierCandidates,
-    scopeRecordToSuppliers
-} from '../js/components/report-multi-filter-utils.js';
-
 describe('report multi-filter utilities', () => {
+    let normalizeMultiValues;
+    let normalizeComparable;
+    let matchesAnySelected;
+    let getRecordSupplierCandidates;
+    let scopeRecordToSuppliers;
+
+    beforeAll(async () => {
+        ({
+            normalizeMultiValues,
+            normalizeComparable,
+            matchesAnySelected,
+            getRecordSupplierCandidates,
+            scopeRecordToSuppliers
+        } = await import('../js/components/report-multi-filter-utils.js'));
+    });
+
     test('normalizes and de-duplicates selected values', () => {
         expect(normalizeMultiValues([' a ', 'b', 'a', '', null])).toEqual(['a', 'b']);
     });
