@@ -33,9 +33,10 @@ describe('Navegação consolidada', () => {
     });
 
     test('mantém suporte offline na versão de cache atual', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v53-premium-multifilters'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v54-operational-side-nav'");
         expect(serviceWorker).toContain("'./js/navigation-master.js'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
         expect(serviceWorker).toContain("'./css/premium-ui-v3-polish.css'");
+        expect(serviceWorker).toContain("'./js/components/dashboard-focus.js'");
     });
 });
