@@ -1,6 +1,10 @@
-import { applyReportsMultiSelect } from '../js/components/reports-multi-select.js';
-
 describe('reports multi-select enhancement', () => {
+    let applyReportsMultiSelect;
+
+    beforeAll(async () => {
+        ({ applyReportsMultiSelect } = await import('../js/components/reports-multi-select.js'));
+    });
+
     beforeEach(() => {
         document.body.innerHTML = '<div id="content-area"></div>';
         window.sessionStorage.clear();
