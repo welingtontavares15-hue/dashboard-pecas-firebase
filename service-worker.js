@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v53-premium-multifilters';
+const CACHE_VERSION = 'v54-operational-side-nav';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
