@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - gpt72/executive-hardening-20260827
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:check
+
+      - name: Test
+        run: npm test -- --runInBand
+
+      - name: Privacy guard
+        run: node scripts/redact-technician-fallback.mjs --check
+
+      - name: Validate runtime artifact inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f service-worker.js
+          test -f manifest.webmanifest
+          test -d css
+          test -d js
+          test -d icons
