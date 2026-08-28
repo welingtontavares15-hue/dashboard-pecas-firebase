@@ -21,6 +21,11 @@ export async function ensureLoaded() {
         focusPatch.applyDashboardFocus();
     }
 
+    const stabilityPatch = await import(new URL('../components/dashboard-stability.js?v=20260828a', import.meta.url).href);
+    if (stabilityPatch && typeof stabilityPatch.applyDashboardStability === 'function') {
+        stabilityPatch.applyDashboardStability();
+    }
+
     ready = true;
 }
 

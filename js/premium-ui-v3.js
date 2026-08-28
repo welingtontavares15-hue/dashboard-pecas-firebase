@@ -4,6 +4,15 @@
     let scheduled = false;
     let observerReady = false;
 
+    function ensurePolishStyles() {
+        if (document.querySelector('link[data-premium-ui-v3-polish]')) return;
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'css/premium-ui-v3-polish.css?v=20260828b';
+        link.dataset.premiumUiV3Polish = 'true';
+        document.head.appendChild(link);
+    }
+
     function getCurrentPage() {
         return (typeof App !== 'undefined' && App.currentPage)
             ? String(App.currentPage)
@@ -108,6 +117,24 @@
         });
     }
 
+    function polishReportChartOrientation() {
+        if (getCurrentPage() !== 'relatorios' || typeof Relatorios === 'undefined') return;
+        ['reportOverviewTechChart', 'reportTechnicianCostChart'].forEach((id) => {
+            const chart = Relatorios.charts?.[id];
+            if (!chart || chart.options?.indexAxis === 'y') return;
+            chart.options.indexAxis = 'y';
+            if (chart.options.scales?.x) {
+                chart.options.scales.x.beginAtZero = true;
+            }
+            if (chart.options.scales?.y?.ticks) {
+                chart.options.scales.y.ticks.maxRotation = 0;
+                chart.options.scales.y.ticks.minRotation = 0;
+                chart.options.scales.y.ticks.autoSkip = false;
+            }
+            chart.update('none');
+        });
+    }
+
     function improveReportCharts() {
         if (getCurrentPage() !== 'relatorios') return;
 
@@ -118,6 +145,8 @@
         document.querySelectorAll('.chart-container').forEach((container) => {
             container.classList.add('premium-report-chart');
         });
+
+        setTimeout(polishReportChartOrientation, 90);
     }
 
     function closeOpenMenusOnOutsideClick(event) {
@@ -177,6 +206,7 @@
     }
 
     function init() {
+        ensurePolishStyles();
         markBody();
         patchLifecycle();
         setupObserver();
