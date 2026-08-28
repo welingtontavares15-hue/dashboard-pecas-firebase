@@ -7,6 +7,8 @@
 // authenticated cloud source and must never be embedded in the public frontend.
 // Privacy-safe bootstrap fallback. Residential address data must come from the
 // authenticated cloud source and must never be embedded in the public frontend.
+// Privacy-safe bootstrap fallback. Residential address data must come from the
+// authenticated cloud source and must never be embedded in the public frontend.
 const OFFICIAL_TECHNICIANS_BASE = {
     'Antonio Ferreira De Santana Filho':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
     'Antonio Rocker':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
