@@ -2,7 +2,8 @@ import fs from 'node:fs';
 
 const file = new URL('../js/data.js', import.meta.url);
 const source = fs.readFileSync(file, 'utf8');
-const blockPattern = /const OFFICIAL_TECHNICIANS_BASE = \{[\s\S]*?\n\};\n\nconst OFFICIAL_PARTS_BASE/;
+const commentBlock = String.raw`(?:\/\/ Privacy-safe bootstrap fallback\. Residential address data must come from the\n\/\/ authenticated cloud source and must never be embedded in the public frontend\.\n)*`;
+const blockPattern = new RegExp(`${commentBlock}const OFFICIAL_TECHNICIANS_BASE = \\{[\\s\\S]*?\\n\\};\\n\\nconst OFFICIAL_PARTS_BASE`);
 const match = source.match(blockPattern);
 
 if (!match) {
