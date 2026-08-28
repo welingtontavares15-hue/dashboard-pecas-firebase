@@ -4,16 +4,23 @@
     const RELEASE_VERSION = 'v55-premium-production';
     const ASSET_VERSION = '20260828c';
 
+    function installAnalyticsContract() {
+        if (!window.AnalyticsHelper && window.AnalyticsEngine) {
+            window.AnalyticsHelper = window.AnalyticsEngine;
+        }
+        return Boolean(window.AnalyticsHelper || window.AnalyticsEngine);
+    }
+
     function installAppContract() {
-        if (!window.App || App.__premiumReleaseV55Installed) return false;
+        if (!window.App || window.App.__premiumReleaseV55Installed) return false;
 
-        App.lazyModules.dashboard = `./pages/dashboard-v55.js?v=${ASSET_VERSION}`;
-        App.lazyModules.relatorios = `./pages/relatorios-v55.js?v=${ASSET_VERSION}`;
-        delete App._lazyLoaded.dashboard;
-        delete App._lazyLoaded.relatorios;
+        window.App.lazyModules.dashboard = `./pages/dashboard-v55.js?v=${ASSET_VERSION}`;
+        window.App.lazyModules.relatorios = `./pages/relatorios-v55.js?v=${ASSET_VERSION}`;
+        delete window.App._lazyLoaded.dashboard;
+        delete window.App._lazyLoaded.relatorios;
 
-        const originalUpdateBreadcrumb = App.updateBreadcrumb.bind(App);
-        App.updateBreadcrumb = function updateBreadcrumbV55(pageId) {
+        const originalUpdateBreadcrumb = window.App.updateBreadcrumb.bind(window.App);
+        window.App.updateBreadcrumb = function updateBreadcrumbV55(pageId) {
             if (pageId !== 'dashboard' && pageId !== 'visao-geral') {
                 return originalUpdateBreadcrumb(pageId);
             }
@@ -23,30 +30,30 @@
             }
         };
 
-        const originalShowApp = App.showApp.bind(App);
-        App.showApp = function showAppV55() {
+        const originalShowApp = window.App.showApp.bind(window.App);
+        window.App.showApp = function showAppV55() {
             originalShowApp();
             window.setTimeout(() => {
-                if (typeof Auth?.renderMenu === 'function') {
-                    Auth.renderMenu(App.currentPage || App.getDefaultPage());
+                if (typeof window.Auth?.renderMenu === 'function') {
+                    window.Auth.renderMenu(window.App.currentPage || window.App.getDefaultPage());
                 }
             }, 0);
         };
 
-        App.__premiumReleaseV55Installed = true;
+        window.App.__premiumReleaseV55Installed = true;
         return true;
     }
 
     function installNavigationContract() {
         if (!window.Auth || !window.NavigationMaster) return false;
-        Auth.renderMenu = function renderMenuV55(activeId) {
-            NavigationMaster.render(this, NavigationMaster.resolveRoute(activeId).pageId);
+        window.Auth.renderMenu = function renderMenuV55(activeId) {
+            window.NavigationMaster.render(this, window.NavigationMaster.resolveRoute(activeId).pageId);
         };
-        Auth.canAccessRoute = function canAccessRouteV55(routeId) {
-            return NavigationMaster.canAccessRoute(this, routeId);
+        window.Auth.canAccessRoute = function canAccessRouteV55(routeId) {
+            return window.NavigationMaster.canAccessRoute(this, routeId);
         };
-        Auth.getMenuItems = function getMenuItemsV55() {
-            return NavigationMaster.getMenuItems(this.getRole());
+        window.Auth.getMenuItems = function getMenuItemsV55() {
+            return window.NavigationMaster.getMenuItems(this.getRole());
         };
         return true;
     }
@@ -59,6 +66,7 @@
 
     function install() {
         markRelease();
+        installAnalyticsContract();
         installNavigationContract();
         installAppContract();
     }
@@ -73,7 +81,7 @@
     const timer = window.setInterval(() => {
         attempts += 1;
         install();
-        if ((window.App && window.Auth && window.NavigationMaster) || attempts >= 40) {
+        if ((window.App && window.Auth && window.NavigationMaster && (window.AnalyticsHelper || window.AnalyticsEngine)) || attempts >= 40) {
             window.clearInterval(timer);
         }
     }, 100);
