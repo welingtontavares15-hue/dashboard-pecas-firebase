@@ -1,19 +1,21 @@
-describe('report multi-filter utilities', () => {
-    let normalizeMultiValues;
-    let normalizeComparable;
-    let matchesAnySelected;
-    let getRecordSupplierCandidates;
-    let scopeRecordToSuppliers;
+const fs = require('fs');
+const path = require('path');
 
-    beforeAll(async () => {
-        ({
-            normalizeMultiValues,
-            normalizeComparable,
-            matchesAnySelected,
-            getRecordSupplierCandidates,
-            scopeRecordToSuppliers
-        } = await import('../js/components/report-multi-filter-utils.js'));
-    });
+function loadHelpers() {
+    const file = path.resolve(__dirname, '../js/components/report-multi-filter-utils.js');
+    const source = fs.readFileSync(file, 'utf8').replace(/export\s+function\s+/g, 'function ');
+    const factory = new Function(`${source}\nreturn { normalizeMultiValues, normalizeComparable, matchesAnySelected, getRecordSupplierCandidates, scopeRecordToSuppliers };`);
+    return factory();
+}
+
+describe('report multi-filter utilities', () => {
+    const {
+        normalizeMultiValues,
+        normalizeComparable,
+        matchesAnySelected,
+        getRecordSupplierCandidates,
+        scopeRecordToSuppliers
+    } = loadHelpers();
 
     test('normalizes and de-duplicates selected values', () => {
         expect(normalizeMultiValues([' a ', 'b', 'a', '', null])).toEqual(['a', 'b']);
