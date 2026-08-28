@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v52-history-navigation-master';
+const CACHE_VERSION = 'v53-premium-multifilters';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -26,6 +26,8 @@ const PRECACHE = {
     './css/visual-refresh.css',
     './css/sidebar-pro.css',
     './css/premium-dashboard-v2.css',
+    './css/premium-ui-v3.css',
+    './css/premium-ui-v3-polish.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -47,6 +49,7 @@ const PRECACHE = {
     './js/ui-modern.js',
     './js/navigation-master.js',
     './js/premium-plus.js',
+    './js/premium-ui-v3.js',
     './js/corporate-platform.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
@@ -56,7 +59,9 @@ const PRECACHE = {
     './js/pages/relatorios.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
-    './js/components/reports-modern.js'
+    './js/components/reports-modern.js',
+    './js/components/reports-multi-select.js',
+    './js/components/report-multi-filter-utils.js'
   ],
   dashboard: [
     './js/dashboard.js',
@@ -65,7 +70,8 @@ const PRECACHE = {
     './js/relatorios.js',
     './js/vendor/chart.umd.js',
     './js/components/dashboard-modern.js',
-    './js/components/dashboard-focus.js'
+    './js/components/dashboard-focus.js',
+    './js/components/dashboard-stability.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
@@ -81,7 +87,9 @@ const PRECACHE = {
   ],
   relatorios: [
     './js/relatorios.js',
-    './js/components/reports-modern.js'
+    './js/components/reports-modern.js',
+    './js/components/reports-multi-select.js',
+    './js/components/report-multi-filter-utils.js'
   ]
 };
 
