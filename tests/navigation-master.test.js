@@ -33,7 +33,8 @@ describe('Navegação consolidada', () => {
     });
 
     test('mantém suporte offline na versão de cache atual', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v52-history-navigation-master'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v53-app-shell-v3'");
         expect(serviceWorker).toContain("'./js/navigation-master.js'");
+        expect(serviceWorker).toContain("'./css/app-shell-v3.css'");
     });
 });
