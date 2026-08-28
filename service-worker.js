@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v54-operational-side-nav';
+const CACHE_VERSION = 'v55-premium-production';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -28,6 +28,8 @@ const PRECACHE = {
     './css/premium-dashboard-v2.css',
     './css/premium-ui-v3.css',
     './css/premium-ui-v3-polish.css',
+    './css/premium-login-v55.css',
+    './css/premium-release-v55.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -48,20 +50,26 @@ const PRECACHE = {
     './js/app.js',
     './js/ui-modern.js',
     './js/navigation-master.js',
+    './js/navigation-master-v55.js',
     './js/premium-plus.js',
     './js/premium-ui-v3.js',
+    './js/premium-release-v55.js',
     './js/corporate-platform.js',
+    './js/navigation-consolidation-runtime.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
+    './js/pages/dashboard-v55.js',
     './js/pages/solicitacoes.js',
     './js/pages/aprovacoes.js',
     './js/pages/pecas.js',
     './js/pages/relatorios.js',
+    './js/pages/relatorios-v55.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
     './js/components/reports-modern.js',
     './js/components/reports-multi-select.js',
-    './js/components/report-multi-filter-utils.js'
+    './js/components/report-multi-filter-utils.js',
+    './js/components/reports-chart-hardening-v55.js'
   ],
   dashboard: [
     './js/dashboard.js',
@@ -71,7 +79,8 @@ const PRECACHE = {
     './js/vendor/chart.umd.js',
     './js/components/dashboard-modern.js',
     './js/components/dashboard-focus.js',
-    './js/components/dashboard-stability.js'
+    './js/components/dashboard-stability.js',
+    './js/components/dashboard-premium-v55.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
@@ -87,9 +96,11 @@ const PRECACHE = {
   ],
   relatorios: [
     './js/relatorios.js',
+    './js/pages/relatorios-v55.js',
     './js/components/reports-modern.js',
     './js/components/reports-multi-select.js',
-    './js/components/report-multi-filter-utils.js'
+    './js/components/report-multi-filter-utils.js',
+    './js/components/reports-chart-hardening-v55.js'
   ]
 };
 
@@ -185,7 +196,7 @@ async function precacheModule(module, assets) {
 
 async function handleNavigationRequest(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     const cache = await caches.open(MODULE_CACHES.core);
     cache.put(normalizeAssetUrl('./index.html'), response.clone()).catch(() => {});
     return response;
@@ -201,20 +212,18 @@ async function handleNavigationRequest(request) {
 async function handleAssetRequest(cacheName, request) {
   const cache = await caches.open(cacheName);
   const cacheKey = normalizeAssetUrl(request.url);
-  const cachedResponse = await cache.match(cacheKey);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
 
   try {
-    const networkResponse = await fetch(request);
+    const networkResponse = await fetch(request, { cache: 'no-store' });
     if (networkResponse && networkResponse.ok) {
       cache.put(cacheKey, networkResponse.clone()).catch(() => {});
+      return networkResponse;
     }
-    return networkResponse;
   } catch (_error) {
-    return await cache.match(cacheKey) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
+    // Network failed; fall back to the current release cache.
   }
+
+  return await cache.match(cacheKey) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
 }
 
 async function notifyClientsUpdated() {
