@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v52-history-navigation-master';
+const CACHE_VERSION = 'v53-app-shell-v3';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -22,6 +22,7 @@ const PRECACHE = {
     './css/corporate-platform.css',
     './css/clean-ui.css',
     './css/ui-consolidation.css',
+    './css/app-shell-v3.css',
     './css/screen-fixes-v5.css',
     './css/visual-refresh.css',
     './css/sidebar-pro.css',
