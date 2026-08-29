@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v57-wwm-dashboard';
-    const ASSET_VERSION = '20260829a';
+    const RELEASE_VERSION = 'v58-wwm-hardwired';
+    const ASSET_VERSION = '20260829b';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -47,9 +47,7 @@
             submit.innerHTML = '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar';
             submit.dataset.wwmLabelApplied = 'true';
         }
-        if (footer) {
-            footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido para usuários autorizados.';
-        }
+        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido para usuários autorizados.';
 
         if (!inner.querySelector('.wwm-login-support')) {
             const support = document.createElement('p');
@@ -69,7 +67,7 @@
     }
 
     function installAppContract() {
-        if (!window.App || window.App.__premiumReleaseV55Installed) return false;
+        if (!window.App || window.App.__premiumReleaseV58Installed) return false;
 
         window.App.lazyModules.dashboard = `./pages/dashboard-v55.js?v=${ASSET_VERSION}`;
         window.App.lazyModules.relatorios = `./pages/relatorios-v55.js?v=${ASSET_VERSION}`;
@@ -77,19 +75,17 @@
         delete window.App._lazyLoaded.relatorios;
 
         const originalUpdateBreadcrumb = window.App.updateBreadcrumb.bind(window.App);
-        window.App.updateBreadcrumb = function updateBreadcrumbV57(pageId) {
-            document.body?.classList.toggle('wwm-dashboard-active', pageId === 'dashboard' || pageId === 'visao-geral');
-            if (pageId !== 'dashboard' && pageId !== 'visao-geral') {
-                return originalUpdateBreadcrumb(pageId);
-            }
+        window.App.updateBreadcrumb = function updateBreadcrumbV58(pageId) {
+            const isDashboard = pageId === 'dashboard' || pageId === 'visao-geral';
+            document.body?.classList.toggle('wwm-dashboard-v58-active', isDashboard);
+            document.body?.classList.remove('wwm-dashboard-active');
+            if (!isDashboard) return originalUpdateBreadcrumb(pageId);
             const breadcrumb = document.getElementById('breadcrumb');
-            if (breadcrumb) {
-                breadcrumb.innerHTML = '<span>Portal de Peças WWM</span>';
-            }
+            if (breadcrumb) breadcrumb.innerHTML = '<span>WWM – Portal de Peças</span>';
         };
 
         const originalShowApp = window.App.showApp.bind(window.App);
-        window.App.showApp = function showAppV57() {
+        window.App.showApp = function showAppV58() {
             originalShowApp();
             window.setTimeout(() => {
                 if (typeof window.Auth?.renderMenu === 'function') {
@@ -98,19 +94,19 @@
             }, 0);
         };
 
-        window.App.__premiumReleaseV55Installed = true;
+        window.App.__premiumReleaseV58Installed = true;
         return true;
     }
 
     function installNavigationContract() {
         if (!window.Auth || !window.NavigationMaster) return false;
-        window.Auth.renderMenu = function renderMenuV57(activeId) {
+        window.Auth.renderMenu = function renderMenuV58(activeId) {
             window.NavigationMaster.render(this, window.NavigationMaster.resolveRoute(activeId).pageId);
         };
-        window.Auth.canAccessRoute = function canAccessRouteV57(routeId) {
+        window.Auth.canAccessRoute = function canAccessRouteV58(routeId) {
             return window.NavigationMaster.canAccessRoute(this, routeId);
         };
-        window.Auth.getMenuItems = function getMenuItemsV57() {
+        window.Auth.getMenuItems = function getMenuItemsV58() {
             return window.NavigationMaster.getMenuItems(this.getRole());
         };
         return true;
@@ -118,7 +114,8 @@
 
     function markRelease() {
         document.documentElement.dataset.uiRelease = RELEASE_VERSION;
-        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56', 'wwm-reference-release-v57');
+        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56', 'wwm-reference-release-v58');
+        document.body?.classList.remove('wwm-reference-release-v57');
         window.PREMIUM_RELEASE_VERSION = RELEASE_VERSION;
     }
 
@@ -130,11 +127,8 @@
         installAppContract();
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', install, { once: true });
-    } else {
-        install();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
+    else install();
 
     let attempts = 0;
     const timer = window.setInterval(() => {
