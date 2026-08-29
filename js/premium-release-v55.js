@@ -1,14 +1,71 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v55-premium-production';
-    const ASSET_VERSION = '20260828c';
+    const RELEASE_VERSION = 'v56-wwm-reference-login';
+    const ASSET_VERSION = '20260828d';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
             window.AnalyticsHelper = window.AnalyticsEngine;
         }
         return Boolean(window.AnalyticsHelper || window.AnalyticsEngine);
+    }
+
+    function installWwmLoginReference() {
+        const screen = document.getElementById('login-screen');
+        const card = screen?.querySelector('.login-card');
+        const inner = screen?.querySelector('.login-card-inner');
+        if (!screen || !card || !inner) return false;
+
+        screen.classList.add('wwm-reference-login');
+
+        if (!card.querySelector('.wwm-login-header')) {
+            card.insertAdjacentHTML('afterbegin', `
+                <header class="wwm-login-header" aria-label="Identidade WWM">
+                    <div class="wwm-login-brand">
+                        <span class="wwm-brand-symbol" aria-hidden="true">D</span>
+                        <div class="wwm-brand-copy">
+                            <strong>Diversey</strong>
+                            <span>A Solenis Company</span>
+                        </div>
+                    </div>
+                    <p>Central operacional AS&amp;TS · Solenis Brasil</p>
+                </header>
+            `);
+        }
+
+        const kicker = inner.querySelector('.login-form-kicker');
+        const title = inner.querySelector('#login-title');
+        const description = inner.querySelector('.login-logo > p');
+        const submit = inner.querySelector('#login-submit');
+        const footer = inner.querySelector('.premium-login-form-footer');
+
+        if (kicker) kicker.textContent = 'WWM · Warewashing Machine Request';
+        if (title) title.textContent = 'Acesso ao ambiente corporativo';
+        if (description) description.textContent = 'Entre com seu usuário e senha para acessar o Portal de Peças WWM.';
+        if (submit && !submit.dataset.wwmLabelApplied) {
+            submit.innerHTML = '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar';
+            submit.dataset.wwmLabelApplied = 'true';
+        }
+        if (footer) {
+            footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido e exclusivo para usuários autorizados.';
+        }
+
+        if (!inner.querySelector('.wwm-login-support')) {
+            const support = document.createElement('p');
+            support.className = 'wwm-login-support';
+            support.textContent = 'Acesso indisponível? Solicite a liberação ao administrador.';
+            inner.appendChild(support);
+        }
+
+        if (!inner.querySelector('.wwm-login-meta')) {
+            const meta = document.createElement('div');
+            meta.className = 'wwm-login-meta';
+            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span><span>Ambiente corporativo</span>';
+            inner.appendChild(meta);
+        }
+
+        return true;
     }
 
     function installAppContract() {
@@ -60,12 +117,13 @@
 
     function markRelease() {
         document.documentElement.dataset.uiRelease = RELEASE_VERSION;
-        document.body?.classList.add('premium-release-v55');
+        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56');
         window.PREMIUM_RELEASE_VERSION = RELEASE_VERSION;
     }
 
     function install() {
         markRelease();
+        installWwmLoginReference();
         installAnalyticsContract();
         installNavigationContract();
         installAppContract();

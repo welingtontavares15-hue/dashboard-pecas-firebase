@@ -36,8 +36,8 @@ describe('Navegação consolidada', () => {
         expect(index).toContain('js/premium-release-v55.js?v=20260828c');
     });
 
-    test('mantém suporte offline na versão de cache v55', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v55-premium-production'");
+    test('mantém suporte offline na versão de cache atual', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v56-wwm-reference-login'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
         expect(serviceWorker).toContain("'./css/premium-release-v55.css'");
