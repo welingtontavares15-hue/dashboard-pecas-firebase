@@ -265,3 +265,4 @@ const IndexedDBStorage = {
     }
 };
 
+window.IndexedDBStorage = IndexedDBStorage;

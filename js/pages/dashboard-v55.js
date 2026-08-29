@@ -1,5 +1,5 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829d';
+import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829e';
 
 let ready = false;
 

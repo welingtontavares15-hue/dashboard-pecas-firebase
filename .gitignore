@@ -8,6 +8,8 @@ npm-debug.log*
 # Arquivos temporários de harness/preview (não versionar)
 __*_harness.html
 __*_seed.js
+__ui_debug.html
+__ui_dbg.js
 .claude/launch.json
 
 # SO / editor

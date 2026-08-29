@@ -937,31 +937,5 @@ const Auth = {
     }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Exposição global: NavigationMaster e as camadas visuais consultam window.Auth.
+window.Auth = Auth;

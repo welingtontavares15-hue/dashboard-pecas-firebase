@@ -64,7 +64,7 @@ describe('Release WWM v60 reference layout', () => {
     });
 
     test('publica cache v60 com os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v61-wwm-portal-exact'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v62-wwm-referencia-visual'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',

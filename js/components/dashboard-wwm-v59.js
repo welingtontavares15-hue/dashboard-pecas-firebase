@@ -7,6 +7,14 @@ const STATUS_GROUPS = [
     { key: 'rejected', label: 'Rejeitadas', statuses: ['rejeitada'], tone: 'danger', icon: 'fa-circle-xmark' }
 ];
 
+const TONE_COLORS = {
+    warning: '#ffc21c',
+    success: '#16df94',
+    info: '#15a8ff',
+    neutral: '#08c9bc',
+    danger: '#ff4a54'
+};
+
 const safeArray = (value) => Array.isArray(value) ? value : [];
 
 function recordCost(record) {
@@ -63,9 +71,12 @@ function buildAnalysis(source, days) {
 
 function statusDistribution(analysis) {
     const raw = analysis?.byStatus || {};
+    const rows = safeArray(analysis?.solicitations);
+    const normalize = (value) => String(value || '').trim().toLowerCase();
     return STATUS_GROUPS.map((group) => ({
         ...group,
-        value: group.statuses.reduce((sum, status) => sum + (Number(raw[status]) || 0), 0)
+        value: group.statuses.reduce((sum, status) => sum + (Number(raw[status]) || 0), 0),
+        cost: rows.reduce((sum, row) => (group.statuses.includes(normalize(row?.status)) ? sum + recordCost(row) : sum), 0)
     }));
 }
 
@@ -89,17 +100,25 @@ function metricCard(label, value, note, icon, tone) {
 }
 
 function statusStrip(statuses) {
-    const total = statuses.reduce((sum, item) => sum + item.value, 0) || 1;
     return statuses.map((item) => `<article class="v59-status is-${item.tone}">
         <div><i class="fas ${item.icon}"></i><span>${item.label}</span></div>
         <strong>${Utils.formatNumber(item.value)}</strong>
-        <small>${Math.round((item.value / total) * 100)}%</small>
+        <small>${Utils.formatCurrency(item.cost || 0)}</small>
     </article>`).join('');
+}
+
+function donutLegend(statuses) {
+    const total = statuses.reduce((sum, item) => sum + item.value, 0) || 1;
+    return `<ul class="v59-donut-legend">${statuses.map((item) => `<li class="is-${item.tone}">
+        <span class="v59-legend-dot" aria-hidden="true"></span>
+        <span class="v59-legend-label">${item.label}</span>
+        <span class="v59-legend-value">${Utils.formatNumber(item.value)} (${((item.value / total) * 100).toFixed(1).replace('.', ',')}%)</span>
+    </li>`).join('')}</ul>`;
 }
 
 function topPiecesTable(items) {
     if (!items?.length) return '<div class="v59-empty">Sem peças com custo no período.</div>';
-    return `<div class="v59-table-wrap"><table class="v59-table"><thead><tr><th>#</th><th>Peça</th><th>Categoria</th><th>Qtd.</th><th>Custo total</th></tr></thead><tbody>${items.slice(0, 5).map((item, index) => `<tr>
+    return `<div class="v59-table-wrap"><table class="v59-table v59-table--pieces"><thead><tr><th>#</th><th>Peça</th><th>Categoria</th><th>Qtd.</th><th>Custo total</th></tr></thead><tbody>${items.slice(0, 5).map((item, index) => `<tr>
         <td>${index + 1}</td>
         <td><strong>${Utils.escapeHtml(item.descricao || item.codigo || 'Peça')}</strong></td>
         <td>${Utils.escapeHtml(item.categoria || item.category || '—')}</td>
@@ -110,7 +129,7 @@ function topPiecesTable(items) {
 
 function recentTable(rows) {
     if (!rows?.length) return '<div class="v59-empty">Nenhuma solicitação no período selecionado.</div>';
-    return `<div class="v59-table-wrap"><table class="v59-table"><thead><tr><th>Data</th><th>Nº solicitação</th><th>Técnico</th><th>Cliente</th><th>Custo</th><th>Status</th></tr></thead><tbody>${rows.slice(0, 7).map((row) => `<tr>
+    return `<div class="v59-table-wrap"><table class="v59-table v59-table--recent"><thead><tr><th>Data</th><th>Nº solicitação</th><th>Técnico</th><th>Cliente</th><th>Custo</th><th>Status</th></tr></thead><tbody>${rows.slice(0, 7).map((row) => `<tr>
         <td>${Utils.formatDate(row.data || row.createdAt)}</td>
         <td><strong>#${Utils.escapeHtml(String(row.numero || 'Sem número').replace(/^#/, ''))}</strong></td>
         <td>${Utils.escapeHtml(row.tecnicoNome || row.requesterName || 'Não informado')}</td>
@@ -153,7 +172,7 @@ function renderReady(source, period, analysis) {
                     </article>
                     <article class="v59-card">
                         <header class="v59-card-head"><div><strong>Distribuição por status</strong><span>Quantidade de solicitações</span></div><i class="fas fa-circle-info" aria-hidden="true"></i></header>
-                        <div class="v59-chart-box is-donut">${statuses.some((item) => item.value > 0) ? '<canvas id="v59-status-chart"></canvas>' : '<div class="v59-empty">Sem solicitações.</div>'}</div>
+                        <div class="v59-chart-box is-donut">${statuses.some((item) => item.value > 0) ? `<div class="v59-donut-wrap"><canvas id="v59-status-chart"></canvas></div>${donutLegend(statuses)}` : '<div class="v59-empty">Sem solicitações.</div>'}</div>
                     </article>
                 </section>
 
@@ -204,10 +223,39 @@ function drawCharts(analysis) {
     const statuses = statusDistribution(analysis).filter((item) => item.value > 0);
     const statusCanvas = document.getElementById('v59-status-chart');
     if (statusCanvas && statuses.length) {
+        const total = statuses.reduce((sum, item) => sum + item.value, 0);
         Dashboard._v59Charts.status = new Chart(statusCanvas, {
             type: 'doughnut',
-            data: { labels: statuses.map((item) => item.label), datasets: [{ data: statuses.map((item) => item.value), backgroundColor: ['#ffc21c', '#16df94', '#15a8ff', '#08c9bc', '#ff4a54'], borderColor: '#07505a', borderWidth: 3 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, padding: 14, color: '#d8ecec' } } } }
+            data: {
+                labels: statuses.map((item) => item.label),
+                datasets: [{
+                    data: statuses.map((item) => item.value),
+                    // cor derivada do tom do grupo: com um status zerado a lista é
+                    // filtrada e um array fixo desalinharia rosca e legenda.
+                    backgroundColor: statuses.map((item) => TONE_COLORS[item.tone] || TONE_COLORS.neutral),
+                    borderColor: '#04434a',
+                    borderWidth: 3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } },
+            plugins: [{
+                id: 'v59DonutTotal',
+                afterDraw(chart) {
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return;
+                    const x = (chartArea.left + chartArea.right) / 2;
+                    const y = (chartArea.top + chartArea.bottom) / 2;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '800 24px Inter, Manrope, Segoe UI, sans-serif';
+                    ctx.fillText(Utils.formatNumber(total), x, y - 2);
+                    ctx.fillStyle = '#bcd8d7';
+                    ctx.font = '600 12px Inter, Manrope, Segoe UI, sans-serif';
+                    ctx.fillText('Total', x, y + 18);
+                    ctx.restore();
+                }
+            }]
         });
     }
 }

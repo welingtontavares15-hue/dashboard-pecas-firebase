@@ -980,8 +980,8 @@ export function applyReportsModernization() {
                     labels: months.map((month) => month.label),
                     datasets: [{
                         data: months.map((month) => Number(month.totalCost) || 0),
-                        borderColor: '#2563EB',
-                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                        borderColor: '#1ee1ce',
+                        backgroundColor: 'rgba(30, 225, 206, 0.14)',
                         fill: true,
                         tension: 0.28,
                         pointRadius: 3,
@@ -1023,7 +1023,7 @@ export function applyReportsModernization() {
             'reportOverviewTechChart',
             topTechnicians.slice(0, 10).map((technician) => technician.nome),
             topTechnicians.slice(0, 10).map((technician) => Number(technician.totalCost) || 0),
-            'rgba(14, 116, 144, 0.85)'
+            'rgba(17, 191, 172, 0.85)'
         );
 
         createHorizontalCostChart(
@@ -1031,7 +1031,7 @@ export function applyReportsModernization() {
             'reportPartCostChart',
             topParts.map((part) => part.codigo),
             topParts.map((part) => Number(part.totalCost) || 0),
-            'rgba(245, 158, 11, 0.85)'
+            'rgba(11, 183, 158, 0.85)'
         );
 
         createVerticalCostChart(
@@ -1039,7 +1039,7 @@ export function applyReportsModernization() {
             'reportTechnicianCostChart',
             topTechnicians.slice(0, 10).map((technician) => technician.nome),
             topTechnicians.slice(0, 10).map((technician) => Number(technician.totalCost) || 0),
-            'rgba(37, 99, 235, 0.85)'
+            'rgba(17, 191, 172, 0.85)'
         );
 
         const monthlyCanvas = document.getElementById('reportMonthlyCostChart');
@@ -1050,7 +1050,7 @@ export function applyReportsModernization() {
                     labels: months.map((month) => month.label),
                     datasets: [{
                         data: months.map((month) => Number(month.totalCost) || 0),
-                        backgroundColor: 'rgba(22, 163, 74, 0.82)',
+                        backgroundColor: 'rgba(11, 183, 158, 0.85)',
                         borderRadius: 8,
                         maxBarThickness: 40
                     }]

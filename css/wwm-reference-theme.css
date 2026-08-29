@@ -30,6 +30,14 @@ body.wwm-reference-theme {
 }
 
 body.wwm-reference-theme {
+    /* clean-ui.css pinta botões, links e foco com --cui-* e !important; retingir os
+       tokens alinha essas regras ao portal em vez de duelar com especificidade. */
+    --cui-font: 'Inter', 'Manrope', 'Segoe UI', Arial, sans-serif;
+    --cui-primary: #12bfb1;
+    --cui-primary-strong: #16d2c2;
+    --cui-primary-soft: rgba(18, 191, 177, .16);
+    --cui-primary-mid: rgba(18, 191, 177, .12);
+    --cui-ring: rgba(22, 210, 194, .3);
     --bg-primary: #003f43;
     --bg-secondary: #00373c;
     --bg-tertiary: rgba(8, 92, 92, .38);
@@ -86,6 +94,31 @@ body.wwm-reference-theme .login-container::after {
     left: -310px;
     bottom: -330px;
 }
+
+/* Folhas decorativas do fundo (equivalente ao .petals da referência). */
+body.wwm-reference-theme .wwm-login-petals {
+    position: absolute;
+    right: 0;
+    top: 7vh;
+    z-index: 0;
+    width: min(640px, 46vw);
+    height: min(660px, 76vh);
+    overflow: hidden;
+    opacity: .12;
+    pointer-events: none;
+}
+
+body.wwm-reference-theme .wwm-login-petals i {
+    position: absolute;
+    display: block;
+    background: #41ead8;
+    border-radius: 100% 0 100% 0;
+    transform: rotate(-26deg);
+}
+
+body.wwm-reference-theme .wwm-login-petals i:nth-child(1) { top: 8%; right: 6%; width: 40%; height: 14%; }
+body.wwm-reference-theme .wwm-login-petals i:nth-child(2) { top: 44%; right: 18%; width: 56%; height: 21%; }
+body.wwm-reference-theme .wwm-login-petals i:nth-child(3) { top: 76%; right: 35%; width: 34%; height: 13%; }
 
 body.wwm-reference-theme .premium-login-shell {
     position: relative;
@@ -296,13 +329,21 @@ body.wwm-reference-theme #login-submit {
     border: 0;
     border-radius: 9px;
     color: #fff;
-    background: linear-gradient(90deg, #08776e, #057168);
+    background: linear-gradient(90deg, #00746a, #009687);
     font-size: 20px;
     font-weight: 800;
     box-shadow: none;
 }
 
 body.wwm-reference-theme #login-submit i { margin-left: 14px; }
+
+body.wwm-reference-theme #login-screen #login-submit[disabled],
+body.wwm-reference-theme #login-screen #login-submit:disabled {
+    opacity: 1 !important;
+    color: #d7ece9 !important;
+    background: linear-gradient(90deg, #15544e, #14635c) !important;
+    cursor: progress;
+}
 
 body.wwm-reference-theme .premium-login-form-footer {
     display: flex;
@@ -380,9 +421,13 @@ body.wwm-reference-theme #login-screen .login-form .form-control {
 }
 body.wwm-reference-theme #login-screen .premium-login-input { min-height: 58px; border: 1px solid #cbd0d8; border-radius: 10px; background: #fff; }
 body.wwm-reference-theme #login-screen .premium-login-input > i { left: 18px; font-size: 18px; }
-body.wwm-reference-theme #login-screen #login-submit { min-height: 62px; margin-top: 4px; font-size: 20px; background: linear-gradient(90deg, #08776e, #057168) !important; }
+body.wwm-reference-theme #login-screen #login-submit { min-height: 62px; margin-top: 4px; font-size: 20px; color: #fff !important; background: linear-gradient(90deg, #00746a, #009687) !important; }
 body.wwm-reference-theme #login-screen .premium-login-form-footer { margin-top: 24px !important; color: #6b7280 !important; font-size: 13px !important; }
 body.wwm-reference-theme #login-screen .premium-login-form-footer i { color: #6f7d90 !important; font-size: 18px; }
+
+/* O cabeçalho da referência traz um único selo de sincronização (.sync-status);
+   a camada premium-plus injeta um segundo, redundante. */
+body.wwm-reference-theme #premium-system-status { display: none !important; }
 
 /* Application shell */
 body.wwm-reference-theme .app-container {
@@ -470,7 +515,8 @@ body.wwm-reference-theme .sidebar-footer .user-avatar {
     font-size: 11px;
 }
 body.wwm-reference-theme .sidebar-footer .user-avatar span { color: #fff; font-weight: 700; }
-body.wwm-reference-theme .user-details #user-name { font-size: 11px; font-weight: 700; }
+body.wwm-reference-theme .user-details { min-width: 0; }
+body.wwm-reference-theme .user-details #user-name { font-size: 11px; font-weight: 700; letter-spacing: -.01em; }
 body.wwm-reference-theme .user-role { color: #9caeb8; font-size: 10px; text-transform: capitalize; }
 body.wwm-reference-theme .sidebar-actions { margin-left: auto; }
 body.wwm-reference-theme .sidebar-actions #theme-toggle { display: grid; }
@@ -584,12 +630,22 @@ body.wwm-reference-theme .btn {
     font-size: 14px;
     font-weight: 700;
 }
-body.wwm-reference-theme .btn-primary,
-body.wwm-reference-theme .btn-success {
-    color: #075b59;
-    border-color: #fff;
-    background: #fff;
-    box-shadow: none;
+/* Ação primária da referência: pastilha branca com texto teal. O !important
+   responde ao `body .btn-primary { ... !important }` de clean-ui.css.
+   Ficam de fora o botão de acesso (.btn-block) e as ações de linha (.btn-sm),
+   que têm cores próprias. */
+body.wwm-reference-theme .btn-primary:not(.btn-sm):not(.btn-block),
+body.wwm-reference-theme .btn-success:not(.btn-sm):not(.btn-block) {
+    color: #06585a !important;
+    border-color: #fff !important;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+body.wwm-reference-theme .btn-primary:not(.btn-sm):not(.btn-block):hover,
+body.wwm-reference-theme .btn-success:not(.btn-sm):not(.btn-block):hover {
+    color: #06585a !important;
+    border-color: #e8faf7 !important;
+    background: #e8faf7 !important;
 }
 body.wwm-reference-theme .btn-outline,
 body.wwm-reference-theme .btn-secondary {
@@ -612,13 +668,17 @@ body.wwm-reference-theme .page-filters {
 }
 body.wwm-reference-theme .wwm-filter-panel > summary { display: none; }
 body.wwm-reference-theme .wwm-filter-panel .filter-panel-body { display: grid !important; }
+/* A barra de filtros muda de tamanho por tela (Solicitações tem 5 controles,
+   Aprovações tem 8): colunas fluidas evitam o estouro para fora do cartão. */
 body.wwm-reference-theme .filters-bar {
-    grid-template-columns: minmax(240px, 1.5fr) repeat(4, minmax(128px, .7fr)) auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
     gap: 18px;
     align-items: end;
     padding: 0;
     background: transparent;
 }
+body.wwm-reference-theme .filters-bar > .search-box { grid-column: span 2; }
 body.wwm-reference-theme .filter-group,
 body.wwm-reference-theme .search-box { display: grid; gap: 5px; min-width: 0; }
 body.wwm-reference-theme .filters-bar > *,
@@ -645,6 +705,40 @@ body.wwm-reference-theme .status-filter-trigger {
 body.wwm-reference-theme .form-control::placeholder { color: #8ca9ab; }
 body.wwm-reference-theme select.form-control option { color: #eaf5f5; background: #06373b; }
 body.wwm-reference-theme .status-filter-dropdown { color: #eaf5f5; border-color: var(--wwm-line-strong); background: #073e42; }
+
+/* Avisos herdam fundo claro das camadas legadas; no portal escuro precisam de
+   superfície tingida e texto legível. */
+body.wwm-reference-theme .alert {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    color: #e8f5f4;
+    border: 1px solid var(--wwm-line);
+    border-radius: 11px;
+    background: rgba(247, 189, 0, .08) !important;
+}
+body.wwm-reference-theme .alert.alert-warning { border-left: 4px solid var(--wwm-warning) !important; }
+body.wwm-reference-theme .alert.alert-danger { border-left: 4px solid var(--wwm-danger) !important; background: rgba(255, 84, 84, .1) !important; }
+body.wwm-reference-theme .alert.alert-info { border-left: 4px solid var(--wwm-info) !important; background: rgba(29, 165, 247, .1) !important; }
+body.wwm-reference-theme .alert strong { color: #fff; }
+/* premium-ui-v3.css fixa aviso claro e grade de filtros por página com
+   `[data-current-page]`; a referência precisa do mesmo peso para vencer. */
+body.wwm-reference-theme[data-current-page] .alert,
+body.wwm-reference-theme[data-current-page] .alert-warning {
+    color: #e8f5f4 !important;
+    border: 1px solid var(--wwm-line) !important;
+    border-left: 4px solid var(--wwm-warning) !important;
+    border-radius: 11px !important;
+    background: rgba(247, 189, 0, .08) !important;
+    box-shadow: none !important;
+}
+body.wwm-reference-theme[data-current-page] .filters-bar,
+body.wwm-reference-theme[data-current-page] .filter-panel-body {
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)) !important;
+}
+body.wwm-reference-theme .alert p,
+body.wwm-reference-theme .alert .text-muted { color: #bcd6d6 !important; }
 
 body.wwm-reference-theme .kpi-grid {
     display: grid;
@@ -682,7 +776,19 @@ body.wwm-reference-theme .kpi-icon.success { color: var(--wwm-success); }
 body.wwm-reference-theme .kpi-icon.primary { color: var(--wwm-info); }
 body.wwm-reference-theme .kpi-icon.danger { color: var(--wwm-danger); }
 body.wwm-reference-theme .kpi-content { min-width: 0; }
-body.wwm-reference-theme .kpi-content h4 { margin: 0 0 7px; color: #cde0e1; font-size: 14px; font-weight: 600; }
+body.wwm-reference-theme .kpi-content { text-align: left; }
+/* As camadas legadas escrevem o rótulo em caixa alta espaçada; a referência usa
+   frase normal alinhada à esquerda. */
+body.wwm-reference-theme .kpi-card .kpi-content h4,
+body.wwm-reference-theme .metric-card .kpi-content h4 {
+    margin: 0 0 7px;
+    color: #cde0e1;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+}
 body.wwm-reference-theme .kpi-value { color: #fff; font-size: 26px; line-height: 1.08; font-weight: 700; letter-spacing: -.025em; }
 body.wwm-reference-theme .kpi-change { margin-top: 8px; color: #c7dddd; font-size: 12px; }
 
@@ -744,23 +850,58 @@ body.wwm-reference-theme .actions .btn {
     border-color: rgba(106, 205, 198, .32);
     background: transparent;
 }
-body.wwm-reference-theme .badge,
-body.wwm-reference-theme [class*='status-badge'] { border-radius: 5px; font-size: 9px; }
+body.wwm-reference-theme .badge { border-radius: 6px; font-size: 11px; }
+
+/* Selos de status: contorno + fundo tingido na cor do estado, como na referência. */
+body.wwm-reference-theme .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+    padding: 0 10px;
+    color: #9fdad4;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    background: rgba(8, 201, 188, .12);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+body.wwm-reference-theme .status-badge i { font-size: 11px; }
+body.wwm-reference-theme .status-badge.status-pendente-aprovacao { color: #ffcd1f; background: rgba(135, 105, 0, .18); }
+body.wwm-reference-theme .status-badge.status-aprovado { color: #28df9b; background: rgba(0, 112, 74, .18); }
+body.wwm-reference-theme .status-badge.status-em-compra { color: #22b8ff; background: rgba(0, 90, 134, .18); }
+body.wwm-reference-theme .status-badge.status-concluido { color: #3fe0c1; background: rgba(0, 104, 96, .2); }
+body.wwm-reference-theme .status-badge.status-reprovado { color: #ff636d; background: rgba(126, 25, 33, .2); }
 body.wwm-reference-theme .pagination { color: #d7e8e8; }
 body.wwm-reference-theme .pagination button { color: #e2f0f0; border-color: var(--wwm-line); background: rgba(1, 58, 62, .55); }
 body.wwm-reference-theme .pagination button.active { background: #087f78; }
 
-/* Dashboard */
-body.wwm-reference-theme .wwm-dashboard-v59 { color: var(--wwm-text); }
-body.wwm-reference-theme .v59-layout { display: block; max-width: none; margin: 0; }
-body.wwm-reference-theme .v59-main { display: grid; gap: 12px; }
+/* Dashboard — bloco autossuficiente.
+   A composição v59 não depende mais de css/wwm-dashboard-v59.css (paleta clara,
+   removida da carga): estrutura e pele da visão operacional vivem aqui. */
+body.wwm-reference-theme .wwm-dashboard-v59 {
+    width: 100%;
+    color: var(--wwm-text);
+}
+body.wwm-reference-theme .v59-layout {
+    display: block;
+    max-width: none;
+    margin: 0;
+}
+body.wwm-reference-theme .v59-main {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
 body.wwm-reference-theme .v59-hero {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    min-height: 82px;
-    padding: 2px 0 5px;
+    min-height: 0;
+    padding: 2px 0 4px;
     overflow: visible;
     color: #fff;
     border: 0;
@@ -768,107 +909,396 @@ body.wwm-reference-theme .v59-hero {
     background: transparent;
     box-shadow: none;
 }
-body.wwm-reference-theme .v59-hero h1 { margin: 0; color: #fff; font-size: 28px; line-height: 1.2; letter-spacing: -.035em; }
-body.wwm-reference-theme .v59-hero p { margin: 4px 0 0; color: #c6d9da; font-size: 12px; }
-body.wwm-reference-theme .v59-hero-toolbar { display: flex; align-items: center; gap: 14px; }
+body.wwm-reference-theme .v59-hero-copy { min-width: 0; }
+body.wwm-reference-theme .v59-hero h1 {
+    margin: 0;
+    color: #fff;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -.8px;
+}
+body.wwm-reference-theme .v59-hero p {
+    margin: 8px 0 0;
+    color: #dcf0ef;
+    font-size: 14px;
+}
+body.wwm-reference-theme .v59-hero-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
 body.wwm-reference-theme .v59-period-control {
     display: grid;
     grid-template-columns: 18px 1fr;
     grid-template-rows: auto auto;
-    column-gap: 7px;
-    min-width: 260px;
-    padding: 7px 12px;
+    align-items: center;
+    column-gap: 9px;
+    row-gap: 2px;
+    min-width: 290px;
+    min-height: 68px;
+    padding: 10px 16px;
     border: 1px solid var(--wwm-line-strong);
-    border-radius: 8px;
+    border-radius: 10px;
     background: rgba(0, 49, 55, .3);
 }
-body.wwm-reference-theme .v59-period-control > span { grid-column: 1 / -1; color: #d7e6e7; font-size: 10px; }
-body.wwm-reference-theme .v59-period-control i { align-self: center; color: #d9eeee; }
-body.wwm-reference-theme .v59-period-control select { color: #fff; border: 0; outline: 0; background: transparent; font-size: 11px; }
-body.wwm-reference-theme .v59-period-control select option { background: #073f43; }
-body.wwm-reference-theme .v59-hero-actions { display: flex; flex-wrap: nowrap; gap: 10px; margin: 0; }
-body.wwm-reference-theme .v59-hero-action {
-    min-height: 48px;
-    padding: 9px 24px;
-    color: #fff;
-    border: 1px solid rgba(186, 225, 223, .4);
-    border-radius: 8px;
-    background: rgba(1, 59, 64, .18);
-    font-size: 12px;
-    white-space: nowrap;
+body.wwm-reference-theme .v59-period-control > span {
+    grid-column: 1 / -1;
+    color: #cfe6e5;
+    font-size: 11px;
 }
-body.wwm-reference-theme .v59-hero-action.is-primary { color: #06635f; background: #fff; border-color: #fff; }
-body.wwm-reference-theme .v59-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+body.wwm-reference-theme .v59-period-control i { align-self: center; color: #d9eeee; font-size: 14px; }
+body.wwm-reference-theme .v59-period-control select {
+    color: #fff;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+}
+body.wwm-reference-theme .v59-period-control select option { background: #073f43; }
+body.wwm-reference-theme .v59-hero-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 14px;
+    margin: 0;
+}
+body.wwm-reference-theme .v59-hero-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 48px;
+    padding: 0 24px;
+    color: #fff;
+    border: 1px solid rgba(186, 225, 223, .38);
+    border-radius: 9px;
+    background: rgba(4, 78, 84, .26);
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+body.wwm-reference-theme .v59-hero-action:hover { background: rgba(9, 122, 122, .34); }
+body.wwm-reference-theme .v59-hero-action.is-primary {
+    color: #006b66;
+    background: #fff;
+    border-color: #fff;
+}
+body.wwm-reference-theme .v59-hero-action.is-primary:hover { background: #f0fbfa; }
+
+/* Indicadores */
+body.wwm-reference-theme .v59-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+}
 body.wwm-reference-theme .v59-kpi {
     position: relative;
-    min-height: 109px;
-    padding: 18px 18px 15px 82px;
+    min-width: 0;
+    min-height: 130px;
+    padding: 22px 24px 20px 100px;
     color: #fff;
     border: 1px solid var(--wwm-line);
-    border-radius: 9px;
-    background: rgba(4, 78, 80, .44);
-    box-shadow: none;
+    border-radius: 11px;
+    background: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .02);
 }
 body.wwm-reference-theme .v59-kpi-top { display: block; }
-body.wwm-reference-theme .v59-kpi-top span { color: #cfe0e1; font-size: 10px; text-transform: none; letter-spacing: 0; }
+body.wwm-reference-theme .v59-kpi-top span {
+    display: block;
+    color: #d6e9e8;
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+}
 body.wwm-reference-theme .v59-kpi-top i {
     position: absolute;
-    left: 20px;
-    top: 22px;
+    left: 24px;
+    top: 50%;
     display: grid;
     place-items: center;
-    width: 43px;
-    height: 43px;
+    width: 56px;
+    height: 56px;
+    margin-top: -28px;
     color: var(--wwm-teal-400);
     border: 2px solid currentColor;
     border-radius: 50%;
-    background: rgba(11, 210, 194, .08);
+    background: transparent;
+    box-shadow: 0 0 0 8px rgba(48, 225, 209, .07);
+    font-size: 22px;
 }
-body.wwm-reference-theme .v59-kpi.is-teal .v59-kpi-top i { color: var(--wwm-warning); background: rgba(247, 189, 0, .08); }
-body.wwm-reference-theme .v59-kpi > strong { margin-top: 7px; color: #fff; font-size: 22px; }
-body.wwm-reference-theme .v59-kpi > small { color: #aed0cf; font-size: 9px; }
+body.wwm-reference-theme .v59-kpi.is-teal .v59-kpi-top i {
+    color: var(--wwm-warning);
+    box-shadow: 0 0 0 8px rgba(247, 189, 0, .07);
+}
+body.wwm-reference-theme .v59-kpi > strong {
+    display: block;
+    margin-top: 9px;
+    color: #fff;
+    font-size: 26px;
+    font-weight: 750;
+    line-height: 1.05;
+}
+body.wwm-reference-theme .v59-kpi > small {
+    display: block;
+    margin-top: 8px;
+    color: #bde0df;
+    font-size: 12px;
+}
+
+/* Faixa de status */
 body.wwm-reference-theme .v59-status-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0;
-    padding: 10px 0;
+    padding: 12px 0;
     border: 1px solid var(--wwm-line);
-    border-radius: 8px;
-    background: rgba(3, 70, 73, .35);
+    border-radius: 11px;
+    background: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
 }
 body.wwm-reference-theme .v59-status {
     display: grid;
-    grid-template-columns: 1fr auto;
-    min-height: 48px;
-    padding: 8px 22px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 2px;
+    min-width: 0;
+    min-height: 52px;
+    padding: 6px 16px;
     border-right: 1px solid var(--wwm-line);
 }
 body.wwm-reference-theme .v59-status:last-child { border-right: 0; }
-body.wwm-reference-theme .v59-status > div { display: flex; align-items: center; gap: 9px; color: #e8f3f3; font-size: 11px; }
-body.wwm-reference-theme .v59-status i { color: var(--wwm-teal-400); font-size: 19px; }
+body.wwm-reference-theme .v59-status > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    color: #e8f3f3;
+    font-size: 13px;
+}
+body.wwm-reference-theme .v59-status > div span { white-space: nowrap; }
+body.wwm-reference-theme .v59-status i {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    color: var(--wwm-teal-400);
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    font-size: 14px;
+}
 body.wwm-reference-theme .v59-status.is-warning i { color: var(--wwm-warning); }
+body.wwm-reference-theme .v59-status.is-success i { color: var(--wwm-success); }
 body.wwm-reference-theme .v59-status.is-info i { color: var(--wwm-info); }
 body.wwm-reference-theme .v59-status.is-danger i { color: var(--wwm-danger); }
-body.wwm-reference-theme .v59-status > strong { color: #fff; font-size: 13px; }
-body.wwm-reference-theme .v59-status > small { grid-column: 2; color: #a8c1c2; font-size: 9px; text-align: right; }
-body.wwm-reference-theme .v59-chart-grid { grid-template-columns: 1.1fr .9fr; gap: 12px; }
-body.wwm-reference-theme .v59-detail-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-body.wwm-reference-theme .v59-card {
-    border: 1px solid var(--wwm-line);
-    border-radius: 9px;
-    background: rgba(3, 66, 69, .43);
-    box-shadow: none;
+body.wwm-reference-theme .v59-status.is-neutral i { color: #8fd8cf; }
+body.wwm-reference-theme .v59-status > strong {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 750;
+    text-align: right;
 }
-body.wwm-reference-theme .v59-card-head { min-height: 46px; padding: 13px 15px; border-color: var(--wwm-line); }
-body.wwm-reference-theme .v59-card-head strong { color: #fff; font-size: 12px; text-transform: none; }
-body.wwm-reference-theme .v59-card-head span { color: #8fadae; font-size: 9px; }
-body.wwm-reference-theme .v59-card-head > i { color: #8eb3b4; font-size: 11px; }
-body.wwm-reference-theme .v59-chart-box { height: 205px; padding: 10px 14px; }
-body.wwm-reference-theme .v59-table { color: #e7f3f3; font-size: 10px; }
-body.wwm-reference-theme .v59-table th { color: #cce0e0; background: rgba(0, 48, 52, .5); border-color: var(--wwm-line); }
-body.wwm-reference-theme .v59-table td { color: #eaf4f4; border-color: rgba(137, 203, 201, .14); }
+body.wwm-reference-theme .v59-status > small {
+    grid-column: 2;
+    color: #bcd3d5;
+    font-size: 11px;
+    text-align: right;
+}
+
+/* Cartões, gráficos e tabelas */
+body.wwm-reference-theme .v59-chart-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+    gap: 18px;
+}
+body.wwm-reference-theme .v59-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 18px;
+}
+body.wwm-reference-theme .v59-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--wwm-line);
+    border-radius: 11px;
+    background: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .02);
+}
+body.wwm-reference-theme .v59-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 54px;
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--wwm-line);
+}
+body.wwm-reference-theme .v59-card-head > div { display: grid; gap: 3px; min-width: 0; }
+body.wwm-reference-theme .v59-card-head strong {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 750;
+    text-transform: none;
+}
+body.wwm-reference-theme .v59-card-head span { color: #a8c8c8; font-size: 11px; }
+body.wwm-reference-theme .v59-card-head > i { flex: 0 0 auto; color: #8eb3b4; font-size: 13px; }
+body.wwm-reference-theme .v59-chart-box {
+    position: relative;
+    height: 240px;
+    padding: 14px 18px 16px;
+}
+body.wwm-reference-theme .v59-chart-box.is-donut { height: 240px; }
+body.wwm-reference-theme .v59-chart-box canvas { width: 100% !important; height: 100% !important; }
+body.wwm-reference-theme .v59-chart-box.is-donut {
+    display: grid;
+    grid-template-columns: minmax(0, 190px) minmax(0, 1fr);
+    align-items: center;
+    gap: 26px;
+}
+body.wwm-reference-theme .v59-donut-wrap { position: relative; height: 190px; }
+body.wwm-reference-theme .v59-donut-legend {
+    display: grid;
+    gap: 13px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+body.wwm-reference-theme .v59-donut-legend li {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    color: #dceceb;
+    font-size: 12px;
+}
+body.wwm-reference-theme .v59-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #08c9bc;
+}
+body.wwm-reference-theme .v59-donut-legend li.is-warning .v59-legend-dot { background: #ffc21c; }
+body.wwm-reference-theme .v59-donut-legend li.is-success .v59-legend-dot { background: #16df94; }
+body.wwm-reference-theme .v59-donut-legend li.is-info .v59-legend-dot { background: #15a8ff; }
+body.wwm-reference-theme .v59-donut-legend li.is-danger .v59-legend-dot { background: #ff4a54; }
+body.wwm-reference-theme .v59-legend-value { color: #fff; font-variant-numeric: tabular-nums; }
+/* min-width:0 é obrigatório: como filho de flex/grid o wrapper herda min-width:auto
+   e a tabela larga empurra a página inteira em vez de rolar dentro do cartão. */
+body.wwm-reference-theme .v59-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
+body.wwm-reference-theme .v59-card > * { min-width: 0; }
+body.wwm-reference-theme .v59-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    color: #e7f3f3;
+    font-size: 13px;
+    background: transparent;
+}
+body.wwm-reference-theme .v59-table th {
+    padding: 13px 14px;
+    color: #cce0e0;
+    background: rgba(1, 43, 52, .58);
+    border-bottom: 1px solid var(--wwm-line);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+body.wwm-reference-theme .v59-table td {
+    padding: 12px 14px;
+    color: #eaf4f4;
+    background: transparent;
+    border-bottom: 1px solid rgba(137, 203, 201, .14);
+    vertical-align: middle;
+}
+/* Colunas curtas não quebram; nome de cliente/peça pode fluir em duas linhas. */
+body.wwm-reference-theme .v59-table--recent td:nth-child(1),
+body.wwm-reference-theme .v59-table--recent td:nth-child(2),
+body.wwm-reference-theme .v59-table--recent td:nth-child(5),
+body.wwm-reference-theme .v59-table--recent td:nth-child(6),
+body.wwm-reference-theme .v59-table--pieces td:nth-child(1),
+body.wwm-reference-theme .v59-table--pieces td:nth-child(4),
+body.wwm-reference-theme .v59-table--pieces td:nth-child(5) { white-space: nowrap; }
+body.wwm-reference-theme .v59-table tr:last-child td { border-bottom: 0; }
+body.wwm-reference-theme .v59-table tr:hover td { background: rgba(255, 255, 255, .025); }
 body.wwm-reference-theme .v59-table strong { color: #fff; }
-body.wwm-reference-theme .v59-card-link { color: #dff4f2; }
+body.wwm-reference-theme .v59-card-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 46px;
+    margin-top: auto;
+    padding: 0 18px;
+    color: #dff4f2;
+    border: 0;
+    border-top: 1px solid var(--wwm-line);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+body.wwm-reference-theme .v59-card-link:hover { background: rgba(255, 255, 255, .04); }
+body.wwm-reference-theme .v59-empty {
+    display: grid;
+    place-items: center;
+    min-height: 150px;
+    padding: 20px;
+    color: #a8c8c8;
+    font-size: 13px;
+    text-align: center;
+}
+body.wwm-reference-theme .v59-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 320px;
+    padding: 24px;
+    color: #dff2f1;
+    border: 1px solid var(--wwm-line);
+    border-radius: 11px;
+    background: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
+}
+body.wwm-reference-theme .v59-loading > i { color: var(--wwm-teal-400); font-size: 26px; }
+body.wwm-reference-theme .v59-loading > div { display: grid; gap: 4px; }
+body.wwm-reference-theme .v59-loading strong { color: #fff; font-size: 17px; }
+body.wwm-reference-theme .v59-loading span { color: #a8c8c8; font-size: 12px; }
+body.wwm-reference-theme .v59-loading button {
+    margin-left: 8px;
+    padding: 10px 16px;
+    color: #04413f;
+    border: 0;
+    border-radius: 8px;
+    background: var(--wwm-teal-400);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* Painel do técnico: as pastilhas usam --primary-dark (azul do tema claro) e
+   somem no fundo escuro do portal. */
+body.wwm-reference-theme .technician-history-total,
+body.wwm-reference-theme .technician-history-code {
+    color: #7ef0e2;
+    border-color: rgba(126, 240, 226, .28);
+    background: rgba(11, 176, 164, .14);
+}
+body.wwm-reference-theme .technician-history-metrics > span {
+    color: #dceceb;
+    border-color: var(--wwm-line);
+    background: rgba(1, 52, 57, .5);
+}
+body.wwm-reference-theme .technician-history-status { color: #7ef0e2; }
+body.wwm-reference-theme .technician-history-quantity { color: #fff; }
 
 /* Reports and history */
 body.wwm-reference-theme .tabs {
@@ -1005,7 +1435,14 @@ body.wwm-reference-theme .compact-card {
     background: rgba(2, 56, 61, .34);
 }
 body.wwm-reference-theme .chart-container h4 { color: #eaf5f5; }
-body.wwm-reference-theme .chart-wrapper { min-height: 230px; }
+/* Nas grades de relatório os cartões esticam para a altura do vizinho; o gráfico
+   precisa acompanhar, senão sobra um vão embaixo dele. */
+body.wwm-reference-theme .chart-wrapper { position: relative; min-height: 230px; flex: 1 1 auto; }
+body.wwm-reference-theme .chart-wrapper canvas { width: 100% !important; height: 100% !important; }
+body.wwm-reference-theme .reports-two-column > .card,
+body.wwm-reference-theme .report-stack-grid > .card { display: flex; flex-direction: column; }
+body.wwm-reference-theme .reports-two-column > .card > .card-body,
+body.wwm-reference-theme .report-stack-grid > .card > .card-body { display: flex; flex-direction: column; flex: 1 1 auto; }
 body.wwm-reference-theme .text-muted,
 body.wwm-reference-theme .helper-text { color: #9bb5b7 !important; }
 

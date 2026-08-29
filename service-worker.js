@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v61-wwm-portal-exact';
+const CACHE_VERSION = 'v62-wwm-referencia-visual';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

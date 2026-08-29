@@ -98,7 +98,7 @@ const App = {
             submitBtn.setAttribute('aria-busy', isBusy ? 'true' : 'false');
             submitBtn.innerHTML = isBusy
                 ? '<i class="fas fa-circle-notch fa-spin"></i> Conectando...'
-                : '<i class="fas fa-sign-in-alt"></i> Entrar';
+                : 'Entrar <i class="fas fa-arrow-right" aria-hidden="true"></i>';
         }
         if (statusEl) {
             if (isBusy && statusText) {
@@ -1992,44 +1992,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Exposição global: camadas externas (premium-release, wwm-reference-ui, componentes lazy)
+// consultam window.App. Sem isto o contrato visual do portal nunca é instalado.
+window.App = App;

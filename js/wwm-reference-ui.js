@@ -113,10 +113,11 @@
         installObservers();
     }
 
+    // Mesmo motivo de premium-release-v55.js: o script roda no fim do <body>, então
+    // instala imediatamente e só reforça em DOMContentLoaded.
+    install();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', install, { once: true });
-    } else {
-        install();
     }
 
     let attempts = 0;

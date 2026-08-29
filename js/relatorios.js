@@ -1553,8 +1553,8 @@ const Relatorios = {
                     datasets: [{
                         label: 'Custo mensal',
                         data: byMonth.map(month => month.totalCost),
-                        borderColor: '#0066b3',
-                        backgroundColor: 'rgba(0, 102, 179, 0.12)',
+                        borderColor: '#1ee1ce',
+                        backgroundColor: 'rgba(30, 225, 206, 0.14)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 4,

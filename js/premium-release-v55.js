@@ -2,7 +2,7 @@
     'use strict';
 
     const RELEASE_VERSION = 'v61-wwm-portal-exact';
-    const ASSET_VERSION = '20260829e';
+    const ASSET_VERSION = '20260829f';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -18,6 +18,14 @@
         if (!screen || !card || !inner) return false;
 
         screen.classList.add('wwm-reference-login');
+
+        if (!screen.querySelector('.wwm-login-petals')) {
+            const petals = document.createElement('span');
+            petals.className = 'wwm-login-petals';
+            petals.setAttribute('aria-hidden', 'true');
+            petals.innerHTML = '<i></i><i></i><i></i>';
+            screen.insertBefore(petals, screen.firstChild);
+        }
 
         if (!card.querySelector('.wwm-login-header')) {
             card.insertAdjacentHTML('afterbegin', `
@@ -141,8 +149,12 @@
         installAppContract();
     }
 
+    // Instala já na avaliação do script (ele é carregado no fim do <body>, com o
+    // DOM do portal pronto). Esperar por DOMContentLoaded criava uma corrida com
+    // App.init: quando a inicialização de dados resolvia rápido, a navegação
+    // inicial acontecia antes do contrato e o portal caía no dashboard antigo.
+    install();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
-    else install();
 
     let attempts = 0;
     const timer = window.setInterval(() => {

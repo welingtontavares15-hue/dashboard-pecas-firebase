@@ -3977,54 +3977,5 @@ const DataManager = {
 // Initialize data on load
 DataManager.init();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Exposição global: os renderizadores de dashboard/relatórios leem window.DataManager.
+window.DataManager = DataManager;
