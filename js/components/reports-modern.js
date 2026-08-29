@@ -81,47 +81,6 @@ function buildMonthlyCostSummary(relatorios, analysis) {
     };
 }
 
-function buildStatusDistribution(solicitations = []) {
-    /*
-     * Agrupa as solicitações por status de maneira normalizada para evitar duplicidade
-     * e garantir consistência entre diferentes grafias. Em vez de utilizar a string
-     * original do status, utilizamos Utils.normalizeStatus para mapear variantes
-     * (por exemplo, "Finalizada", "finalizada", "historico-manual") para uma
-     * chave única. A ordenação aplica uma lista de prioridades conhecida para
-     * exibir os status em ordem lógica (pendente, aprovada, em trânsito, entregue,
-     * finalizada, rejeitada, histórico manual). Dentro de cada grupo, se duas
-     * chaves possuírem a mesma prioridade, ordenamos pelo número de ocorrências
-     * de forma decrescente.
-     */
-    const byStatus = {};
-    solicitations.forEach((sol) => {
-        // Normalize status to avoid duplicates (case and accent insensitive)
-        const raw = String(sol?.status || '').trim();
-        const key = typeof Utils.normalizeStatus === 'function' ? Utils.normalizeStatus(raw) : raw;
-        if (key) {
-            byStatus[key] = (byStatus[key] || 0) + 1;
-        }
-    });
-
-    const priority = ['pendente', 'aprovada', 'em-transito', 'entregue', 'finalizada', 'rejeitada', 'historico-manual'];
-    const ordered = Object.entries(byStatus).sort((a, b) => {
-        const idxA = priority.indexOf(a[0]);
-        const idxB = priority.indexOf(b[0]);
-        const rankA = idxA >= 0 ? idxA : priority.length + 1;
-        const rankB = idxB >= 0 ? idxB : priority.length + 1;
-        if (rankA !== rankB) {
-            return rankA - rankB;
-        }
-        return b[1] - a[1];
-    });
-
-    return ordered.map(([status, count]) => ({
-        status,
-        label: Utils.getStatusInfo(status)?.label || status,
-        count
-    }));
-}
-
 function relatoriosSafeClient(sol) {
     return String(sol?.cliente || sol?.clienteNome || '').trim() || 'Não informado';
 }
@@ -205,6 +164,22 @@ function buildExecutiveCards(relatorios) {
             `).join('')}
         </div>
     `;
+}
+
+function buildHistoryCards(relatorios) {
+    const solicitations = relatorios.getFilteredSolicitations();
+    const totalCost = solicitations.reduce((sum, sol) => sum + (Number(sol?._analysisCost ?? sol?.total) || 0), 0);
+    const totalPieces = solicitations.reduce((sum, sol) => sum + (Number(sol?._analysisPieces) || 0), 0);
+    const finalized = solicitations.filter((sol) => ['finalizada', 'entregue', 'historico-manual'].includes(
+        typeof DataManager.normalizeWorkflowStatus === 'function' ? DataManager.normalizeWorkflowStatus(sol.status) : String(sol.status || '').toLowerCase()
+    )).length;
+    const cards = [
+        { title: 'Solicitações no período', value: Utils.formatNumber(solicitations.length), icon: 'fa-chart-line', tone: 'primary' },
+        { title: 'Finalizadas', value: Utils.formatNumber(finalized), icon: 'fa-check', tone: 'success' },
+        { title: 'Peças movimentadas', value: Utils.formatNumber(totalPieces), icon: 'fa-box', tone: 'info' },
+        { title: 'Custo total no período', value: Utils.formatCurrency(totalCost), icon: 'fa-sack-dollar', tone: 'warning' }
+    ];
+    return `<div class="reports-summary-grid wwm-history-summary-grid">${cards.map((card) => `<article class="report-summary-card"><span class="report-summary-icon ${card.tone}"><i class="fas ${card.icon}"></i></span><div><h4>${card.title}</h4><strong>${card.value}</strong></div></article>`).join('')}</div>`;
 }
 function renderRecentRows(solicitations) {
     return solicitations.slice(0, 8).map((sol) => {
@@ -324,30 +299,17 @@ function renderHistoryTable(relatorios, solicitations) {
         <div class="table-container">
             <table class="table">
                 <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Número</th>
-                        <th>Técnico</th>
-                        <th>Cliente</th>
-                        <th>Custo</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
+                    <tr><th>Nº da solicitação</th><th>Data</th><th>Cliente</th><th>Técnico</th><th>Status</th><th>Custo</th></tr>
                 </thead>
                 <tbody>
-                    ${solicitations.map((sol) => `
-                            <tr>
-                                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-                                <td><strong>#${sol.numero}</strong></td>
-                                <td>${Utils.escapeHtml(relatoriosRequesterName(sol))}</td>
+                    ${solicitations.map((sol, index) => `
+                            <tr class="${index === 0 ? 'is-selected' : ''}">
+                                <td><strong>#${Utils.escapeHtml(String(sol.numero || '—').replace(/^#/, ''))}</strong></td>
+                                <td>${Utils.formatDate(sol.data || sol.createdAt, true)}</td>
                                 <td>${Utils.escapeHtml(relatorios.getSolicitationClientName(sol))}</td>
-                                <td>${Utils.formatCurrency(Number(sol?._analysisCost ?? sol?.total) || 0)}</td>
+                                <td>${Utils.escapeHtml(relatoriosRequesterName(sol))}</td>
                                 <td>${Utils.renderStatusBadge(sol.status)}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </td>
+                                <td>${Utils.formatCurrency(Number(sol?._analysisCost ?? sol?.total) || 0)}</td>
                             </tr>
                         `).join('')}
                 </tbody>
@@ -523,10 +485,10 @@ export function applyReportsModernization() {
 
         content.innerHTML = `
             <div class="page-container reports-shell">
-                <div class="page-header reports-header-compact">
+                <div class="page-header reports-header-compact wwm-page-title">
                     <div>
-                        <h2><i class="fas fa-file-alt"></i> Relatórios</h2>
-                        <p class="text-muted">Leitura objetiva de custos, histórico e desempenho operacional.</p>
+                        <h2>${this.currentReport === 'historico' ? 'Histórico de solicitações' : 'Relatórios e análises'}</h2>
+                        <p class="text-muted">${this.currentReport === 'historico' ? 'Acompanhe o histórico completo das solicitações de peças e o andamento de cada etapa.' : 'Insights estratégicos para decisões mais inteligentes e controle de custos.'}</p>
                     </div>
                 </div>
 
@@ -535,7 +497,7 @@ export function applyReportsModernization() {
                 </div>
 
                 <div class="page-kpis">
-                    ${buildExecutiveCards(this)}
+                    ${this.currentReport === 'historico' ? buildHistoryCards(this) : buildExecutiveCards(this)}
                 </div>
 
                 <div class="page-content reports-content-stack">
@@ -878,37 +840,21 @@ export function applyReportsModernization() {
 
     Relatorios.renderHistoricoModernReport = function renderHistoricoModernReport() {
         const solicitations = this.getFilteredSolicitations();
-        const analysis = this.buildCostAnalysis();
-        const statusSummary = buildStatusDistribution(solicitations);
 
         return `
-            <article class="card report-panel-card">
-                <div class="card-header compact-card-header">
-                    <div>
-                        <h4>Relatório de Solicitações</h4>
-                        <p class="text-muted">Leitura executiva com foco em volume, custo e status do fluxo operacional.</p>
+            <div class="wwm-history-grid">
+                <article class="wwm-history-list">
+                    <div class="wwm-panel-heading">
+                        <strong>Solicitações históricas</strong>
+                        <span>${Utils.formatNumber(solicitations.length)} resultados</span>
+                        <button class="btn btn-outline btn-sm" onclick="Relatorios.exportSolicitacoes()"><i class="fas fa-download"></i> Exportar</button>
                     </div>
-                    <button class="btn btn-outline btn-sm" onclick="Relatorios.exportSolicitacoes()">
-                        <i class="fas fa-file-excel"></i> Exportar
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="reports-inline-summary reports-inline-summary-spread">
-                        <span class="tag-soft info"><i class="fas fa-clipboard-list"></i> ${Utils.formatNumber(solicitations.length)} solicitação(ões)</span>
-                        <span class="tag-soft primary"><i class="fas fa-sack-dollar"></i> ${Utils.formatCurrency(analysis.totalCost || 0)} em custos</span>
-                        <span class="tag-soft success"><i class="fas fa-receipt"></i> Ticket médio ${Utils.formatCurrency(analysis.costPerAttendance || 0)}</span>
-                    </div>
-                    ${statusSummary.length > 0 ? `
-                        <div class="reports-status-row">
-                            ${statusSummary.map((item) => `
-                                <span class="reports-status-chip"><span>${Utils.escapeHtml(item.label)}</span> <strong>${Utils.formatNumber(item.count)}</strong></span>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                    <p class="helper-text" style="margin: 0 0 10px;">Fluxo operacional: técnico abre, gestor avalia, aprovação envia PDF ao fornecedor, gestor registra rastreio, técnico confirma entrega e finaliza.</p>
                     ${renderHistoryTable(this, solicitations)}
+                </article>
+                <div>
+                    ${typeof this.renderHistoryDetail === 'function' ? this.renderHistoryDetail(solicitations[0]) : ''}
                 </div>
-            </article>
+            </div>
         `;
     };
 

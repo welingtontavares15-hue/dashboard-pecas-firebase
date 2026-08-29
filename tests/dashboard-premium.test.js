@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Dashboard WWM v59 exact', () => {
+describe('Dashboard WWM v60 reference layout', () => {
     const root = path.join(__dirname, '..');
     const css = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v59.css'), 'utf8');
     const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v59.js'), 'utf8');
@@ -10,21 +10,19 @@ describe('Dashboard WWM v59 exact', () => {
 
     test('replica a composição visual aprovada sem itens de contrato ou checklist', () => {
         expect(dashboard).toContain('Visão operacional e financeira');
-        expect(dashboard).toContain('Nova solicitação de peça');
+        expect(dashboard).toContain('Nova solicitação');
         expect(dashboard).toContain('Aprovações');
-        expect(dashboard).toContain('Histórico de solicitações');
-        expect(dashboard).toContain('Relatórios de custos');
         expect(dashboard).not.toContain('minuta');
         expect(dashboard).not.toContain('checklist');
         expect(dashboard).not.toContain('contrato');
     });
 
-    test('mantém a navegação contextual exatamente como no modelo aprovado', () => {
-        expect(dashboard).toContain('Resumo executivo');
-        expect(dashboard).toContain('Indicadores');
-        expect(dashboard).toContain('Fluxo operacional');
-        expect(dashboard).toContain('Custos e tendência');
-        expect(dashboard).toContain('Peças de maior impacto');
+    test('mantém as seções operacionais do modelo de referência', () => {
+        expect(dashboard).toContain('v59-hero-toolbar');
+        expect(dashboard).toContain('v59-kpi-grid');
+        expect(dashboard).toContain('v59-status-grid');
+        expect(dashboard).toContain('v59-chart-grid');
+        expect(dashboard).toContain('Peças com maior impacto');
         expect(dashboard).toContain('Solicitações recentes');
     });
 
@@ -33,10 +31,10 @@ describe('Dashboard WWM v59 exact', () => {
         expect(dashboard).toContain('Aguardando aprovação');
         expect(dashboard).toContain('Custo médio');
         expect(dashboard).toContain('Peças movimentadas');
-        expect(dashboard).toContain('EVOLUÇÃO DO CUSTO MENSAL');
-        expect(dashboard).toContain('DISTRIBUIÇÃO POR STATUS');
-        expect(dashboard).toContain('PEÇAS COM MAIOR IMPACTO');
-        expect(dashboard).toContain('SOLICITAÇÕES RECENTES');
+        expect(dashboard).toContain('Evolução do custo mensal');
+        expect(dashboard).toContain('Distribuição por status');
+        expect(dashboard).toContain('Peças com maior impacto');
+        expect(dashboard).toContain('Solicitações recentes');
     });
 
     test('carrega somente o renderer v59 no entrypoint', () => {
@@ -47,12 +45,11 @@ describe('Dashboard WWM v59 exact', () => {
         expect(page).not.toContain('applyDashboardWwmV57');
     });
 
-    test('mantém responsividade e cache v59', () => {
+    test('mantém responsividade e cache v60', () => {
         expect(css).toContain('body.wwm-dashboard-v59-active .content-area');
-        expect(css).toContain('.v59-context-nav');
         expect(css).toContain('@media (max-width: 680px)');
         expect(serviceWorker).toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v59-approved-exact'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v60-wwm-reference-layout'");
     });
 });

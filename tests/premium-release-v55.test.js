@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release WWM v59 approved exact', () => {
+describe('Release WWM v60 reference layout', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
@@ -10,28 +10,30 @@ describe('Release WWM v59 approved exact', () => {
     const reports = fs.readFileSync(path.join(root, 'js/components/reports-chart-hardening-v55.js'), 'utf8');
     const loginCss = fs.readFileSync(path.join(root, 'css/premium-login-v55.css'), 'utf8');
     const dashboardCss = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v59.css'), 'utf8');
+    const referenceCss = fs.readFileSync(path.join(root, 'css/wwm-reference-theme.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('mantém o login WWM proporcional aprovado', () => {
+    test('mantém o login WWM proporcional à referência', () => {
         expect(index).toContain('premium-login-shell');
         expect(index).toContain('css/premium-login-v55.css');
-        expect(release).toContain("const RELEASE_VERSION = 'v58-wwm-hardwired'");
-        expect(release).toContain('Central operacional AS&amp;TS · Solenis Brasil');
-        expect(release).toContain("title.textContent = 'Acesso corporativo'");
-        expect(release).toContain('WWM · Warewashing Machine Request');
+        expect(release).toContain("const RELEASE_VERSION = 'v60-wwm-reference'");
+        expect(release).toContain('Portal de Peças WWM');
+        expect(release).toContain("title.textContent = 'Acesso ao ambiente corporativo'");
+        expect(release).toContain('Portal de Solicitação de Peças WWM');
         expect(loginCss).toContain('width: min(500px, 100%)');
+        expect(referenceCss).toContain('width: min(694px, calc(100vw - 40px))');
     });
 
     test('registra dashboard como início real do WWM', () => {
-        expect(navigation).toContain("dashboard: { label: 'Início'");
-        expect(navigation).toContain("title: 'MENU PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios']");
+        expect(navigation).toContain("dashboard: { label: 'Visão Geral'");
+        expect(navigation).toContain("title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios']");
         expect(navigation).toContain('nav-item-home');
         expect(navigation).not.toContain("dashboard: { pageId: 'solicitacoes' }");
     });
 
     test('aplica home WWM v59 aprovada e hidratação da base consolidada', () => {
         expect(dashboard).toContain('Visão operacional e financeira');
-        expect(dashboard).toContain('Nova solicitação de peça');
+        expect(dashboard).toContain('Nova solicitação');
         expect(dashboard).toContain('DataManager.syncAll');
         expect(dashboard).toContain('data-dashboard-state="loading"');
         expect(dashboard).toContain('data-dashboard-state="ready"');
@@ -39,7 +41,7 @@ describe('Release WWM v59 approved exact', () => {
         expect(dashboard).toContain("'data:updated'");
         expect(release).toContain("window.App.lazyModules.dashboard = `./pages/dashboard-v55.js");
         expect(dashboardCss).toContain('body.wwm-dashboard-v59-active .content-area');
-        expect(dashboardCss).toContain('.v59-context-nav');
+        expect(referenceCss).toContain('.v59-hero-toolbar');
     });
 
     test('preserva hardening dos gráficos de relatórios', () => {
@@ -50,8 +52,8 @@ describe('Release WWM v59 approved exact', () => {
         expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
     });
 
-    test('publica cache v59 com os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v59-approved-exact'");
+    test('publica cache v60 com os ativos críticos', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v60-wwm-reference-layout'");
         [
             './css/premium-login-v55.css',
             './css/wwm-dashboard-v59.css',
@@ -60,7 +62,9 @@ describe('Release WWM v59 approved exact', () => {
             './js/pages/dashboard-v55.js',
             './js/components/dashboard-wwm-v59.js',
             './js/pages/relatorios-v55.js',
-            './js/components/reports-chart-hardening-v55.js'
+            './js/components/reports-chart-hardening-v55.js',
+            './css/wwm-reference-theme.css',
+            './js/wwm-reference-ui.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
     });

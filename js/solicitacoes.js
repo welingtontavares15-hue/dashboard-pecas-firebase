@@ -102,15 +102,23 @@ const Solicitacoes = {
         const canExport = !!(window && window.XLSX);
 
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-clipboard-list"></i> ${isTecnico ? 'Minhas Solicitações' : 'Solicitações'}</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2>${isTecnico ? 'Minhas solicitações' : 'Solicitações de peças'}</h2>
+                    <p>Gerencie e acompanhe todas as solicitações de peças da operação.</p>
+                </div>
                 <div class="page-actions">
                     ${canCreate ? `
                         <button class="btn btn-success" onclick="Solicitacoes.openForm()">
-                            <i class="fas fa-plus"></i> Nova Solicitação
+                            <i class="fas fa-plus"></i> Nova solicitação
                         </button>
                     ` : ''}
-                    ${(canManageBackup || canExport) ? `
+                    ${canExport ? `
+                        <button class="btn btn-outline wwm-export-action" onclick="Solicitacoes.exportList()">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    ` : ''}
+                    ${canManageBackup ? `
                         <details class="action-menu">
                             <summary class="btn btn-outline">
                                 <i class="fas fa-ellipsis-v"></i> Mais ações
@@ -124,11 +132,6 @@ const Solicitacoes = {
                                         <i class="fas fa-upload"></i> Restaurar
                                     </button>
                                 ` : ''}
-                                ${canExport ? `
-                                    <button class="action-menu-item" onclick="Solicitacoes.exportList()">
-                                        <i class="fas fa-file-excel"></i> Exportar
-                                    </button>
-                                ` : ''}
                             </div>
                         </details>
                     ` : ''}
@@ -140,7 +143,7 @@ const Solicitacoes = {
             </div>
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <details class="filter-panel compact" id="sol-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact wwm-filter-panel" id="sol-filter-panel" open>
                 <summary class="filter-panel-toggle" id="sol-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
@@ -703,43 +706,48 @@ const Solicitacoes = {
 
     renderSummaryCards() {
         const solicitations = this.getFilteredSolicitations();
-        const totalValue = solicitations.reduce((sum, sol) => sum + (Number(sol._analysisCost ?? sol.total) || 0), 0);
-        const totalParts = solicitations.reduce((sum, sol) => sum + (Number(sol._analysisPieces) || 0), 0);
-        const uniqueClients = new Set(solicitations.map(sol => (sol.cliente || '').trim()).filter(Boolean)).size;
-        const avgValue = solicitations.length > 0 ? totalValue / solicitations.length : 0;
+        const statusOf = (sol) => typeof DataManager.normalizeWorkflowStatus === 'function'
+            ? DataManager.normalizeWorkflowStatus(sol.status)
+            : String(sol.status || '').trim().toLowerCase();
+        const costOf = (sol) => Number(sol._analysisCost ?? sol.total) || 0;
+        const totalValue = solicitations.reduce((sum, sol) => sum + costOf(sol), 0);
+        const pending = solicitations.filter((sol) => statusOf(sol) === 'pendente');
+        const approved = solicitations.filter((sol) => statusOf(sol) === 'aprovada');
+        const transit = solicitations.filter((sol) => statusOf(sol) === 'em-transito');
+        const statusCost = (rows) => rows.reduce((sum, sol) => sum + costOf(sol), 0);
 
         return `
-            <div class="kpi-grid">
-                <div class="kpi-card">
-                    <div class="kpi-icon info"><i class="fas fa-list"></i></div>
+            <div class="kpi-grid wwm-solicitation-kpis">
+                <div class="kpi-card is-total">
+                    <div class="kpi-icon info"><i class="fas fa-dollar-sign"></i></div>
                     <div class="kpi-content">
-                        <h4>Total de solicitações</h4>
+                        <h4>Total no período</h4>
                         <div class="kpi-value">${Utils.formatNumber(solicitations.length)}</div>
-                        <div class="kpi-change">Base filtrada atual</div>
+                        <div class="kpi-change">${Utils.formatCurrency(totalValue)}</div>
                     </div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon success"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="kpi-card is-pending">
+                    <div class="kpi-icon warning"><i class="fas fa-clock"></i></div>
                     <div class="kpi-content">
-                        <h4>Valor total solicitado</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(totalValue)}</div>
-                        <div class="kpi-change">Soma das solicitações filtradas</div>
+                        <h4>Em aprovação</h4>
+                        <div class="kpi-value">${Utils.formatNumber(pending.length)}</div>
+                        <div class="kpi-change">${Utils.formatCurrency(statusCost(pending))}</div>
                     </div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon warning"><i class="fas fa-boxes"></i></div>
+                <div class="kpi-card is-approved">
+                    <div class="kpi-icon success"><i class="fas fa-check"></i></div>
                     <div class="kpi-content">
-                        <h4>Total de peças usadas</h4>
-                        <div class="kpi-value">${Utils.formatNumber(totalParts)}</div>
-                        <div class="kpi-change">Quantidade consolidada de itens</div>
+                        <h4>Aprovadas</h4>
+                        <div class="kpi-value">${Utils.formatNumber(approved.length)}</div>
+                        <div class="kpi-change">${Utils.formatCurrency(statusCost(approved))}</div>
                     </div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-icon primary"><i class="fas fa-users"></i></div>
+                <div class="kpi-card is-transit">
+                    <div class="kpi-icon primary"><i class="fas fa-truck"></i></div>
                     <div class="kpi-content">
-                        <h4>Ticket médio</h4>
-                        <div class="kpi-value">${Utils.formatCurrency(avgValue)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(uniqueClients)} clientes na seleção</div>
+                        <h4>Em trânsito</h4>
+                        <div class="kpi-value">${Utils.formatNumber(transit.length)}</div>
+                        <div class="kpi-change">${Utils.formatCurrency(statusCost(transit))}</div>
                     </div>
                 </div>
             </div>

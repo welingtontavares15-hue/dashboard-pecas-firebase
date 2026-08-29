@@ -1,23 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Navegação consolidada WWM v59', () => {
+describe('Navegação consolidada WWM v60', () => {
     const root = path.resolve(__dirname, '..');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
     test('mantém relatórios como módulo único e sem atalhos duplicados', () => {
-        expect(navigation).toContain("relatorios: { label: 'Histórico e análises'");
+        expect(navigation).toContain("relatorios: { label: 'Relatórios'");
         expect(navigation).not.toContain('Custo por Peça');
         expect(navigation).not.toContain('Custo por Técnico');
         expect(navigation).not.toContain('Custo por Mês');
     });
 
     test('segue a organização WWM na navegação global', () => {
-        ['MENU PRINCIPAL', 'CADASTROS', 'SISTEMA'].forEach((label) => expect(navigation).toContain(label));
-        expect(navigation).toContain("dashboard: { label: 'Início'");
-        expect(navigation).toContain("aprovacoes: { label: 'Pendências'");
+        ['PRINCIPAL', 'GESTÃO', 'SISTEMA'].forEach((label) => expect(navigation).toContain(label));
+        expect(navigation).toContain("dashboard: { label: 'Visão Geral'");
+        expect(navigation).toContain("aprovacoes: { label: 'Aprovações'");
         expect(navigation).toContain('nav-item-home');
         expect(navigation).not.toContain('nav-group-pinned');
     });
@@ -36,11 +36,13 @@ describe('Navegação consolidada WWM v59', () => {
         expect(index).toContain('js/premium-release-v55.js');
     });
 
-    test('mantém suporte offline na versão v59', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v59-approved-exact'");
+    test('mantém suporte offline na versão v60', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v60-wwm-reference-layout'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
+        expect(serviceWorker).toContain("'./css/wwm-reference-theme.css'");
+        expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
     });
 });

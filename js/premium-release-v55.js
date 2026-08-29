@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v58-wwm-hardwired';
-    const ASSET_VERSION = '20260829b';
+    const RELEASE_VERSION = 'v60-wwm-reference';
+    const ASSET_VERSION = '20260829d';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -23,13 +23,14 @@
             card.insertAdjacentHTML('afterbegin', `
                 <header class="wwm-login-header" aria-label="Identidade WWM">
                     <div class="wwm-login-brand">
-                        <span class="wwm-brand-symbol" aria-hidden="true">D</span>
+                        <span class="wwm-brand-symbol" aria-hidden="true"></span>
                         <div class="wwm-brand-copy">
                             <strong>Diversey</strong>
                             <span>A Solenis Company</span>
                         </div>
                     </div>
-                    <p>Central operacional AS&amp;TS · Solenis Brasil</p>
+                    <span class="wwm-login-divider" aria-hidden="true"></span>
+                    <p><i class="fas fa-cube" aria-hidden="true"></i> Portal de Peças WWM</p>
                 </header>
             `);
         }
@@ -40,26 +41,26 @@
         const submit = inner.querySelector('#login-submit');
         const footer = inner.querySelector('.premium-login-form-footer');
 
-        if (kicker) kicker.textContent = 'WWM · Warewashing Machine Request';
-        if (title) title.textContent = 'Acesso corporativo';
-        if (description) description.textContent = 'Use seu usuário e senha para acessar o Portal de Peças WWM.';
+        if (kicker) kicker.textContent = '';
+        if (title) title.textContent = 'Acesso ao ambiente corporativo';
+        if (description) description.textContent = 'Informe seu usuário e senha para acessar o Portal de Solicitação de Peças WWM.';
         if (submit && !submit.dataset.wwmLabelApplied) {
-            submit.innerHTML = '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar';
+            submit.innerHTML = 'Entrar <i class="fas fa-arrow-right" aria-hidden="true"></i>';
             submit.dataset.wwmLabelApplied = 'true';
         }
-        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido para usuários autorizados.';
+        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro e monitorado. <span>Solicite acesso à TI.</span>';
 
         if (!inner.querySelector('.wwm-login-support')) {
             const support = document.createElement('p');
             support.className = 'wwm-login-support';
-            support.textContent = 'Sem acesso? Solicite liberação ao administrador.';
+            support.textContent = '';
             inner.appendChild(support);
         }
 
         if (!inner.querySelector('.wwm-login-meta')) {
             const meta = document.createElement('div');
             meta.className = 'wwm-login-meta';
-            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span>';
+            meta.innerHTML = '';
             inner.appendChild(meta);
         }
 
@@ -79,9 +80,22 @@
             const isDashboard = pageId === 'dashboard' || pageId === 'visao-geral';
             document.body?.classList.toggle('wwm-dashboard-v58-active', isDashboard);
             document.body?.classList.remove('wwm-dashboard-active');
-            if (!isDashboard) return originalUpdateBreadcrumb(pageId);
             const breadcrumb = document.getElementById('breadcrumb');
-            if (breadcrumb) breadcrumb.innerHTML = '<span>WWM – Portal de Peças</span>';
+            const labels = {
+                dashboard: 'Visão Geral',
+                'visao-geral': 'Visão Geral',
+                solicitacoes: 'Solicitações',
+                'minhas-solicitacoes': 'Solicitações',
+                'nova-solicitacao': 'Nova solicitação',
+                aprovacoes: 'Aprovações',
+                relatorios: 'Relatórios',
+                pecas: 'Peças',
+                tecnicos: 'Técnicos',
+                fornecedores: 'Fornecedores',
+                configuracoes: 'Sistema'
+            };
+            if (breadcrumb) breadcrumb.innerHTML = `<span>Portal de Solicitação de Peças WWM</span><i class="fas fa-chevron-right" aria-hidden="true"></i><strong>${labels[pageId] || pageId}</strong>`;
+            if (!labels[pageId] && !isDashboard) originalUpdateBreadcrumb(pageId);
         };
 
         const originalShowApp = window.App.showApp.bind(window.App);

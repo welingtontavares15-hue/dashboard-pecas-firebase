@@ -1,5 +1,4 @@
 const DEFAULT_RANGE_DAYS = 180;
-const PENDING_STATUSES = new Set(['pendente', 'rascunho', 'enviada']);
 const STATUS_GROUPS = [
     { key: 'pending', label: 'Em aprovação', statuses: ['pendente', 'rascunho', 'enviada'], tone: 'warning', icon: 'fa-hourglass-half' },
     { key: 'approved', label: 'Aprovadas', statuses: ['aprovada'], tone: 'success', icon: 'fa-circle-check' },
@@ -9,19 +8,6 @@ const STATUS_GROUPS = [
 ];
 
 const safeArray = (value) => Array.isArray(value) ? value : [];
-
-function normalizeStatus(value) {
-    return window.AnalyticsHelper?.normalizeStatus
-        ? AnalyticsHelper.normalizeStatus(value)
-        : String(value || '').trim().toLowerCase();
-}
-
-function recordDate(record) {
-    if (window.AnalyticsHelper?.getSolicitationDate) return AnalyticsHelper.getSolicitationDate(record);
-    const raw = record?.data || record?.createdAt;
-    const date = raw ? new Date(raw) : null;
-    return date && !Number.isNaN(date.getTime()) ? date : null;
-}
 
 function recordCost(record) {
     const explicit = Number(record?._analysisCost ?? record?.total);
@@ -83,43 +69,15 @@ function statusDistribution(analysis) {
     }));
 }
 
-function formatPeriodLabel(days) {
-    if (days <= 90) return 'Últimos 3 meses';
-    if (days <= 180) return 'Últimos 6 meses';
-    return 'Últimos 12 meses';
-}
-
 function heroActions() {
     const actions = [];
     if (window.Auth?.hasPermission?.('solicitacoes', 'create')) {
-        actions.push('<button class="v59-hero-action is-primary" onclick="App.navigate(\'nova-solicitacao\')"><i class="fas fa-plus"></i>Nova solicitação de peça</button>');
+        actions.push('<button class="v59-hero-action is-primary" onclick="App.navigate(\'nova-solicitacao\')"><i class="fas fa-plus"></i>Nova solicitação</button>');
     }
     if (window.Auth?.hasPermission?.('aprovacoes', 'view')) {
         actions.push('<button class="v59-hero-action" onclick="App.navigate(\'aprovacoes\')"><i class="fas fa-check-double"></i>Aprovações</button>');
     }
-    if (window.Auth?.hasPermission?.('relatorios', 'view')) {
-        actions.push('<button class="v59-hero-action" onclick="App.navigate(\'relatorios\')"><i class="fas fa-clock-rotate-left"></i>Histórico de solicitações</button>');
-        actions.push('<button class="v59-hero-action" onclick="App.navigate(\'relatorios\')"><i class="fas fa-chart-column"></i>Relatórios de custos</button>');
-    }
     return actions.join('');
-}
-
-function sideNavigation() {
-    return `<aside class="v59-context-nav" aria-label="Visão operacional">
-        <div class="v59-context-head"><strong>VISÃO OPERACIONAL</strong><span>Navegação do painel</span></div>
-        <nav>
-            <a class="active" href="#v59-summary" data-v59-anchor="v59-summary"><i class="fas fa-compass"></i><span>Resumo executivo</span></a>
-            <a href="#v59-indicators" data-v59-anchor="v59-indicators"><i class="fas fa-chart-simple"></i><span>Indicadores</span></a>
-            <a href="#v59-flow" data-v59-anchor="v59-flow"><i class="fas fa-diagram-project"></i><span>Fluxo operacional</span></a>
-            <a href="#v59-costs" data-v59-anchor="v59-costs"><i class="fas fa-chart-line"></i><span>Custos e tendência</span></a>
-            <a href="#v59-impact" data-v59-anchor="v59-impact"><i class="fas fa-boxes-stacked"></i><span>Peças de maior impacto</span></a>
-            <a href="#v59-recent" data-v59-anchor="v59-recent"><i class="fas fa-clock-rotate-left"></i><span>Solicitações recentes</span></a>
-        </nav>
-        <div class="v59-shortcuts"><strong>ATALHOS</strong>
-            ${window.Auth?.hasPermission?.('aprovacoes', 'view') ? '<button onclick="App.navigate(\'aprovacoes\')"><i class="fas fa-check"></i>Aprovações</button>' : ''}
-            ${window.Auth?.hasPermission?.('relatorios', 'view') ? '<button onclick="App.navigate(\'relatorios\')"><i class="fas fa-chart-column"></i>Relatórios</button>' : ''}
-        </div>
-    </aside>`;
 }
 
 function metricCard(label, value, note, icon, tone) {
@@ -167,13 +125,16 @@ function renderReady(source, period, analysis) {
     const pending = statuses.find((item) => item.key === 'pending')?.value || 0;
     return `<div class="wwm-dashboard-v59" data-dashboard-state="ready" data-dashboard-source-count="${source.length}" data-dashboard-period-count="${Number(analysis?.totalRequests || 0)}">
         <div class="v59-layout">
-            ${sideNavigation()}
             <main class="v59-main">
                 <section id="v59-summary" class="v59-hero v59-section">
-                    <span class="v59-eyebrow">PORTAL DE PEÇAS WWM</span>
-                    <h1>Visão operacional e financeira</h1>
-                    <p>Indicadores consolidados para priorizar aprovações, controlar custos e acompanhar pedidos de peças.</p>
-                    <div class="v59-hero-actions">${heroActions()}</div>
+                    <div class="v59-hero-copy">
+                        <h1>Visão operacional e financeira</h1>
+                        <p>Acompanhe aprovações, custos, peças e o andamento das solicitações em tempo real.</p>
+                    </div>
+                    <div class="v59-hero-toolbar">
+                        <label class="v59-period-control"><span>Período</span><i class="fas fa-calendar-days" aria-hidden="true"></i><select id="v59-range"><option value="90" ${Dashboard.focusRangeDays === 90 ? 'selected' : ''}>Últimos 3 meses</option><option value="180" ${Dashboard.focusRangeDays === 180 ? 'selected' : ''}>Últimos 6 meses</option><option value="365" ${Dashboard.focusRangeDays === 365 ? 'selected' : ''}>Últimos 12 meses</option></select></label>
+                        <div class="v59-hero-actions">${heroActions()}</div>
+                    </div>
                 </section>
 
                 <section id="v59-indicators" class="v59-kpi-grid v59-section">
@@ -187,23 +148,23 @@ function renderReady(source, period, analysis) {
 
                 <section id="v59-costs" class="v59-chart-grid v59-section">
                     <article class="v59-card">
-                        <header class="v59-card-head"><div><strong>EVOLUÇÃO DO CUSTO MENSAL</strong><span>Somatório por mês (R$)</span></div><select id="v59-range"><option value="90" ${Dashboard.focusRangeDays === 90 ? 'selected' : ''}>Últimos 3 meses</option><option value="180" ${Dashboard.focusRangeDays === 180 ? 'selected' : ''}>Últimos 6 meses</option><option value="365" ${Dashboard.focusRangeDays === 365 ? 'selected' : ''}>Últimos 12 meses</option></select></header>
+                        <header class="v59-card-head"><div><strong>Evolução do custo mensal</strong><span>Somatório por mês (R$)</span></div><i class="fas fa-circle-info" aria-hidden="true"></i></header>
                         <div class="v59-chart-box">${safeArray(analysis?.byMonth).length ? '<canvas id="v59-cost-chart"></canvas>' : '<div class="v59-empty">Sem dados mensais.</div>'}</div>
                     </article>
                     <article class="v59-card">
-                        <header class="v59-card-head"><div><strong>DISTRIBUIÇÃO POR STATUS</strong><span>Quantidade de solicitações</span></div></header>
+                        <header class="v59-card-head"><div><strong>Distribuição por status</strong><span>Quantidade de solicitações</span></div><i class="fas fa-circle-info" aria-hidden="true"></i></header>
                         <div class="v59-chart-box is-donut">${statuses.some((item) => item.value > 0) ? '<canvas id="v59-status-chart"></canvas>' : '<div class="v59-empty">Sem solicitações.</div>'}</div>
                     </article>
                 </section>
 
                 <section class="v59-detail-grid">
                     <article id="v59-impact" class="v59-card v59-section">
-                        <header class="v59-card-head"><div><strong>PEÇAS COM MAIOR IMPACTO</strong><span>Ranking por impacto financeiro</span></div></header>
+                        <header class="v59-card-head"><div><strong>Peças com maior impacto</strong><span>Ranking por impacto financeiro</span></div><i class="fas fa-circle-info" aria-hidden="true"></i></header>
                         ${topPiecesTable(analysis?.topPieces || [])}
                         <button class="v59-card-link" onclick="App.navigate('relatorios')">Ver relatório completo <i class="fas fa-arrow-right"></i></button>
                     </article>
                     <article id="v59-recent" class="v59-card v59-section">
-                        <header class="v59-card-head"><div><strong>SOLICITAÇÕES RECENTES</strong><span>Últimas solicitações dentro do período</span></div></header>
+                        <header class="v59-card-head"><div><strong>Solicitações recentes</strong><span>Últimas solicitações dentro do período</span></div><i class="fas fa-circle-info" aria-hidden="true"></i></header>
                         ${recentTable(safeArray(analysis?.solicitations))}
                         <button class="v59-card-link" onclick="App.navigate('solicitacoes')">Ver todas as solicitações <i class="fas fa-arrow-right"></i></button>
                     </article>

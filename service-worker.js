@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v59-approved-exact';
+const CACHE_VERSION = 'v60-wwm-reference-layout';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -30,6 +30,7 @@ const PRECACHE = {
     './css/premium-ui-v3-polish.css',
     './css/premium-login-v55.css',
     './css/premium-release-v55.css',
+    './css/wwm-reference-theme.css',
     './css/wwm-dashboard-v59.css',
     './manifest.webmanifest',
     './icons/icon.svg',
@@ -55,6 +56,7 @@ const PRECACHE = {
     './js/premium-plus.js',
     './js/premium-ui-v3.js',
     './js/premium-release-v55.js',
+    './js/wwm-reference-ui.js',
     './js/corporate-platform.js',
     './js/navigation-consolidation-runtime.js',
     './js/lazy/load-script.js',

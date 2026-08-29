@@ -713,7 +713,7 @@ const App = {
      */
     applyTheme() {
         const settings = DataManager.getSettings();
-        const theme = settings.theme || 'light';
+        const theme = settings.theme || 'dark';
         const body = document.body;
         
         body.classList.remove('light-mode', 'dark-mode');

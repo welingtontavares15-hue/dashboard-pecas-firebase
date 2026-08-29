@@ -2,15 +2,15 @@
     'use strict';
 
     const ROUTE_DEFINITIONS = Object.freeze({
-        dashboard: { label: 'Início', icon: 'fa-house', roles: ['administrador', 'gestor'] },
+        dashboard: { label: 'Visão Geral', icon: 'fa-house', roles: ['administrador', 'gestor'] },
         solicitacoes: { label: 'Solicitações', icon: 'fa-file-lines', permission: ['solicitacoes', 'view'] },
         historico: { label: 'Histórico', icon: 'fa-clock-rotate-left', permission: ['solicitacoes', 'view'], roles: ['tecnico'] },
-        aprovacoes: { label: 'Pendências', icon: 'fa-clock', badge: true, permission: ['aprovacoes', 'view'] },
+        aprovacoes: { label: 'Aprovações', icon: 'fa-square-check', badge: true, permission: ['aprovacoes', 'view'] },
         pecas: { label: 'Peças', icon: 'fa-boxes-stacked', permission: ['pecas', 'view'] },
         tecnicos: { label: 'Técnicos', icon: 'fa-users-gear', permission: ['tecnicos', 'view'] },
         fornecedores: { label: 'Fornecedores', icon: 'fa-truck-field', permission: ['fornecedores', 'view'] },
-        relatorios: { label: 'Histórico e análises', icon: 'fa-chart-line', permission: ['relatorios', 'view'] },
-        configuracoes: { label: 'Administração', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
+        relatorios: { label: 'Relatórios', icon: 'fa-chart-column', permission: ['relatorios', 'view'] },
+        configuracoes: { label: 'Sistema', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
         fornecedor: { label: 'Pedidos Aprovados', icon: 'fa-truck-fast', permission: ['fornecedor', 'view'] },
         perfil: { label: 'Meu Perfil', icon: 'fa-user-gear', roles: ['tecnico', 'fornecedor'] },
         ajuda: { label: 'Ajuda', icon: 'fa-circle-question', roles: ['tecnico'] }
@@ -26,12 +26,12 @@
 
     const NAVIGATION_MODEL = Object.freeze({
         administrador: [
-            { key: 'principal', title: 'MENU PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
-            { key: 'cadastros', title: 'CADASTROS', items: ['pecas', 'tecnicos', 'fornecedores'] },
+            { key: 'principal', title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
+            { key: 'cadastros', title: 'GESTÃO', items: ['pecas', 'tecnicos', 'fornecedores'] },
             { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
         ],
         gestor: [
-            { key: 'principal', title: 'MENU PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
+            { key: 'principal', title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
             { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
         ],
         tecnico: [
