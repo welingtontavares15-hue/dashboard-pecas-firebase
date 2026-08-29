@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v56-wwm-reference-login';
-    const ASSET_VERSION = '20260828d';
+    const RELEASE_VERSION = 'v56-1-wwm-proportional-login';
+    const ASSET_VERSION = '20260828e';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -41,27 +41,27 @@
         const footer = inner.querySelector('.premium-login-form-footer');
 
         if (kicker) kicker.textContent = 'WWM · Warewashing Machine Request';
-        if (title) title.textContent = 'Acesso ao ambiente corporativo';
-        if (description) description.textContent = 'Entre com seu usuário e senha para acessar o Portal de Peças WWM.';
+        if (title) title.textContent = 'Acesso corporativo';
+        if (description) description.textContent = 'Use seu usuário e senha para acessar o Portal de Peças WWM.';
         if (submit && !submit.dataset.wwmLabelApplied) {
             submit.innerHTML = '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar';
             submit.dataset.wwmLabelApplied = 'true';
         }
         if (footer) {
-            footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido e exclusivo para usuários autorizados.';
+            footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido para usuários autorizados.';
         }
 
         if (!inner.querySelector('.wwm-login-support')) {
             const support = document.createElement('p');
             support.className = 'wwm-login-support';
-            support.textContent = 'Acesso indisponível? Solicite a liberação ao administrador.';
+            support.textContent = 'Sem acesso? Solicite liberação ao administrador.';
             inner.appendChild(support);
         }
 
         if (!inner.querySelector('.wwm-login-meta')) {
             const meta = document.createElement('div');
             meta.className = 'wwm-login-meta';
-            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span><span>Ambiente corporativo</span>';
+            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span>';
             inner.appendChild(meta);
         }
 
