@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Navegação consolidada WWM v58', () => {
+describe('Navegação consolidada WWM v59', () => {
     const root = path.resolve(__dirname, '..');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -36,11 +36,11 @@ describe('Navegação consolidada WWM v58', () => {
         expect(index).toContain('js/premium-release-v55.js');
     });
 
-    test('mantém suporte offline na versão v58', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v58-wwm-hardwired'");
+    test('mantém suporte offline na versão v59', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v59-approved-exact'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
-        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v58.js'");
-        expect(serviceWorker).toContain("'./css/wwm-dashboard-v58.css'");
+        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
+        expect(serviceWorker).toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
     });
 });
