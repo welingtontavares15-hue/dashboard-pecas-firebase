@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release premium v55 + WWM reference v56', () => {
+describe('Release premium v55 + WWM reference v56.1', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
@@ -11,14 +11,17 @@ describe('Release premium v55 + WWM reference v56', () => {
     const loginCss = fs.readFileSync(path.join(root, 'css/premium-login-v55.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('mantém a estrutura de autenticação e aplica a referência visual oficial do WWM', () => {
+    test('mantém a estrutura de autenticação e aplica o login WWM proporcional', () => {
         expect(index).toContain('premium-login-shell');
-        expect(index).toContain('css/premium-login-v55.css?v=20260828c');
-        expect(release).toContain("const RELEASE_VERSION = 'v56-wwm-reference-login'");
+        expect(index).toContain('css/premium-login-v55.css?v=20260828e');
+        expect(release).toContain("const RELEASE_VERSION = 'v56-1-wwm-proportional-login'");
         expect(release).toContain('Central operacional AS&amp;TS · Solenis Brasil');
-        expect(release).toContain("title.textContent = 'Acesso ao ambiente corporativo'");
+        expect(release).toContain("title.textContent = 'Acesso corporativo'");
         expect(release).toContain('WWM · Warewashing Machine Request');
-        expect(release).toContain('Acesso indisponível? Solicite a liberação ao administrador.');
+        expect(release).toContain('Sem acesso? Solicite liberação ao administrador.');
+        expect(loginCss).toContain('width: min(500px, 100%)');
+        expect(loginCss).toContain('min-height: 78px');
+        expect(loginCss).toContain('min-height: 44px');
         expect(loginCss).toContain('background: #006e66 !important');
         expect(loginCss).toContain('background: #08111f');
         expect(loginCss).toContain('#login-screen .login-brand-panel');
@@ -54,7 +57,7 @@ describe('Release premium v55 + WWM reference v56', () => {
     });
 
     test('publica uma versão de cache nova com todos os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v56-wwm-reference-login'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v56-1-wwm-proportional-login'");
         [
             './css/premium-login-v55.css',
             './css/premium-release-v55.css',
