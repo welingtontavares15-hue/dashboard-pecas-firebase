@@ -2,15 +2,15 @@
     'use strict';
 
     const ROUTE_DEFINITIONS = Object.freeze({
-        dashboard: { label: 'Visão Operacional', icon: 'fa-chart-pie', roles: ['administrador', 'gestor'] },
-        solicitacoes: { label: 'Solicitações', icon: 'fa-clipboard-list', permission: ['solicitacoes', 'view'] },
+        dashboard: { label: 'Início', icon: 'fa-house', roles: ['administrador', 'gestor'] },
+        solicitacoes: { label: 'Solicitações', icon: 'fa-file-lines', permission: ['solicitacoes', 'view'] },
         historico: { label: 'Histórico', icon: 'fa-clock-rotate-left', permission: ['solicitacoes', 'view'], roles: ['tecnico'] },
-        aprovacoes: { label: 'Aprovações', icon: 'fa-check-double', badge: true, permission: ['aprovacoes', 'view'] },
+        aprovacoes: { label: 'Pendências', icon: 'fa-clock', badge: true, permission: ['aprovacoes', 'view'] },
         pecas: { label: 'Peças', icon: 'fa-boxes-stacked', permission: ['pecas', 'view'] },
         tecnicos: { label: 'Técnicos', icon: 'fa-users-gear', permission: ['tecnicos', 'view'] },
         fornecedores: { label: 'Fornecedores', icon: 'fa-truck-field', permission: ['fornecedores', 'view'] },
-        relatorios: { label: 'Relatórios', icon: 'fa-chart-column', permission: ['relatorios', 'view'] },
-        configuracoes: { label: 'Configurações', icon: 'fa-sliders', permission: ['configuracoes', 'view'] },
+        relatorios: { label: 'Histórico e análises', icon: 'fa-chart-line', permission: ['relatorios', 'view'] },
+        configuracoes: { label: 'Administração', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
         fornecedor: { label: 'Pedidos Aprovados', icon: 'fa-truck-fast', permission: ['fornecedor', 'view'] },
         perfil: { label: 'Meu Perfil', icon: 'fa-user-gear', roles: ['tecnico', 'fornecedor'] },
         ajuda: { label: 'Ajuda', icon: 'fa-circle-question', roles: ['tecnico'] }
@@ -26,22 +26,16 @@
 
     const NAVIGATION_MODEL = Object.freeze({
         administrador: [
-            { key: 'visao-operacional', title: 'VISÃO OPERACIONAL', items: ['dashboard'] },
-            { key: 'operacao', title: 'OPERAÇÃO', items: ['solicitacoes', 'aprovacoes'] },
-            { key: 'custos', title: 'CUSTOS E ANÁLISES', items: ['relatorios'] },
+            { key: 'principal', title: 'MENU PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
             { key: 'cadastros', title: 'CADASTROS', items: ['pecas', 'tecnicos', 'fornecedores'] },
-            { key: 'sistema', title: 'CONFIGURAÇÕES', items: ['configuracoes'] }
+            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
         ],
         gestor: [
-            { key: 'visao-operacional', title: 'VISÃO OPERACIONAL', items: ['dashboard'] },
-            { key: 'operacao', title: 'OPERAÇÃO', items: ['solicitacoes', 'aprovacoes'] },
-            { key: 'custos', title: 'CUSTOS E ANÁLISES', items: ['relatorios'] },
-            { key: 'sistema', title: 'CONFIGURAÇÕES', items: ['configuracoes'] }
+            { key: 'principal', title: 'MENU PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
+            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
         ],
         tecnico: [
-            { key: 'operacao', title: 'OPERAÇÃO', items: [
-                { id: 'solicitacoes', label: 'Minhas Solicitações' }
-            ] },
+            { key: 'operacao', title: 'OPERAÇÃO', items: [{ id: 'solicitacoes', label: 'Minhas Solicitações' }] },
             { key: 'consulta', title: 'CONSULTA', items: [
                 { id: 'historico', label: 'Histórico', icon: 'fa-clock-rotate-left' },
                 { id: 'pecas', label: 'Catálogo de Peças', icon: 'fa-magnifying-glass' }
@@ -57,11 +51,7 @@
     function resolveRoute(routeId) {
         const requestedId = String(routeId || '').trim();
         const alias = ROUTE_ALIASES[requestedId];
-        return {
-            requestedId,
-            pageId: alias?.pageId || requestedId,
-            action: alias?.action || null
-        };
+        return { requestedId, pageId: alias?.pageId || requestedId, action: alias?.action || null };
     }
 
     function normalizeItem(item) {
@@ -73,17 +63,11 @@
 
     function getGroups(role) {
         const groups = NAVIGATION_MODEL[role] || NAVIGATION_MODEL.gestor;
-        return groups.map((group) => ({
-            ...group,
-            items: group.items.map(normalizeItem).filter(Boolean)
-        }));
+        return groups.map((group) => ({ ...group, items: group.items.map(normalizeItem).filter(Boolean) }));
     }
 
     function getMenuItems(role) {
-        return getGroups(role).flatMap((group) => group.items.map((item) => ({
-            ...item,
-            section: group.title
-        })));
+        return getGroups(role).flatMap((group) => group.items.map((item) => ({ ...item, section: group.title })));
     }
 
     function getRouteLabel(routeId, role) {
@@ -105,20 +89,12 @@
         const visibilityId = requestedDefinition ? requestedId : pageId;
         const visibleForRole = getMenuItems(role).some((item) => item.id === visibilityId || item.id === pageId);
         if (!visibleForRole) return false;
-
-        if (Array.isArray(definition.roles) && !definition.roles.includes(role)) {
-            return false;
-        }
-
+        if (Array.isArray(definition.roles) && !definition.roles.includes(role)) return false;
         if (Array.isArray(definition.permission)) {
             const [module, permissionAction] = definition.permission;
             if (!auth.hasPermission(module, permissionAction)) return false;
         }
-
-        if (action === 'create-solicitacao' && !auth.hasPermission('solicitacoes', 'create')) {
-            return false;
-        }
-
+        if (action === 'create-solicitacao' && !auth.hasPermission('solicitacoes', 'create')) return false;
         return true;
     }
 
@@ -134,12 +110,7 @@
     function updateIdentity(auth) {
         const currentUser = auth.getCurrentUser();
         const roleLabel = auth.getRoleLabel(auth.getRole());
-        [
-            ['user-name', currentUser?.name || 'Usuário'],
-            ['user-role', roleLabel],
-            ['header-user-name', currentUser?.name || 'Usuário'],
-            ['header-user-role', roleLabel]
-        ].forEach(([id, value]) => {
+        [['user-name', currentUser?.name || 'Usuário'], ['user-role', roleLabel], ['header-user-name', currentUser?.name || 'Usuário'], ['header-user-role', roleLabel]].forEach(([id, value]) => {
             const element = document.getElementById(id);
             if (element) element.textContent = value;
         });
@@ -149,7 +120,6 @@
         const badge = document.getElementById('pending-badge');
         const count = document.getElementById('pending-count');
         if (!badge) return;
-
         const visible = auth.hasPermission('aprovacoes', 'view') && pendingCount > 0;
         badge.classList.toggle('hidden', !visible);
         badge.setAttribute('aria-hidden', visible ? 'false' : 'true');
@@ -164,41 +134,29 @@
         const groups = getGroups(role);
         const activePageId = resolveRoute(activeId).pageId;
         const pendingCount = getPendingCount();
-        const activeGroup = groups.find((group) => group.items.some((item) => item.id === activePageId))?.key || groups[0]?.key;
-        const pinnedGroups = groups.filter((group) => group.key === 'visao-operacional');
-        const collapsibleGroups = groups.filter((group) => group.key !== 'visao-operacional');
         auth._menuGroupsCollapsed = auth._menuGroupsCollapsed || {};
 
         const buildItem = (item) => {
             const active = item.id === activePageId;
-            const badge = item.badge && pendingCount > 0
-                ? `<span class="nav-badge" aria-label="${pendingCount} pendente(s)">${pendingCount}</span>`
-                : '';
+            const badge = item.badge && pendingCount > 0 ? `<span class="nav-badge" aria-label="${pendingCount} pendente(s)">${pendingCount}</span>` : '';
             const historyMarker = item.id === 'historico' ? ' data-technician-history-nav="true"' : '';
             const homeMarker = item.id === 'dashboard' ? ' nav-item-home' : '';
-            return `<a class="nav-item${homeMarker} ${active ? 'active' : ''}" data-page="${item.id}" title="${item.label}"${historyMarker}${active ? ' aria-current="page"' : ''}>`
-                + `<i class="fas ${item.icon}" aria-hidden="true"></i>`
-                + `<span>${item.label}</span>${badge}</a>`;
+            return `<a class="nav-item${homeMarker} ${active ? 'active' : ''}" data-page="${item.id}" title="${item.label}"${historyMarker}${active ? ' aria-current="page"' : ''}><i class="fas ${item.icon}" aria-hidden="true"></i><span>${item.label}</span>${badge}</a>`;
         };
 
-        const pinnedHtml = pinnedGroups.map((group) => `<section class="nav-group nav-group-pinned" data-nav-group="${group.key}">`
-            + `<div class="nav-group-toggle nav-group-label"><span>${group.title}</span></div>`
-            + `<div class="nav-group-items">${group.items.map(buildItem).join('')}</div></section>`).join('');
-
-        const groupsHtml = collapsibleGroups.map((group) => {
-            const storedState = auth._menuGroupsCollapsed[group.key];
-            const collapsed = storedState === undefined ? group.key !== activeGroup : storedState;
-            return `<section class="nav-group ${collapsed ? 'collapsed' : ''}" data-nav-group="${group.key}">`
-                + `<button type="button" class="nav-group-toggle" data-group-toggle="${group.key}" aria-expanded="${collapsed ? 'false' : 'true'}">`
-                + `<span>${group.title}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></button>`
-                + `<div class="nav-group-items">${group.items.map(buildItem).join('')}</div></section>`;
+        nav.innerHTML = groups.map((group) => {
+            const alwaysOpen = group.key === 'principal';
+            const collapsed = alwaysOpen ? false : Boolean(auth._menuGroupsCollapsed[group.key]);
+            return `<section class="nav-group ${collapsed ? 'collapsed' : ''}" data-nav-group="${group.key}">
+                <button type="button" class="nav-group-toggle" data-group-toggle="${group.key}" aria-expanded="${collapsed ? 'false' : 'true'}"><span>${group.title}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+                <div class="nav-group-items">${group.items.map(buildItem).join('')}</div>
+            </section>`;
         }).join('');
-
-        nav.innerHTML = pinnedHtml + groupsHtml;
 
         nav.querySelectorAll('[data-group-toggle]').forEach((button) => {
             button.addEventListener('click', () => {
                 const key = button.dataset.groupToggle;
+                if (key === 'principal') return;
                 const group = nav.querySelector(`[data-nav-group="${key}"]`);
                 if (!group) return;
                 const collapsed = !group.classList.contains('collapsed');
@@ -212,15 +170,5 @@
         updatePendingHeader(auth, pendingCount);
     }
 
-    window.NavigationMaster = Object.freeze({
-        model: NAVIGATION_MODEL,
-        routes: ROUTE_DEFINITIONS,
-        aliases: ROUTE_ALIASES,
-        resolveRoute,
-        getGroups,
-        getMenuItems,
-        getRouteLabel,
-        canAccessRoute,
-        render
-    });
+    window.NavigationMaster = Object.freeze({ model: NAVIGATION_MODEL, routes: ROUTE_DEFINITIONS, aliases: ROUTE_ALIASES, resolveRoute, getGroups, getMenuItems, getRouteLabel, canAccessRoute, render });
 })();
