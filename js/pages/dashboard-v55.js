@@ -3,7 +3,18 @@ import { applyDashboardWwmV57 } from '../components/dashboard-wwm-v57.js?v=20260
 
 let ready = false;
 
+function ensureWwmDashboardStyles() {
+    const id = 'wwm-dashboard-v57-styles';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = new URL('../../css/wwm-dashboard-v57.css?v=20260829a', import.meta.url).href;
+    document.head.appendChild(link);
+}
+
 export async function ensureLoaded() {
+    ensureWwmDashboardStyles();
     if (ready && typeof window.Dashboard !== 'undefined') {
         applyDashboardWwmV57();
         return;
