@@ -10,7 +10,7 @@ describe('Dashboard WWM v58', () => {
 
     test('segue a home WWM sem a segunda navegação interna', () => {
         expect(dashboard).toContain('Portal de Peças WWM');
-        expect(dashboard).toContain('Últimas pendências');
+        expect(dashboard).toContain('ÚLTIMAS PENDÊNCIAS');
         expect(dashboard).toContain('Pendentes');
         expect(dashboard).toContain('Atrasadas');
         expect(dashboard).toContain('Concluídas');
