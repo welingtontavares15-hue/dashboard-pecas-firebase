@@ -1,4 +1,4 @@
-/* WWM reference login v56 — faithful to the Warewashing Machine Request visual language */
+/* WWM reference login v56.1 — compact, proportional and faithful to the WWM visual language */
 #login-screen.login-container:not(.hidden) {
     position: fixed;
     inset: 0;
@@ -8,7 +8,7 @@
     width: 100%;
     min-height: 100vh;
     min-height: 100svh;
-    padding: clamp(20px, 4vw, 54px);
+    padding: clamp(18px, 3vw, 42px);
     overflow: auto;
     color-scheme: light;
     background: #006e66 !important;
@@ -23,7 +23,7 @@
 
 #login-screen .premium-login-shell {
     display: block !important;
-    width: min(560px, 100%);
+    width: min(500px, 100%);
     min-height: 0 !important;
     overflow: visible !important;
     border: 0 !important;
@@ -46,15 +46,18 @@
     padding: 0 !important;
     overflow: hidden !important;
     background: #ffffff !important;
-    border: 1px solid rgba(10, 23, 48, .26) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 26px 64px rgba(1, 23, 34, .24) !important;
+    border: 1px solid rgba(10, 23, 48, .22) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 22px 52px rgba(1, 23, 34, .22) !important;
 }
 
 #login-screen .wwm-login-header {
     display: grid;
-    gap: 22px;
-    padding: 24px 34px 26px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 20px;
+    min-height: 78px;
+    padding: 17px 28px;
     color: #ffffff;
     background: #08111f;
 }
@@ -62,18 +65,20 @@
 #login-screen .wwm-login-brand {
     display: flex;
     align-items: center;
-    gap: 11px;
+    gap: 10px;
+    white-space: nowrap;
 }
 
 #login-screen .wwm-brand-symbol {
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
     border-radius: 8px;
     color: #ffffff;
     background: linear-gradient(145deg, #1a7fda 0%, #0c5db7 100%);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: -.04em;
 }
@@ -85,33 +90,34 @@
 
 #login-screen .wwm-brand-copy strong {
     color: #ffffff;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: -.02em;
 }
 
 #login-screen .wwm-brand-copy span {
     color: #92a9c2;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 800;
-    letter-spacing: .14em;
+    letter-spacing: .13em;
     text-transform: uppercase;
 }
 
 #login-screen .wwm-login-header p {
-    margin: 0;
-    color: #f3f6fb;
-    font-size: 13px;
+    max-width: 220px;
+    margin: 0 0 0 auto;
+    color: #e7edf5;
+    font-size: 11px;
     font-weight: 700;
-    line-height: 1.45;
-    text-align: center;
+    line-height: 1.35;
+    text-align: right;
 }
 
 #login-screen .login-card-inner {
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 34px 38px 30px !important;
+    padding: 24px 32px 21px !important;
     color: #0b1730 !important;
     background: #ffffff !important;
     border: 0 !important;
@@ -119,7 +125,7 @@
 }
 
 #login-screen .login-logo {
-    margin: 0 0 28px !important;
+    margin: 0 0 18px !important;
     text-align: left !important;
 }
 
@@ -129,35 +135,35 @@
 
 #login-screen .login-form-kicker {
     display: inline-flex;
-    margin: 0 0 8px;
+    margin: 0 0 5px;
     color: #006e66 !important;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: .1em;
     text-transform: uppercase;
 }
 
 #login-screen .login-logo h1 {
-    margin: 0 0 8px !important;
+    margin: 0 0 5px !important;
     color: #0a1830 !important;
-    font-size: clamp(27px, 3.2vw, 34px) !important;
+    font-size: clamp(25px, 2.5vw, 29px) !important;
     font-weight: 800 !important;
-    line-height: 1.14 !important;
-    letter-spacing: -.035em !important;
+    line-height: 1.15 !important;
+    letter-spacing: -.032em !important;
     -webkit-text-fill-color: currentColor !important;
 }
 
 #login-screen .login-logo p {
-    max-width: 460px;
+    max-width: 420px;
     margin: 0 !important;
     color: #596b82 !important;
-    font-size: 13px !important;
-    line-height: 1.6 !important;
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
 }
 
 #login-screen .login-form {
     display: grid;
-    gap: 18px;
+    gap: 13px;
 }
 
 #login-screen .login-form .form-group {
@@ -166,9 +172,9 @@
 
 #login-screen .login-form label {
     display: block;
-    margin: 0 0 7px;
+    margin: 0 0 5px;
     color: #24364f !important;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -180,23 +186,23 @@
     position: absolute;
     z-index: 1;
     top: 50%;
-    left: 15px;
+    left: 14px;
     translate: 0 -50%;
     color: #7a8ca4;
-    font-size: 13px;
+    font-size: 12px;
     pointer-events: none;
 }
 
 #login-screen .login-form .form-control {
     width: 100%;
-    min-height: 48px;
-    padding: 11px 46px 11px 42px !important;
+    min-height: 44px;
+    padding: 10px 43px 10px 39px !important;
     color: #14243a !important;
     background: #f7f7f7 !important;
     border: 1px solid #c8cdd4 !important;
     border-radius: 7px !important;
     outline: none;
-    font-size: 14px;
+    font-size: 13px;
     transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 
@@ -228,11 +234,11 @@
     position: absolute;
     z-index: 2;
     top: 50%;
-    right: 9px;
+    right: 8px;
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     translate: 0 -50%;
     color: #66758a !important;
     background: transparent;
@@ -247,14 +253,14 @@
 }
 
 #login-screen #login-submit {
-    min-height: 48px;
-    margin-top: 3px;
+    min-height: 44px;
+    margin-top: 1px;
     color: #ffffff !important;
     background: #006e66 !important;
     border: 1px solid #006e66 !important;
     border-radius: 7px !important;
     box-shadow: none !important;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     transition: background .16s ease, border-color .16s ease, translate .16s ease;
 }
@@ -277,11 +283,11 @@
 
 #login-screen .login-status,
 #login-screen .error-message {
-    margin: -3px 0 0;
-    padding: 10px 12px;
+    margin: -2px 0 0;
+    padding: 9px 10px;
     border-radius: 7px;
-    font-size: 12px;
-    line-height: 1.45;
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 #login-screen .login-status {
@@ -297,12 +303,12 @@
 }
 
 #login-screen .premium-login-form-footer {
-    margin-top: 16px !important;
+    margin-top: 12px !important;
     padding-top: 0 !important;
     color: #65758b !important;
     border: 0 !important;
-    font-size: 11px !important;
-    line-height: 1.45;
+    font-size: 10px !important;
+    line-height: 1.35;
     text-align: center;
 }
 
@@ -311,68 +317,87 @@
 }
 
 #login-screen .wwm-login-support {
-    margin: 18px 0 0;
+    margin: 11px 0 0;
     color: #31546b;
-    font-size: 12px;
+    font-size: 10.5px;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.35;
     text-align: center;
     text-decoration: underline;
-    text-decoration-color: rgba(49, 84, 107, .35);
-    text-underline-offset: 3px;
+    text-decoration-color: rgba(49, 84, 107, .3);
+    text-underline-offset: 2px;
 }
 
 #login-screen .wwm-login-meta {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 6px 10px;
-    margin-top: 9px;
-    color: #78879b;
-    font-size: 10px;
-    line-height: 1.4;
+    gap: 5px 9px;
+    margin-top: 7px;
+    color: #8490a0;
+    font-size: 9px;
+    line-height: 1.3;
     text-align: center;
 }
 
 #login-screen .wwm-login-meta span + span::before {
-    margin-right: 10px;
+    margin-right: 9px;
     content: '•';
-    color: #a8b2be;
+    color: #b0b8c2;
 }
 
 #login-screen .credentials-panel {
-    margin-top: 18px !important;
+    margin-top: 14px !important;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 560px) {
     #login-screen.login-container:not(.hidden) {
-        place-items: start center;
-        padding: 18px 12px;
+        place-items: center;
+        padding: 14px;
     }
 
     #login-screen .premium-login-shell {
         width: 100%;
-    }
-
-    #login-screen .login-card {
-        border-radius: 9px !important;
+        max-width: 440px;
     }
 
     #login-screen .wwm-login-header {
-        gap: 18px;
-        padding: 21px 22px 22px;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        min-height: 0;
+        padding: 17px 22px;
     }
 
     #login-screen .wwm-login-header p {
-        font-size: 12px;
+        max-width: none;
+        margin: 0;
+        text-align: left;
     }
 
     #login-screen .login-card-inner {
-        padding: 28px 22px 24px !important;
+        padding: 22px 22px 19px !important;
     }
 
     #login-screen .login-logo h1 {
-        font-size: 27px !important;
+        font-size: 25px !important;
+    }
+}
+
+@media (max-height: 640px) and (min-width: 561px) {
+    #login-screen.login-container:not(.hidden) {
+        align-items: start;
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+
+    #login-screen .wwm-login-header {
+        min-height: 70px;
+        padding-block: 14px;
+    }
+
+    #login-screen .login-card-inner {
+        padding-top: 20px !important;
+        padding-bottom: 18px !important;
     }
 }
 
