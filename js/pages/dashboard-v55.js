@@ -1,11 +1,11 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyDashboardPremiumV55 } from '../components/dashboard-premium-v55.js?v=20260828c';
+import { applyDashboardWwmV57 } from '../components/dashboard-wwm-v57.js?v=20260829a';
 
 let ready = false;
 
 export async function ensureLoaded() {
     if (ready && typeof window.Dashboard !== 'undefined') {
-        applyDashboardPremiumV55();
+        applyDashboardWwmV57();
         return;
     }
 
@@ -13,16 +13,7 @@ export async function ensureLoaded() {
     await ensureClassicScript(new URL('../aprovacoes.js', import.meta.url).href, 'Aprovacoes');
     await ensureClassicScript(new URL('../dashboard.js', import.meta.url).href, 'Dashboard');
 
-    const modernPatch = await import(new URL('../components/dashboard-modern.js?v=20260709b', import.meta.url).href);
-    modernPatch?.applyDashboardModernization?.();
-
-    const focusPatch = await import(new URL('../components/dashboard-focus.js?v=20260828b', import.meta.url).href);
-    focusPatch?.applyDashboardFocus?.();
-
-    const stabilityPatch = await import(new URL('../components/dashboard-stability.js?v=20260828b', import.meta.url).href);
-    stabilityPatch?.applyDashboardStability?.();
-
-    applyDashboardPremiumV55();
+    applyDashboardWwmV57();
     ready = true;
 }
 
