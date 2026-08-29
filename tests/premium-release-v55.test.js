@@ -1,21 +1,28 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release premium v55', () => {
+describe('Release premium v55 + WWM reference v56', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const release = fs.readFileSync(path.join(root, 'js/premium-release-v55.js'), 'utf8');
     const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-premium-v55.js'), 'utf8');
     const reports = fs.readFileSync(path.join(root, 'js/components/reports-chart-hardening-v55.js'), 'utf8');
+    const loginCss = fs.readFileSync(path.join(root, 'css/premium-login-v55.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('substitui o login simples por uma experiência corporativa premium', () => {
+    test('mantém a estrutura de autenticação e aplica a referência visual oficial do WWM', () => {
         expect(index).toContain('premium-login-shell');
-        expect(index).toContain('login-brand-panel');
-        expect(index).toContain('premium-login-capabilities');
         expect(index).toContain('css/premium-login-v55.css?v=20260828c');
-        expect(index).not.toContain('Login simples: somente o cartão de acesso');
+        expect(release).toContain("const RELEASE_VERSION = 'v56-wwm-reference-login'");
+        expect(release).toContain('Central operacional AS&amp;TS · Solenis Brasil');
+        expect(release).toContain("title.textContent = 'Acesso ao ambiente corporativo'");
+        expect(release).toContain('WWM · Warewashing Machine Request');
+        expect(release).toContain('Acesso indisponível? Solicite a liberação ao administrador.');
+        expect(loginCss).toContain('background: #006e66 !important');
+        expect(loginCss).toContain('background: #08111f');
+        expect(loginCss).toContain('#login-screen .login-brand-panel');
+        expect(loginCss).toContain('display: none !important');
     });
 
     test('registra dashboard como rota real e botão permanente da visão operacional', () => {
@@ -47,7 +54,7 @@ describe('Release premium v55', () => {
     });
 
     test('publica uma versão de cache nova com todos os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v55-premium-production'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v56-wwm-reference-login'");
         [
             './css/premium-login-v55.css',
             './css/premium-release-v55.css',
