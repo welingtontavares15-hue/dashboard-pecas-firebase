@@ -11,6 +11,26 @@
         'wwm-page-fornecedores',
         'wwm-page-sistema'
     ];
+    let orderingTheme = false;
+
+    function keepReferenceThemeLast() {
+        const link = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+            .find((item) => item.href.includes('/css/wwm-reference-theme.css'));
+        if (!link || document.head.lastElementChild === link || orderingTheme) {
+            return;
+        }
+        orderingTheme = true;
+        document.head.appendChild(link);
+        window.requestAnimationFrame(() => {
+            orderingTheme = false;
+        });
+    }
+
+    function enforcePortalPalette() {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+        document.body.dataset.theme = 'dark';
+    }
 
     function getInitials(value) {
         const parts = String(value || 'WWM').trim().split(/\s+/).filter(Boolean);
@@ -44,12 +64,16 @@
         document.body.classList.remove(...pageClasses);
         document.body.classList.add(`wwm-page-${page}`);
         document.body.dataset.currentPage = page;
+        enforcePortalPalette();
+        keepReferenceThemeLast();
         syncProfile();
     }
 
     function enrichShell() {
         document.documentElement.setAttribute('data-ui-reference', 'wwm-2026');
         document.body.classList.add('wwm-reference-theme');
+        enforcePortalPalette();
+        keepReferenceThemeLast();
         document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');
         document.getElementById('notifications-toggle')?.setAttribute('aria-label', 'Abrir notificações');
         document.getElementById('sync-btn')?.setAttribute('aria-label', 'Atualizar dados');
@@ -80,6 +104,7 @@
         if (profileName) {
             new MutationObserver(syncProfile).observe(profileName, { childList: true, characterData: true, subtree: true });
         }
+        new MutationObserver(keepReferenceThemeLast).observe(document.head, { childList: true });
     }
 
     function install() {

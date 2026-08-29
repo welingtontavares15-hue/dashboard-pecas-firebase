@@ -37,10 +37,10 @@ describe('Navegação consolidada WWM v60', () => {
     });
 
     test('mantém suporte offline na versão v60', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v60-wwm-reference-layout'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v61-wwm-portal-exact'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("'./css/wwm-dashboard-v59.css'");
+        expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
         expect(serviceWorker).toContain("'./css/wwm-reference-theme.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");

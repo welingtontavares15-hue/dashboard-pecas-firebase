@@ -6,6 +6,8 @@ describe('Release WWM v60 reference layout', () => {
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const release = fs.readFileSync(path.join(root, 'js/premium-release-v55.js'), 'utf8');
+    const referenceUi = fs.readFileSync(path.join(root, 'js/wwm-reference-ui.js'), 'utf8');
+    const uiModern = fs.readFileSync(path.join(root, 'js/ui-modern.js'), 'utf8');
     const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v59.js'), 'utf8');
     const reports = fs.readFileSync(path.join(root, 'js/components/reports-chart-hardening-v55.js'), 'utf8');
     const loginCss = fs.readFileSync(path.join(root, 'css/premium-login-v55.css'), 'utf8');
@@ -16,12 +18,12 @@ describe('Release WWM v60 reference layout', () => {
     test('mantém o login WWM proporcional à referência', () => {
         expect(index).toContain('premium-login-shell');
         expect(index).toContain('css/premium-login-v55.css');
-        expect(release).toContain("const RELEASE_VERSION = 'v60-wwm-reference'");
+        expect(release).toContain("const RELEASE_VERSION = 'v61-wwm-portal-exact'");
         expect(release).toContain('Portal de Peças WWM');
         expect(release).toContain("title.textContent = 'Acesso ao ambiente corporativo'");
         expect(release).toContain('Portal de Solicitação de Peças WWM');
         expect(loginCss).toContain('width: min(500px, 100%)');
-        expect(referenceCss).toContain('width: min(694px, calc(100vw - 40px))');
+        expect(referenceCss).toContain('width: min(850px, 92vw)');
     });
 
     test('registra dashboard como início real do WWM', () => {
@@ -29,6 +31,15 @@ describe('Release WWM v60 reference layout', () => {
         expect(navigation).toContain("title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios']");
         expect(navigation).toContain('nav-item-home');
         expect(navigation).not.toContain("dashboard: { pageId: 'solicitacoes' }");
+    });
+
+    test('impede que as camadas legadas sobrescrevam o portal', () => {
+        expect(referenceUi).toContain('keepReferenceThemeLast');
+        expect(referenceUi).toContain("document.body.classList.remove('light-mode')");
+        expect(uiModern).toContain("document.body.classList.contains('wwm-reference-theme')");
+        expect(referenceCss).toContain('.premium-dashboard-side-nav');
+        expect(referenceCss).toContain('display: none !important');
+        expect(referenceCss).not.toContain('background: #eef6f6 !important');
     });
 
     test('aplica home WWM v59 aprovada e hidratação da base consolidada', () => {
@@ -53,10 +64,9 @@ describe('Release WWM v60 reference layout', () => {
     });
 
     test('publica cache v60 com os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v60-wwm-reference-layout'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v61-wwm-portal-exact'");
         [
             './css/premium-login-v55.css',
-            './css/wwm-dashboard-v59.css',
             './js/navigation-master-v55.js',
             './js/premium-release-v55.js',
             './js/pages/dashboard-v55.js',

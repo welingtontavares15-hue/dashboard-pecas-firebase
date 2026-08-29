@@ -197,7 +197,7 @@ function drawCharts(analysis) {
         Dashboard._v59Charts.cost = new Chart(costCanvas, {
             type: 'line',
             data: { labels: months.map((item) => item.label), datasets: [{ data: months.map((item) => Number(item.totalCost) || 0), borderColor: '#078a83', backgroundColor: 'rgba(7,138,131,.13)', fill: true, tension: .34, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => Utils.formatCurrency(ctx.parsed.y || 0) } } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b' } }, y: { beginAtZero: true, grid: { color: 'rgba(15,35,55,.08)' }, ticks: { color: '#64748b', callback: (value) => Utils.formatCurrency(value) } } } }
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => Utils.formatCurrency(ctx.parsed.y || 0) } } }, scales: { x: { grid: { display: false }, ticks: { color: '#d8ecec' } }, y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.13)' }, ticks: { color: '#d8ecec', callback: (value) => Utils.formatCurrency(value) } } } }
         });
     }
 
@@ -206,8 +206,8 @@ function drawCharts(analysis) {
     if (statusCanvas && statuses.length) {
         Dashboard._v59Charts.status = new Chart(statusCanvas, {
             type: 'doughnut',
-            data: { labels: statuses.map((item) => item.label), datasets: [{ data: statuses.map((item) => item.value), backgroundColor: ['#f4a51c', '#3aae73', '#2f7dc7', '#138a86', '#d9535f'], borderColor: '#ffffff', borderWidth: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, padding: 14, color: '#44566c' } } } }
+            data: { labels: statuses.map((item) => item.label), datasets: [{ data: statuses.map((item) => item.value), backgroundColor: ['#ffc21c', '#16df94', '#15a8ff', '#08c9bc', '#ff4a54'], borderColor: '#07505a', borderWidth: 3 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, padding: 14, color: '#d8ecec' } } } }
         });
     }
 }

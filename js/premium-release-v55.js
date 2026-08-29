@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v60-wwm-reference';
-    const ASSET_VERSION = '20260829d';
+    const RELEASE_VERSION = 'v61-wwm-portal-exact';
+    const ASSET_VERSION = '20260829e';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {

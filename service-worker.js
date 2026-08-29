@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v60-wwm-reference-layout';
+const CACHE_VERSION = 'v61-wwm-portal-exact';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -31,7 +31,6 @@ const PRECACHE = {
     './css/premium-login-v55.css',
     './css/premium-release-v55.css',
     './css/wwm-reference-theme.css',
-    './css/wwm-dashboard-v59.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -81,8 +80,7 @@ const PRECACHE = {
     './js/onedrive.js',
     './js/relatorios.js',
     './js/vendor/chart.umd.js',
-    './js/components/dashboard-wwm-v59.js',
-    './css/wwm-dashboard-v59.css'
+    './js/components/dashboard-wwm-v59.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',

@@ -1,17 +1,14 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829c';
+import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829d';
 
 let ready = false;
 
 function ensureWwmDashboardStyles() {
-    const id = 'wwm-dashboard-v59-styles';
-    if (document.getElementById(id)) return;
+    // A composição v61 é definida pela camada visual global. O stylesheet v59
+    // continha o antigo painel lateral claro e sobrescrevia o portal ao ser
+    // injetado depois do tema principal.
+    document.getElementById('wwm-dashboard-v59-styles')?.remove();
     document.getElementById('wwm-dashboard-v58-styles')?.remove();
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    link.href = new URL('../../css/wwm-dashboard-v59.css?v=20260829c', import.meta.url).href;
-    document.head.appendChild(link);
 }
 
 export async function ensureLoaded() {
