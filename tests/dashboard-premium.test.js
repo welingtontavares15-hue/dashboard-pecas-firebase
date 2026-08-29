@@ -1,16 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Dashboard WWM v57', () => {
+describe('Dashboard WWM v58', () => {
     const root = path.join(__dirname, '..');
-    const css = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v57.css'), 'utf8');
-    const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v57.js'), 'utf8');
+    const css = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v58.css'), 'utf8');
+    const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v58.js'), 'utf8');
     const page = fs.readFileSync(path.join(root, 'js/pages/dashboard-v55.js'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('segue a home oficial WWM com uma única navegação global', () => {
-        expect(dashboard).toContain('PORTAL DE PEÇAS WWM');
-        expect(dashboard).toContain('WAREWASHING MACHINE REQUEST');
+    test('segue a home WWM sem a segunda navegação interna', () => {
+        expect(dashboard).toContain('Portal de Peças WWM');
         expect(dashboard).toContain('Últimas pendências');
         expect(dashboard).toContain('Pendentes');
         expect(dashboard).toContain('Atrasadas');
@@ -19,18 +18,18 @@ describe('Dashboard WWM v57', () => {
         expect(dashboard).not.toContain('renderSideNavigation');
     });
 
-    test('prioriza operação e mantém inteligência financeira em segunda camada', () => {
+    test('prioriza operação e mantém a camada financeira', () => {
         expect(dashboard).toContain('Nova solicitação');
         expect(dashboard).toContain('Histórico e análises');
-        expect(dashboard).toContain('GESTÃO E INTELIGÊNCIA');
-        expect(dashboard).toContain('Visão operacional e financeira');
-        expect(dashboard).toContain('wwm-cost-trend-chart');
-        expect(dashboard).toContain('wwm-status-chart');
-        expect(dashboard).toContain('Peças de maior impacto');
-        expect(dashboard).toContain('Solicitações recentes');
+        expect(dashboard).toContain('Custo do período');
+        expect(dashboard).toContain('Ticket médio');
+        expect(dashboard).toContain('wwm58-cost-chart');
+        expect(dashboard).toContain('wwm58-status-chart');
+        expect(dashboard).toContain('PEÇAS DE MAIOR IMPACTO');
+        expect(dashboard).toContain('SOLICITAÇÕES RECENTES');
     });
 
-    test('não apresenta zero enquanto a base ainda está hidratando', () => {
+    test('não usa zero como substituto de carregamento', () => {
         expect(dashboard).toContain('data-dashboard-state="loading"');
         expect(dashboard).toContain('Sincronizando dados operacionais');
         expect(dashboard).toContain('DataManager.syncAll');
@@ -39,20 +38,21 @@ describe('Dashboard WWM v57', () => {
         expect(dashboard).toContain('Existem ${Utils.formatNumber(source.length)} solicitações na base');
     });
 
-    test('carrega somente o renderer WWM v57 na página do dashboard', () => {
-        expect(page).toContain("dashboard-wwm-v57.js?v=20260829a");
-        expect(page).toContain('wwm-dashboard-v57.css?v=20260829a');
-        expect(page).toContain('applyDashboardWwmV57');
+    test('carrega exclusivamente o renderer WWM v58 no entrypoint', () => {
+        expect(page).toContain('dashboard-wwm-v58.js?v=20260829b');
+        expect(page).toContain('wwm-dashboard-v58.css?v=20260829b');
+        expect(page).toContain('applyDashboardWwmV58');
+        expect(page).not.toContain('applyDashboardWwmV57');
         expect(page).not.toContain('applyDashboardPremiumV55');
         expect(page).not.toContain('dashboard-focus.js');
-        expect(page).not.toContain('dashboard-stability.js');
     });
 
-    test('mantém responsividade e cache offline da nova experiência', () => {
+    test('mantém responsividade e cache offline da experiência v58', () => {
+        expect(css).toContain('body.wwm-dashboard-v58-active .content-area');
         expect(css).toContain('background: #006e66');
-        expect(css).toContain('@media (max-width: 760px)');
-        expect(serviceWorker).toContain("'./css/wwm-dashboard-v57.css'");
-        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v57.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v57-wwm-dashboard'");
+        expect(css).toContain('@media (max-width: 680px)');
+        expect(serviceWorker).toContain("'./css/wwm-dashboard-v58.css'");
+        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v58.js'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v58-wwm-hardwired'");
     });
 });
