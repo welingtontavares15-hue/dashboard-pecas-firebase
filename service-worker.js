@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v58-wwm-hardwired';
+const CACHE_VERSION = 'v59-approved-exact';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -30,7 +30,7 @@ const PRECACHE = {
     './css/premium-ui-v3-polish.css',
     './css/premium-login-v55.css',
     './css/premium-release-v55.css',
-    './css/wwm-dashboard-v58.css',
+    './css/wwm-dashboard-v59.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -67,7 +67,7 @@ const PRECACHE = {
     './js/pages/relatorios-v55.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
-    './js/components/dashboard-wwm-v58.js',
+    './js/components/dashboard-wwm-v59.js',
     './js/components/reports-modern.js',
     './js/components/reports-multi-select.js',
     './js/components/report-multi-filter-utils.js',
@@ -79,8 +79,8 @@ const PRECACHE = {
     './js/onedrive.js',
     './js/relatorios.js',
     './js/vendor/chart.umd.js',
-    './js/components/dashboard-wwm-v58.js',
-    './css/wwm-dashboard-v58.css'
+    './js/components/dashboard-wwm-v59.js',
+    './css/wwm-dashboard-v59.css'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
