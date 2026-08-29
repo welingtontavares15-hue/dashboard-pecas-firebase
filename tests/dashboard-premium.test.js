@@ -1,58 +1,58 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Dashboard WWM v58', () => {
+describe('Dashboard WWM v59 exact', () => {
     const root = path.join(__dirname, '..');
-    const css = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v58.css'), 'utf8');
-    const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v58.js'), 'utf8');
+    const css = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v59.css'), 'utf8');
+    const dashboard = fs.readFileSync(path.join(root, 'js/components/dashboard-wwm-v59.js'), 'utf8');
     const page = fs.readFileSync(path.join(root, 'js/pages/dashboard-v55.js'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('segue a home WWM sem a segunda navegação interna', () => {
-        expect(dashboard).toContain('Portal de Peças WWM');
-        expect(dashboard).toContain('ÚLTIMAS PENDÊNCIAS');
-        expect(dashboard).toContain('Pendentes');
-        expect(dashboard).toContain('Atrasadas');
-        expect(dashboard).toContain('Concluídas');
-        expect(dashboard).not.toContain('premium-dashboard-side-nav');
-        expect(dashboard).not.toContain('renderSideNavigation');
+    test('replica a composição visual aprovada sem itens de contrato ou checklist', () => {
+        expect(dashboard).toContain('Visão operacional e financeira');
+        expect(dashboard).toContain('Nova solicitação de peça');
+        expect(dashboard).toContain('Aprovações');
+        expect(dashboard).toContain('Histórico de solicitações');
+        expect(dashboard).toContain('Relatórios de custos');
+        expect(dashboard).not.toContain('minuta');
+        expect(dashboard).not.toContain('checklist');
+        expect(dashboard).not.toContain('contrato');
     });
 
-    test('prioriza operação e mantém a camada financeira', () => {
-        expect(dashboard).toContain('Nova solicitação');
-        expect(dashboard).toContain('Histórico e análises');
-        expect(dashboard).toContain('Custo do período');
-        expect(dashboard).toContain('Ticket médio');
-        expect(dashboard).toContain('wwm58-cost-chart');
-        expect(dashboard).toContain('wwm58-status-chart');
-        expect(dashboard).toContain('PEÇAS DE MAIOR IMPACTO');
+    test('mantém a navegação contextual exatamente como no modelo aprovado', () => {
+        expect(dashboard).toContain('Resumo executivo');
+        expect(dashboard).toContain('Indicadores');
+        expect(dashboard).toContain('Fluxo operacional');
+        expect(dashboard).toContain('Custos e tendência');
+        expect(dashboard).toContain('Peças de maior impacto');
+        expect(dashboard).toContain('Solicitações recentes');
+    });
+
+    test('mantém indicadores, status, gráficos e tabelas do modelo aprovado', () => {
+        expect(dashboard).toContain('Custo no período');
+        expect(dashboard).toContain('Aguardando aprovação');
+        expect(dashboard).toContain('Custo médio');
+        expect(dashboard).toContain('Peças movimentadas');
+        expect(dashboard).toContain('EVOLUÇÃO DO CUSTO MENSAL');
+        expect(dashboard).toContain('DISTRIBUIÇÃO POR STATUS');
+        expect(dashboard).toContain('PEÇAS COM MAIOR IMPACTO');
         expect(dashboard).toContain('SOLICITAÇÕES RECENTES');
     });
 
-    test('não usa zero como substituto de carregamento', () => {
-        expect(dashboard).toContain('data-dashboard-state="loading"');
-        expect(dashboard).toContain('Sincronizando dados operacionais');
-        expect(dashboard).toContain('DataManager.syncAll');
-        expect(dashboard).toContain('data-dashboard-source-count');
-        expect(dashboard).toContain('data-dashboard-period-count');
-        expect(dashboard).toContain('Existem ${Utils.formatNumber(source.length)} solicitações na base');
-    });
-
-    test('carrega exclusivamente o renderer WWM v58 no entrypoint', () => {
-        expect(page).toContain('dashboard-wwm-v58.js?v=20260829b');
-        expect(page).toContain('wwm-dashboard-v58.css?v=20260829b');
-        expect(page).toContain('applyDashboardWwmV58');
+    test('carrega somente o renderer v59 no entrypoint', () => {
+        expect(page).toContain('dashboard-wwm-v59.js?v=20260829c');
+        expect(page).toContain('wwm-dashboard-v59.css?v=20260829c');
+        expect(page).toContain('applyDashboardWwmV59');
+        expect(page).not.toContain('applyDashboardWwmV58');
         expect(page).not.toContain('applyDashboardWwmV57');
-        expect(page).not.toContain('applyDashboardPremiumV55');
-        expect(page).not.toContain('dashboard-focus.js');
     });
 
-    test('mantém responsividade e cache offline da experiência v58', () => {
-        expect(css).toContain('body.wwm-dashboard-v58-active .content-area');
-        expect(css).toContain('background: #006e66');
+    test('mantém responsividade e cache v59', () => {
+        expect(css).toContain('body.wwm-dashboard-v59-active .content-area');
+        expect(css).toContain('.v59-context-nav');
         expect(css).toContain('@media (max-width: 680px)');
-        expect(serviceWorker).toContain("'./css/wwm-dashboard-v58.css'");
-        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v58.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v58-wwm-hardwired'");
+        expect(serviceWorker).toContain("'./css/wwm-dashboard-v59.css'");
+        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v59-approved-exact'");
     });
 });
