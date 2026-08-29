@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v56-wwm-reference-login';
+const CACHE_VERSION = 'v56-1-wwm-proportional-login';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
