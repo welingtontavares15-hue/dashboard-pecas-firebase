@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v56-1-wwm-proportional-login';
-    const ASSET_VERSION = '20260828e';
+    const RELEASE_VERSION = 'v57-wwm-dashboard';
+    const ASSET_VERSION = '20260829a';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -77,18 +77,19 @@
         delete window.App._lazyLoaded.relatorios;
 
         const originalUpdateBreadcrumb = window.App.updateBreadcrumb.bind(window.App);
-        window.App.updateBreadcrumb = function updateBreadcrumbV55(pageId) {
+        window.App.updateBreadcrumb = function updateBreadcrumbV57(pageId) {
+            document.body?.classList.toggle('wwm-dashboard-active', pageId === 'dashboard' || pageId === 'visao-geral');
             if (pageId !== 'dashboard' && pageId !== 'visao-geral') {
                 return originalUpdateBreadcrumb(pageId);
             }
             const breadcrumb = document.getElementById('breadcrumb');
             if (breadcrumb) {
-                breadcrumb.innerHTML = '<span>Visão Operacional</span>';
+                breadcrumb.innerHTML = '<span>Portal de Peças WWM</span>';
             }
         };
 
         const originalShowApp = window.App.showApp.bind(window.App);
-        window.App.showApp = function showAppV55() {
+        window.App.showApp = function showAppV57() {
             originalShowApp();
             window.setTimeout(() => {
                 if (typeof window.Auth?.renderMenu === 'function') {
@@ -103,13 +104,13 @@
 
     function installNavigationContract() {
         if (!window.Auth || !window.NavigationMaster) return false;
-        window.Auth.renderMenu = function renderMenuV55(activeId) {
+        window.Auth.renderMenu = function renderMenuV57(activeId) {
             window.NavigationMaster.render(this, window.NavigationMaster.resolveRoute(activeId).pageId);
         };
-        window.Auth.canAccessRoute = function canAccessRouteV55(routeId) {
+        window.Auth.canAccessRoute = function canAccessRouteV57(routeId) {
             return window.NavigationMaster.canAccessRoute(this, routeId);
         };
-        window.Auth.getMenuItems = function getMenuItemsV55() {
+        window.Auth.getMenuItems = function getMenuItemsV57() {
             return window.NavigationMaster.getMenuItems(this.getRole());
         };
         return true;
@@ -117,7 +118,7 @@
 
     function markRelease() {
         document.documentElement.dataset.uiRelease = RELEASE_VERSION;
-        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56');
+        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56', 'wwm-reference-release-v57');
         window.PREMIUM_RELEASE_VERSION = RELEASE_VERSION;
     }
 

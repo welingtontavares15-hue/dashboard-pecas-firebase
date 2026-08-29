@@ -14,7 +14,7 @@ describe('Navegação consolidada', () => {
         expect(navigation).not.toContain('Custo por Mês');
     });
 
-    test('inclui os grupos administrativos e a visão operacional fixa', () => {
+    test('mantém a visão operacional como rota global do produto', () => {
         ['VISÃO OPERACIONAL', 'OPERAÇÃO', 'CUSTOS E ANÁLISES', 'CADASTROS', 'CONFIGURAÇÕES'].forEach((label) => {
             expect(navigation).toContain(label);
         });
@@ -30,17 +30,17 @@ describe('Navegação consolidada', () => {
         expect(navigation).toContain("'visao-geral': { pageId: 'dashboard' }");
     });
 
-    test('carrega a navegação v55 antes do controlador da aplicação', () => {
+    test('carrega a navegação antes do controlador da aplicação', () => {
         expect(index).toContain('js/navigation-master-v55.js?v=20260828c');
         expect(index.indexOf('navigation-master-v55.js')).toBeLessThan(index.indexOf('js/app.js'));
         expect(index).toContain('js/premium-release-v55.js?v=20260828e');
     });
 
-    test('mantém suporte offline na versão de cache atual', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v56-1-wwm-proportional-login'");
+    test('mantém suporte offline na versão de cache v57', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v57-wwm-dashboard'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
+        expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v57.js'");
+        expect(serviceWorker).toContain("'./css/wwm-dashboard-v57.css'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
-        expect(serviceWorker).toContain("'./css/premium-release-v55.css'");
-        expect(serviceWorker).toContain("'./js/components/dashboard-premium-v55.js'");
     });
 });

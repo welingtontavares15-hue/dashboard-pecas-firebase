@@ -1,11 +1,22 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyDashboardPremiumV55 } from '../components/dashboard-premium-v55.js?v=20260828c';
+import { applyDashboardWwmV57 } from '../components/dashboard-wwm-v57.js?v=20260829a';
 
 let ready = false;
 
+function ensureWwmDashboardStyles() {
+    const id = 'wwm-dashboard-v57-styles';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = new URL('../../css/wwm-dashboard-v57.css?v=20260829a', import.meta.url).href;
+    document.head.appendChild(link);
+}
+
 export async function ensureLoaded() {
+    ensureWwmDashboardStyles();
     if (ready && typeof window.Dashboard !== 'undefined') {
-        applyDashboardPremiumV55();
+        applyDashboardWwmV57();
         return;
     }
 
@@ -13,16 +24,7 @@ export async function ensureLoaded() {
     await ensureClassicScript(new URL('../aprovacoes.js', import.meta.url).href, 'Aprovacoes');
     await ensureClassicScript(new URL('../dashboard.js', import.meta.url).href, 'Dashboard');
 
-    const modernPatch = await import(new URL('../components/dashboard-modern.js?v=20260709b', import.meta.url).href);
-    modernPatch?.applyDashboardModernization?.();
-
-    const focusPatch = await import(new URL('../components/dashboard-focus.js?v=20260828b', import.meta.url).href);
-    focusPatch?.applyDashboardFocus?.();
-
-    const stabilityPatch = await import(new URL('../components/dashboard-stability.js?v=20260828b', import.meta.url).href);
-    stabilityPatch?.applyDashboardStability?.();
-
-    applyDashboardPremiumV55();
+    applyDashboardWwmV57();
     ready = true;
 }
 
