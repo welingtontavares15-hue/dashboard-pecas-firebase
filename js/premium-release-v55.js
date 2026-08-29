@@ -1,8 +1,26 @@
 (function () {
     'use strict';
 
-    const RELEASE_VERSION = 'v58-wwm-hardwired';
-    const ASSET_VERSION = '20260829b';
+    const RELEASE_VERSION = 'v60-wwm-html-redesign';
+    const ASSET_VERSION = '20260829v60';
+
+    function installV60Assets() {
+        if (!document.getElementById('wwm-html-v60-styles')) {
+            const link = document.createElement('link');
+            link.id = 'wwm-html-v60-styles';
+            link.rel = 'stylesheet';
+            link.href = `css/wwm-html-v60.css?v=${ASSET_VERSION}`;
+            document.head.appendChild(link);
+        }
+        if (!document.getElementById('wwm-html-v60-runtime')) {
+            const script = document.createElement('script');
+            script.id = 'wwm-html-v60-runtime';
+            script.src = `js/wwm-html-v60.js?v=${ASSET_VERSION}`;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+        document.body?.classList.add('wwm-html-v60');
+    }
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -29,7 +47,7 @@
                             <span>A Solenis Company</span>
                         </div>
                     </div>
-                    <p>Central operacional AS&amp;TS · Solenis Brasil</p>
+                    <p>Portal de Solicitação de Peças WWM</p>
                 </header>
             `);
         }
@@ -40,14 +58,14 @@
         const submit = inner.querySelector('#login-submit');
         const footer = inner.querySelector('.premium-login-form-footer');
 
-        if (kicker) kicker.textContent = 'WWM · Warewashing Machine Request';
-        if (title) title.textContent = 'Acesso corporativo';
-        if (description) description.textContent = 'Use seu usuário e senha para acessar o Portal de Peças WWM.';
-        if (submit && !submit.dataset.wwmLabelApplied) {
+        if (kicker) kicker.textContent = 'Portal de Peças WWM';
+        if (title) title.textContent = 'Acesso ao ambiente corporativo';
+        if (description) description.textContent = 'Informe seu usuário e senha para acessar o Portal de Solicitação de Peças WWM.';
+        if (submit && !submit.dataset.wwmV60LabelApplied) {
             submit.innerHTML = '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Entrar';
-            submit.dataset.wwmLabelApplied = 'true';
+            submit.dataset.wwmV60LabelApplied = 'true';
         }
-        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso protegido para usuários autorizados.';
+        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro e monitorado.';
 
         if (!inner.querySelector('.wwm-login-support')) {
             const support = document.createElement('p');
@@ -59,7 +77,7 @@
         if (!inner.querySelector('.wwm-login-meta')) {
             const meta = document.createElement('div');
             meta.className = 'wwm-login-meta';
-            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span>';
+            meta.innerHTML = '<span>Solenis Brasil</span><span>Portal de Peças WWM</span><span>Ambiente corporativo</span>';
             inner.appendChild(meta);
         }
 
@@ -67,7 +85,7 @@
     }
 
     function installAppContract() {
-        if (!window.App || window.App.__premiumReleaseV58Installed) return false;
+        if (!window.App || window.App.__premiumReleaseV60Installed) return false;
 
         window.App.lazyModules.dashboard = `./pages/dashboard-v55.js?v=${ASSET_VERSION}`;
         window.App.lazyModules.relatorios = `./pages/relatorios-v55.js?v=${ASSET_VERSION}`;
@@ -75,17 +93,18 @@
         delete window.App._lazyLoaded.relatorios;
 
         const originalUpdateBreadcrumb = window.App.updateBreadcrumb.bind(window.App);
-        window.App.updateBreadcrumb = function updateBreadcrumbV58(pageId) {
+        window.App.updateBreadcrumb = function updateBreadcrumbV60(pageId) {
             const isDashboard = pageId === 'dashboard' || pageId === 'visao-geral';
             document.body?.classList.toggle('wwm-dashboard-v58-active', isDashboard);
             document.body?.classList.remove('wwm-dashboard-active');
+            document.body.dataset.wwmPage = pageId;
             if (!isDashboard) return originalUpdateBreadcrumb(pageId);
             const breadcrumb = document.getElementById('breadcrumb');
-            if (breadcrumb) breadcrumb.innerHTML = '<span>WWM – Portal de Peças</span>';
+            if (breadcrumb) breadcrumb.innerHTML = '<span>Portal de Solicitação de Peças WWM</span><span style="opacity:.5;margin:0 8px">›</span><strong>Visão Geral</strong>';
         };
 
         const originalShowApp = window.App.showApp.bind(window.App);
-        window.App.showApp = function showAppV58() {
+        window.App.showApp = function showAppV60() {
             originalShowApp();
             window.setTimeout(() => {
                 if (typeof window.Auth?.renderMenu === 'function') {
@@ -94,19 +113,19 @@
             }, 0);
         };
 
-        window.App.__premiumReleaseV58Installed = true;
+        window.App.__premiumReleaseV60Installed = true;
         return true;
     }
 
     function installNavigationContract() {
         if (!window.Auth || !window.NavigationMaster) return false;
-        window.Auth.renderMenu = function renderMenuV58(activeId) {
+        window.Auth.renderMenu = function renderMenuV60(activeId) {
             window.NavigationMaster.render(this, window.NavigationMaster.resolveRoute(activeId).pageId);
         };
-        window.Auth.canAccessRoute = function canAccessRouteV58(routeId) {
+        window.Auth.canAccessRoute = function canAccessRouteV60(routeId) {
             return window.NavigationMaster.canAccessRoute(this, routeId);
         };
-        window.Auth.getMenuItems = function getMenuItemsV58() {
+        window.Auth.getMenuItems = function getMenuItemsV60() {
             return window.NavigationMaster.getMenuItems(this.getRole());
         };
         return true;
@@ -114,12 +133,13 @@
 
     function markRelease() {
         document.documentElement.dataset.uiRelease = RELEASE_VERSION;
-        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56', 'wwm-reference-release-v58');
+        document.body?.classList.add('premium-release-v55', 'wwm-reference-release-v56', 'wwm-reference-release-v58', 'wwm-html-v60');
         document.body?.classList.remove('wwm-reference-release-v57');
         window.PREMIUM_RELEASE_VERSION = RELEASE_VERSION;
     }
 
     function install() {
+        installV60Assets();
         markRelease();
         installWwmLoginReference();
         installAnalyticsContract();
