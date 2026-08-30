@@ -50,7 +50,7 @@ const APP_CONFIG = {
             : this.features.showLoginCredentials;
 
         if (effectiveEnv === 'production') {
-            return false;
+            return false; // Always blocked in production
         }
         return !!showFlag;
     },
