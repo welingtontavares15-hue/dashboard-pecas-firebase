@@ -1,0 +1,70 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "data": {
+      ".read": false,
+      ".write": false,
+      "diversey_sessions": {
+        ".read": false,
+        ".write": false
+      },
+      "diversey_users": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')"
+      },
+      "diversey_settings": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor' || auth.token.role == 'tecnico' || auth.token.role == 'fornecedor')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')"
+      },
+      "diversey_pecas": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor' || auth.token.role == 'tecnico')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')"
+      },
+      "diversey_tecnicos": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor' || auth.token.role == 'tecnico')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')"
+      },
+      "diversey_fornecedores": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor' || auth.token.role == 'fornecedor')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador')"
+      },
+      "diversey_solicitacoes": {
+        ".indexOn": ["tecnicoId", "fornecedorId", "status", "createdAt", "numero"],
+        ".read": "auth != null && ((auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor') || (auth.token.role == 'tecnico' && auth.token.tecnicoId != null && query.orderByChild == 'tecnicoId' && query.equalTo == auth.token.tecnicoId) || (auth.token.role == 'fornecedor' && auth.token.fornecedorId != null && query.orderByChild == 'fornecedorId' && query.equalTo == auth.token.fornecedorId))",
+        ".write": false,
+        "$id": {
+          ".read": "auth != null && ((auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor') || (auth.token.role == 'tecnico' && auth.token.tecnicoId != null && data.child('tecnicoId').val() == auth.token.tecnicoId) || (auth.token.role == 'fornecedor' && auth.token.fornecedorId != null && data.child('fornecedorId').val() == auth.token.fornecedorId))",
+          ".write": "auth != null && ((auth.token.role == 'admin' || auth.token.role == 'administrador') || (auth.token.role == 'gestor' && data.exists() && newData.child('tecnicoId').val() == data.child('tecnicoId').val() && newData.child('numero').val() == data.child('numero').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('itens').val() == data.child('itens').val() && newData.child('total').val() == data.child('total').val() && (data.child('status').val() == 'pendente' || data.child('status').val() == 'enviada' || data.child('status').val() == 'criado' || data.child('status').val() == 'criada' || data.child('status').val() == 'pendente_aprovacao') && (((newData.child('status').val() == 'aprovada') && newData.child('aprovacao/status').val() == 'aprovada' && newData.child('aprovacao/at').exists() && newData.child('aprovacao/by').isString() && newData.child('fornecedorId').isString() && newData.child('fornecedorId').val() != '') || ((newData.child('status').val() == 'rejeitada') && newData.child('aprovacao/status').val() == 'rejeitada' && newData.child('aprovacao/at').exists() && newData.child('aprovacao/by').isString()))) || (auth.token.role == 'tecnico' && auth.token.tecnicoId != null && newData.child('tecnicoId').val() == auth.token.tecnicoId && ((!data.exists() && (newData.child('status').val() == 'rascunho' || newData.child('status').val() == 'pendente')) || (data.exists() && data.child('tecnicoId').val() == auth.token.tecnicoId && (data.child('status').val() == 'rascunho' || data.child('status').val() == 'pendente') && (newData.child('status').val() == 'rascunho' || newData.child('status').val() == 'pendente') && newData.child('numero').val() == data.child('numero').val() && newData.child('createdAt').val() == data.child('createdAt').val()) || (data.exists() && data.child('tecnicoId').val() == auth.token.tecnicoId && data.child('status').val() == 'em-transito' && newData.child('status').val() == 'finalizada' && newData.child('numero').val() == data.child('numero').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('fornecedorId').val() == data.child('fornecedorId').val() && newData.child('itens').val() == data.child('itens').val() && newData.child('total').val() == data.child('total').val()))) || (auth.token.role == 'fornecedor' && auth.token.fornecedorId != null && data.exists() && data.child('fornecedorId').val() == auth.token.fornecedorId && newData.child('fornecedorId').val() == data.child('fornecedorId').val() && newData.child('tecnicoId').val() == data.child('tecnicoId').val() && newData.child('numero').val() == data.child('numero').val() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('itens').val() == data.child('itens').val() && newData.child('total').val() == data.child('total').val() && ((data.child('status').val() == 'aprovada' && newData.child('status').val() == 'em-transito' && newData.child('trackingCode').isString()) || (data.child('status').val() == 'em-transito' && newData.child('status').val() == 'em-transito' && newData.child('trackingCode').isString()))))",
+          ".validate": "newData.hasChildren(['tecnicoId','status','createdAt','updatedAt','itens','total'])"
+        }
+      },
+      "diversey_notification_log": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')"
+      },
+      "diversey_export_log": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')"
+      },
+      "diversey_export_files": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')",
+        ".write": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor')"
+      },
+      "diversey_recent_parts": {
+        ".read": "auth != null && (auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor' || auth.token.role == 'tecnico')",
+        "$tecnicoId": {
+          ".write": "auth != null && ((auth.token.role == 'admin' || auth.token.role == 'administrador' || auth.token.role == 'gestor') || (auth.token.role == 'tecnico' && auth.token.tecnicoId != null && $tecnicoId == auth.token.tecnicoId))"
+        }
+      },
+      "$other": {
+        ".read": false,
+        ".write": false
+      }
+    },
+    "server_auth": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
