@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release WWM v60 reference layout', () => {
+describe('Release WWM v66 reference layout', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
@@ -14,6 +14,7 @@ describe('Release WWM v60 reference layout', () => {
     const dashboardCss = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v59.css'), 'utf8');
     const referenceCss = fs.readFileSync(path.join(root, 'css/wwm-reference-theme.css'), 'utf8');
     const responsiveCss = fs.readFileSync(path.join(root, 'css/responsive-system.css'), 'utf8');
+    const visualCss = fs.readFileSync(path.join(root, 'css/wwm-visual-standard.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
     test('mantém o login WWM proporcional à referência', () => {
@@ -43,6 +44,7 @@ describe('Release WWM v60 reference layout', () => {
         expect(referenceCss).toContain('.premium-dashboard-side-nav');
         expect(referenceCss).toContain('display: none !important');
         expect(referenceCss).not.toContain('background: #eef6f6 !important');
+        expect(visualCss).toContain('Contrato visual final e compartilhado do portal');
     });
 
     test('aplica home WWM v59 aprovada e hidratação da base consolidada', () => {
@@ -66,8 +68,8 @@ describe('Release WWM v60 reference layout', () => {
         expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
     });
 
-    test('publica cache v60 com os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v64-color-standard'");
+    test('publica cache v66 com os ativos críticos e a camada visual final', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v66-visual-system'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -78,6 +80,8 @@ describe('Release WWM v60 reference layout', () => {
             './js/components/reports-chart-hardening-v55.js',
             './css/wwm-reference-theme.css',
             './css/responsive-system.css',
+            './css/brand-slogan.css',
+            './css/wwm-visual-standard.css',
             './js/wwm-reference-ui.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");

@@ -1,13 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('WWM global responsive system', () => {
+describe('WWM global responsive system v66', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const css = fs.readFileSync(path.join(root, 'css/responsive-system.css'), 'utf8');
     const visualStandard = fs.readFileSync(path.join(root, 'css/wwm-visual-standard.css'), 'utf8');
     const solicitacoes = fs.readFileSync(path.join(root, 'js/solicitacoes.js'), 'utf8');
     const referenceUi = fs.readFileSync(path.join(root, 'js/wwm-reference-ui.js'), 'utf8');
+    const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
     test('loads the authoritative responsive and visual layers in the final cascade', () => {
         const referenceIndex = index.indexOf('css/wwm-reference-theme.css');
@@ -60,17 +61,27 @@ describe('WWM global responsive system', () => {
         expect(visualStandard).toContain('min-width: 680px !important');
     });
 
-    test('covers desktop, tablet, mobile and short-height viewports', () => {
+    test('defines one global geometry contract for page headers, controls and operational tables', () => {
+        expect(visualStandard).toContain('--wwm-content-max: 1600px');
+        expect(visualStandard).toContain('.wwm-page-title');
+        expect(visualStandard).toContain('.corporate-page-header');
+        expect(visualStandard).toContain('.form-control');
+        expect(visualStandard).toContain('.wwm-page-solicitacoes, .wwm-page-aprovacoes');
+        expect(visualStandard).toContain('overscroll-behavior-inline: contain');
+        expect(visualStandard).toContain('@media (max-width: 900px)');
+    });
+
+    test('covers desktop, tablet, mobile, short-height and reduced-motion viewports', () => {
         ['@media (max-width: 1440px)', '@media (max-width: 1180px)', '@media (max-width: 760px)', '@media (max-width: 520px)', '@media (max-height: 700px)']
             .forEach((query) => expect(css).toContain(query));
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
-        ['@media (max-width: 1480px)', '@media (max-width: 1180px)', '@media (max-width: 760px)']
+        ['@media (max-width: 1480px)', '@media (max-width: 1180px)', '@media (max-width: 900px)', '@media (max-width: 760px)', '@media (max-width: 520px)', '@media (max-height: 700px)', '@media (prefers-reduced-motion: reduce)']
             .forEach((query) => expect(visualStandard).toContain(query));
     });
 
     test('uses the Visão Geral teal surfaces as the global colour standard', () => {
         expect(index).toContain('responsive-system.css?v=20260830b');
-        expect(index).toContain('wwm-visual-standard.css?v=20260830a');
+        expect(index).toContain('wwm-visual-standard.css?v=20260830b');
         expect(index).toContain('<meta name="theme-color" content="#004449">');
         expect(css).toContain('--wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25))');
         expect(css).toContain('--cui-surface: var(--wwm-panel-surface)');
@@ -81,5 +92,6 @@ describe('WWM global responsive system', () => {
         expect(css).toContain('.corporate-grid-shell');
         expect(css).toContain('.modal-content');
         expect(css).toContain('.premium-multi-filter-popover');
+        expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
     });
 });
