@@ -16,10 +16,14 @@
         } catch (_error) {
             raw = null;
         }
-        if (!raw) return null;
+        if (!raw) {
+            return null;
+        }
         try {
             const parsed = JSON.parse(raw);
-            if (!parsed || !parsed.id || !parsed.username || !parsed.role) return null;
+            if (!parsed || !parsed.id || !parsed.username || !parsed.role) {
+                return null;
+            }
             return parsed;
         } catch (_error) {
             return null;
@@ -58,16 +62,27 @@
         return base;
     }
 
+    function unsubscribeBusinessKeys() {
+        if (typeof CloudStorage === 'undefined') {
+            return;
+        }
+        Object.values(DataManager.KEYS).forEach((key) => {
+            try {
+                CloudStorage.unsubscribe?.(key);
+            } catch (_error) {
+                // Best-effort cleanup during logout and role changes.
+            }
+        });
+    }
+
     function clearBusinessState() {
         DataManager._sessionCache = {};
         DataManager.initialized = false;
         DataManager.initializing = false;
         DataManager.initPromise = null;
         DataManager.realtimeSubscribed = false;
+        unsubscribeBusinessKeys();
         if (typeof CloudStorage !== 'undefined') {
-            Object.values(DataManager.KEYS).forEach((key) => {
-                try { CloudStorage.unsubscribe?.(key); } catch (_error) {}
-            });
             CloudStorage.accessSession = null;
         }
     }
@@ -77,10 +92,14 @@
             return allowedCloudKeys();
         };
         if (typeof CloudStorage.persistAccessSession === 'function') {
-            CloudStorage.persistAccessSession = async function securePersistAccessSession() { return true; };
+            CloudStorage.persistAccessSession = async function securePersistAccessSession() {
+                return true;
+            };
         }
         if (typeof CloudStorage.ensureAccessSession === 'function') {
-            CloudStorage.ensureAccessSession = async function secureEnsureAccessSession() { return true; };
+            CloudStorage.ensureAccessSession = async function secureEnsureAccessSession() {
+                return true;
+            };
         }
         if (typeof CloudStorage.clearAccessSession === 'function') {
             CloudStorage.clearAccessSession = async function secureClearAccessSession() {
@@ -112,16 +131,22 @@
     const originalGetDefaultUsers = DataManager.getDefaultUsers?.bind(DataManager);
     const originalGetDefaultTechnicians = DataManager.getDefaultTechnicians?.bind(DataManager);
     DataManager.getDefaultUsers = async function secureDefaultUsers() {
-        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.isProduction?.()) return [];
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.isProduction?.()) {
+            return [];
+        }
         return originalGetDefaultUsers ? originalGetDefaultUsers() : [];
     };
     DataManager.getDefaultTechnicians = function secureDefaultTechnicians() {
-        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.isProduction?.()) return [];
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.isProduction?.()) {
+            return [];
+        }
         return originalGetDefaultTechnicians ? originalGetDefaultTechnicians() : [];
     };
 
     DataManager._loadInitialDataFromCloud = async function secureLoadInitialData() {
-        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') return false;
+        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.loadData !== 'function') {
+            return false;
+        }
         const keys = allowedCloudKeys();
         let loadedAny = false;
         for (const key of keys) {
@@ -145,9 +170,7 @@
         if (!this.cloudInitialized || typeof CloudStorage === 'undefined' || typeof CloudStorage.subscribe !== 'function') {
             return;
         }
-        Object.values(this.KEYS).forEach((key) => {
-            try { CloudStorage.unsubscribe?.(key); } catch (_error) {}
-        });
+        unsubscribeBusinessKeys();
         const keys = allowedCloudKeys();
         keys.forEach((key) => {
             CloudStorage.subscribe(key, (payload) => {
@@ -162,7 +185,9 @@
     };
 
     DataManager.initializeAuthenticatedData = async function initializeAuthenticatedData() {
-        if (!window.SecureAuthBridge?.isCorporateAuthenticated?.()) return false;
+        if (!window.SecureAuthBridge?.isCorporateAuthenticated?.()) {
+            return false;
+        }
         this.initialized = false;
         this.initializing = false;
         this.initPromise = null;
@@ -173,7 +198,9 @@
     DataManager.init = async function secureBootstrapInit() {
         if (window.FirebaseInit && typeof window.FirebaseInit.init === 'function') {
             const firebaseReady = await window.FirebaseInit.init();
-            if (!firebaseReady) return false;
+            if (!firebaseReady) {
+                return false;
+            }
         }
         if (window.SecureAuthBridge?.isCorporateAuthenticated?.()) {
             return this.initializeAuthenticatedData();
@@ -184,7 +211,9 @@
 
     Auth.SESSION_DURATION_MS = SESSION_DURATION_MS;
     Auth.buildSessionUser = function secureBuildSessionUser(user) {
-        if (!user) return null;
+        if (!user) {
+            return null;
+        }
         return {
             id: String(user.id || ''),
             username: String(user.username || ''),
@@ -200,10 +229,12 @@
 
     Auth.init = function secureAuthInit() {
         const sessionUser = readStoredProfile();
-        if (!sessionUser) return false;
+        if (!sessionUser) {
+            return false;
+        }
         if (Number(sessionUser.expiresAt) <= Date.now()) {
             this.clearSession();
-            window.SecureAuthBridge?.logoutToAnonymous?.().catch(() => {});
+            window.SecureAuthBridge?.logoutToAnonymous?.().catch(() => undefined);
             return false;
         }
         if (!window.SecureAuthBridge?.isCorporateAuthenticated?.()) {
@@ -228,10 +259,10 @@
             this.persistSession(this.currentUser);
             if (previousRole !== this.currentUser.role) {
                 clearBusinessState();
-                DataManager.initializeAuthenticatedData().catch(() => {});
+                DataManager.initializeAuthenticatedData().catch(() => undefined);
             }
         }).catch(() => {
-            // RTDB rules remain the authority even when profile refresh is temporarily unavailable.
+            // RTDB rules remain the authority when profile refresh is temporarily unavailable.
         });
         return true;
     };
@@ -248,7 +279,7 @@
         try {
             const result = await window.SecureAuthBridge.login(username, password);
             if (!result?.profile || !this.permissions[String(result.profile.role || '').toLowerCase()]) {
-                await window.SecureAuthBridge.logoutToAnonymous().catch(() => {});
+                await window.SecureAuthBridge.logoutToAnonymous().catch(() => undefined);
                 return { success: false, error: 'Perfil não autorizado.' };
             }
 
@@ -259,7 +290,7 @@
             if (!dataReady) {
                 this.currentUser = null;
                 this.clearSession();
-                await window.SecureAuthBridge.logoutToAnonymous().catch(() => {});
+                await window.SecureAuthBridge.logoutToAnonymous().catch(() => undefined);
                 return { success: false, error: 'Não foi possível carregar os dados autorizados do sistema.' };
             }
             return { success: true, user: this.currentUser };
@@ -276,7 +307,7 @@
         this.currentUser = null;
         this.clearSession();
         clearBusinessState();
-        window.SecureAuthBridge?.logoutToAnonymous?.().catch(() => {});
+        window.SecureAuthBridge?.logoutToAnonymous?.().catch(() => undefined);
     };
 
     Auth.__securityHardeningV68 = {
