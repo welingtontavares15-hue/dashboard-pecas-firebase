@@ -13,6 +13,7 @@ describe('Release WWM v60 reference layout', () => {
     const loginCss = fs.readFileSync(path.join(root, 'css/premium-login-v55.css'), 'utf8');
     const dashboardCss = fs.readFileSync(path.join(root, 'css/wwm-dashboard-v59.css'), 'utf8');
     const referenceCss = fs.readFileSync(path.join(root, 'css/wwm-reference-theme.css'), 'utf8');
+    const responsiveCss = fs.readFileSync(path.join(root, 'css/responsive-system.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
     test('mantém o login WWM proporcional à referência', () => {
@@ -24,6 +25,8 @@ describe('Release WWM v60 reference layout', () => {
         expect(release).toContain('Portal de Solicitação de Peças WWM');
         expect(loginCss).toContain('width: min(500px, 100%)');
         expect(referenceCss).toContain('width: min(850px, 92vw)');
+        expect(index).toContain('css/responsive-system.css?v=20260830a');
+        expect(responsiveCss).toContain('width: min(720px, calc(100vw - 32px))');
     });
 
     test('registra dashboard como início real do WWM', () => {
@@ -64,7 +67,7 @@ describe('Release WWM v60 reference layout', () => {
     });
 
     test('publica cache v60 com os ativos críticos', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v62-wwm-referencia-visual'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v63-responsive-system'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -74,6 +77,7 @@ describe('Release WWM v60 reference layout', () => {
             './js/pages/relatorios-v55.js',
             './js/components/reports-chart-hardening-v55.js',
             './css/wwm-reference-theme.css',
+            './css/responsive-system.css',
             './js/wwm-reference-ui.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");

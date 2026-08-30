@@ -14,13 +14,16 @@
     let orderingTheme = false;
 
     function keepReferenceThemeLast() {
-        const link = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-            .find((item) => item.href.includes('/css/wwm-reference-theme.css'));
-        if (!link || document.head.lastElementChild === link || orderingTheme) {
+        const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+        const referenceLink = links.find((item) => item.href.includes('/css/wwm-reference-theme.css'));
+        const responsiveLink = links.find((item) => item.href.includes('/css/responsive-system.css'));
+        const stylesheetTail = links.slice(-2);
+        const alreadyOrdered = stylesheetTail[0] === referenceLink && stylesheetTail[1] === responsiveLink;
+        if (!referenceLink || !responsiveLink || alreadyOrdered || orderingTheme) {
             return;
         }
         orderingTheme = true;
-        document.head.appendChild(link);
+        document.head.append(referenceLink, responsiveLink);
         window.requestAnimationFrame(() => {
             orderingTheme = false;
         });

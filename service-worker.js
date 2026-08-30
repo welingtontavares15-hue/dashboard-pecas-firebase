@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v62-wwm-referencia-visual';
+const CACHE_VERSION = 'v63-responsive-system';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -31,6 +31,7 @@ const PRECACHE = {
     './css/premium-login-v55.css',
     './css/premium-release-v55.css',
     './css/wwm-reference-theme.css',
+    './css/responsive-system.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
