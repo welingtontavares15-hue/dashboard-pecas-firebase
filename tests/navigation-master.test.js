@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Navegação consolidada WWM v66', () => {
+describe('Navegação consolidada WWM v72', () => {
     const root = path.resolve(__dirname, '..');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -36,8 +36,8 @@ describe('Navegação consolidada WWM v66', () => {
         expect(index).toContain('js/premium-release-v55.js');
     });
 
-    test('mantém suporte offline sincronizado com o contrato visual v71', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v71-visual-integrity'");
+    test('mantém suporte offline sincronizado com o contrato visual v72', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v72-visual-architecture'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
@@ -47,7 +47,7 @@ describe('Navegação consolidada WWM v66', () => {
         expect(serviceWorker).toContain("'./css/brand-slogan.css'");
         expect(serviceWorker).toContain("'./css/visual-premium-v4.css'");
         expect(serviceWorker).toContain("'./css/desktop-mobile-premium.css'");
-        expect(serviceWorker).toContain("'./css/visual-integrity-v71.css'");
+        expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
     });
 });
