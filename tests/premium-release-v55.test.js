@@ -40,6 +40,7 @@ describe('Release WWM v66 reference layout', () => {
     test('impede que as camadas legadas sobrescrevam o portal', () => {
         expect(referenceUi).toContain('keepReferenceThemeLast');
         expect(referenceUi).toContain("document.body.classList.remove('light-mode')");
+        expect(referenceUi).toContain('visual-integrity-v71.css');
         expect(uiModern).toContain("document.body.classList.contains('wwm-reference-theme')");
         expect(referenceCss).toContain('.premium-dashboard-side-nav');
         expect(referenceCss).toContain('display: none !important');
@@ -68,8 +69,8 @@ describe('Release WWM v66 reference layout', () => {
         expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
     });
 
-    test('publica cache v66 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v70-fornecedor-acoes'");
+    test('publica cache v71 com os ativos críticos e a camada visual final', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v71-visual-integrity'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -82,6 +83,9 @@ describe('Release WWM v66 reference layout', () => {
             './css/responsive-system.css',
             './css/brand-slogan.css',
             './css/wwm-visual-standard.css',
+            './css/visual-premium-v4.css',
+            './css/desktop-mobile-premium.css',
+            './css/visual-integrity-v71.css',
             './js/wwm-reference-ui.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
