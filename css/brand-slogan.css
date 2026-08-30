@@ -1,10 +1,35 @@
 /* Padrao corporativo do slogan Diversey / Solenis.
    Escopo intencionalmente restrito ao texto "A SOLENIS COMPANY". */
+:root {
+    --diversey-solenis-slogan: #00cc99;
+}
+
 body.wwm-reference-theme .logo-subtitle,
 body.wwm-reference-theme #login-screen .wwm-brand-copy span,
 body.wwm-reference-theme #login-screen .premium-login-brand-meta span {
-    color: var(--wwm-teal-400, #16d2c2) !important;
+    color: var(--diversey-solenis-slogan) !important;
     font-weight: 800 !important;
-    letter-spacing: .08em !important;
+    line-height: 1 !important;
+    letter-spacing: .045em !important;
     text-transform: uppercase !important;
+    white-space: nowrap !important;
+}
+
+/* Sidebar: o slogan deve ser secundario e proporcional ao wordmark Diversey. */
+body.wwm-reference-theme .logo-subtitle {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 2px !important;
+    font-size: 6px !important;
+    text-align: center !important;
+}
+
+/* Login: mesma identidade, em escala compativel com o wordmark maior. */
+body.wwm-reference-theme #login-screen .wwm-brand-copy span,
+body.wwm-reference-theme #login-screen .premium-login-brand-meta span {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 3px !important;
+    font-size: 7px !important;
+    text-align: center !important;
 }

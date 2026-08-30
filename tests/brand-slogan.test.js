@@ -15,12 +15,17 @@ describe('Padrao do slogan Diversey / Solenis', () => {
         expect(slogan).toBeGreaterThan(responsive);
     });
 
-    test('padroniza somente os slogans da sidebar e do login com teal corporativo', () => {
+    test('padroniza sidebar e login com o verde corporativo da referencia', () => {
         expect(css).toContain('body.wwm-reference-theme .logo-subtitle');
         expect(css).toContain('body.wwm-reference-theme #login-screen .wwm-brand-copy span');
         expect(css).toContain('body.wwm-reference-theme #login-screen .premium-login-brand-meta span');
-        expect(css).toContain('var(--wwm-teal-400, #16d2c2)');
+        expect(css).toContain('--diversey-solenis-slogan: #00cc99');
         expect(css).toContain('text-transform: uppercase');
+    });
+
+    test('mantem o slogan proporcional e subordinado ao wordmark', () => {
+        expect(css).toMatch(/\.logo-subtitle\s*\{[\s\S]*?font-size:\s*6px\s*!important[\s\S]*?text-align:\s*center\s*!important[\s\S]*?\}/);
+        expect(css).toMatch(/#login-screen \.wwm-brand-copy span,[\s\S]*?#login-screen \.premium-login-brand-meta span\s*\{[\s\S]*?font-size:\s*7px\s*!important[\s\S]*?text-align:\s*center\s*!important[\s\S]*?\}/);
     });
 
     test('mantem o texto corporativo existente sem alterar logotipo ou navegacao', () => {
