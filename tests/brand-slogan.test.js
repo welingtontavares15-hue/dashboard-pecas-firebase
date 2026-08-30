@@ -15,12 +15,23 @@ describe('Padrao do slogan Diversey / Solenis', () => {
         expect(slogan).toBeGreaterThan(responsive);
     });
 
-    test('padroniza somente os slogans da sidebar e do login com teal corporativo', () => {
+    test('padroniza sidebar e login com o verde corporativo da referencia', () => {
         expect(css).toContain('body.wwm-reference-theme .logo-subtitle');
         expect(css).toContain('body.wwm-reference-theme #login-screen .wwm-brand-copy span');
         expect(css).toContain('body.wwm-reference-theme #login-screen .premium-login-brand-meta span');
-        expect(css).toContain('var(--wwm-teal-400, #16d2c2)');
+        expect(css).toContain('--diversey-solenis-slogan: #00cc99');
         expect(css).toContain('text-transform: uppercase');
+    });
+
+    test('mantem o slogan proporcional e subordinado ao wordmark', () => {
+        const sidebar = css.match(/body\.wwm-reference-theme \.logo-subtitle\s*\{([\s\S]*?)\}/)?.[1] || '';
+        expect(sidebar).toMatch(/font-size:\s*6px\s*!important/);
+        expect(sidebar).toMatch(/text-align:\s*center\s*!important/);
+        expect(sidebar).toMatch(/width:\s*100%\s*!important/);
+
+        const login = css.match(/body\.wwm-reference-theme #login-screen \.wwm-brand-copy span,[\s\S]*?premium-login-brand-meta span\s*\{([\s\S]*?)\}/)?.[1] || '';
+        expect(login).toMatch(/font-size:\s*7px\s*!important/);
+        expect(login).toMatch(/text-align:\s*center\s*!important/);
     });
 
     test('mantem o texto corporativo existente sem alterar logotipo ou navegacao', () => {
