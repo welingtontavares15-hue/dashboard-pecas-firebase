@@ -1,6 +1,7 @@
-/* WWM visual standard v65
- * Geometria e alinhamento finais para Visao Geral e Relatorios.
- * Escopo estritamente visual: nao altera dados, eventos, Firebase ou regras de negocio.
+/* WWM visual standard v66
+ * Contrato visual final e compartilhado do portal.
+ * Escopo: geometria, hierarquia, acessibilidade visual e responsividade.
+ * Nao altera dados, eventos, Firebase, permissoes ou regras de negocio.
  */
 
 :root {
@@ -9,15 +10,302 @@
     --wwm-panel-padding-standard: 16px;
     --wwm-control-height-standard: 42px;
     --wwm-sticky-header-height: 90px;
+    --wwm-content-max: 1600px;
+    --wwm-space-1: 4px;
+    --wwm-space-2: 8px;
+    --wwm-space-3: 12px;
+    --wwm-space-4: 16px;
+    --wwm-space-5: 20px;
+    --wwm-space-6: 24px;
+    --wwm-row-border: rgba(137, 203, 201, .14);
 }
 
 body.wwm-reference-theme {
     scroll-padding-top: calc(var(--wwm-sticky-header-height) + 16px);
 }
 
-/* --------------------------------------------------------------------------
-   Ritmo compartilhado
-   -------------------------------------------------------------------------- */
+/* ========================================================================== 
+   Contrato global de layout
+   ========================================================================== */
+body.wwm-reference-theme .content-area,
+body.wwm-reference-theme #content-area {
+    width: 100%;
+    max-width: var(--wwm-content-max);
+    min-width: 0;
+    margin-inline: auto;
+    padding: clamp(18px, 2vw, 30px) !important;
+}
+
+body.wwm-reference-theme :is(
+    .page-container,
+    .page-content,
+    .reports-shell,
+    .reports-content-stack,
+    .report-stack-grid,
+    .card,
+    .card-body,
+    .table-container,
+    .chart-container,
+    .kpi-card,
+    .metric-card,
+    .corporate-stat-card,
+    .report-summary-card
+) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Cabecalho de pagina: mesma linha-base em todos os modulos. */
+body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--wwm-space-5);
+    width: 100%;
+    margin: 0 0 18px !important;
+    padding: 0 !important;
+}
+
+body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) > :first-child {
+    min-width: 0;
+}
+
+body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) h1,
+body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) h2 {
+    margin: 0 !important;
+    font-size: clamp(27px, 2.2vw, 34px) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -.03em;
+}
+
+body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) p {
+    max-width: 760px;
+    margin: 6px 0 0 !important;
+    color: var(--wwm-muted) !important;
+    font-size: 12px !important;
+    line-height: 1.45;
+}
+
+body.wwm-reference-theme :is(.page-actions, .corporate-page-actions, .header-actions-row) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--wwm-space-2);
+    min-width: 0;
+}
+
+/* Superficies: raio, borda e respiracao previsiveis. */
+body.wwm-reference-theme :is(
+    .card,
+    .corporate-surface,
+    .chart-container,
+    .report-panel-card,
+    .report-chart-card,
+    .page-filters,
+    .filter-panel,
+    .premium-report-filter-shell,
+    .kpi-card,
+    .metric-card,
+    .corporate-stat-card,
+    .report-summary-card
+) {
+    border-radius: var(--wwm-panel-radius-standard) !important;
+}
+
+body.wwm-reference-theme .card-header,
+body.wwm-reference-theme .compact-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--wwm-space-3);
+    min-height: 62px;
+    padding: 13px var(--wwm-panel-padding-standard) !important;
+}
+
+body.wwm-reference-theme .card-header > :first-child,
+body.wwm-reference-theme .compact-card-header > :first-child {
+    min-width: 0;
+}
+
+body.wwm-reference-theme .card-header h4,
+body.wwm-reference-theme .compact-card-header h4 {
+    margin: 0 0 2px !important;
+    font-size: 12px !important;
+    line-height: 1.25;
+}
+
+body.wwm-reference-theme .card-header p,
+body.wwm-reference-theme .compact-card-header p {
+    margin: 0 !important;
+    font-size: 10px !important;
+    line-height: 1.35;
+}
+
+body.wwm-reference-theme .card-body {
+    padding: var(--wwm-panel-padding-standard) !important;
+}
+
+/* Controles: mesma altura, tipografia e alinhamento. */
+body.wwm-reference-theme :is(
+    .form-control,
+    select.form-control,
+    input.form-control,
+    .status-filter-trigger,
+    .premium-multi-filter-trigger
+) {
+    min-height: var(--wwm-control-height-standard) !important;
+    line-height: 1.2;
+}
+
+body.wwm-reference-theme .filter-group {
+    min-width: 0;
+    margin: 0 !important;
+}
+
+body.wwm-reference-theme .filter-group > label {
+    display: block;
+    min-height: 14px;
+    margin: 0 0 6px !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    line-height: 1.2;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+body.wwm-reference-theme .btn:not(.btn-sm):not(.btn-icon) {
+    min-height: var(--wwm-control-height-standard) !important;
+    padding: 8px 14px !important;
+    border-radius: 9px !important;
+    line-height: 1.2;
+}
+
+body.wwm-reference-theme .btn-sm {
+    min-height: 34px;
+    border-radius: 8px;
+}
+
+body.wwm-reference-theme :is(.btn-icon, .sidebar-toggle) {
+    flex: 0 0 auto;
+}
+
+/* KPIs: altura e eixo visual compartilhados. */
+body.wwm-reference-theme :is(.kpi-grid, .report-kpi-grid, .reports-summary-grid, .page-kpis) {
+    gap: 12px !important;
+    align-items: stretch;
+}
+
+body.wwm-reference-theme :is(.kpi-card, .metric-card, .corporate-stat-card, .report-summary-card) {
+    min-height: 104px;
+}
+
+body.wwm-reference-theme :is(.kpi-card, .metric-card, .corporate-stat-card) .kpi-content,
+body.wwm-reference-theme .report-summary-card > div {
+    min-width: 0;
+}
+
+body.wwm-reference-theme :is(.kpi-value, .metric-value, .report-summary-card strong) {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Tabelas operacionais: densas, mas sem corte de conteudo. */
+body.wwm-reference-theme .table-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 10px !important;
+}
+
+body.wwm-reference-theme .table-quick-filter {
+    width: min(340px, 100%);
+    min-height: 40px !important;
+}
+
+body.wwm-reference-theme table.table thead th,
+body.wwm-reference-theme .v59-table thead th {
+    height: 42px;
+    vertical-align: middle;
+}
+
+body.wwm-reference-theme table.table tbody td,
+body.wwm-reference-theme .v59-table tbody td {
+    padding-block: 10px !important;
+    border-bottom-color: var(--wwm-row-border) !important;
+    line-height: 1.35;
+}
+
+body.wwm-reference-theme table.table tbody tr:last-child td,
+body.wwm-reference-theme .v59-table tbody tr:last-child td {
+    border-bottom: 0 !important;
+}
+
+body.wwm-reference-theme :is(.table, .v59-table) :is(th, td) {
+    overflow-wrap: break-word;
+}
+
+body.wwm-reference-theme .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+body.wwm-reference-theme .actions .btn-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 9px;
+}
+
+body.wwm-reference-theme .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    max-width: 100%;
+    min-height: 25px;
+    line-height: 1.15;
+    vertical-align: middle;
+}
+
+/* Estados vazios com a mesma hierarquia e sem grandes areas mortas. */
+body.wwm-reference-theme :is(.empty-state, .premium-empty, .v59-empty, .compact-empty-state) {
+    min-height: 132px !important;
+    padding: 22px 18px !important;
+    text-align: center;
+}
+
+body.wwm-reference-theme :is(.empty-state, .premium-empty, .compact-empty-state) h3,
+body.wwm-reference-theme :is(.empty-state, .premium-empty, .compact-empty-state) h4 {
+    margin: 8px 0 4px !important;
+}
+
+body.wwm-reference-theme :is(.empty-state, .premium-empty, .compact-empty-state) p {
+    margin: 0 !important;
+}
+
+/* Modulos operacionais preservam scroll dentro da tabela, nunca na pagina. */
+body.wwm-reference-theme:is(.wwm-page-solicitacoes, .wwm-page-aprovacoes, .wwm-page-pecas, .wwm-page-tecnicos, .wwm-page-fornecedores) .table-container {
+    max-width: 100%;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+}
+
+body.wwm-reference-theme:is(.wwm-page-solicitacoes, .wwm-page-aprovacoes) .table-container > .table {
+    min-width: 980px;
+}
+
+body.wwm-reference-theme:is(.wwm-page-pecas, .wwm-page-tecnicos, .wwm-page-fornecedores) .table-container > .table {
+    min-width: 760px;
+}
+
+/* ========================================================================== 
+   Visao Geral
+   ========================================================================== */
 body.wwm-reference-theme.wwm-page-dashboard .v59-main,
 body.wwm-reference-theme.wwm-page-relatorios .reports-shell,
 body.wwm-reference-theme.wwm-page-relatorios .reports-content-stack,
@@ -33,9 +321,6 @@ body.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-shell {
     border-radius: var(--wwm-panel-radius-standard) !important;
 }
 
-/* --------------------------------------------------------------------------
-   Visao Geral
-   -------------------------------------------------------------------------- */
 body.wwm-reference-theme.wwm-page-dashboard .v59-chart-grid {
     gap: var(--wwm-layout-gap) !important;
     align-items: stretch !important;
@@ -86,7 +371,7 @@ body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table-wrap {
     scrollbar-gutter: auto !important;
 }
 
-/* As tabelas de preview nao devem herdar o min-width global de 700/840px. */
+/* As tabelas de preview nao devem herdar o min-width global das tabelas operacionais. */
 body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table {
     width: 100% !important;
     min-width: 0 !important;
@@ -131,9 +416,9 @@ body.wwm-reference-theme.wwm-page-dashboard .v59-card-link {
     min-height: 42px !important;
 }
 
-/* --------------------------------------------------------------------------
+/* ========================================================================== 
    Relatorios - filtros e indicadores
-   -------------------------------------------------------------------------- */
+   ========================================================================== */
 body.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-shell {
     padding: 18px !important;
 }
@@ -238,9 +523,9 @@ body.wwm-reference-theme.wwm-page-relatorios .report-tabs-modern {
     z-index: 80 !important;
 }
 
-/* --------------------------------------------------------------------------
+/* ========================================================================== 
    Relatorios - paineis, graficos e tabelas
-   -------------------------------------------------------------------------- */
+   ========================================================================== */
 body.wwm-reference-theme.wwm-page-relatorios .reports-two-column {
     gap: var(--wwm-layout-gap) !important;
     align-items: stretch !important;
@@ -280,7 +565,7 @@ body.wwm-reference-theme.wwm-page-relatorios .report-panel-card > .card-body {
 }
 
 body.wwm-reference-theme.wwm-page-relatorios .report-panel-card .table-toolbar {
-    width: min(320px, 100%);
+    width: min(340px, 100%);
     margin: 0 !important;
 }
 
@@ -313,7 +598,7 @@ body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-det
 body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table .table td {
     min-width: 0 !important;
     max-width: none !important;
-    padding: 10px 10px !important;
+    padding: 10px !important;
     line-height: 1.3;
     white-space: normal !important;
     overflow-wrap: anywhere;
@@ -337,9 +622,32 @@ body.wwm-reference-theme.wwm-page-relatorios .report-panel-card .compact-chart-w
     min-height: 300px !important;
 }
 
-/* --------------------------------------------------------------------------
+/* ========================================================================== 
+   Sistema / cadastros / operacao
+   ========================================================================== */
+body.wwm-reference-theme:is(.wwm-page-solicitacoes, .wwm-page-aprovacoes, .wwm-page-pecas, .wwm-page-tecnicos, .wwm-page-fornecedores, .wwm-page-sistema) :is(.filters-bar, .filter-panel-body, .page-filters) {
+    gap: 12px !important;
+}
+
+body.wwm-reference-theme:is(.wwm-page-solicitacoes, .wwm-page-aprovacoes, .wwm-page-pecas, .wwm-page-tecnicos, .wwm-page-fornecedores) .table-info {
+    margin-bottom: 10px !important;
+    line-height: 1.35;
+}
+
+body.wwm-reference-theme.wwm-page-aprovacoes .actions .btn-sm,
+body.wwm-reference-theme.wwm-page-solicitacoes .actions .btn-sm {
+    width: 34px;
+    min-width: 34px;
+    padding: 0 !important;
+}
+
+body.wwm-reference-theme.wwm-page-sistema :is(.settings-grid, .system-grid, .config-grid) {
+    gap: var(--wwm-layout-gap) !important;
+}
+
+/* ========================================================================== 
    Breakpoints
-   -------------------------------------------------------------------------- */
+   ========================================================================== */
 @media (max-width: 1480px) {
     body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid,
     body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) {
@@ -360,6 +668,10 @@ body.wwm-reference-theme.wwm-page-relatorios .report-panel-card .compact-chart-w
         --wwm-sticky-header-height: 90px;
     }
 
+    body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) {
+        align-items: flex-start;
+    }
+
     body.wwm-reference-theme.wwm-page-dashboard .v59-chart-grid,
     body.wwm-reference-theme.wwm-page-relatorios .reports-two-column,
     body.wwm-reference-theme.wwm-page-relatorios .report-detail-grid {
@@ -375,9 +687,53 @@ body.wwm-reference-theme.wwm-page-relatorios .report-panel-card .compact-chart-w
     }
 }
 
+@media (max-width: 900px) {
+    body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    body.wwm-reference-theme :is(.page-actions, .corporate-page-actions, .header-actions-row) {
+        justify-content: flex-start;
+    }
+
+    body.wwm-reference-theme :is(.page-actions, .corporate-page-actions, .header-actions-row) .btn {
+        flex: 1 1 auto;
+    }
+}
+
 @media (max-width: 760px) {
     :root {
         --wwm-sticky-header-height: 68px;
+        --wwm-panel-padding-standard: 14px;
+    }
+
+    body.wwm-reference-theme .content-area,
+    body.wwm-reference-theme #content-area {
+        padding: 14px 12px 26px !important;
+    }
+
+    body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) h1,
+    body.wwm-reference-theme :is(.wwm-page-title, .page-header, .corporate-page-header, .reports-header-compact) h2 {
+        font-size: clamp(24px, 8vw, 30px) !important;
+    }
+
+    body.wwm-reference-theme .status-badge {
+        white-space: normal;
+        text-align: center;
+    }
+
+    body.wwm-reference-theme .page-actions,
+    body.wwm-reference-theme .corporate-page-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+    }
+
+    body.wwm-reference-theme .page-actions .btn,
+    body.wwm-reference-theme .corporate-page-actions .btn {
+        width: 100%;
     }
 
     body.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-shell {
@@ -407,5 +763,40 @@ body.wwm-reference-theme.wwm-page-relatorios .report-panel-card .compact-chart-w
     body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table > .table {
         min-width: 680px !important;
         table-layout: auto !important;
+    }
+
+    body.wwm-reference-theme .table-toolbar,
+    body.wwm-reference-theme .table-quick-filter {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    body.wwm-reference-theme :is(.card-header, .compact-card-header) {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    body.wwm-reference-theme :is(.kpi-card, .metric-card, .corporate-stat-card, .report-summary-card) {
+        min-height: 92px;
+    }
+}
+
+@media (max-height: 700px) and (min-width: 761px) {
+    body.wwm-reference-theme .content-area,
+    body.wwm-reference-theme #content-area {
+        padding-top: 16px !important;
+        padding-bottom: 24px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.wwm-reference-theme *,
+    body.wwm-reference-theme *::before,
+    body.wwm-reference-theme *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
     }
 }
