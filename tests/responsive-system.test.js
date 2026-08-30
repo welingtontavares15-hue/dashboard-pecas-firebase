@@ -36,4 +36,18 @@ describe('WWM global responsive system', () => {
             .forEach((query) => expect(css).toContain(query));
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
     });
+
+    test('uses the Visão Geral teal surfaces as the global colour standard', () => {
+        expect(index).toContain('responsive-system.css?v=20260830b');
+        expect(index).toContain('<meta name="theme-color" content="#004449">');
+        expect(css).toContain('--wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25))');
+        expect(css).toContain('--cui-surface: var(--wwm-panel-surface)');
+        expect(css).toContain('--pv3-surface: var(--wwm-panel-surface)');
+        expect(css).toContain('--corp-surface: var(--wwm-panel-surface)');
+        expect(css).toContain('.corporate-filter-surface');
+        expect(css).toContain('.corporate-stat-card');
+        expect(css).toContain('.corporate-grid-shell');
+        expect(css).toContain('.modal-content');
+        expect(css).toContain('.premium-multi-filter-popover');
+    });
 });

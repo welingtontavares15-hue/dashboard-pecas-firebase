@@ -644,3 +644,185 @@ body.wwm-reference-theme .loading-overlay {
         animation-iteration-count: 1 !important;
     }
 }
+
+/*
+ * WWM colour standard — Visão Geral is the canonical visual reference.
+ * Historical Clean UI, Corporate and Premium layers share these tokens, so no
+ * route can fall back to the old blue/navy surface palette.
+ */
+body.wwm-reference-theme {
+    --wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
+    --wwm-panel-surface: rgba(4, 78, 80, .62);
+    --wwm-panel-subtle: rgba(0, 50, 54, .34);
+    --wwm-panel-strong: rgba(1, 43, 52, .78);
+    --wwm-overlay-surface: #063a40;
+
+    --cui-bg: #004449;
+    --cui-surface: var(--wwm-panel-surface);
+    --cui-surface-2: var(--wwm-panel-strong);
+    --cui-surface-3: #075158;
+    --cui-border: var(--wwm-line);
+    --cui-border-strong: var(--wwm-line-strong);
+    --cui-ink: var(--wwm-text);
+    --cui-text: #cfe0e1;
+    --cui-muted: var(--wwm-muted);
+    --cui-faint: #7fa4a6;
+    --cui-shadow: none;
+    --cui-shadow-md: none;
+    --cui-shadow-lg: none;
+
+    --pv3-canvas: transparent;
+    --pv3-surface: var(--wwm-panel-surface);
+    --pv3-surface-subtle: var(--wwm-panel-strong);
+    --pv3-ink: var(--wwm-text);
+    --pv3-muted: var(--wwm-muted);
+    --pv3-border: var(--wwm-line);
+    --pv3-border-strong: var(--wwm-line-strong);
+    --pv3-primary: var(--wwm-teal-400);
+    --pv3-primary-strong: var(--wwm-teal-600);
+    --pv3-shadow: none;
+    --pv3-shadow-raised: 0 18px 46px rgba(0, 12, 20, .34);
+
+    --corp-bg: #004449;
+    --corp-surface: var(--wwm-panel-surface);
+    --corp-surface-alt: var(--wwm-panel-strong);
+    --corp-surface-strong: #075158;
+    --corp-line: var(--wwm-line);
+    --corp-line-strong: var(--wwm-line-strong);
+    --corp-text: var(--wwm-text);
+    --corp-muted: var(--wwm-muted);
+    --corp-subtle: #7fa4a6;
+    --corp-primary: var(--wwm-teal-400);
+    --corp-primary-strong: var(--wwm-teal-600);
+    --corp-shadow-sm: none;
+    --corp-shadow-md: 0 18px 46px rgba(0, 12, 20, .34);
+}
+
+body.wwm-reference-theme .main-content,
+body.wwm-reference-theme .content-area,
+body.wwm-reference-theme.premium-ui-v3-enabled .main-content {
+    background: transparent !important;
+}
+
+body.wwm-reference-theme :is(#content-area, .modal-content, .notification-panel) :is(
+    .card,
+    .corporate-surface,
+    .chart-container,
+    .dashboard-panel-card,
+    .report-panel-card,
+    .dashboard-chart-card,
+    .report-chart-card,
+    .compact-card,
+    .kpi-card,
+    .metric-card,
+    .corporate-stat-card,
+    .report-summary-card,
+    .supplier-summary-card
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-gradient) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(
+    .filter-panel,
+    .page-filters,
+    .dashboard-filters-grid,
+    .corporate-filter-surface,
+    .report-filters-modern,
+    .supplier-filters-bar,
+    .premium-report-filter-shell
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-gradient) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(.filter-panel, .page-filters, .premium-report-filter-shell) .filters-bar {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(.card-header, .card-footer, .wwm-panel-heading) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: transparent !important;
+}
+
+body.wwm-reference-theme :is(.card-header, .card-footer, .wwm-panel-heading) :is(h3, h4, strong),
+body.wwm-reference-theme :is(.kpi-card, .metric-card, .report-summary-card) :is(h3, h4, strong) {
+    color: var(--wwm-text) !important;
+}
+
+body.wwm-reference-theme :is(.table-container, .corporate-grid-shell, .premium-table-shell, .v59-table-wrap) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-subtle) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme table.table thead th,
+body.wwm-reference-theme table.table thead th.sortable {
+    color: #d8e8e8 !important;
+    border-color: rgba(142, 198, 198, .16) !important;
+    background: var(--wwm-panel-strong) !important;
+}
+
+body.wwm-reference-theme table.table :is(tbody, tfoot) :is(td, th) {
+    color: #eaf5f5 !important;
+    border-color: rgba(142, 198, 198, .16) !important;
+    background: transparent !important;
+}
+
+body.wwm-reference-theme table.table tbody tr:hover > td {
+    background: rgba(9, 178, 164, .09) !important;
+}
+
+body.wwm-reference-theme :is(#content-area, .modal-content, .notification-panel) :is(
+    .form-control,
+    .search-input,
+    .status-filter-trigger,
+    .premium-multi-filter-trigger,
+    .date-input,
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea
+) {
+    color: #edf8f8;
+    border-color: rgba(139, 200, 199, .24);
+    background-color: rgba(0, 48, 53, .6);
+}
+
+body.wwm-reference-theme :is(
+    .modal-content,
+    .notification-panel,
+    .action-menu-dropdown,
+    .status-filter-dropdown,
+    .premium-multi-filter-popover
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line-strong) !important;
+    background: var(--wwm-overlay-surface) !important;
+    box-shadow: 0 20px 56px rgba(0, 12, 20, .42) !important;
+}
+
+body.wwm-reference-theme :is(.modal-header, .modal-footer, .notification-panel-header) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: #052f35 !important;
+}
+
+body.wwm-reference-theme :is(.empty-state, .compact-empty-state, .loading-state, .skeleton-card) {
+    color: var(--wwm-muted) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-subtle) !important;
+}
+
+body.wwm-reference-theme :is(.report-tabs-modern, .tabs, .tab-navigation) {
+    border-color: var(--wwm-line) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}

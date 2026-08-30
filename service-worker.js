@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v63-responsive-system';
+const CACHE_VERSION = 'v64-color-standard';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
