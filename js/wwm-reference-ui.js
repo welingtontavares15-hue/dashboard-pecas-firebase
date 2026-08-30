@@ -32,13 +32,54 @@
         }
     }
 
+    function ensureDeviceLayoutLayer() {
+        let deviceCss = document.querySelector('link[data-wwm-device-layout]');
+        if (!deviceCss) {
+            deviceCss = document.createElement('link');
+            deviceCss.rel = 'stylesheet';
+            deviceCss.href = 'css/desktop-mobile-premium.css?v=20260830a';
+            deviceCss.dataset.wwmDeviceLayout = 'true';
+            document.head.appendChild(deviceCss);
+        }
+    }
+
+    function enhanceSolicitationLayout() {
+        if (!document.body.classList.contains('wwm-page-solicitacoes')) {
+            return;
+        }
+
+        const table = document.querySelector('#sol-table-container table.table');
+        if (table) {
+            const headers = Array.from(table.querySelectorAll('thead th')).map((cell) => cell.textContent.trim());
+            table.querySelectorAll('tbody tr').forEach((row) => {
+                Array.from(row.cells).forEach((cell, index) => {
+                    if (headers[index]) {
+                        cell.dataset.label = headers[index];
+                    }
+                });
+            });
+        }
+
+        const filterPanel = document.getElementById('sol-filter-panel');
+        if (filterPanel && !filterPanel.dataset.deviceLayoutReady) {
+            const compact = window.matchMedia('(max-width: 767px)').matches;
+            const hasActiveFilters = String(filterPanel.querySelector('summary')?.textContent || '').toLowerCase().includes('ativos');
+            if (compact && !hasActiveFilters) {
+                filterPanel.removeAttribute('open');
+            }
+            filterPanel.dataset.deviceLayoutReady = 'true';
+        }
+    }
+
     function keepReferenceThemeLast() {
         const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
         const referenceLink = links.find((item) => item.href.includes('/css/wwm-reference-theme.css'));
         const responsiveLink = links.find((item) => item.href.includes('/css/responsive-system.css'));
         const visualStandardLink = links.find((item) => item.href.includes('/css/wwm-visual-standard.css'));
         const smartLayoutLink = links.find((item) => item.href.includes('/css/wwm-smart-layout.css'));
-        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink].filter(Boolean);
+        const premiumVisualLink = links.find((item) => item.href.includes('/css/visual-premium-v4.css'));
+        const deviceLayoutLink = links.find((item) => item.href.includes('/css/desktop-mobile-premium.css'));
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink].filter(Boolean);
         const stylesheetTail = links.slice(-expectedTail.length);
         const alreadyOrdered = expectedTail.length >= 2
             && stylesheetTail.every((item, index) => item === expectedTail[index]);
@@ -52,6 +93,12 @@
         }
         if (smartLayoutLink) {
             document.head.append(smartLayoutLink);
+        }
+        if (premiumVisualLink) {
+            document.head.append(premiumVisualLink);
+        }
+        if (deviceLayoutLink) {
+            document.head.append(deviceLayoutLink);
         }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
@@ -98,7 +145,9 @@
         document.body.dataset.currentPage = page;
         enforcePortalPalette();
         ensureSmartLayer();
+        ensureDeviceLayoutLayer();
         keepReferenceThemeLast();
+        enhanceSolicitationLayout();
         syncProfile();
     }
 
@@ -107,7 +156,9 @@
         document.body.classList.add('wwm-reference-theme');
         enforcePortalPalette();
         ensureSmartLayer();
+        ensureDeviceLayoutLayer();
         keepReferenceThemeLast();
+        enhanceSolicitationLayout();
         document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');
         document.getElementById('notifications-toggle')?.setAttribute('aria-label', 'Abrir notificações');
         document.getElementById('sync-btn')?.setAttribute('aria-label', 'Atualizar dados');
@@ -139,6 +190,7 @@
             new MutationObserver(syncProfile).observe(profileName, { childList: true, characterData: true, subtree: true });
         }
         new MutationObserver(keepReferenceThemeLast).observe(document.head, { childList: true });
+        window.addEventListener('resize', () => window.requestAnimationFrame(enhanceSolicitationLayout));
     }
 
     function install() {
