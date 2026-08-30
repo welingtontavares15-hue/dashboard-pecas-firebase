@@ -1,21 +1,19 @@
 ## Credenciais de Acesso - Dashboard de Peças
 
 ### Produção
-- Autenticação via IdP (OAuth2/OIDC — Entra ID/Google).  
-- Solicite inclusão ao time de identidade/segurança.  
+- Autenticação corporativa deve ser provisionada pelo administrador responsável.
 - Nenhuma senha padrão é publicada ou distribuída por este repositório.
+- Contas, recuperação de acesso e suporte devem usar os canais corporativos aprovados da operação.
 
 ### Desenvolvimento / Homologação
-- Ative `APP_CONFIG.environment = 'development'` para usar o mock local.
-- As credenciais de teste ficam em cofre seguro; peça ao administrador responsável.
-- O painel de credenciais da tela de login só aparece em dev/staging e é bloqueado em produção por flag de ambiente.
+- Ative `APP_CONFIG.environment = 'development'` somente em ambiente local ou de homologação controlado.
+- As credenciais de teste devem permanecer em cofre seguro.
+- O painel de credenciais da tela de login só pode aparecer em dev/staging e permanece bloqueado em produção por flag de ambiente.
 
 ### Técnicos e Gestores
-- Usuário no formato `nome.sobrenome` (minúsculas, sem acentos).
-- Senhas são entregues individualmente e devem ser trocadas no primeiro acesso.
-- Para reset de senha, acione o administrador; o envio é feito fora do repositório.
+- O identificador de usuário deve seguir o padrão definido pelo administrador do ambiente.
+- Senhas e mecanismos de recuperação não devem ser enviados por arquivos versionados, issues ou pull requests.
+- Dados pessoais de colaboradores não devem ser mantidos como fallback no frontend público.
 
 ### Suporte
-- Nome: Welington Tavares
-- Email: wbastostavares@solenis.com
-- Telefone: 62998124727
+Use o canal corporativo oficial definido para a operação do Portal de Peças MWW. Não publique e-mail pessoal, telefone pessoal, senha, token ou dados residenciais neste repositório.

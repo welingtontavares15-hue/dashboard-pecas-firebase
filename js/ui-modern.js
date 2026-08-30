@@ -466,6 +466,11 @@
         };
 
         App.applyPageScaffold = function () {
+            // O Portal WWM possui seu próprio scaffold visual. Reagrupar os nós aqui
+            // criava painéis claros, espaçamentos duplicados e grids fora do viewport.
+            if (document.body.classList.contains('wwm-reference-theme')) {
+                return;
+            }
             const content = document.getElementById('content-area');
             if (!content) {
                 return;

@@ -5,17 +5,11 @@
    de tema, SEM reescrevê-las (baixo risco, reversível: basta remover o <link>).
 
    Regras:
-   - Só correções seguras (geometria/contenção/responsividade). NÃO altera
-     cores de texto para não reduzir contraste já bom das camadas anteriores.
-   - Especificidade calibrada para vencer clean-ui (body.premium-plus-enabled …)
-     por empate + ordem de carga.
+   - Correções seguras de geometria, contenção, responsividade e hierarquia.
+   - Especificidade calibrada para reconciliar as camadas legadas sem alterar
+     contratos de dados, eventos, rotas ou integração Firebase.
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   1) Contenção universal de overflow horizontal
-   Invisível quando não há overflow; só age sob pressão (tabelas largas,
-   imagens, conteúdo colado). Corrige a cadeia flex/grid sem min-width:0.
-   -------------------------------------------------------------------------- */
 body .main-content,
 body .content-area,
 body .page-container,
@@ -36,6 +30,7 @@ body .table-container {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
 }
 
 body img,
@@ -46,16 +41,10 @@ body pre {
     max-width: 100%;
 }
 
-/* Toast nunca ultrapassa a tela */
 body .toast-container {
     max-width: min(420px, calc(100vw - 24px));
 }
 
-/* --------------------------------------------------------------------------
-   2) Indicadores (KPI): apenas contenção interna (evita estouro de valores
-   longos como "R$ 1.234.567,89"). Geometria/altura ficam a cargo das camadas
-   existentes — já são uniformes dentro de cada tela.
-   -------------------------------------------------------------------------- */
 body .kpi-card .kpi-content,
 body .metric-card .kpi-content {
     min-width: 0;
@@ -66,14 +55,240 @@ body .metric-card .kpi-value {
     overflow-wrap: anywhere;
 }
 
-/* --------------------------------------------------------------------------
-   3) Responsividade coerente (unifica os breakpoints dispersos em
-   760/768/900/992/1200 nas camadas antigas). Reforça o comportamento correto.
-   -------------------------------------------------------------------------- */
-
-/* A breadcrumb trunca em vez de empurrar o cabeçalho */
 body .breadcrumb {
     min-width: 0;
+}
+
+/* Executive density: mantém a identidade premium, mas coloca decisão e dados
+   acima da decoração. Nenhuma destas regras altera o DOM ou o modelo de dados. */
+body.visual-refresh-enabled .content-area {
+    padding-block: clamp(16px, 2vw, 28px);
+}
+
+body .premium-dashboard-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+    gap: clamp(18px, 3vw, 38px);
+    align-items: center;
+    margin-bottom: 14px;
+    padding: clamp(20px, 2.8vw, 30px);
+    border-radius: 18px;
+}
+
+body .premium-dashboard-hero h1 {
+    max-width: 680px;
+    font-size: clamp(27px, 3vw, 38px);
+    line-height: 1.08;
+}
+
+body .premium-dashboard-hero p {
+    margin-top: 10px;
+    font-size: clamp(13px, 1.2vw, 15px);
+    line-height: 1.55;
+}
+
+body .premium-hero-meta {
+    margin-top: 15px;
+}
+
+body .premium-hero-controls {
+    width: min(100%, 300px);
+}
+
+body .premium-kpi-grid {
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+body .premium-kpi {
+    min-height: 142px;
+    padding: 17px;
+    border-radius: 15px;
+}
+
+body .premium-kpi-value {
+    margin-top: 15px;
+    font-size: clamp(24px, 2.2vw, 33px);
+}
+
+body .premium-status-strip {
+    margin-bottom: 12px;
+    border-radius: 14px;
+}
+
+body .premium-status-item {
+    min-height: 58px;
+    padding: 12px 14px;
+}
+
+body .premium-action-alert {
+    margin-bottom: 12px;
+    padding: 13px 16px;
+    border-radius: 14px;
+}
+
+body .premium-chart-grid,
+body .premium-detail-grid {
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+body .premium-panel {
+    padding: 18px;
+    border-radius: 15px;
+}
+
+body .premium-panel-header {
+    margin-bottom: 14px;
+}
+
+/* Tabelas executivas: cabeçalho estável e densidade consistente. */
+body .premium-table-wrap,
+body .table-container {
+    border-radius: 12px;
+}
+
+body .premium-table th,
+body .table th {
+    white-space: nowrap;
+}
+
+body .premium-table td,
+body .table td {
+    vertical-align: middle;
+}
+
+/* Header reduz ruído sem retirar busca, sincronização ou notificações. */
+body.visual-refresh-enabled .main-header {
+    min-height: 64px;
+}
+
+body .header-profile {
+    max-width: 220px;
+}
+
+body .header-profile-meta,
+body .user-details {
+    min-width: 0;
+}
+
+body .header-profile-meta span,
+body .header-profile-meta small,
+body .user-details span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Foco e affordance. */
+body a:focus-visible,
+body button:focus-visible,
+body input:focus-visible,
+body select:focus-visible,
+body textarea:focus-visible,
+body [tabindex]:focus-visible {
+    outline: 2px solid var(--cp-accent, #2a7de1);
+    outline-offset: 2px;
+}
+
+body button:not(:disabled),
+body .nav-item,
+body [role="button"] {
+    touch-action: manipulation;
+}
+
+body *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+body *::-webkit-scrollbar-thumb {
+    background: rgba(120, 140, 170, 0.35);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+body *::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 140, 170, 0.55);
+    background-clip: padding-box;
+}
+
+body *::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Login: neutraliza deslocamentos herdados das camadas antigas. */
+#login-screen.login-container:not(.hidden) {
+    align-content: center !important;
+    justify-content: center !important;
+}
+
+#login-screen .login-card,
+#login-screen .login-card-inner {
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    translate: none !important;
+    transform: none !important;
+    animation: none !important;
+}
+
+#login-screen .login-card {
+    place-self: center !important;
+    align-self: center !important;
+    justify-self: center !important;
+}
+
+@media (max-width: 1100px) {
+    body .premium-dashboard-hero {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    body .premium-hero-controls {
+        width: 100%;
+        max-width: none;
+        justify-self: stretch;
+        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+        align-items: end;
+    }
+
+    body .premium-hero-controls > label {
+        grid-column: 1;
+    }
+
+    body .premium-hero-controls > select {
+        grid-column: 1;
+    }
+
+    body .premium-hero-actions {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: end;
+        justify-content: flex-end;
+        margin-top: 0;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+    body .kpi-grid,
+    body .report-kpi-grid,
+    body .dashboard-kpi-grid,
+    body .premium-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body .premium-status-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    body .premium-chart-grid,
+    body .premium-detail-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -100,96 +315,76 @@ body .breadcrumb {
         flex-shrink: 0;
     }
 
-    /* Grades empilham de forma previsível no celular */
-    body .kpi-grid,
-    body .report-kpi-grid,
-    body .dashboard-kpi-grid {
-        grid-template-columns: 1fr;
+    body .header-profile {
+        display: none;
     }
 
+    body .kpi-grid,
+    body .report-kpi-grid,
+    body .dashboard-kpi-grid,
+    body .premium-kpi-grid,
     body .dashboard-insight-grid,
     body .dashboard-cost-overview-grid,
-    body .dashboard-history-grid {
+    body .dashboard-history-grid,
+    body .premium-chart-grid,
+    body .premium-detail-grid,
+    body .premium-status-strip {
         grid-template-columns: 1fr;
     }
-}
 
-/* Faixa intermediária (tablet): 2 colunas de KPI, evita cards esticados */
-@media (min-width: 769px) and (max-width: 1100px) {
-    body .kpi-grid,
-    body .report-kpi-grid,
-    body .dashboard-kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    body .premium-dashboard-hero {
+        padding: 18px;
+        border-radius: 16px;
+    }
+
+    body .premium-dashboard-hero h1 {
+        font-size: clamp(25px, 8vw, 32px);
+    }
+
+    body .premium-hero-controls {
+        grid-template-columns: 1fr;
+    }
+
+    body .premium-hero-controls > label,
+    body .premium-hero-controls > select,
+    body .premium-hero-actions {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    body .premium-hero-actions {
+        justify-content: stretch;
+    }
+
+    body .premium-hero-actions .btn {
+        flex: 1 1 100%;
+    }
+
+    body .premium-status-item {
+        min-height: 52px;
+    }
+
+    body .premium-action-alert,
+    body .premium-action-alert > div {
+        align-items: flex-start;
+    }
+
+    body .premium-action-alert {
+        flex-direction: column;
+    }
+
+    body .premium-action-alert .btn {
+        width: 100%;
     }
 }
 
-/* --------------------------------------------------------------------------
-   4) Refinamentos seguros (cosméticos, sem risco de regressão)
-   -------------------------------------------------------------------------- */
-
-/* Barras de rolagem finas e discretas, consistentes em todo o app */
-body *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-body *::-webkit-scrollbar-thumb {
-    background: rgba(120, 140, 170, 0.35);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-}
-
-body *::-webkit-scrollbar-thumb:hover {
-    background: rgba(120, 140, 170, 0.55);
-    background-clip: padding-box;
-}
-
-body *::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-/* Dica visual de que a tabela rola horizontalmente quando estreita */
-body .table-container {
-    scrollbar-gutter: stable;
-}
-
-/* Acessibilidade: foco sempre visível e consistente */
-body a:focus-visible,
-body button:focus-visible,
-body input:focus-visible,
-body select:focus-visible,
-body textarea:focus-visible,
-body [tabindex]:focus-visible {
-    outline: 2px solid var(--cp-accent, #2a7de1);
-    outline-offset: 2px;
-}
-
-/* --------------------------------------------------------------------------
-   5) Login: neutraliza deslocamentos herdados das camadas antigas.
-   O container já usa grid centralizado; o cartão precisa permanecer no fluxo
-   normal para que o centro geométrico do viewport seja respeitado.
-   -------------------------------------------------------------------------- */
-#login-screen.login-container:not(.hidden) {
-    align-content: center !important;
-    justify-content: center !important;
-}
-
-#login-screen .login-card,
-#login-screen .login-card-inner {
-    position: static !important;
-    inset: auto !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    translate: none !important;
-    transform: none !important;
-    animation: none !important;
-}
-
-#login-screen .login-card {
-    place-self: center !important;
-    align-self: center !important;
-    justify-self: center !important;
+@media (prefers-reduced-motion: reduce) {
+    body *,
+    body *::before,
+    body *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

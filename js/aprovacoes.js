@@ -71,10 +71,17 @@ const Aprovacoes = {
         this.ensureFilters();
         const content = document.getElementById('content-area');
         const pending = DataManager.getPendingSolicitations();
+        const slaHours = DataManager.getSettings().slaHours || 24;
+        const totalPendingValue = pending.reduce((sum, sol) => sum + (Number(sol._analysisCost ?? sol.total) || 0), 0);
+        const highPriorityCount = pending.filter((sol) => this.getSolicitationPriority(sol) === 'alta').length;
+        const overSlaCount = pending.filter((sol) => Utils.getHoursDiff(sol.createdAt, Date.now()) > slaHours).length;
 
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-check-double"></i> Aprovações</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2>Aprovações</h2>
+                    <p>Analise solicitações pendentes, priorize o SLA e registre decisões com segurança.</p>
+                </div>
                 ${pending.length > 0 && Auth.hasPermission('aprovacoes', 'batch') ? `
                     <div class="btn-group">
                         <button class="btn btn-success" onclick="Aprovacoes.batchApprove()" id="batch-approve-btn" disabled>
@@ -82,6 +89,12 @@ const Aprovacoes = {
                         </button>
                     </div>
                 ` : ''}
+            </div>
+            <div class="kpi-grid wwm-approval-kpis">
+                <div class="kpi-card is-pending"><div class="kpi-icon warning"><i class="fas fa-clock"></i></div><div class="kpi-content"><h4>Aguardando aprovação</h4><div class="kpi-value">${Utils.formatNumber(pending.length)}</div><div class="kpi-change">Fila atual</div></div></div>
+                <div class="kpi-card is-value"><div class="kpi-icon info"><i class="fas fa-dollar-sign"></i></div><div class="kpi-content"><h4>Valor pendente</h4><div class="kpi-value">${Utils.formatCurrency(totalPendingValue)}</div><div class="kpi-change">Total da fila</div></div></div>
+                <div class="kpi-card is-priority"><div class="kpi-icon danger"><i class="fas fa-arrow-up"></i></div><div class="kpi-content"><h4>Alta prioridade</h4><div class="kpi-value">${Utils.formatNumber(highPriorityCount)}</div><div class="kpi-change">Exigem atenção</div></div></div>
+                <div class="kpi-card is-sla"><div class="kpi-icon success"><i class="fas fa-stopwatch"></i></div><div class="kpi-content"><h4>SLA excedido</h4><div class="kpi-value">${Utils.formatNumber(overSlaCount)}</div><div class="kpi-change">Meta de ${Utils.formatNumber(slaHours)}h</div></div></div>
             </div>
             <div class="filter-context-summary" id="approval-filter-context">
                 <span class="helper-text">${this.getResultsSummary()}</span>
@@ -100,7 +113,7 @@ const Aprovacoes = {
                 </div>
             ` : ''}
 
-            <details class="filter-panel compact" id="approval-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact wwm-filter-panel" id="approval-filter-panel" open>
                 <summary class="filter-panel-toggle" id="approval-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">

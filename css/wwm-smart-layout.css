@@ -1,0 +1,511 @@
+/* WWM Smart Layout v67
+ * Camada funcional do Design System: densidade adaptativa, tabelas inteligentes,
+ * preenchimento contextual e balanceamento de paineis.
+ * Nao altera dados, regras de negocio, Firebase, permissoes ou calculos.
+ */
+
+body.wwm-reference-theme.wwm-smart-layout-ready {
+    --wwm-smart-gap: 16px;
+    --wwm-smart-row-y: 10px;
+    --wwm-smart-row-x: 11px;
+    --wwm-smart-muted: var(--wwm-muted, #9bb8ba);
+    --wwm-smart-line: var(--wwm-line, rgba(110, 195, 193, .18));
+    --wwm-smart-accent: var(--wwm-teal-400, #16d2c2);
+}
+
+body.wwm-reference-theme[data-wwm-density="comfortable"] {
+    --wwm-smart-gap: 18px;
+    --wwm-smart-row-y: 11px;
+    --wwm-smart-row-x: 12px;
+}
+
+body.wwm-reference-theme[data-wwm-density="compact"] {
+    --wwm-smart-gap: 12px;
+    --wwm-smart-row-y: 8px;
+    --wwm-smart-row-x: 9px;
+}
+
+/* --------------------------------------------------------------------------
+   Tabelas: semantica de coluna + densidade orientada por conteudo
+   -------------------------------------------------------------------------- */
+body.wwm-reference-theme .wwm-table-smart {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+}
+
+body.wwm-reference-theme .wwm-table-smart th,
+body.wwm-reference-theme .wwm-table-smart td {
+    padding: var(--wwm-smart-row-y) var(--wwm-smart-row-x) !important;
+    vertical-align: middle;
+}
+
+body.wwm-reference-theme .wwm-table-smart[data-wwm-table-density="dense"] th,
+body.wwm-reference-theme .wwm-table-smart[data-wwm-table-density="dense"] td {
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+}
+
+body.wwm-reference-theme .wwm-table-smart[data-wwm-table-density="compact"] th,
+body.wwm-reference-theme .wwm-table-smart[data-wwm-table-density="compact"] td {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+
+body.wwm-reference-theme .wwm-table-smart :is(.wwm-cell-id, .wwm-cell-date, .wwm-cell-money, .wwm-cell-number) {
+    white-space: nowrap !important;
+    font-variant-numeric: tabular-nums;
+}
+
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-id strong,
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-money,
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-date,
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-number {
+    font-variant-numeric: tabular-nums;
+}
+
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-text {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-status {
+    min-width: 0;
+}
+
+body.wwm-reference-theme .wwm-table-smart .wwm-cell-status .status-badge {
+    max-width: 100%;
+}
+
+body.wwm-reference-theme .wwm-cell-secondary {
+    display: block;
+    margin-top: 3px;
+    color: var(--wwm-smart-muted);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+body.wwm-reference-theme .wwm-table--compact .wwm-column-empty {
+    display: none !important;
+}
+
+body.wwm-reference-theme .wwm-table--overview .wwm-column-auxiliary {
+    display: none !important;
+}
+
+body.wwm-reference-theme .wwm-table-smart tbody tr[tabindex="0"] {
+    cursor: pointer;
+    transition: background-color .14s ease, box-shadow .14s ease;
+}
+
+body.wwm-reference-theme .wwm-table-smart tbody tr[tabindex="0"]:hover {
+    background: rgba(22, 210, 194, .065) !important;
+}
+
+body.wwm-reference-theme .wwm-table-smart tbody tr[tabindex="0"]:focus-visible {
+    outline: 2px solid rgba(52, 211, 196, .55);
+    outline-offset: -2px;
+}
+
+body.wwm-reference-theme .wwm-table-smart tbody tr.is-selected {
+    background: rgba(22, 210, 194, .115) !important;
+    box-shadow: inset 3px 0 0 var(--wwm-smart-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Relatorios: filtros ocupam 100% da largura com grid unificado
+   -------------------------------------------------------------------------- */
+body.wwm-reference-theme.wwm-page-relatorios .report-filters-enterprise.wwm-filters-unified {
+    width: 100%;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px 14px;
+    width: 100%;
+    align-items: end;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid > .filter-group {
+    min-width: 0;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-field--actions {
+    grid-column: span 2;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-actions-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100%;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-actions-row .btn {
+    width: 100%;
+    margin: 0 !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .report-filter-spacer {
+    display: none !important;
+}
+
+/* KPIs sempre consomem a largura disponivel; nao sobra uma coluna vazia. */
+body.wwm-reference-theme.wwm-page-relatorios .reports-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)) !important;
+    gap: 12px !important;
+    width: 100%;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+/* Pares diferentes nao sao esticados artificialmente. */
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column {
+    align-items: start !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column > .report-panel-card {
+    align-self: start !important;
+    height: auto !important;
+    min-height: 0 !important;
+    container-type: inline-size;
+    container-name: wwm-report-card;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .report-panel-card > .card-body {
+    min-height: 0 !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table.wwm-table-shell-smart {
+    max-height: none !important;
+    overflow-x: hidden !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table.wwm-table-shell-smart > .table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+
+/* Peças com maior custo: descricao recebe prioridade; numericos ficam estaveis. */
+body.wwm-reference-theme.wwm-page-relatorios .wwm-parts-overview-table th:nth-child(1) { width: 38%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-parts-overview-table th:nth-child(2) { width: 10%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-parts-overview-table th:nth-child(3) { width: 18%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-parts-overview-table th:nth-child(4) { width: 18%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-parts-overview-table th:nth-child(5) { width: 16%; }
+
+/* Histórico recente: id/data/custo nao quebram; nomes recebem espaco flexivel. */
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(1) { width: 13%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(2) { width: 21%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(3) { width: 18%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(4) { width: 16%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(5) { width: 14%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-recent-overview-table th:nth-child(6) { width: 18%; }
+
+/* --------------------------------------------------------------------------
+   Historico: lista + painel contextual inteligente
+   -------------------------------------------------------------------------- */
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(330px, .9fr) !important;
+    gap: var(--wwm-smart-gap) !important;
+    align-items: start !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-grid > * {
+    min-width: 0;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list {
+    min-width: 0;
+    height: auto !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table-container {
+    overflow-x: hidden !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(1) { width: 20%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(2) { width: 14%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(3) { width: 18%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(4) { width: 22%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(5) { width: 17%; }
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th:nth-child(6) { width: 9%; }
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table th,
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table td {
+    min-width: 0 !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-grid > div:last-child {
+    min-width: 0;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail {
+    position: sticky;
+    top: calc(var(--wwm-sticky-header-height, 90px) + 52px);
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: calc(100vh - 170px);
+    overflow: auto;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail-head {
+    gap: 12px;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail-head > div {
+    min-width: 0;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail-head strong,
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail-head > span {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-meta {
+    flex-wrap: wrap;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-context {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--wwm-smart-line);
+    border-bottom: 1px solid var(--wwm-smart-line);
+    background: rgba(0, 58, 65, .16);
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-context-item {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid rgba(119, 196, 194, .12);
+    border-radius: 9px;
+    background: rgba(0, 39, 47, .18);
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-context-item > span {
+    color: var(--wwm-smart-muted);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-context-item > strong {
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-state-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 10px 14px 0;
+    padding: 9px 10px;
+    border: 1px solid var(--wwm-smart-line);
+    border-radius: 9px;
+    color: var(--wwm-smart-muted);
+    background: rgba(0, 42, 49, .2);
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-state-note.is-rejected {
+    border-color: rgba(255, 74, 84, .28);
+    color: #ffadb2;
+    background: rgba(125, 22, 31, .12);
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-history-state-note.is-complete {
+    border-color: rgba(22, 223, 148, .26);
+    color: #83eec0;
+    background: rgba(10, 104, 74, .12);
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .wwm-timeline {
+    padding-bottom: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Dashboard: usa o espaco com dados/insights, nao com altura artificial
+   -------------------------------------------------------------------------- */
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid {
+    align-items: stretch !important;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid > .v59-card {
+    height: 100% !important;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--pieces.wwm-table-smart th:nth-child(2) {
+    width: 54%;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--pieces.wwm-table-smart th:nth-child(4) {
+    width: 13%;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--pieces.wwm-table-smart th:nth-child(5) {
+    width: 26%;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: auto 14px 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--wwm-smart-line);
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight-item {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 9px;
+    background: rgba(0, 49, 56, .2);
+    border: 1px solid rgba(125, 201, 198, .12);
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight-item span {
+    color: var(--wwm-smart-muted);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight-item strong {
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   Acoes operacionais: uma unica geometria, inclusive menu de reticencias
+   -------------------------------------------------------------------------- */
+body.wwm-reference-theme .actions > :is(button, .premium-row-menu),
+body.wwm-reference-theme .actions .premium-row-menu > summary {
+    flex: 0 0 auto;
+}
+
+body.wwm-reference-theme .actions .premium-row-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 !important;
+    color: var(--wwm-text, #fff) !important;
+    background: rgba(0, 55, 62, .42) !important;
+    border: 1px solid var(--wwm-smart-line) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    cursor: pointer;
+}
+
+body.wwm-reference-theme .actions .premium-row-menu > summary:hover {
+    color: #fff !important;
+    background: rgba(22, 210, 194, .12) !important;
+    border-color: rgba(52, 211, 196, .42) !important;
+}
+
+body.wwm-reference-theme .actions .premium-row-menu > summary:focus-visible {
+    outline: 2px solid rgba(52, 211, 196, .55);
+    outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsividade inteligente
+   -------------------------------------------------------------------------- */
+@media (max-width: 1320px) {
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-field--actions {
+        grid-column: span 2;
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-detail {
+        position: static;
+        max-height: none;
+    }
+}
+
+@media (max-width: 980px) {
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table-container,
+    body.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table.wwm-table-shell-smart {
+        overflow-x: auto !important;
+        scrollbar-gutter: stable;
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-list .table,
+    body.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table.wwm-table-shell-smart > .table {
+        min-width: 760px !important;
+        table-layout: auto !important;
+    }
+}
+
+@media (max-width: 620px) {
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid,
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-actions-row,
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-summary-grid,
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-history-context,
+    body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-smart-filter-grid .report-filter-field--actions {
+        grid-column: auto;
+    }
+
+    body.wwm-reference-theme.wwm-page-dashboard .wwm-dashboard-insight {
+        margin-inline: 12px;
+    }
+}
+
+@container wwm-report-card (max-width: 620px) {
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-table--overview th,
+    body.wwm-reference-theme.wwm-page-relatorios .wwm-table--overview td {
+        font-size: 10px !important;
+    }
+}

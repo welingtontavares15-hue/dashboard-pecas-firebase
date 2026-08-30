@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0a1730">
+    <meta name="theme-color" content="#004449">
     <meta name="color-scheme" content="light dark">
-    <title>Portal Corporativo de Solicitação de Peças MWW</title>
+    <title>Portal de Solicitação de Peças WWM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=20260709a">
     <link rel="stylesheet" href="css/executive-cleanup.css?v=20260705a">
     <link rel="stylesheet" href="css/premium-plus.css?v=20260705a">
@@ -18,112 +18,15 @@
     <link rel="stylesheet" href="css/visual-refresh.css?v=20260716a">
     <link rel="stylesheet" href="css/sidebar-pro.css?v=20260723a">
     <link rel="stylesheet" href="css/premium-dashboard-v2.css?v=20260729a">
-    <style>
-        /* Login simples: somente o cartão de acesso. */
-        #login-screen.login-container:not(.hidden) {
-            display: grid !important;
-            grid-template-columns: minmax(0, 1fr) !important;
-            grid-template-rows: minmax(0, 1fr) !important;
-            place-items: center !important;
-            width: 100% !important;
-            height: 100vh !important;
-            height: 100svh !important;
-            min-height: 100vh !important;
-            min-height: 100svh !important;
-            padding: 24px !important;
-            overflow: auto !important;
-            background:
-                radial-gradient(circle at 18% 12%, rgba(37, 112, 205, .22), transparent 32%),
-                radial-gradient(circle at 84% 88%, rgba(12, 129, 145, .18), transparent 35%),
-                linear-gradient(145deg, #07152b 0%, #0b2343 58%, #0f4856 100%) !important;
-        }
-
-        #login-screen .login-brand-panel,
-        #login-screen .login-mobile-brand,
-        #login-screen .login-info-card,
-        #login-screen .login-card-footer {
-            display: none !important;
-        }
-
-        #login-screen .login-card {
-            grid-column: 1 !important;
-            grid-row: 1 !important;
-            display: block !important;
-            width: min(100%, 440px) !important;
-            min-width: 0 !important;
-            min-height: 0 !important;
-            height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            background: transparent !important;
-            border: 0 !important;
-            box-shadow: none !important;
-        }
-
-        #login-screen .login-card-inner {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 38px !important;
-            color: #eef5ff !important;
-            background: rgba(10, 24, 43, .96) !important;
-            border: 1px solid rgba(129, 158, 196, .22) !important;
-            border-radius: 18px !important;
-            box-shadow: 0 28px 72px rgba(0, 10, 27, .38) !important;
-        }
-
-        #login-screen .login-simple-mark {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 46px;
-            height: 46px;
-            margin-bottom: 20px;
-            color: #fff;
-            background: linear-gradient(145deg, #2479df, #0b55ad);
-            border-radius: 13px;
-            font-size: 20px;
-            font-weight: 800;
-            box-shadow: 0 12px 28px rgba(24, 105, 207, .28);
-        }
-
-        #login-screen .login-logo {
-            margin: 0 0 24px !important;
-            text-align: left !important;
-        }
-
-        #login-screen .login-logo h1 {
-            margin: 4px 0 0 !important;
-            color: #f5f9ff !important;
-            font-size: 28px !important;
-            line-height: 1.15 !important;
-            -webkit-text-fill-color: currentColor !important;
-        }
-
-        #login-screen .login-form-kicker { color: #62aef7 !important; }
-        #login-screen .login-form label { color: #b7c7db !important; }
-        #login-screen .login-form .form-control {
-            color: #edf5ff !important;
-            background: #101f35 !important;
-            border-color: #2b405d !important;
-        }
-        #login-screen .login-form .form-control::placeholder { color: #7f91a9 !important; }
-        #login-screen .login-form .form-control:focus {
-            background: #12243d !important;
-            border-color: #4b9ee9 !important;
-            box-shadow: 0 0 0 3px rgba(75, 158, 233, .18) !important;
-        }
-        #login-screen .toggle-password { color: #a7bad0 !important; }
-        #login-screen .credentials-panel { margin-top: 18px !important; }
-
-        @media (max-width: 992px) {
-            #login-screen.login-container:not(.hidden) { padding: 18px !important; }
-            #login-screen .login-card-inner { padding: 30px 24px !important; }
-        }
-    </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/ui-consolidation.css?v=20260730a">
+    <link rel="stylesheet" href="css/premium-ui-v3.css?v=20260828a">
+    <link rel="stylesheet" href="css/premium-login-v55.css?v=20260828e">
+    <link rel="stylesheet" href="css/premium-release-v55.css?v=20260828c">
+    <link rel="stylesheet" href="css/wwm-reference-theme.css?v=20260829c">
+    <link rel="stylesheet" href="css/responsive-system.css?v=20260830b">
+    <link rel="stylesheet" href="css/brand-slogan.css?v=20260830a">
+    <link rel="stylesheet" href="css/wwm-visual-standard.css?v=20260830c">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -131,46 +34,96 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script type="module" src="./js/firebase-init.js"></script>
 </head>
-<body class="light-mode visual-refresh-enabled" data-theme="light">
+<body class="dark-mode visual-refresh-enabled wwm-reference-theme" data-theme="dark">
     <div id="login-screen" class="login-container">
-        <main class="login-card" aria-labelledby="login-title">
-            <div class="login-card-inner">
-                <div class="login-logo">
-                    <div class="login-simple-mark" aria-hidden="true">D</div>
-                    <span class="login-form-kicker">Portal de Peças MWW</span>
-                    <h1 id="login-title">Acesso ao sistema</h1>
-                </div>
-                <form id="login-form" class="login-form">
-                    <div class="form-group">
-                        <label for="login-username">Usuário</label>
-                        <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
+        <div class="premium-login-shell">
+            <section class="login-brand-panel" aria-label="Portal corporativo de peças">
+                <div class="premium-login-brand">
+                    <span class="premium-login-emblem" aria-hidden="true">D</span>
+                    <div class="premium-login-brand-meta">
+                        <strong>Diversey</strong>
+                        <span>A Solenis Company</span>
                     </div>
-                    <div class="form-group">
-                        <label for="login-password">Senha</label>
-                        <div class="password-field">
-                            <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
-                            <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha"><i class="fas fa-eye"></i></button>
+                </div>
+
+                <div class="premium-login-brand-copy">
+                    <span class="premium-login-eyebrow"><i class="fas fa-layer-group" aria-hidden="true"></i> Portal corporativo MWW</span>
+                    <h2>Gestão de peças com controle, rastreabilidade e visão financeira.</h2>
+                    <p>Centralize solicitações, aprovações, fornecedores e custos em um fluxo operacional único, seguro e orientado por dados.</p>
+
+                    <div class="premium-login-capabilities" aria-label="Capacidades do portal">
+                        <article class="premium-login-capability">
+                            <i class="fas fa-check-double" aria-hidden="true"></i>
+                            <strong>Aprovações controladas</strong>
+                            <span>Prioridade, SLA e decisão em um único painel.</span>
+                        </article>
+                        <article class="premium-login-capability">
+                            <i class="fas fa-chart-line" aria-hidden="true"></i>
+                            <strong>Inteligência de custos</strong>
+                            <span>Indicadores por técnico, peça, mês e fornecedor.</span>
+                        </article>
+                        <article class="premium-login-capability">
+                            <i class="fas fa-route" aria-hidden="true"></i>
+                            <strong>Rastreabilidade</strong>
+                            <span>Histórico completo do pedido até a finalização.</span>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="premium-login-trust">
+                    <span><i class="fas fa-shield-halved" aria-hidden="true"></i> Ambiente corporativo protegido</span>
+                    <span><i class="fas fa-cloud-arrow-up" aria-hidden="true"></i> Sincronização de dados</span>
+                </div>
+            </section>
+
+            <main class="login-card" aria-labelledby="login-title">
+                <div class="login-card-inner">
+                    <div class="login-logo">
+                        <span class="premium-login-form-badge"><i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro</span>
+                        <span class="login-form-kicker">Portal de Peças WWM</span>
+                        <h1 id="login-title">Acesso ao ambiente corporativo</h1>
+                        <p>Informe seu usuário e senha para acessar o Portal de Solicitação de Peças WWM.</p>
+                    </div>
+
+                    <form id="login-form" class="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Usuário</label>
+                            <div class="premium-login-input">
+                                <i class="fas fa-user" aria-hidden="true"></i>
+                                <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário" required autocomplete="username" autocapitalize="none" spellcheck="false">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Senha</label>
+                            <div class="password-field premium-login-input">
+                                <i class="fas fa-key" aria-hidden="true"></i>
+                                <input type="password" id="login-password" class="form-control" placeholder="Digite sua senha" required autocomplete="current-password">
+                                <button type="button" id="toggle-password" class="toggle-password" aria-label="Mostrar senha"><i class="fas fa-eye"></i></button>
+                            </div>
+                        </div>
+                        <button type="submit" id="login-submit" class="btn btn-primary btn-block">Entrar <i class="fas fa-arrow-right"></i></button>
+                        <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
+                        <div id="login-error" class="error-message hidden" role="alert"></div>
+                    </form>
+
+                    <div class="premium-login-form-footer"><i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro e monitorado. <span>Solicite acesso à TI.</span></div>
+
+                    <div id="login-credentials" class="credentials-panel hidden">
+                        <div class="credentials-header"><div><h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3><p>Use um dos usuários abaixo para acessar.</p></div></div>
+                        <div class="credentials-table-wrapper">
+                            <table class="credentials-table"><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th></tr></thead><tbody id="login-credentials-body"></tbody></table>
                         </div>
                     </div>
-                    <button type="submit" id="login-submit" class="btn btn-primary btn-block"><i class="fas fa-arrow-right-to-bracket"></i> Entrar</button>
-                    <div id="login-status" class="helper-text login-status hidden" aria-live="polite"></div>
-                    <div id="login-error" class="error-message hidden" role="alert"></div>
-                </form>
-                <div id="login-credentials" class="credentials-panel hidden">
-                    <div class="credentials-header"><div><h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3><p>Use um dos usuários abaixo para acessar.</p></div></div>
-                    <div class="credentials-table-wrapper">
-                        <table class="credentials-table"><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th></tr></thead><tbody id="login-credentials-body"></tbody></table>
-                    </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
 
     <div id="app-container" class="app-container hidden">
         <aside id="sidebar" class="sidebar" aria-label="Menu de módulos">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="brand-emblem sidebar-brand" aria-hidden="true"><span>D</span></div>
+                    <div class="brand-emblem sidebar-brand" aria-hidden="true"><span></span></div>
                     <div class="logo-meta"><span class="logo-title">Diversey</span><small class="logo-subtitle">A Solenis Company</small></div>
                 </div>
                 <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-controls="sidebar-nav" aria-expanded="true" aria-label="Recolher menu lateral" title="Recolher menu lateral"><i class="fas fa-bars" aria-hidden="true"></i></button>
@@ -196,14 +149,17 @@
                         <button id="mobile-menu-btn" class="btn-icon" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
                         <button id="mobile-home-btn" class="btn-icon" aria-label="Voltar para início"><i class="fas fa-home"></i></button>
                     </div>
-                    <div class="breadcrumb" id="breadcrumb"><span>Visão Geral</span></div>
+                    <div class="breadcrumb" id="breadcrumb"><span>Portal de Solicitação de Peças WWM</span><i class="fas fa-chevron-right" aria-hidden="true"></i><strong>Visão Geral</strong></div>
                 </div>
                 <div class="header-actions">
                     <div class="header-search-zone"><div class="global-search"><i class="fas fa-search"></i><input type="text" id="global-search-input" class="form-control" placeholder="Buscar número, cliente, peça ou técnico"></div></div>
                     <div class="header-controls">
-                        <button id="sync-btn" class="btn-icon" title="Sincronizar dados"><i class="fas fa-sync-alt"></i></button>
+                        <div class="sync-status">
+                            <button id="sync-btn" class="btn-icon" title="Sincronizar dados"><i class="fas fa-sync-alt"></i></button>
+                            <span><strong>Sincronizado</strong><small>Agora há pouco</small></span>
+                        </div>
                         <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações"><i class="fas fa-bell"></i><span id="header-notification-dot" class="alert-dot hidden"></span></button>
-                        <div class="header-profile"><div class="header-avatar"><i class="fas fa-user"></i></div><div class="header-profile-meta"><span id="header-user-name">Usuário</span><small id="header-user-role">Perfil</small></div></div>
+                        <div class="header-profile"><div class="header-avatar"><span id="header-user-initials">WW</span></div><div class="header-profile-meta"><span id="header-user-name">Usuário</span><small id="header-user-role">Perfil</small></div><i class="fas fa-chevron-down header-profile-chevron" aria-hidden="true"></i></div>
                     </div>
                 </div>
             </header>
@@ -222,22 +178,25 @@
     <script src="js/config.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/pwa.js"></script>
-    <script src="js/utils.js?v=20260709a"></script>
+    <script src="js/utils.js?v=20260829c"></script>
     <script src="js/analytics-engine.js?v=20260315d"></script>
     <script src="js/logger.js"></script>
     <script src="js/indexeddb-storage.js"></script>
     <script src="js/sheets.js"></script>
     <script src="js/onedrive.js"></script>
     <script src="js/storage.js?v=20260316b"></script>
-    <script src="js/data.js?v=20260709a"></script>
+    <script src="js/data.js?v=20260829c"></script>
     <script src="js/electrical-catalog-policy.js?v=20260729a"></script>
-    <script src="js/auth.js?v=20260730a"></script>
-    <script src="js/navigation-master.js?v=20260730a"></script>
+    <script src="js/auth.js?v=20260829c"></script>
+    <script src="js/navigation-master-v55.js?v=20260828c"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20260730a"></script>
-    <script src="js/ui-modern.js?v=20260730a"></script>
+    <script src="js/app.js?v=20260829c"></script>
+    <script src="js/ui-modern.js?v=20260829b"></script>
     <script src="js/premium-plus.js?v=20260730a"></script>
     <script src="js/corporate-platform.js?v=20260709b"></script>
     <script src="js/navigation-consolidation-runtime.js?v=20260730a"></script>
+    <script src="js/premium-ui-v3.js?v=20260828a"></script>
+    <script src="js/premium-release-v55.js?v=20260829c"></script>
+    <script src="js/wwm-reference-ui.js?v=20260830a"></script>
 </body>
 </html>

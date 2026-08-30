@@ -3,31 +3,33 @@
  * Handles all data operations with cloud storage and localStorage fallback
  */
 
+// Privacy-safe bootstrap fallback. Residential address data must come from the
+// authenticated cloud source and must never be embedded in the public frontend.
 const OFFICIAL_TECHNICIANS_BASE = {
-    'Antonio Ferreira De Santana Filho':{'endereco':'Av Curió - Campanário, Ap 510 Bloco B','bairro':'','cep':'09.925-000','municipio':'Diadema','uf':'SP'},
-    'Antonio Rocker':{'endereco':'Rua Estoril 131','bairro':'Veleiros','cep':'47.730-900','municipio':'São Paulo','uf':'SP'},
-    'Brunno Diniz Mendes':{'endereco':'Rua da Granja S/N, Condomínio Plaza Norte Residence, Bloco 06C AP 010','bairro':'Maiobinha','cep':'65120-176','municipio':'São José de Ribamar','uf':'MA'},
-    'Carlos Alberto De Vasconcelos Junior':{'endereco':'Deputado João Ursulo Ribeiro Filho A 149','bairro':'Mangabeira I','cep':'58.055-360','municipio':'João Pessoa','uf':'PB'},
-    'Dalvino Carlos Santos Junior':{'endereco':'Rua vivaldo sales 158, apartamento 41','bairro':'jardim são josé','cep':'11-430 140','municipio':'guarujá são paulo','uf':'SP'},
-    'Davidson Alves Vitorino':{'endereco':'Jacarandá N° 157','bairro':'Sapucaias 3','cep':'32.071-236','municipio':'Contagem','uf':'MG'},
-    'Diego Abner de Oliveira':{'endereco':'Rua Mário Campos 71 AP 401 Bloco 08','bairro':'','cep':'12.221-750','municipio':'São Jose do Campos','uf':'SP'},
-    'Ednaldo Silva Costa':{'endereco':'Rua Olimpío Cassimiro Mendonça, 542','bairro':'Parque das Américas','cep':'38.045-360','municipio':'Uberaba','uf':'MG'},
-    'Ediveton Pedro Da Silva':{'endereco':'Rua Mário Prieto 500','bairro':'Jardim Paulista','cep':'13.310-000','municipio':'Itu','uf':'SP'},
-    'Eduardo Martins':{'endereco':'Rua Rafael da Silva e Souza N°510','bairro':'Cidade Líder','cep':'08280-090','municipio':'São Paulo','uf':'SP'},
-    'Emerson Ribeiro':{'endereco':'Rua São Cristóvão, 471 Casa 03','bairro':'','cep':'88.080-320','municipio':'Florianópolis','uf':'SC'},
-    'Fernando Silva':{'endereco':'Hermelindo Lazarini, 69','bairro':'Jardim das Nações','cep':'79.081-714','municipio':'Campo Grande','uf':'MS'},
-    'Getulio Santos De Almeida':{'endereco':'Rua Nara Leão, N° 125. Apto Jarmim 1103','bairro':'Jardim Limoeiro','cep':'29.164-125','municipio':'Serra','uf':'ES'},
-    'Humberto Elias Dos Santos Da Silva':{'endereco':'Av Jose Aloisio Filho N° 411 Apto 368 Bloco Q','bairro':'Humaita','cep':'90.250-180','municipio':'Porto Alegre','uf':'RS'},
-    'Joao Celso Silva De Souza':{'endereco':'Leonardo da Vinci 96 Bloco C Ap 306','bairro':'Curado II','cep':'54.220-000','municipio':'Jaboatão dos Guararapes','uf':'PE'},
-    'Leandro Rocha Cruz':{'endereco':'R. Dom Pedro II 537A Fundos','bairro':'Centro','cep':'14.820-290','municipio':'Cidade Américo Brasiliense - SP','uf':'SP'},
-    'Maicon Cordeiro Chaves':{'endereco':'Rua Saxonia N°2013','bairro':'Vila Itoupava','cep':'89075-255','municipio':'Blumenau','uf':'SC'},
-    'Marcio Andrade Dos Santos':{'endereco':'1° Travessa Renato Lima de Carvalho N° 33','bairro':'Jardim Alvorada','cep':'42.850-000','municipio':'Dias davila','uf':'BA'},
-    'Marlon de Queiroz':{'endereco':'AV. Juscelino Kubitschek, 3700 Bloco-E, Apto -301','bairro':'Passare','cep':'60.861.634','municipio':'Fortaleza','uf':'CE'},
-    'Ney Goncalves Cardoso':{'endereco':'Rua Juqueri,266','bairro':'Irajá','cep':'21.371-370','municipio':'Rio de Janeiro','uf':'RJ'},
-    'Pedro Gabriel Reis Nunes':{'endereco':'Rua Cristo Rei, 230, casa 101.','bairro':'São José','cep':'97095-680','municipio':'Santa Maria','uf':'RS'},
-    'Rodrigo Lazari De Carvalho':{'endereco':'Rua alonso Vasconcelos pacheco 1327','bairro':'','cep':'09310-695','municipio':'Maua','uf':'SP'},
-    'Sebastião Gomes Ribeiro':{'endereco':'RUA THOME DE SOUZA, 335','bairro':'LAGOA GRANDE - SEDE','cep':'45.810-000','municipio':'PORTO SEGURO','uf':'BA'},
-    'Welington Bastos Tavares':{'endereco':'AV Morumbi Qd 34 Lt 11','bairro':'Vila Mariana','cep':'75.134-550','municipio':'Anápolis','uf':'GO'},
+    'Antonio Ferreira De Santana Filho':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Antonio Rocker':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Brunno Diniz Mendes':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Carlos Alberto De Vasconcelos Junior':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Dalvino Carlos Santos Junior':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Davidson Alves Vitorino':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Diego Abner de Oliveira':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Ednaldo Silva Costa':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Ediveton Pedro Da Silva':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Eduardo Martins':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Emerson Ribeiro':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Fernando Silva':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Getulio Santos De Almeida':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Humberto Elias Dos Santos Da Silva':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Joao Celso Silva De Souza':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Leandro Rocha Cruz':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Maicon Cordeiro Chaves':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Marcio Andrade Dos Santos':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Marlon de Queiroz':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Ney Goncalves Cardoso':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Pedro Gabriel Reis Nunes':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Rodrigo Lazari De Carvalho':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Sebastião Gomes Ribeiro':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
+    'Welington Bastos Tavares':{'endereco':'','bairro':'','cep':'','municipio':'','uf':''},
     'Werverton Santos':{'endereco':'','bairro':'','cep':'','municipio':'','uf':'','username':'Werverton.Santos'}
 };
 
@@ -3975,54 +3977,5 @@ const DataManager = {
 // Initialize data on load
 DataManager.init();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Exposição global: os renderizadores de dashboard/relatórios leem window.DataManager.
+window.DataManager = DataManager;

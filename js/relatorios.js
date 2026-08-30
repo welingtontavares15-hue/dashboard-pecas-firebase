@@ -37,7 +37,11 @@ const Relatorios = {
 
     getDefaultFilters() {
         // Utilize sempre um período dinâmico baseado no intervalo padrão ao invés de um filtro global possivelmente fixo.
-        const defaultRange = AnalyticsHelper.getDefaultRangeDays();
+        // Padroniza o período inicial dos Relatórios em 6 meses (igual ao Dashboard), evitando o
+        // gráfico de evolução mensal quase vazio quando o padrão do sistema é curto (ex.: 30 dias,
+        // que agrupado por mês vira um único ponto). Uma preferência explícita maior é respeitada.
+        const preferredRange = AnalyticsHelper.getDefaultRangeDays();
+        const defaultRange = preferredRange > 30 ? preferredRange : 180;
         const period = AnalyticsHelper.normalizePeriod({ rangeDays: defaultRange });
         return {
             search: '',
@@ -139,6 +143,8 @@ const Relatorios = {
             { value: '7', label: 'Últimos 7 dias' },
             { value: '30', label: 'Últimos 30 dias' },
             { value: '90', label: 'Últimos 90 dias' },
+            { value: '180', label: 'Últimos 6 meses' },
+            { value: '365', label: 'Últimos 12 meses' },
             { value: 'custom', label: 'Personalizado' }
         ];
     },
@@ -151,7 +157,7 @@ const Relatorios = {
             return 'custom';
         }
 
-        return ['7', '30', '90'].includes(activeRange) ? activeRange : 'custom';
+        return ['7', '30', '90', '180', '365'].includes(activeRange) ? activeRange : 'custom';
     },
 
     getReportData() {
@@ -189,9 +195,11 @@ const Relatorios = {
         const content = document.getElementById('content-area');
 
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-file-alt"></i> Relatórios</h2>
-                <p class="text-muted">Analise custos de peças, técnicos e solicitações no mesmo painel.</p>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2>${this.currentReport === 'solicitacoes' ? 'Histórico de solicitações' : 'Relatórios e análises'}</h2>
+                    <p>${this.currentReport === 'solicitacoes' ? 'Acompanhe o histórico completo das solicitações de peças e o andamento de cada etapa.' : 'Insights estratégicos para decisões mais inteligentes e controle de custos.'}</p>
+                </div>
                 <div class="filter-context-summary">
                     <span class="helper-text">${this._activeReportData.summaryLabel}</span>
                     ${this.renderActiveFilterChips()}
@@ -201,19 +209,20 @@ const Relatorios = {
             <div class="tabs">
                 <button class="tab-btn ${this.currentReport === 'custos' ? 'active' : ''}"
                         onclick="Relatorios.switchReport('custos')">
-                    <i class="fas fa-coins"></i> Relatório de Custos
-                </button>
-                <button class="tab-btn ${this.currentReport === 'solicitacoes' ? 'active' : ''}"
-                        onclick="Relatorios.switchReport('solicitacoes')">
-                    <i class="fas fa-clipboard-list"></i> Solicitações
-                </button>
-                <button class="tab-btn ${this.currentReport === 'tecnicos' ? 'active' : ''}"
-                        onclick="Relatorios.switchReport('tecnicos')">
-                    <i class="fas fa-users"></i> Custo por Técnico
+                    <i class="fas fa-chart-line"></i> Visão geral
                 </button>
                 <button class="tab-btn ${this.currentReport === 'pecas' ? 'active' : ''}"
                         onclick="Relatorios.switchReport('pecas')">
-                    <i class="fas fa-box-open"></i> Custo por Peça
+                    <i class="fas fa-box-open"></i> Custo por peça
+                </button>
+                <button class="tab-btn ${this.currentReport === 'tecnicos' ? 'active' : ''}" onclick="Relatorios.switchReport('tecnicos')">
+                    <i class="fas fa-users"></i> Custo por Técnico
+                </button>
+                <button class="tab-btn ${this.currentReport === 'mensal' ? 'active' : ''}" onclick="Relatorios.switchReport('mensal')">
+                    <i class="fas fa-calendar-days"></i> Custo por mês
+                </button>
+                <button class="tab-btn ${this.currentReport === 'solicitacoes' ? 'active' : ''}" onclick="Relatorios.switchReport('solicitacoes')">
+                    <i class="fas fa-clock-rotate-left"></i> Histórico
                 </button>
             </div>
 
@@ -239,6 +248,8 @@ const Relatorios = {
     renderReportContent() {
         switch (this.currentReport) {
         case 'custos':
+            return this.renderCustosReport();
+        case 'mensal':
             return this.renderCustosReport();
         case 'solicitacoes':
             return this.renderSolicitacoesReport();
@@ -334,7 +345,6 @@ const Relatorios = {
         const reportData = this._activeReportData || this.getReportData();
         const solicitations = reportData.solicitations;
         const analysis = reportData.analysis;
-        const monthlySummary = reportData.monthlySummary;
         const highCostIds = new Set(analysis.highCostSolicitations.map(sol => sol.id));
 
         if (solicitations.length === 0) {
@@ -346,98 +356,92 @@ const Relatorios = {
 
         const totalValue = solicitations.reduce((sum, s) => sum + (Number(s._analysisCost ?? s.total) || 0), 0);
         const totalItems = solicitations.reduce((sum, s) => sum + (Number(s._analysisPieces) || (s.itens || []).reduce((itemSum, item) => itemSum + (Number(item?.quantidade) || 0), 0)), 0);
-        const byStatus = {};
-
-        solicitations.forEach((solicitation) => {
-            byStatus[solicitation.status] = (byStatus[solicitation.status] || 0) + 1;
-        });
+        const finalizedCount = solicitations.filter((sol) => ['finalizada', 'entregue', 'historico-manual'].includes(
+            typeof DataManager.normalizeWorkflowStatus === 'function' ? DataManager.normalizeWorkflowStatus(sol.status) : String(sol.status || '').toLowerCase()
+        )).length;
+        const selectedSolicitation = solicitations[0];
 
         return `
-            <div class="kpi-grid mb-3 report-kpi-grid">
-                <div class="kpi-card metric-card">
+            <div class="kpi-grid mb-3 report-kpi-grid wwm-history-kpis">
+                <div class="kpi-card metric-card is-total">
+                    <div class="kpi-icon info"><i class="fas fa-chart-line"></i></div>
                     <div class="kpi-content">
-                        <h4>Total de solicitações</h4>
+                        <h4>Solicitações no período</h4>
                         <div class="kpi-value">${Utils.formatNumber(solicitations.length)}</div>
                     </div>
                 </div>
-                <div class="kpi-card metric-card">
+                <div class="kpi-card metric-card is-complete">
+                    <div class="kpi-icon success"><i class="fas fa-check"></i></div>
                     <div class="kpi-content">
-                        <h4>Total financeiro</h4>
-                        <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(totalValue)}">${Utils.formatCurrency(totalValue)}</div>
+                        <h4>Finalizadas</h4>
+                        <div class="kpi-value">${Utils.formatNumber(finalizedCount)}</div>
                     </div>
                 </div>
-                <div class="kpi-card metric-card">
+                <div class="kpi-card metric-card is-pieces">
+                    <div class="kpi-icon primary"><i class="fas fa-box"></i></div>
                     <div class="kpi-content">
-                        <h4>Total de peças</h4>
+                        <h4>Peças movimentadas</h4>
                         <div class="kpi-value">${Utils.formatNumber(totalItems)}</div>
                     </div>
                 </div>
-                <div class="kpi-card metric-card">
+                <div class="kpi-card metric-card is-value">
+                    <div class="kpi-icon warning"><i class="fas fa-dollar-sign"></i></div>
                     <div class="kpi-content">
-                        <h4>Média mensal de custo</h4>
-                        <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}">${Utils.formatCurrency(monthlySummary.averageMonthlyCost)}</div>
-                        <div class="kpi-change">${Utils.formatNumber(monthlySummary.monthCount)} mês(es) no período</div>
+                        <h4>Custo total no período</h4>
+                        <div class="kpi-value metric-nowrap" title="${Utils.formatCurrency(totalValue)}">${Utils.formatCurrency(totalValue)}</div>
                     </div>
                 </div>
-                <div class="kpi-card metric-card">
-                    <div class="kpi-content">
-                        <h4>Solicitações com custo elevado</h4>
-                        <div class="kpi-value">${Utils.formatNumber(analysis.highCostSolicitations.length)}</div>
-                        <div class="kpi-change">Acima de 30% da média do período</div>
-                    </div>
-                </div>
-                ${Object.entries(byStatus).map(([status, count]) => `
-                    <div class="kpi-card metric-card">
-                        <div class="kpi-content">
-                            <h4>${Utils.getStatusInfo(status).label}</h4>
-                            <div class="kpi-value">${Utils.formatNumber(count)}</div>
-                        </div>
-                    </div>
-                `).join('')}
             </div>
-
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Número</th>
-                            <th>Técnico</th>
-                            <th>Cliente</th>
-                            <th>Região</th>
-                            <th>Data</th>
-                            <th>Peças</th>
-                            <th>Total</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${solicitations.slice(0, 50).map(sol => `
-                            <tr class="${highCostIds.has(sol.id) ? 'cost-alert-row' : ''}">
-                                <td>
-                                    <strong>#${sol.numero}</strong>
-                                    ${highCostIds.has(sol.id) ? '<div class="helper-text text-danger">Solicitação com custo elevado</div>' : ''}
-                                </td>
-                                <td>${Utils.escapeHtml(this.getRequesterName(sol))}</td>
-                                <td>${Utils.escapeHtml(this.getSolicitationClientName(sol))}</td>
-                                <td>${Utils.escapeHtml(this.getSolicitationRegion(sol))}</td>
-                                <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
-                                <td>${Utils.formatNumber(Number(sol._analysisPieces) || 0)}</td>
-                                <td>${Utils.formatCurrency(sol._analysisCost || 0)}</td>
-                                <td>${Utils.renderStatusBadge(sol.status)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: var(--bg-tertiary); font-weight: bold;">
-                            <td colspan="6">Total Geral</td>
-                            <td>${Utils.formatCurrency(totalValue)}</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
+            <div class="wwm-history-grid">
+                <div class="wwm-history-list">
+                    <div class="wwm-panel-heading"><strong>Solicitações históricas</strong><span>${Utils.formatNumber(solicitations.length)} resultados</span></div>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead><tr><th>Nº da solicitação</th><th>Data</th><th>Cliente</th><th>Técnico</th><th>Status</th><th>Custo</th></tr></thead>
+                            <tbody>${solicitations.slice(0, 50).map((sol, index) => `
+                                <tr class="${index === 0 ? 'is-selected' : ''} ${highCostIds.has(sol.id) ? 'cost-alert-row' : ''}">
+                                    <td><strong>#${Utils.escapeHtml(String(sol.numero || '—').replace(/^#/, ''))}</strong></td>
+                                    <td>${Utils.formatDate(sol.data || sol.createdAt, true)}</td>
+                                    <td>${Utils.escapeHtml(this.getSolicitationClientName(sol))}</td>
+                                    <td>${Utils.escapeHtml(this.getRequesterName(sol))}</td>
+                                    <td>${Utils.renderStatusBadge(sol.status)}</td>
+                                    <td>${Utils.formatCurrency(sol._analysisCost || sol.total || 0)}</td>
+                                </tr>
+                            `).join('')}</tbody>
+                        </table>
+                    </div>
+                </div>
+                ${this.renderHistoryDetail(selectedSolicitation)}
             </div>
             ${solicitations.length > 50 ? `<p class="text-muted text-center mt-2">Mostrando 50 de ${solicitations.length} registros. Exporte para ver todos.</p>` : ''}
         `;
+    },
+
+    renderHistoryDetail(solicitation) {
+        if (!solicitation) {
+            return '';
+        }
+        const normalized = typeof DataManager.normalizeWorkflowStatus === 'function'
+            ? DataManager.normalizeWorkflowStatus(solicitation.status)
+            : String(solicitation.status || '').toLowerCase();
+        const order = ['pendente', 'aprovada', 'em-transito', 'entregue', 'finalizada'];
+        const currentIndex = Math.max(order.indexOf(normalized), 0);
+        const steps = [
+            { label: 'Solicitação criada', icon: 'fa-file-circle-plus' },
+            { label: 'Em aprovação', icon: 'fa-clock' },
+            { label: 'Aprovada', icon: 'fa-check' },
+            { label: 'Pedido enviado ao fornecedor', icon: 'fa-paper-plane' },
+            { label: 'Peça recebida', icon: 'fa-box-open' },
+            { label: 'Finalizada', icon: 'fa-flag-checkered' }
+        ];
+        return `<aside class="wwm-history-detail">
+            <div class="wwm-history-detail-head"><div><strong>#${Utils.escapeHtml(String(solicitation.numero || '—').replace(/^#/, ''))}</strong>${Utils.renderStatusBadge(solicitation.status)}</div><span>${Utils.formatCurrency(solicitation._analysisCost || solicitation.total || 0)}</span></div>
+            <div class="wwm-history-meta"><span><i class="fas fa-calendar"></i>${Utils.formatDate(solicitation.data || solicitation.createdAt, true)}</span><span><i class="fas fa-user"></i>${Utils.escapeHtml(this.getRequesterName(solicitation))}</span></div>
+            <div class="wwm-timeline">${steps.map((step, index) => {
+        const state = index < currentIndex + 1 ? 'is-complete' : (index === currentIndex + 1 ? 'is-current' : 'is-pending');
+        return `<div class="wwm-timeline-step ${state}"><span class="wwm-timeline-icon"><i class="fas ${step.icon}"></i></span><div><strong>${step.label}</strong><small>${index === 0 ? Utils.formatDate(solicitation.createdAt || solicitation.data, true) : (state === 'is-complete' ? 'Etapa concluída' : 'Aguardando próxima etapa')}</small></div></div>`;
+    }).join('')}</div>
+        </aside>`;
     },
 
     /**
@@ -1555,8 +1559,8 @@ const Relatorios = {
                     datasets: [{
                         label: 'Custo mensal',
                         data: byMonth.map(month => month.totalCost),
-                        borderColor: '#0066b3',
-                        backgroundColor: 'rgba(0, 102, 179, 0.12)',
+                        borderColor: '#1ee1ce',
+                        backgroundColor: 'rgba(30, 225, 206, 0.14)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 4,

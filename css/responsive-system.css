@@ -1,0 +1,828 @@
+/*
+ * WWM responsive system — authoritative layout and interaction layer.
+ * Loaded after the historical theme files to keep the visual contract in one place.
+ */
+
+body.wwm-reference-theme,
+body.wwm-reference-theme * {
+    box-sizing: border-box;
+}
+
+body.wwm-reference-theme {
+    min-width: 320px;
+    overflow-x: hidden;
+}
+
+body.wwm-reference-theme :where(button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid rgba(52, 211, 196, .48);
+    outline-offset: 2px;
+}
+
+body.wwm-reference-theme :where(button, .btn, .btn-icon, .report-tab-btn, .tab-btn) {
+    transition: border-color .16s ease, background-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+body.wwm-reference-theme :where(button, .btn, .btn-icon, .report-tab-btn, .tab-btn):not(:disabled):hover {
+    border-color: rgba(91, 224, 211, .62);
+}
+
+body.wwm-reference-theme :where(button, .btn, input, select, textarea):disabled,
+body.wwm-reference-theme :where(button, .btn)[aria-disabled='true'] {
+    cursor: not-allowed;
+    opacity: .52;
+    filter: saturate(.65);
+}
+
+/* Compact, proportional login */
+body.wwm-reference-theme #login-screen.login-container:not(.hidden) {
+    position: fixed;
+    inset: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: clamp(16px, 3vh, 28px) !important;
+    overflow: auto !important;
+}
+
+body.wwm-reference-theme #login-screen .premium-login-shell {
+    width: min(720px, calc(100vw - 32px)) !important;
+    min-height: 0 !important;
+    margin: auto;
+}
+
+body.wwm-reference-theme #login-screen .login-card {
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    border-radius: 16px !important;
+}
+
+body.wwm-reference-theme #login-screen .wwm-login-header {
+    min-height: 124px !important;
+    padding: 26px clamp(30px, 6vw, 58px) !important;
+    gap: 24px !important;
+}
+
+body.wwm-reference-theme #login-screen .wwm-brand-copy strong {
+    font-size: clamp(28px, 3vw, 34px) !important;
+}
+
+body.wwm-reference-theme #login-screen .wwm-login-header > p {
+    font-size: clamp(18px, 2vw, 22px) !important;
+    line-height: 1.2 !important;
+}
+
+body.wwm-reference-theme #login-screen .login-card-inner {
+    width: 100% !important;
+    padding: 30px clamp(32px, 7vw, 62px) 26px !important;
+}
+
+body.wwm-reference-theme #login-screen .login-logo {
+    margin-bottom: 22px !important;
+}
+
+body.wwm-reference-theme #login-screen .login-logo h1 {
+    margin-bottom: 6px !important;
+    font-size: clamp(24px, 2.7vw, 28px) !important;
+}
+
+body.wwm-reference-theme #login-screen .login-logo p {
+    max-width: 560px !important;
+    font-size: 15px !important;
+    line-height: 1.45 !important;
+}
+
+body.wwm-reference-theme #login-screen .login-form {
+    gap: 14px !important;
+}
+
+body.wwm-reference-theme #login-screen .premium-login-input,
+body.wwm-reference-theme #login-screen .login-form .form-control {
+    min-height: 48px !important;
+}
+
+body.wwm-reference-theme #login-screen #login-submit {
+    min-height: 50px !important;
+    font-size: 16px !important;
+}
+
+body.wwm-reference-theme #login-screen .premium-login-form-footer {
+    margin-top: 18px !important;
+}
+
+/* Global application frame */
+body.wwm-reference-theme .app-container,
+body.wwm-reference-theme .main-content,
+body.wwm-reference-theme .content-area,
+body.wwm-reference-theme #content-area,
+body.wwm-reference-theme .page-container,
+body.wwm-reference-theme .page-content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+body.wwm-reference-theme .main-content {
+    overflow-x: clip;
+}
+
+body.wwm-reference-theme .main-header {
+    position: sticky;
+    top: 0;
+    z-index: 300;
+    gap: 20px;
+}
+
+body.wwm-reference-theme .header-left,
+body.wwm-reference-theme .header-actions,
+body.wwm-reference-theme .header-search-zone,
+body.wwm-reference-theme .header-controls {
+    min-width: 0;
+}
+
+body.wwm-reference-theme .header-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+}
+
+body.wwm-reference-theme .header-search-zone {
+    flex: 1 1 320px;
+    width: auto;
+    max-width: 430px;
+}
+
+body.wwm-reference-theme .global-search,
+body.wwm-reference-theme .global-search .form-control {
+    width: 100%;
+}
+
+body.wwm-reference-theme .content-area,
+body.wwm-reference-theme.wwm-dashboard-v59-active .content-area,
+body.wwm-reference-theme.wwm-dashboard-v59-active #content-area {
+    padding: clamp(18px, 2.2vw, 30px) !important;
+}
+
+body.wwm-reference-theme .wwm-page-title {
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+body.wwm-reference-theme .wwm-page-title h2 {
+    font-size: clamp(26px, 2.35vw, 34px);
+}
+
+body.wwm-reference-theme .page-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+body.wwm-reference-theme .btn {
+    min-height: 42px;
+    padding: 8px 16px;
+}
+
+/* Popovers, dropdowns and filter stacking */
+body.wwm-reference-theme .page-filters,
+body.wwm-reference-theme .filter-panel,
+body.wwm-reference-theme .premium-report-filter-shell {
+    position: relative;
+    z-index: 60;
+    overflow: visible !important;
+}
+
+body.wwm-reference-theme .page-kpis,
+body.wwm-reference-theme .reports-content-stack,
+body.wwm-reference-theme .card,
+body.wwm-reference-theme .kpi-grid {
+    position: relative;
+    z-index: 1;
+}
+
+body.wwm-reference-theme .filter-group,
+body.wwm-reference-theme .premium-multi-filter,
+body.wwm-reference-theme .status-filter,
+body.wwm-reference-theme .action-menu {
+    position: relative;
+}
+
+body.wwm-reference-theme .premium-multi-filter.open,
+body.wwm-reference-theme .status-filter.open,
+body.wwm-reference-theme .action-menu[open] {
+    z-index: 900;
+}
+
+body.wwm-reference-theme .premium-multi-filter-popover,
+body.wwm-reference-theme .status-filter-dropdown,
+body.wwm-reference-theme .action-menu-dropdown {
+    z-index: 950 !important;
+    max-width: min(360px, calc(100vw - 32px));
+    max-height: min(360px, calc(100vh - 120px));
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 18px 42px rgba(0, 18, 24, .42) !important;
+}
+
+body.wwm-reference-theme .premium-multi-filter-popover {
+    width: max(100%, 280px);
+}
+
+body.wwm-reference-theme .premium-multi-filter-options,
+body.wwm-reference-theme .status-filter-options {
+    max-height: 240px;
+    overflow: auto;
+}
+
+body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: end;
+}
+
+body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-actions {
+    grid-column: span 2;
+}
+
+body.wwm-reference-theme .report-filter-actions-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+body.wwm-reference-theme .premium-report-filter-hint {
+    margin-top: 10px;
+}
+
+body.wwm-reference-theme .filters-bar {
+    grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(140px, 1fr)) auto;
+    gap: 12px;
+}
+
+body.wwm-reference-theme .form-control,
+body.wwm-reference-theme select.form-control,
+body.wwm-reference-theme input.form-control,
+body.wwm-reference-theme .status-filter-trigger,
+body.wwm-reference-theme .premium-multi-filter-trigger {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+}
+
+/* Dense but readable dashboard hierarchy */
+body.wwm-reference-theme .v59-hero {
+    gap: 18px;
+    min-height: 0;
+    padding: 20px 22px;
+}
+
+body.wwm-reference-theme .v59-kpi-grid,
+body.wwm-reference-theme .kpi-grid,
+body.wwm-reference-theme .report-kpi-grid,
+body.wwm-reference-theme .reports-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+body.wwm-reference-theme .kpi-card,
+body.wwm-reference-theme .metric-card {
+    min-height: 104px;
+    padding: 16px 18px;
+}
+
+body.wwm-reference-theme .kpi-icon {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+}
+
+body.wwm-reference-theme .kpi-value {
+    overflow-wrap: anywhere;
+    font-size: clamp(20px, 1.65vw, 25px);
+}
+
+body.wwm-reference-theme .v59-chart-grid,
+body.wwm-reference-theme .v59-detail-grid,
+body.wwm-reference-theme .report-detail-grid,
+body.wwm-reference-theme .reports-two-column {
+    min-width: 0;
+    align-items: start;
+}
+
+body.wwm-reference-theme .v59-card,
+body.wwm-reference-theme .chart-container,
+body.wwm-reference-theme .compact-card {
+    min-width: 0;
+}
+
+body.wwm-reference-theme .v59-chart-box {
+    height: clamp(220px, 25vw, 320px);
+}
+
+/* Tables: every column remains reachable, with stable critical edges */
+body.wwm-reference-theme .table-container,
+body.wwm-reference-theme .v59-table-wrap,
+body.wwm-reference-theme .dashboard-compact-table {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    scrollbar-gutter: stable;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.wwm-reference-theme .table-container > .table {
+    width: max(100%, 760px);
+}
+
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table-container > .table {
+    width: max(100%, 1080px);
+}
+
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #063a40;
+}
+
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):last-child {
+    position: sticky;
+    right: 0;
+    z-index: 3;
+    background: #063a40;
+    box-shadow: -10px 0 16px -14px rgba(0, 0, 0, .9);
+}
+
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table thead :is(th:first-child, th:last-child) {
+    z-index: 5;
+    background: #052f35;
+}
+
+body.wwm-reference-theme .v59-table {
+    width: max(100%, 700px);
+}
+
+body.wwm-reference-theme .table :is(th, td),
+body.wwm-reference-theme .v59-table :is(th, td) {
+    max-width: 320px;
+    vertical-align: middle;
+}
+
+body.wwm-reference-theme .table .actions {
+    flex-wrap: nowrap;
+    min-width: max-content;
+}
+
+body.wwm-reference-theme .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Modal, toast and loading surfaces */
+body.wwm-reference-theme .modal-container {
+    z-index: 1400;
+    padding: 20px;
+}
+
+body.wwm-reference-theme .modal-content {
+    width: min(920px, calc(100vw - 32px));
+    max-width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
+}
+
+body.wwm-reference-theme .modal-body {
+    max-height: calc(100vh - 170px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+body.wwm-reference-theme .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+body.wwm-reference-theme .notification-panel,
+body.wwm-reference-theme .toast-container,
+body.wwm-reference-theme .loading-overlay {
+    z-index: 1500;
+}
+
+@media (max-width: 1440px) {
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme .filters-bar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme .filters-bar > .search-box {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 1180px) {
+    body.wwm-reference-theme .header-search-zone {
+        max-width: 320px;
+    }
+
+    body.wwm-reference-theme .header-profile-meta,
+    body.wwm-reference-theme .header-profile-chevron,
+    body.wwm-reference-theme .sync-status > span {
+        display: none;
+    }
+
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-actions {
+        grid-column: span 1;
+    }
+
+    body.wwm-reference-theme .filters-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    body.wwm-reference-theme .main-header {
+        min-height: 68px;
+    }
+
+    body.wwm-reference-theme .header-search-zone {
+        display: block;
+        max-width: none;
+    }
+
+    body.wwm-reference-theme .v59-chart-grid,
+    body.wwm-reference-theme .v59-detail-grid,
+    body.wwm-reference-theme .report-detail-grid,
+    body.wwm-reference-theme .reports-two-column,
+    body.wwm-reference-theme .wwm-history-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    body.wwm-reference-theme #login-screen .wwm-login-header {
+        min-height: 104px !important;
+        padding: 20px 22px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .wwm-login-divider {
+        height: 42px;
+    }
+
+    body.wwm-reference-theme #login-screen .login-card-inner {
+        padding: 24px 22px 22px !important;
+    }
+
+    body.wwm-reference-theme .main-header {
+        gap: 10px;
+        padding: 9px 12px;
+    }
+
+    body.wwm-reference-theme .header-search-zone,
+    body.wwm-reference-theme .sync-status {
+        display: none;
+    }
+
+    body.wwm-reference-theme .header-controls {
+        gap: 4px;
+    }
+
+    body.wwm-reference-theme .content-area,
+    body.wwm-reference-theme.wwm-dashboard-v59-active .content-area,
+    body.wwm-reference-theme.wwm-dashboard-v59-active #content-area {
+        padding: 14px !important;
+    }
+
+    body.wwm-reference-theme .wwm-page-title,
+    body.wwm-reference-theme .page-actions,
+    body.wwm-reference-theme .v59-hero-toolbar {
+        width: 100%;
+    }
+
+    body.wwm-reference-theme .page-actions,
+    body.wwm-reference-theme .v59-hero-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme .page-actions .action-menu,
+    body.wwm-reference-theme .page-actions .btn,
+    body.wwm-reference-theme .v59-hero-actions > * {
+        width: 100%;
+    }
+
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-grid,
+    body.wwm-reference-theme .filters-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    body.wwm-reference-theme .filters-bar > .search-box,
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-actions {
+        grid-column: 1 / -1;
+    }
+
+    body.wwm-reference-theme .premium-multi-filter-popover,
+    body.wwm-reference-theme .status-filter-dropdown {
+        width: min(360px, calc(100vw - 28px));
+    }
+
+    body.wwm-reference-theme .v59-kpi-grid,
+    body.wwm-reference-theme .kpi-grid,
+    body.wwm-reference-theme .report-kpi-grid,
+    body.wwm-reference-theme .reports-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    body.wwm-reference-theme #login-screen.login-container:not(.hidden) {
+        align-items: flex-start;
+        padding: 12px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .premium-login-shell {
+        width: 100% !important;
+    }
+
+    body.wwm-reference-theme #login-screen .wwm-login-header {
+        grid-template-columns: 1fr !important;
+        min-height: 0 !important;
+        gap: 12px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .wwm-login-divider,
+    body.wwm-reference-theme #login-screen .wwm-login-header > p i {
+        display: none;
+    }
+
+    body.wwm-reference-theme #login-screen .wwm-login-header > p {
+        font-size: 15px !important;
+    }
+
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-grid,
+    body.wwm-reference-theme .filters-bar,
+    body.wwm-reference-theme .page-actions,
+    body.wwm-reference-theme .v59-hero-actions,
+    body.wwm-reference-theme .v59-kpi-grid,
+    body.wwm-reference-theme .kpi-grid,
+    body.wwm-reference-theme .report-kpi-grid,
+    body.wwm-reference-theme .reports-summary-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.wwm-reference-theme.premium-ui-v3-enabled .premium-report-filter-actions,
+    body.wwm-reference-theme .filters-bar > .search-box {
+        grid-column: auto;
+    }
+
+    body.wwm-reference-theme .premium-multi-filter-popover,
+    body.wwm-reference-theme .status-filter-dropdown {
+        right: auto;
+        left: 0;
+        width: min(320px, calc(100vw - 70px));
+        max-width: calc(100vw - 70px);
+    }
+
+    body.wwm-reference-theme .report-filter-actions-row {
+        grid-template-columns: 1fr;
+    }
+
+    body.wwm-reference-theme .wwm-page-title h2 {
+        font-size: 25px;
+    }
+
+    body.wwm-reference-theme .modal-container {
+        padding: 8px;
+    }
+
+    body.wwm-reference-theme .modal-content {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
+
+    body.wwm-reference-theme .modal-body {
+        max-height: calc(100vh - 150px);
+    }
+}
+
+@media (max-height: 700px) and (min-width: 521px) {
+    body.wwm-reference-theme #login-screen .wwm-login-header {
+        min-height: 96px !important;
+        padding-block: 18px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .login-card-inner {
+        padding-block: 20px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .login-logo {
+        margin-bottom: 14px !important;
+    }
+
+    body.wwm-reference-theme #login-screen .premium-login-form-footer {
+        margin-top: 12px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.wwm-reference-theme *,
+    body.wwm-reference-theme *::before,
+    body.wwm-reference-theme *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/*
+ * WWM colour standard — Visão Geral is the canonical visual reference.
+ * Historical Clean UI, Corporate and Premium layers share these tokens, so no
+ * route can fall back to the old blue/navy surface palette.
+ */
+body.wwm-reference-theme {
+    --wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25));
+    --wwm-panel-surface: rgba(4, 78, 80, .62);
+    --wwm-panel-subtle: rgba(0, 50, 54, .34);
+    --wwm-panel-strong: rgba(1, 43, 52, .78);
+    --wwm-overlay-surface: #063a40;
+
+    --cui-bg: #004449;
+    --cui-surface: var(--wwm-panel-surface);
+    --cui-surface-2: var(--wwm-panel-strong);
+    --cui-surface-3: #075158;
+    --cui-border: var(--wwm-line);
+    --cui-border-strong: var(--wwm-line-strong);
+    --cui-ink: var(--wwm-text);
+    --cui-text: #cfe0e1;
+    --cui-muted: var(--wwm-muted);
+    --cui-faint: #7fa4a6;
+    --cui-shadow: none;
+    --cui-shadow-md: none;
+    --cui-shadow-lg: none;
+
+    --pv3-canvas: transparent;
+    --pv3-surface: var(--wwm-panel-surface);
+    --pv3-surface-subtle: var(--wwm-panel-strong);
+    --pv3-ink: var(--wwm-text);
+    --pv3-muted: var(--wwm-muted);
+    --pv3-border: var(--wwm-line);
+    --pv3-border-strong: var(--wwm-line-strong);
+    --pv3-primary: var(--wwm-teal-400);
+    --pv3-primary-strong: var(--wwm-teal-600);
+    --pv3-shadow: none;
+    --pv3-shadow-raised: 0 18px 46px rgba(0, 12, 20, .34);
+
+    --corp-bg: #004449;
+    --corp-surface: var(--wwm-panel-surface);
+    --corp-surface-alt: var(--wwm-panel-strong);
+    --corp-surface-strong: #075158;
+    --corp-line: var(--wwm-line);
+    --corp-line-strong: var(--wwm-line-strong);
+    --corp-text: var(--wwm-text);
+    --corp-muted: var(--wwm-muted);
+    --corp-subtle: #7fa4a6;
+    --corp-primary: var(--wwm-teal-400);
+    --corp-primary-strong: var(--wwm-teal-600);
+    --corp-shadow-sm: none;
+    --corp-shadow-md: 0 18px 46px rgba(0, 12, 20, .34);
+}
+
+body.wwm-reference-theme .main-content,
+body.wwm-reference-theme .content-area,
+body.wwm-reference-theme.premium-ui-v3-enabled .main-content {
+    background: transparent !important;
+}
+
+body.wwm-reference-theme :is(#content-area, .modal-content, .notification-panel) :is(
+    .card,
+    .corporate-surface,
+    .chart-container,
+    .dashboard-panel-card,
+    .report-panel-card,
+    .dashboard-chart-card,
+    .report-chart-card,
+    .compact-card,
+    .kpi-card,
+    .metric-card,
+    .corporate-stat-card,
+    .report-summary-card,
+    .supplier-summary-card
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-gradient) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(
+    .filter-panel,
+    .page-filters,
+    .dashboard-filters-grid,
+    .corporate-filter-surface,
+    .report-filters-modern,
+    .supplier-filters-bar,
+    .premium-report-filter-shell
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-gradient) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(.filter-panel, .page-filters, .premium-report-filter-shell) .filters-bar {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme :is(.card-header, .card-footer, .wwm-panel-heading) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: transparent !important;
+}
+
+body.wwm-reference-theme :is(.card-header, .card-footer, .wwm-panel-heading) :is(h3, h4, strong),
+body.wwm-reference-theme :is(.kpi-card, .metric-card, .report-summary-card) :is(h3, h4, strong) {
+    color: var(--wwm-text) !important;
+}
+
+body.wwm-reference-theme :is(.table-container, .corporate-grid-shell, .premium-table-shell, .v59-table-wrap) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-subtle) !important;
+    box-shadow: none !important;
+}
+
+body.wwm-reference-theme table.table thead th,
+body.wwm-reference-theme table.table thead th.sortable {
+    color: #d8e8e8 !important;
+    border-color: rgba(142, 198, 198, .16) !important;
+    background: var(--wwm-panel-strong) !important;
+}
+
+body.wwm-reference-theme table.table :is(tbody, tfoot) :is(td, th) {
+    color: #eaf5f5 !important;
+    border-color: rgba(142, 198, 198, .16) !important;
+    background: transparent !important;
+}
+
+body.wwm-reference-theme table.table tbody tr:hover > td {
+    background: rgba(9, 178, 164, .09) !important;
+}
+
+body.wwm-reference-theme :is(#content-area, .modal-content, .notification-panel) :is(
+    .form-control,
+    .search-input,
+    .status-filter-trigger,
+    .premium-multi-filter-trigger,
+    .date-input,
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea
+) {
+    color: #edf8f8;
+    border-color: rgba(139, 200, 199, .24);
+    background-color: rgba(0, 48, 53, .6);
+}
+
+body.wwm-reference-theme :is(
+    .modal-content,
+    .notification-panel,
+    .action-menu-dropdown,
+    .status-filter-dropdown,
+    .premium-multi-filter-popover
+) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line-strong) !important;
+    background: var(--wwm-overlay-surface) !important;
+    box-shadow: 0 20px 56px rgba(0, 12, 20, .42) !important;
+}
+
+body.wwm-reference-theme :is(.modal-header, .modal-footer, .notification-panel-header) {
+    color: var(--wwm-text) !important;
+    border-color: var(--wwm-line) !important;
+    background: #052f35 !important;
+}
+
+body.wwm-reference-theme :is(.empty-state, .compact-empty-state, .loading-state, .skeleton-card) {
+    color: var(--wwm-muted) !important;
+    border-color: var(--wwm-line) !important;
+    background: var(--wwm-panel-subtle) !important;
+}
+
+body.wwm-reference-theme :is(.report-tabs-modern, .tabs, .tab-navigation) {
+    border-color: var(--wwm-line) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}

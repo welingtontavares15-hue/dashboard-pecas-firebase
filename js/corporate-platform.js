@@ -22,6 +22,10 @@
         const loginScreen = document.getElementById('login-screen');
         const loginCard = loginScreen?.querySelector('.login-card');
 
+        if (document.body.classList.contains('wwm-reference-theme')) {
+            return;
+        }
+
         if (!loginScreen || !loginCard || loginScreen.classList.contains('hidden')) {
             return;
         }
@@ -86,6 +90,10 @@
     function enhancePageHeader() {
         const content = document.getElementById('content-area');
         if (!content) {
+            return;
+        }
+
+        if (document.body.classList.contains('wwm-reference-theme')) {
             return;
         }
 

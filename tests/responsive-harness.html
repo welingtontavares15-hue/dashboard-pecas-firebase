@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WWM responsive harness</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/executive-cleanup.css">
+    <link rel="stylesheet" href="../css/premium-plus.css">
+    <link rel="stylesheet" href="../css/corporate-platform.css">
+    <link rel="stylesheet" href="../css/clean-ui.css">
+    <link rel="stylesheet" href="../css/screen-fixes-v5.css">
+    <link rel="stylesheet" href="../css/visual-refresh.css">
+    <link rel="stylesheet" href="../css/sidebar-pro.css">
+    <link rel="stylesheet" href="../css/premium-dashboard-v2.css">
+    <link rel="stylesheet" href="../css/ui-consolidation.css">
+    <link rel="stylesheet" href="../css/premium-ui-v3.css">
+    <link rel="stylesheet" href="../css/premium-ui-v3-polish.css">
+    <link rel="stylesheet" href="../css/premium-release-v55.css">
+    <link rel="stylesheet" href="../css/wwm-reference-theme.css">
+    <link rel="stylesheet" href="../css/responsive-system.css">
+</head>
+<body class="dark-mode visual-refresh-enabled premium-plus-enabled corporate-platform-enabled premium-ui-v3-enabled wwm-reference-theme wwm-page-solicitacoes" data-theme="dark">
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><div class="logo"><strong>WWM</strong></div></div>
+            <nav class="sidebar-nav"><a class="nav-item active">Solicitações</a><a class="nav-item">Relatórios</a></nav>
+        </aside>
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-left"><div class="mobile-nav-buttons"><button class="btn-icon">☰</button></div><div class="breadcrumb">Portal WWM › Solicitações</div></div>
+                <div class="header-actions"><div class="header-search-zone"><div class="global-search"><input class="form-control" placeholder="Buscar..."></div></div><div class="header-controls"><button class="btn-icon">●</button></div></div>
+            </header>
+            <div id="content-area" class="content-area">
+                <div class="page-header wwm-page-title"><div><h2>Solicitações de peças</h2><p>Matriz de validação dos componentes globais.</p></div><div class="page-actions"><button class="btn btn-primary">Nova solicitação</button><button class="btn btn-outline">Exportar</button></div></div>
+
+                <div class="page-filters premium-report-filter-shell corporate-filter-surface">
+                    <div class="premium-report-filter-grid">
+                        <div class="filter-group"><label>Período</label><select class="form-control"><option>Últimos 30 dias</option></select></div>
+                        <div class="filter-group"><label>De</label><input type="date" class="form-control"></div>
+                        <div class="filter-group"><label>Até</label><input type="date" class="form-control"></div>
+                        <div class="filter-group premium-multi-filter open" data-premium-multi-filter="harness">
+                            <label>Técnico</label>
+                            <button class="premium-multi-filter-trigger"><span class="premium-multi-filter-trigger-copy"><span>Todos</span></span></button>
+                            <div class="premium-multi-filter-popover" id="harness-popover">
+                                <div class="premium-multi-filter-toolbar"><button>Selecionar todos</button><button>Limpar</button></div>
+                                <div class="premium-multi-filter-search-wrap"><input class="premium-multi-filter-search" placeholder="Buscar..."></div>
+                                <div class="premium-multi-filter-options">
+                                    <label class="premium-multi-filter-option"><input type="checkbox"><span>Ana Martins</span></label>
+                                    <label class="premium-multi-filter-option"><input type="checkbox"><span>Bruno Silva</span></label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="filter-group"><label>Cliente</label><input class="form-control" placeholder="Todos"></div>
+                        <div class="filter-group"><label>Peça</label><input class="form-control" placeholder="Todas"></div>
+                    </div>
+                </div>
+
+                <div class="kpi-grid page-kpis">
+                    <article class="kpi-card corporate-stat-card"><div class="kpi-icon">$</div><div class="kpi-content"><h4>Total</h4><div class="kpi-value">R$ 220.895,22</div></div></article>
+                    <article class="kpi-card corporate-stat-card"><div class="kpi-icon">#</div><div class="kpi-content"><h4>Em aprovação</h4><div class="kpi-value">23</div></div></article>
+                    <article class="kpi-card corporate-stat-card"><div class="kpi-icon">✓</div><div class="kpi-content"><h4>Aprovadas</h4><div class="kpi-value">81</div></div></article>
+                    <article class="kpi-card corporate-stat-card"><div class="kpi-icon">→</div><div class="kpi-content"><h4>Em trânsito</h4><div class="kpi-value">15</div></div></article>
+                </div>
+
+                <div class="card corporate-surface"><div class="card-body"><div id="sol-table-container">
+                    <div class="table-info">Exibindo 1–3 de 81 solicitações</div>
+                    <div class="table-container corporate-grid-shell premium-table-shell">
+                        <table class="table"><thead><tr><th>Nº</th><th>Técnico</th><th>Cliente</th><th>Peça</th><th>Valor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>#REQ-20260828-0003</strong></td><td>Leandra Santos</td><td>10090046</td><td>Resistência do booster HDW-200</td><td>R$ 867,45</td><td>Em aprovação</td><td>28/08/2026</td><td><div class="actions"><button class="btn">◉</button><button class="btn">⇩</button></div></td></tr>
+                            <tr><td><strong>#REQ-20260821-0002</strong></td><td>Ediveton Pedro da Silva</td><td>JBS Jaguariúna</td><td>Placa Controladora HD-50</td><td>R$ 3.719,41</td><td>Aprovada</td><td>21/08/2026</td><td><div class="actions"><button class="btn">◉</button><button class="btn">⇩</button></div></td></tr>
+                        </tbody></table>
+                    </div>
+                    <div class="pagination"><button>1</button><button>2</button><button>3</button></div>
+                </div></div></div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

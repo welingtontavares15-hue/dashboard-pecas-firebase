@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v49-navigation-master';
+const CACHE_VERSION = 'v67-visual-align';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -26,6 +26,15 @@ const PRECACHE = {
     './css/visual-refresh.css',
     './css/sidebar-pro.css',
     './css/premium-dashboard-v2.css',
+    './css/premium-ui-v3.css',
+    './css/premium-ui-v3-polish.css',
+    './css/premium-login-v55.css',
+    './css/premium-release-v55.css',
+    './css/wwm-reference-theme.css',
+    './css/responsive-system.css',
+    './css/brand-slogan.css',
+    './css/wwm-visual-standard.css',
+    './css/wwm-smart-layout.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
@@ -46,17 +55,29 @@ const PRECACHE = {
     './js/app.js',
     './js/ui-modern.js',
     './js/navigation-master.js',
+    './js/navigation-master-v55.js',
     './js/premium-plus.js',
+    './js/premium-ui-v3.js',
+    './js/premium-release-v55.js',
+    './js/wwm-reference-ui.js',
+    './js/wwm-smart-layout.js',
     './js/corporate-platform.js',
+    './js/navigation-consolidation-runtime.js',
     './js/lazy/load-script.js',
     './js/pages/dashboard.js',
+    './js/pages/dashboard-v55.js',
     './js/pages/solicitacoes.js',
     './js/pages/aprovacoes.js',
     './js/pages/pecas.js',
     './js/pages/relatorios.js',
+    './js/pages/relatorios-v55.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
-    './js/components/reports-modern.js'
+    './js/components/dashboard-wwm-v59.js',
+    './js/components/reports-modern.js',
+    './js/components/reports-multi-select.js',
+    './js/components/report-multi-filter-utils.js',
+    './js/components/reports-chart-hardening-v55.js'
   ],
   dashboard: [
     './js/dashboard.js',
@@ -64,11 +85,12 @@ const PRECACHE = {
     './js/onedrive.js',
     './js/relatorios.js',
     './js/vendor/chart.umd.js',
-    './js/components/dashboard-modern.js',
-    './js/components/dashboard-focus.js'
+    './js/components/dashboard-wwm-v59.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
+    './js/technician-experience.js',
+    './css/technician-history.css',
     './js/aprovacoes.js',
     './js/fornecedor.js',
     './js/tecnicos.js'
@@ -79,15 +101,17 @@ const PRECACHE = {
   ],
   relatorios: [
     './js/relatorios.js',
-    './js/components/reports-modern.js'
+    './js/pages/relatorios-v55.js',
+    './js/components/reports-modern.js',
+    './js/components/reports-multi-select.js',
+    './js/components/report-multi-filter-utils.js',
+    './js/components/reports-chart-hardening-v55.js'
   ]
 };
 
 function normalizeAssetUrl(asset) {
   const url = new URL(asset, self.location.href);
-  if (url.origin !== self.location.origin) {
-    return url.href;
-  }
+  if (url.origin !== self.location.origin) return url.href;
   url.hash = '';
   url.search = '';
   return url.href;
@@ -96,18 +120,14 @@ function normalizeAssetUrl(asset) {
 const ASSET_CACHE_MAP = {};
 Object.entries(PRECACHE).forEach(([module, assets]) => {
   const cacheName = MODULE_CACHES[module] || MODULE_CACHES.core;
-  assets.forEach((asset) => {
-    ASSET_CACHE_MAP[normalizeAssetUrl(asset)] = cacheName;
-  });
+  assets.forEach((asset) => { ASSET_CACHE_MAP[normalizeAssetUrl(asset)] = cacheName; });
 });
 
 const ALL_CACHES = Object.values(MODULE_CACHES);
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    await Promise.all(
-      Object.entries(PRECACHE).map(([module, assets]) => precacheModule(module, assets))
-    );
+    await Promise.all(Object.entries(PRECACHE).map(([module, assets]) => precacheModule(module, assets)));
     await self.skipWaiting();
   })());
 });
@@ -122,89 +142,57 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
+  if (event.request.method !== 'GET') return;
   const requestUrl = new URL(event.request.url);
-  if (requestUrl.origin !== self.location.origin) {
-    return;
-  }
-
+  if (requestUrl.origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
     event.respondWith(handleNavigationRequest(event.request));
     return;
   }
-
   const matchedCache = ASSET_CACHE_MAP[normalizeAssetUrl(event.request.url)];
-  if (!matchedCache) {
-    return;
-  }
-
+  if (!matchedCache) return;
   event.respondWith(handleAssetRequest(matchedCache, event.request));
 });
 
 async function precacheModule(module, assets) {
   const cacheName = MODULE_CACHES[module] || MODULE_CACHES.core;
   const cache = await caches.open(cacheName);
-  const results = await Promise.allSettled(
-    assets.map(async (asset) => {
-      const request = new Request(asset, { cache: 'reload' });
-      const response = await fetch(request);
-      if (!response.ok) {
-        throw new Error(`${asset} (${response.status})`);
-      }
-      await cache.put(normalizeAssetUrl(asset), response);
-    })
-  );
-
-  const failures = results
-    .filter((result) => result.status === 'rejected')
-    .map((result) => result.reason?.message || 'unknown_error');
-
-  if (failures.length > 0) {
-    console.warn(`Precache parcial com falhas em ${cacheName}:`, failures);
-  }
+  const results = await Promise.allSettled(assets.map(async (asset) => {
+    const request = new Request(asset, { cache: 'reload' });
+    const response = await fetch(request);
+    if (!response.ok) throw new Error(`${asset} (${response.status})`);
+    await cache.put(normalizeAssetUrl(asset), response);
+  }));
+  const failures = results.filter((result) => result.status === 'rejected').map((result) => result.reason?.message || 'unknown_error');
+  if (failures.length > 0) console.warn(`Precache parcial com falhas em ${cacheName}:`, failures);
 }
 
 async function handleNavigationRequest(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     const cache = await caches.open(MODULE_CACHES.core);
     cache.put(normalizeAssetUrl('./index.html'), response.clone()).catch(() => {});
     return response;
   } catch (_error) {
-    return (
-      await caches.match(normalizeAssetUrl(request.url)) ||
-      await caches.match(normalizeAssetUrl('./index.html')) ||
-      await caches.match(normalizeAssetUrl(OFFLINE_URL))
-    );
+    return await caches.match(normalizeAssetUrl(request.url)) || await caches.match(normalizeAssetUrl('./index.html')) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
   }
 }
 
 async function handleAssetRequest(cacheName, request) {
   const cache = await caches.open(cacheName);
   const cacheKey = normalizeAssetUrl(request.url);
-  const cachedResponse = await cache.match(cacheKey);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
   try {
-    const networkResponse = await fetch(request);
+    const networkResponse = await fetch(request, { cache: 'no-store' });
     if (networkResponse && networkResponse.ok) {
       cache.put(cacheKey, networkResponse.clone()).catch(() => {});
+      return networkResponse;
     }
-    return networkResponse;
-  } catch (_error) {
-    return await cache.match(cacheKey) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
-  }
+  } catch (_error) {}
+  return await cache.match(cacheKey) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
 }
 
 async function notifyClientsUpdated() {
