@@ -110,9 +110,16 @@
         return (Array.isArray(sol?.itens) ? sol.itens : []).reduce((sum, item) => sum + (Number(item?.quantidade) || 0), 0);
     }
 
+    function historyContextKey(sol) {
+        return String(sol?.id || sol?.numero || sol?.createdAt || '');
+    }
+
     function enhanceHistoryDetail(sol) {
         const detail = document.querySelector('.wwm-history-detail');
         if (!detail || !sol) return;
+        const contextKey = historyContextKey(sol);
+        if (detail.dataset.wwmContextKey === contextKey && detail.querySelector('.wwm-history-context')) return;
+
         detail.querySelector('.wwm-history-context')?.remove();
         detail.querySelector('.wwm-history-state-note')?.remove();
 
@@ -151,9 +158,13 @@
                 span.innerHTML = `${icon}${Utils.escapeHtml(date)}`;
             }
         });
+        detail.dataset.wwmContextKey = contextKey;
     }
 
     function selectHistoryRow(row, sol, rows) {
+        const selectedIndex = Math.max(rows.indexOf(row), 0);
+        const table = row.closest('table');
+        if (table) table.dataset.wwmSelectedIndex = String(selectedIndex);
         rows.forEach((item) => {
             item.classList.toggle('is-selected', item === row);
             item.setAttribute('aria-selected', item === row ? 'true' : 'false');
@@ -169,18 +180,22 @@
         if (currentPage() !== 'relatorios') return;
         const list = document.querySelector('.wwm-history-list');
         const table = list?.querySelector('table.table');
-        if (!table || table.dataset.wwmHistoryReady === 'true') {
-            const first = historySolicitations()[0];
-            if (first) enhanceHistoryDetail(first);
+        if (!table) return;
+
+        const solicitations = historySolicitations();
+        if (table.dataset.wwmHistoryReady === 'true') {
+            const selectedIndex = Math.max(Number.parseInt(table.dataset.wwmSelectedIndex || '0', 10) || 0, 0);
+            const selected = solicitations[selectedIndex] || solicitations[0];
+            if (selected) enhanceHistoryDetail(selected);
             return;
         }
 
         table.dataset.wwmHistoryReady = 'true';
+        table.dataset.wwmSelectedIndex = '0';
         table.classList.add('wwm-table-smart', 'wwm-history-table');
         tableDensity(table);
         annotateCells(table, ['id', 'date', 'text', 'text', 'status', 'money']);
 
-        const solicitations = historySolicitations();
         const rows = Array.from(table.tBodies?.[0]?.rows || []);
         rows.forEach((row, index) => {
             const sol = solicitations[index];
@@ -230,7 +245,7 @@
         const pieces = impact?.querySelector('.v59-table--pieces');
         const recent = document.getElementById('v59-recent')?.querySelector('.v59-table--recent');
         if (pieces) {
-            pieces.classList.add('wwm-table-smart');
+            pieces.classList.add('wwm-table-smart', 'wwm-table--compact');
             annotateCells(pieces, ['number', 'text', 'text', 'number', 'money']);
             tableDensity(pieces);
             const categoryHeader = pieces.tHead?.rows?.[0]?.cells?.[2];
