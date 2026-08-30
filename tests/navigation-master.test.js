@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Navegação consolidada WWM v60', () => {
+describe('Navegação consolidada WWM v66', () => {
     const root = path.resolve(__dirname, '..');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -36,13 +36,15 @@ describe('Navegação consolidada WWM v60', () => {
         expect(index).toContain('js/premium-release-v55.js');
     });
 
-    test('mantém suporte offline na versão v60', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v64-color-standard'");
+    test('mantém suporte offline sincronizado com o contrato visual v66', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v66-visual-system'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/reports-multi-select.js'");
         expect(serviceWorker).toContain("'./css/wwm-reference-theme.css'");
+        expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
+        expect(serviceWorker).toContain("'./css/brand-slogan.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
     });
 });
