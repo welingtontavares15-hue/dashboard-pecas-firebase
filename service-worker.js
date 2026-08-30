@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v70-fornecedor-acoes';
+const CACHE_VERSION = 'v71-visual-integrity';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -35,6 +35,9 @@ const PRECACHE = {
     './css/brand-slogan.css',
     './css/wwm-visual-standard.css',
     './css/wwm-smart-layout.css',
+    './css/visual-premium-v4.css',
+    './css/desktop-mobile-premium.css',
+    './css/visual-integrity-v71.css',
     './manifest.webmanifest',
     './icons/icon.svg',
     './health/firebase-healthcheck.html',
