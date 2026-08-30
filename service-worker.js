@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v66-visual-system';
+const CACHE_VERSION = 'v68-security-hardening';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -41,6 +41,7 @@ const PRECACHE = {
     './js/config.js',
     './js/firebase-config.js',
     './js/firebase-init.js',
+    './js/secure-auth-bridge.js',
     './js/firebase-sync.js',
     './js/pwa.js',
     './js/utils.js',
@@ -51,6 +52,7 @@ const PRECACHE = {
     './js/data.js',
     './js/electrical-catalog-policy.js',
     './js/auth.js',
+    './js/security-hardening-runtime.js',
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
