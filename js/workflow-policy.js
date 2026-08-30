@@ -1,8 +1,12 @@
 (function (root, factory) {
     const api = factory();
-    if (typeof module !== 'undefined' && module.exports) module.exports = api;
-    if (root) root.WorkflowPolicy = api;
-})(typeof window !== 'undefined' ? window : globalThis, function () {
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = api;
+    }
+    if (root) {
+        root.WorkflowPolicy = api;
+    }
+})(typeof window !== 'undefined' ? window : globalThis, () => {
     'use strict';
 
     const STATUS = Object.freeze({
@@ -50,9 +54,15 @@
     function canTransition(currentStatus, nextStatus) {
         const from = normalizeStatus(currentStatus);
         const to = normalizeStatus(nextStatus);
-        if (!to) return false;
-        if (from === to) return true;
-        if (to === STATUS.HISTORICO_MANUAL) return true;
+        if (!to) {
+            return false;
+        }
+        if (from === to) {
+            return true;
+        }
+        if (to === STATUS.HISTORICO_MANUAL) {
+            return true;
+        }
 
         const allowed = {
             [STATUS.RASCUNHO]: [STATUS.PENDENTE],
@@ -62,7 +72,9 @@
             [STATUS.REJEITADA]: [STATUS.PENDENTE],
             [STATUS.FINALIZADA]: []
         };
-        if (!Object.prototype.hasOwnProperty.call(allowed, from)) return true;
+        if (!Object.prototype.hasOwnProperty.call(allowed, from)) {
+            return true;
+        }
         return allowed[from].includes(to);
     }
 
