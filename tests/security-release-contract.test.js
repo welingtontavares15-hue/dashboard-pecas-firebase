@@ -39,10 +39,18 @@ describe('v68 release security contract', () => {
     expect(sw).toContain("'./js/security-hardening-runtime.js'");
   });
 
-  test('server authentication function returns only a sanitized profile and custom token', () => {
+  test('server authentication returns only a sanitized profile and custom token', () => {
     const functions = read('functions/index.js');
     expect(functions).toContain('createCustomToken');
     expect(functions).toContain('sanitizeProfile');
     expect(functions).not.toMatch(/return\s*\{[^}]*passwordHash/s);
+  });
+
+  test('server writes a short-lived compatibility session so the frontend can migrate before strict rules', () => {
+    const functions = read('functions/index.js');
+    expect(functions).toContain('writeLegacyCompatibilitySession');
+    expect(functions).toContain("issuedBy: 'server-auth-v68'");
+    expect(functions).toContain('LEGACY_BRIDGE_TTL_MS = 8 * 60 * 60 * 1000');
+    expect(functions).toContain('await writeLegacyCompatibilitySession(identity.uid, profile);');
   });
 });
