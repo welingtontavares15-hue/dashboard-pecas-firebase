@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - gpt72/executive-hardening-20260827
+      - main
 
 permissions:
   contents: read
@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Functions dependencies
+        run: npm install --prefix functions --ignore-scripts --no-fund
+
       - name: Test
         run: npm test -- --runInBand
 
@@ -41,7 +44,24 @@ jobs:
           test -d css
           test -d js
           test -d icons
+          test -f js/secure-auth-bridge.js
+          test -f js/security-hardening-runtime.js
+          test -f firebase/database.rules.v68.json
+          test -f functions/index.js
+          node --check functions/index.js
+          node --check functions/lib/auth-core.js
+          node --check js/security-hardening-runtime.js
+          node --check js/workflow-policy.js
+          (cd functions && node -e "require('firebase-admin/app'); require('firebase-functions/v2/https')")
 
-      - name: Lint baseline (non-blocking until legacy debt is removed)
-        continue-on-error: true
-        run: npm run lint:check
+      - name: Critical lint
+        run: npm run lint:critical
+
+      - name: Legacy lint non-regression
+        run: npm run lint:baseline
+
+      - name: Static-site production dependency audit
+        run: npm run audit:production
+
+      - name: Functions production dependency audit
+        run: npm audit --prefix functions --omit=dev --audit-level=high

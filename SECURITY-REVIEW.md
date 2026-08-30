@@ -1,157 +1,98 @@
-# Security Review and Compliance
+# Security Review — Portal de Solicitação de Peças WWM
 
-## Overview
-This document tracks the security posture and compliance requirements for the Dashboard de Solicitação de Peças application.
+## Estado deste documento
 
-## Security Features Implemented
+Este documento descreve o **código da branch v68**. Não prova que Functions, Firebase Database Rules ou outras configurações externas já estejam publicadas no ambiente live.
 
-### 1. Authentication Security
-- ✅ **Password Hashing**: SHA-256 with per-user salt
-- ✅ **Rate Limiting**: Progressive lockout (5 attempts → 15 min, then doubles)
-- ✅ **Session Management**: 8-hour sessions with expiration validation
-- ✅ **Enumeration Prevention**: Failed attempts tracked for all usernames
+- Baseline de produção antes da v68: `f5f2bc13d0e6b89ecb4da63ded6b12541795b604`.
+- Release candidata: `v68-security-hardening`.
+- Rollout: `docs/security-v68-rollout.md`.
 
-### 2. Authorization (RBAC)
-- ✅ **Multi-layer RBAC**: Claims + Database Rules + Frontend Guards
-- ✅ **Role-based Permissions**: Admin, Gestor, Técnico with granular permissions
-- ✅ **Region-based Access**: Gestor can only approve in their region
-- ✅ **Action Validation**: Backend must validate all critical operations
+## Modelo de segurança da v68
 
-### 3. Data Security
-- ✅ **Audit Trail**: All changes tracked with version, user, timestamp
-- ✅ **Timeline**: Complete history of status changes and approvals
-- ✅ **Optimistic Concurrency**: Version-based conflict detection
-- ✅ **Server-side Calculations**: Totals calculated on backend, not client
+### Autenticação
 
-### 4. Input Validation
-- ✅ **XSS Prevention**: HTML escaping (Utils.escapeHtml)
-- ✅ **CNPJ Validation**: Proper validation with checksum
-- ✅ **Email Validation**: RFC-compliant email validation
-- ✅ **Filename Sanitization**: Safe filename generation
+- O navegador não valida mais a senha corporativa como autoridade final.
+- `loginWithLegacyCredentials` valida a credencial em Cloud Functions usando Admin SDK.
+- A função emite Firebase Custom Token com claims assinadas.
+- Claims suportadas: `role`, `appUserId`, `username` e, conforme o perfil, `tecnicoId` ou `fornecedorId`.
+- Perfis suportados: `administrador`, `gestor`, `tecnico`, `fornecedor`.
+- Senha legada SHA-256 continua sendo aceita somente durante migração compatível.
+- Após login válido, a credencial é migrada para PBKDF2-SHA256 com salt aleatório por conta e 210.000 iterações.
+- A sessão de aplicação é limitada a 8 horas na v68.
+- Tentativas de login são limitadas no backend, não apenas na memória do navegador.
 
-## Security Checklist
+### Autorização
 
-### Authentication
-- [x] Passwords are hashed with salt
-- [x] Rate limiting prevents brute force attacks
-- [x] Session timeout is enforced
-- [x] Failed login attempts are logged
-- [ ] **TODO**: Add MFA for Admin and Gestor roles
-- [ ] **TODO**: Implement password complexity requirements
-- [ ] **TODO**: Add password expiration policy
+O ruleset estrito `firebase/database.rules.v68.json` usa `auth.token.*` como fonte de autorização.
 
-### Authorization
-- [x] RBAC is enforced at multiple layers
-- [x] Users can only access their permitted resources
-- [x] Menu items are filtered by role
-- [ ] **TODO**: Review and harden Firebase security rules
-- [ ] **TODO**: Add backend API endpoint validation
-- [ ] **TODO**: Implement approval matrix based on value/category
+- `diversey_sessions` não concede autorização e fica sem acesso de cliente.
+- `diversey_users` é restrito a administradores.
+- Técnicos são limitados por `tecnicoId` assinado.
+- Fornecedores são limitados por `fornecedorId` assinado.
+- Gestores podem decidir solicitações, mas regras preservam campos críticos de origem ao alterar status.
+- Fornecedores podem registrar transição/rastreio permitido sem alterar itens, custo, técnico, número ou data original.
+- O estado server-side de rate limiting fica sob `server_auth`, inacessível ao cliente.
 
-### Data Protection
-- [x] Sensitive data (passwords) are hashed
-- [x] CNPJ can be masked where not fully needed
-- [x] Audit logs don't contain sensitive data
-- [ ] **TODO**: Implement TLS for all connections
-- [ ] **TODO**: Enable Firebase encryption at rest
-- [ ] **TODO**: Add data backup and recovery procedures
+### Janela de migração
 
-### Input Validation
-- [x] All user inputs are validated
-- [x] XSS prevention through HTML escaping
-- [x] SQL injection not applicable (NoSQL database)
-- [x] File uploads are sanitized
-- [ ] **TODO**: Add file type validation for attachments
-- [ ] **TODO**: Implement file size limits
-- [ ] **TODO**: Add virus scanning for uploaded files
+A Function de login grava temporariamente uma sessão de compatibilidade emitida pelo servidor para permitir que o frontend v68 funcione durante o intervalo entre sua publicação e a ativação do ruleset estrito. Essa compatibilidade não deve ser tratada como arquitetura permanente e deve ser removida após o rollout estabilizar.
 
-### Logging and Monitoring
-- [x] Authentication events are logged
-- [x] Failed login attempts are tracked
-- [x] Audit trail for all data changes
-- [ ] **TODO**: Implement structured logging with correlation IDs
-- [ ] **TODO**: Add alerting for suspicious activities
-- [ ] **TODO**: Create security dashboard
+## Proteção de dados
 
-## Compliance Requirements
+### Confirmado no código da v68
 
-### LGPD (Brazilian Data Protection Law)
-- [ ] **TODO**: Data processing consent mechanism
-- [ ] **TODO**: Right to access personal data
-- [ ] **TODO**: Right to delete personal data
-- [ ] **TODO**: Data retention policies
-- [ ] **TODO**: Privacy policy document
+- perfil retornado pelo backend não contém senha, hash ou salt;
+- dados de negócio não são carregados antes da autenticação corporativa v68;
+- logout limpa cache de negócio e listeners do cliente;
+- produção continua online-first: escrita de negócio offline permanece bloqueada;
+- painel de credenciais do login permanece bloqueado em produção;
+- fallback de endereço residencial dos técnicos continua redigido pelo privacy guard.
 
-### Internal Security Policies
-- [x] Minimum privilege principle applied
-- [x] Separation of duties (Técnico/Gestor/Admin)
-- [ ] **TODO**: Document security incident response plan
-- [ ] **TODO**: Implement regular security audits
-- [ ] **TODO**: Security awareness training materials
+### Pendências externas / governança
 
-## Vulnerability Assessment
+- o repositório ainda é público; a classificação de nomes de técnicos, catálogo e preços deve ser decidida pelo proprietário do sistema;
+- histórico Git pode conter informações antigas mesmo após remoção de arquivos atuais;
+- App Check ainda não é obrigatório nas callables da v68; habilitar somente após provider e rollout controlado;
+- MFA/SSO corporativo não é implementado por esta migração; OIDC/SAML continua sendo a direção preferida de longo prazo;
+- backup, retenção e recuperação precisam de política operacional formal fora do código do frontend.
 
-### Current Known Issues
-None at present.
+## Testes e gates
 
-### Regular Security Tasks
-- [ ] Monthly review of user permissions
-- [ ] Quarterly security rule audit
-- [ ] Annual penetration testing
-- [ ] Continuous dependency vulnerability scanning
+A v68 introduz cobertura executável para:
 
-## Security Testing
+- verificação e migração de credenciais legadas;
+- geração de claims e sanitização de perfil;
+- contrato estático das regras RTDB;
+- transições críticas de solicitação;
+- integração do runtime seguro com PWA/release;
+- privacy guard;
+- lint estrito dos módulos críticos;
+- não regressão da dívida ESLint histórica;
+- auditoria de dependências de produção do site estático e das Functions.
 
-### Manual Testing
-- [x] Login with invalid credentials
-- [x] Attempt to access unauthorized pages
-- [x] Test rate limiting
-- [x] Verify session expiration
-- [ ] **TODO**: Test XSS attack vectors
-- [ ] **TODO**: Test CSRF protection
-- [ ] **TODO**: Test authorization bypass attempts
+A CI não substitui teste live. Antes da ativação das regras estritas, executar os smoke tests de todos os perfis descritos no runbook.
 
-### Automated Testing
-- [x] Unit tests for authentication module
-- [x] Unit tests for rate limiting
-- [ ] **TODO**: Integration tests for RBAC
-- [ ] **TODO**: E2E security tests
-- [ ] **TODO**: Automated vulnerability scanning
+## Riscos residuais conhecidos
 
-## Incident Response
+1. **App Check não obrigatório** — callables de login podem ser chamadas sem attestation; rate limiting server-side reduz abuso por conta, mas não substitui App Check.
+2. **Credenciais legadas ainda armazenadas durante migração** — hashes antigos devem ser removidos depois que a cobertura PBKDF2 das contas ativas for confirmada.
+3. **Repositório público** — dados operacionais embarcados no bundle precisam de classificação formal e, se internos, remoção do bundle e eventual saneamento de histórico.
+4. **Dívida frontend histórica** — centenas de violações ESLint e múltiplas camadas CSS antigas ainda existem; o gate v68 impede crescimento, mas a remoção deve ocorrer incrementalmente com regressão visual/funcional.
+5. **Observabilidade técnica local** — parte relevante da telemetria ainda reside no navegador; não há prova de monitoramento central completo.
+6. **E2E live não executado nesta branch** — autenticação real e regras publicadas exigem provider readback durante rollout autorizado.
 
-### Security Incident Classification
-1. **Critical**: Data breach, unauthorized access to admin accounts
-2. **High**: Multiple failed authentication attempts, privilege escalation
-3. **Medium**: Single failed authentication, suspicious activity
-4. **Low**: Policy violations, configuration issues
+## Critério de aceite de segurança
 
-### Response Procedures
-1. **Detection**: Monitor logs and alerts
-2. **Containment**: Disable affected accounts, block IPs
-3. **Investigation**: Review logs, identify scope
-4. **Recovery**: Restore from backups if needed
-5. **Post-Incident**: Document lessons learned, update procedures
+A v68 só pode ser considerada implantada quando:
 
-## Recommendations
+- Functions publicadas e lidas de volta no projeto correto;
+- frontend v68 publicado e GitHub Pages concluído com sucesso;
+- ruleset estrito v68 publicado e lido de volta;
+- Admin, Gestor, Técnico e Fornecedor passam smoke test no ambiente live;
+- testes negativos confirmam isolamento entre técnicos e fornecedores;
+- rollback foi preservado durante toda a janela de mudança.
 
-### High Priority
-1. Implement MFA for privileged accounts (Admin/Gestor)
-2. Review and harden Firebase security rules
-3. Add structured logging with correlation IDs
-4. Implement automated security testing
+## Última revisão
 
-### Medium Priority
-1. Add file type and size validation
-2. Implement password complexity requirements
-3. Create security monitoring dashboard
-4. Document disaster recovery procedures
-
-### Low Priority
-1. Add LGPD compliance features
-2. Implement password expiration
-3. Add security awareness training
-4. Conduct annual penetration testing
-
-## Last Updated
-2024-12-26
+2026-08-30 — candidato v68, ainda sem alegação de implantação live.

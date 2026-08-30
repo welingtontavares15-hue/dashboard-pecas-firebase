@@ -1,185 +1,105 @@
-/**
- * Critical Flow Tests
- * Tests for the mandatory critical flows that must pass before release
- */
-
-// Mock localStorage
-const localStorageMock = (() => {
-    let store = {};
-    return {
-        getItem: (key) => store[key] || null,
-        setItem: (key, value) => { store[key] = String(value); },
-        removeItem: (key) => { delete store[key]; },
-        clear: () => { store = {}; }
-    };
-})();
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
-
-// Mock crypto
-const mockCrypto = {
-    subtle: {
-        digest: jest.fn(async (algorithm, data) => {
-            const mockBuffer = new ArrayBuffer(32);
-            const view = new Uint8Array(mockBuffer);
-            for (let i = 0; i < 32; i++) {
-                view[i] = i;
-            }
-            return mockBuffer;
-        })
-    },
-    getRandomValues: jest.fn((array) => {
-        for (let i = 0; i < array.length; i++) {
-            array[i] = Math.floor(Math.random() * 256);
-        }
-        return array;
-    })
-};
-global.crypto = mockCrypto;
-global.window = { crypto: mockCrypto };
-
-// Mock navigator
-Object.defineProperty(global, 'navigator', {
-    value: {
-        userAgent: 'test-agent',
-        platform: 'test-platform',
-        language: 'pt-BR'
-    }
-});
-
-// Load dependencies
 const fs = require('fs');
 const path = require('path');
+const WorkflowPolicy = require('../js/workflow-policy');
+const {
+    buildClaims,
+    legacyPasswordHash,
+    verifyPassword
+} = require('../functions/lib/auth-core');
 
-// Load Utils first
-const utilsCode = fs.readFileSync(path.join(__dirname, '../js/utils.js'), 'utf8');
-const loadUtils = new Function(`${utilsCode}; return Utils;`);
-global.Utils = loadUtils();
+const read = (relativePath) => fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
 
 describe('Critical Flows', () => {
-    describe('1. Login Flows', () => {
-        describe('Admin Login', () => {
-            it('should allow admin login with valid credentials', () => {
-                // Test will be implemented when testing infrastructure is ready
-                expect(true).toBe(true);
-            });
-
-            it('should provide admin permissions after login', () => {
-                expect(true).toBe(true);
-            });
+    describe('1. Authentication and authorization', () => {
+        test.each([
+            ['administrador', {}],
+            ['gestor', {}],
+            ['tecnico', { tecnicoId: 'tec-01' }],
+            ['fornecedor', { fornecedorId: 'sup-01' }]
+        ])('legacy credential migration preserves login for %s and emits signed scope', (role, scope) => {
+            const user = {
+                id: `user-${role}`,
+                username: `user.${role}`,
+                role,
+                ...scope,
+                passwordHash: legacyPasswordHash('SenhaSegura123', `user.${role}`)
+            };
+            expect(verifyPassword(user, 'SenhaSegura123').valid).toBe(true);
+            expect(buildClaims(user)).toMatchObject({ role, appUserId: `user-${role}`, ...scope });
         });
 
-        describe('Gestor Login', () => {
-            it('should allow gestor login with valid credentials', () => {
-                expect(true).toBe(true);
-            });
-
-            it('should provide gestor permissions after login', () => {
-                expect(true).toBe(true);
-            });
-        });
-
-        describe('Técnico Login', () => {
-            it('should allow técnico login with valid credentials', () => {
-                expect(true).toBe(true);
-            });
-
-            it('should provide técnico permissions after login', () => {
-                expect(true).toBe(true);
-            });
+        test('wrong password is rejected', () => {
+            const user = {
+                id: 'admin',
+                username: 'admin',
+                role: 'administrador',
+                passwordHash: legacyPasswordHash('Correta123', 'admin')
+            };
+            expect(verifyPassword(user, 'Errada123').valid).toBe(false);
         });
     });
 
-    describe('2. Request Creation Flow', () => {
-        it('should create a new draft request', () => {
-            expect(true).toBe(true);
+    describe('2. Request workflow', () => {
+        test('draft can be submitted but cannot skip approval', () => {
+            expect(WorkflowPolicy.canTransition('rascunho', 'pendente')).toBe(true);
+            expect(WorkflowPolicy.canTransition('rascunho', 'aprovada')).toBe(false);
         });
 
-        it('should save draft request locally', () => {
-            expect(true).toBe(true);
+        test('pending request accepts approval or rejection only', () => {
+            expect(WorkflowPolicy.canTransition('pendente', 'aprovada')).toBe(true);
+            expect(WorkflowPolicy.canTransition('pendente', 'rejeitada')).toBe(true);
+            expect(WorkflowPolicy.canTransition('pendente', 'finalizada')).toBe(false);
         });
 
-        it('should submit request changing status to pending', () => {
-            expect(true).toBe(true);
+        test('approved request moves to transit and transit moves to finalized', () => {
+            expect(WorkflowPolicy.canTransition('aprovada', 'em-transito')).toBe(true);
+            expect(WorkflowPolicy.canTransition('em-transito', 'finalizada')).toBe(true);
+            expect(WorkflowPolicy.canTransition('aprovada', 'finalizada')).toBe(false);
         });
 
-        it('should generate sequential number on submit', () => {
-            expect(true).toBe(true);
-        });
-    });
-
-    describe('3. Approval Flow', () => {
-        it('should approve request with comment', () => {
-            expect(true).toBe(true);
+        test('rejected request can be corrected and resubmitted', () => {
+            expect(WorkflowPolicy.canTransition('rejeitada', 'pendente')).toBe(true);
+            expect(WorkflowPolicy.canTransition('rejeitada', 'aprovada')).toBe(false);
         });
 
-        it('should reject request with comment', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should update approval timeline', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should record approver information', () => {
-            expect(true).toBe(true);
+        test('finalized request cannot return to operational states', () => {
+            expect(WorkflowPolicy.canTransition('finalizada', 'pendente')).toBe(false);
+            expect(WorkflowPolicy.canTransition('finalizada', 'em-transito')).toBe(false);
         });
     });
 
-    describe('4. Status Change Flow', () => {
-        it('should change status from approved to in_transit', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should change status from in_transit to delivered', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should change status from delivered to finalized', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should record all status changes in timeline', () => {
-            expect(true).toBe(true);
+    describe('3. Online-only safety', () => {
+        test('production explicitly blocks offline business writes', () => {
+            const config = read('js/config.js');
+            const data = read('js/data.js');
+            expect(config).toContain('offlineDrafts: false');
+            expect(config).toContain('onlineOnly: true');
+            expect(data).toContain('isWriteBlocked()');
+            expect(data).toContain('Sem conexão:');
         });
     });
 
-    describe('5. Offline Flow', () => {
-        it('should create draft request while offline', () => {
-            expect(true).toBe(true);
+    describe('4. Export capabilities', () => {
+        test('PDF, Excel and CSV paths are implemented rather than placeholders', () => {
+            const utils = read('js/utils.js');
+            expect(utils).toMatch(/jsPDF|jspdf/);
+            expect(utils).toMatch(/XLSX/);
+            expect(utils).toMatch(/CSV|csv/);
         });
 
-        it('should queue changes when offline', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should sync queued changes on reconnection', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should handle sync conflicts properly', () => {
-            expect(true).toBe(true);
+        test('export audit collections remain protected by role rules', () => {
+            const rules = JSON.parse(read('firebase/database.rules.v68.json')).rules.data;
+            expect(rules.diversey_export_log['.read']).toContain("auth.token.role == 'gestor'");
+            expect(rules.diversey_export_files['.write']).not.toContain("auth.token.role == 'tecnico'");
         });
     });
 
-    describe('6. Export Flow', () => {
-        it('should export to PDF', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should export to Excel', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should export to CSV', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should save export metadata in system', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should log export success/failure', () => {
-            expect(true).toBe(true);
+    describe('5. Release integration', () => {
+        test('security bridge, hardening runtime and workflow policy are real runtime inputs', () => {
+            const html = read('index.html');
+            expect(html).toContain('secure-auth-bridge.js');
+            expect(html).toContain('security-hardening-runtime.js');
+            expect(read('service-worker.js')).toContain('v68-security-hardening');
         });
     });
 });

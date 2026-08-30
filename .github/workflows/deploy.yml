@@ -30,15 +30,40 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Functions dependencies
+        run: npm install --prefix functions --ignore-scripts --no-fund
+
       - name: Test
         run: npm test -- --runInBand
 
       - name: Privacy guard
         run: node scripts/redact-technician-fallback.mjs --check
 
-      - name: Lint baseline (non-blocking until legacy debt is removed)
-        continue-on-error: true
-        run: npm run lint:check
+      - name: Validate security runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f js/secure-auth-bridge.js
+          test -f js/security-hardening-runtime.js
+          test -f firebase/database.rules.v68.json
+          test -f functions/index.js
+          node --check functions/index.js
+          node --check functions/lib/auth-core.js
+          node --check js/security-hardening-runtime.js
+          node --check js/workflow-policy.js
+          (cd functions && node -e "require('firebase-admin/app'); require('firebase-functions/v2/https')")
+
+      - name: Critical lint
+        run: npm run lint:critical
+
+      - name: Legacy lint non-regression
+        run: npm run lint:baseline
+
+      - name: Static-site production dependency audit
+        run: npm run audit:production
+
+      - name: Functions production dependency audit
+        run: npm audit --prefix functions --omit=dev --audit-level=high
 
   deploy:
     needs: quality

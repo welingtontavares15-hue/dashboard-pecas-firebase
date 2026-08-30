@@ -1,7 +1,7 @@
 {
   "name": "dashboard-pecas",
   "version": "1.0.0",
-  "description": "Painel de Solicitação de Peças - PWA offline-first para gerenciamento de solicitações de peças",
+  "description": "Portal de Solicitação de Peças WWM - PWA online-first com shell resiliente e sincronização Firebase",
   "main": "index.html",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
@@ -9,6 +9,9 @@
     "test:gestores-sync": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/gestores-sync.test.js",
     "lint": "eslint js/*.js --fix",
     "lint:check": "eslint js/*.js",
+    "lint:critical": "eslint js/config.js js/secure-auth-bridge.js js/security-hardening-runtime.js js/workflow-policy.js",
+    "lint:baseline": "node scripts/check-eslint-baseline.mjs",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "firebase:rules:deploy": "npx firebase-tools deploy --only database",
     "firebase:rules:list": "npx firebase-tools login:list",
     "healthcheck": "node healthcheck.js",
@@ -21,7 +24,7 @@
   },
   "keywords": [
     "pwa",
-    "offline-first",
+    "online-first",
     "parts-management",
     "solicitacoes"
   ],
