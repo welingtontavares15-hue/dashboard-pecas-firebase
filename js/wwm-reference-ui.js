@@ -13,12 +13,32 @@
     ];
     let orderingTheme = false;
 
+    function ensureSmartLayer() {
+        let smartCss = document.querySelector('link[data-wwm-smart-layout]');
+        if (!smartCss) {
+            smartCss = document.createElement('link');
+            smartCss.rel = 'stylesheet';
+            smartCss.href = 'css/wwm-smart-layout.css?v=20260830a';
+            smartCss.dataset.wwmSmartLayout = 'true';
+            document.head.appendChild(smartCss);
+        }
+
+        if (!document.querySelector('script[data-wwm-smart-layout]')) {
+            const smartScript = document.createElement('script');
+            smartScript.src = 'js/wwm-smart-layout.js?v=20260830a';
+            smartScript.defer = true;
+            smartScript.dataset.wwmSmartLayout = 'true';
+            document.body.appendChild(smartScript);
+        }
+    }
+
     function keepReferenceThemeLast() {
         const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
         const referenceLink = links.find((item) => item.href.includes('/css/wwm-reference-theme.css'));
         const responsiveLink = links.find((item) => item.href.includes('/css/responsive-system.css'));
         const visualStandardLink = links.find((item) => item.href.includes('/css/wwm-visual-standard.css'));
-        const expectedTail = [referenceLink, responsiveLink, visualStandardLink].filter(Boolean);
+        const smartLayoutLink = links.find((item) => item.href.includes('/css/wwm-smart-layout.css'));
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink].filter(Boolean);
         const stylesheetTail = links.slice(-expectedTail.length);
         const alreadyOrdered = expectedTail.length >= 2
             && stylesheetTail.every((item, index) => item === expectedTail[index]);
@@ -29,6 +49,9 @@
         document.head.append(referenceLink, responsiveLink);
         if (visualStandardLink) {
             document.head.append(visualStandardLink);
+        }
+        if (smartLayoutLink) {
+            document.head.append(smartLayoutLink);
         }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
@@ -74,6 +97,7 @@
         document.body.classList.add(`wwm-page-${page}`);
         document.body.dataset.currentPage = page;
         enforcePortalPalette();
+        ensureSmartLayer();
         keepReferenceThemeLast();
         syncProfile();
     }
@@ -82,6 +106,7 @@
         document.documentElement.setAttribute('data-ui-reference', 'wwm-2026');
         document.body.classList.add('wwm-reference-theme');
         enforcePortalPalette();
+        ensureSmartLayer();
         keepReferenceThemeLast();
         document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');
         document.getElementById('notifications-toggle')?.setAttribute('aria-label', 'Abrir notificações');
@@ -122,8 +147,6 @@
         installObservers();
     }
 
-    // Mesmo motivo de premium-release-v55.js: o script roda no fim do <body>, então
-    // instala imediatamente e só reforça em DOMContentLoaded.
     install();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', install, { once: true });
