@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - gpt72/executive-hardening-20260827
+      - main
 
 permissions:
   contents: read
@@ -41,7 +41,14 @@ jobs:
           test -d css
           test -d js
           test -d icons
+          test -f js/secure-auth-bridge.js
+          test -f js/security-hardening-runtime.js
+          test -f firebase/database.rules.v68.json
+          test -f functions/index.js
+          node --check functions/index.js
+          node --check functions/lib/auth-core.js
+          node --check js/security-hardening-runtime.js
+          node --check js/workflow-policy.js
 
-      - name: Lint baseline (non-blocking until legacy debt is removed)
-        continue-on-error: true
+      - name: Lint
         run: npm run lint:check
