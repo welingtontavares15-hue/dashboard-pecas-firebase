@@ -5,15 +5,19 @@ describe('WWM global responsive system', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const css = fs.readFileSync(path.join(root, 'css/responsive-system.css'), 'utf8');
+    const visualStandard = fs.readFileSync(path.join(root, 'css/wwm-visual-standard.css'), 'utf8');
     const solicitacoes = fs.readFileSync(path.join(root, 'js/solicitacoes.js'), 'utf8');
     const referenceUi = fs.readFileSync(path.join(root, 'js/wwm-reference-ui.js'), 'utf8');
 
-    test('loads the authoritative responsive layer last', () => {
+    test('loads the authoritative responsive and visual layers in the final cascade', () => {
         const referenceIndex = index.indexOf('css/wwm-reference-theme.css');
         const responsiveIndex = index.indexOf('css/responsive-system.css');
+        const visualIndex = index.indexOf('css/wwm-visual-standard.css');
         expect(referenceIndex).toBeGreaterThan(-1);
         expect(responsiveIndex).toBeGreaterThan(referenceIndex);
+        expect(visualIndex).toBeGreaterThan(responsiveIndex);
         expect(referenceUi).toContain('document.head.append(referenceLink, responsiveLink)');
+        expect(referenceUi).toContain('document.head.append(visualStandardLink)');
     });
 
     test('keeps dropdowns above following cards without clipping', () => {
@@ -31,14 +35,42 @@ describe('WWM global responsive system', () => {
         expect(css).toContain('overflow-x: auto !important');
     });
 
+    test('standardizes dashboard preview tables without desktop horizontal scroll', () => {
+        expect(visualStandard).toContain('.wwm-page-dashboard .v59-detail-grid .v59-table-wrap');
+        expect(visualStandard).toContain('overflow-x: hidden !important');
+        expect(visualStandard).toContain('.wwm-page-dashboard .v59-detail-grid .v59-table');
+        expect(visualStandard).toContain('table-layout: fixed !important');
+        expect(visualStandard).toContain('.v59-table--recent .status-badge');
+    });
+
+    test('standardizes report filters, KPI cards and paired panels', () => {
+        expect(visualStandard).toContain('.wwm-page-relatorios .premium-report-filter-grid');
+        expect(visualStandard).toContain('grid-template-columns: repeat(6, minmax(0, 1fr)) !important');
+        expect(visualStandard).toContain('.wwm-page-relatorios .report-summary-card');
+        expect(visualStandard).toContain('.wwm-page-relatorios .reports-two-column');
+        expect(visualStandard).toContain('align-items: stretch !important');
+        expect(visualStandard).toContain('.wwm-page-relatorios .report-panel-card > .card-body');
+        expect(visualStandard).toContain('display: grid !important');
+    });
+
+    test('keeps compact report tables fluid on desktop and scrollable on mobile', () => {
+        expect(visualStandard).toContain('.reports-two-column:not(.report-detail-grid) .dashboard-compact-table');
+        expect(visualStandard).toContain('min-width: 0 !important');
+        expect(visualStandard).toContain('@media (max-width: 760px)');
+        expect(visualStandard).toContain('min-width: 680px !important');
+    });
+
     test('covers desktop, tablet, mobile and short-height viewports', () => {
         ['@media (max-width: 1440px)', '@media (max-width: 1180px)', '@media (max-width: 760px)', '@media (max-width: 520px)', '@media (max-height: 700px)']
             .forEach((query) => expect(css).toContain(query));
         expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+        ['@media (max-width: 1480px)', '@media (max-width: 1180px)', '@media (max-width: 760px)']
+            .forEach((query) => expect(visualStandard).toContain(query));
     });
 
     test('uses the Visão Geral teal surfaces as the global colour standard', () => {
         expect(index).toContain('responsive-system.css?v=20260830b');
+        expect(index).toContain('wwm-visual-standard.css?v=20260830a');
         expect(index).toContain('<meta name="theme-color" content="#004449">');
         expect(css).toContain('--wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25))');
         expect(css).toContain('--cui-surface: var(--wwm-panel-surface)');
