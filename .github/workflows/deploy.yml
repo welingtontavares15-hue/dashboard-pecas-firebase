@@ -36,8 +36,19 @@ jobs:
       - name: Privacy guard
         run: node scripts/redact-technician-fallback.mjs --check
 
-      - name: Lint baseline (non-blocking until legacy debt is removed)
-        continue-on-error: true
+      - name: Validate security runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f js/secure-auth-bridge.js
+          test -f js/security-hardening-runtime.js
+          test -f firebase/database.rules.v68.json
+          test -f functions/index.js
+          node --check functions/index.js
+          node --check functions/lib/auth-core.js
+          node --check js/security-hardening-runtime.js
+
+      - name: Lint
         run: npm run lint:check
 
   deploy:
