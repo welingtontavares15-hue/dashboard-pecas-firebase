@@ -52,7 +52,7 @@ jobs:
           node --check functions/lib/auth-core.js
           node --check js/security-hardening-runtime.js
           node --check js/workflow-policy.js
-          node -e "require('./functions/node_modules/firebase-admin/app'); require('./functions/node_modules/firebase-functions/v2/https')"
+          (cd functions && node -e "require('firebase-admin/app'); require('firebase-functions/v2/https')")
 
       - name: Critical lint
         run: npm run lint:critical
