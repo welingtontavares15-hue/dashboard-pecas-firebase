@@ -15,9 +15,9 @@ const APP_CONFIG = {
     environment: 'production',
 
     /**
-     * Application version aligned with service-worker.js CACHE_VERSION.
+     * Single release identifier. Must match service-worker.js CACHE_VERSION.
      */
-    version: 'v52-history-navigation-master',
+    version: 'v68-security-hardening',
 
     /**
      * Runtime timestamp. A future build pipeline may replace this with a fixed
@@ -31,7 +31,8 @@ const APP_CONFIG = {
         exportCloudStorage: true,
         batchApproval: true,
         offlineDrafts: false,
-        onlineOnly: true
+        onlineOnly: true,
+        serverAuthoritativeAuth: true
     },
 
     isProduction() {
@@ -49,7 +50,7 @@ const APP_CONFIG = {
             : this.features.showLoginCredentials;
 
         if (effectiveEnv === 'production') {
-            return false; // Always blocked in production
+            return false;
         }
         return !!showFlag;
     },
