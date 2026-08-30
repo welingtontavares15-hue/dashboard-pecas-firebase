@@ -37,7 +37,7 @@ describe('Navegação consolidada WWM v66', () => {
     });
 
     test('mantém suporte offline sincronizado com o contrato visual v66', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v69-logo-oficial'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v70-fornecedor-acoes'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");

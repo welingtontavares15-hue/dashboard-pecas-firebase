@@ -586,6 +586,31 @@ body.wwm-reference-theme .filter-panel-body > .btn {
     min-height: 44px;
 }
 
+/* 5) Portal do fornecedor — coluna "Ações": a regra genérica .actions
+      (display:flex) atropelava a intenção original .supplier-actions (grid) e,
+      com .actions .btn-sm forçado a 34px (largura de ícone), os textos
+      "Detalhes"/"PDF" transbordavam do botão e se SOBREPUNHAM um ao outro.
+      Restaura o empilhamento vertical com botões de largura total e texto
+      completo (era o desenho de style.css). */
+body.wwm-reference-theme .supplier-actions {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    justify-items: stretch;
+    align-content: start;
+}
+
+body.wwm-reference-theme .supplier-actions .btn,
+body.wwm-reference-theme .supplier-actions .btn-sm {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 30px;
+    padding: 5px 10px !important;
+    justify-content: center;
+    white-space: nowrap;
+}
+
 /* ==========================================================================
    Logo oficial Diversey — marca (swoosh) + wordmark "Diversey™" + tagline
    verde "A SOLENIS COMPANY". Substitui o emblema legado (caixa com gradiente
