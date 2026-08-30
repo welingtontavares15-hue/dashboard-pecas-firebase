@@ -10,6 +10,7 @@
     "lint": "eslint js/*.js --fix",
     "lint:check": "eslint js/*.js",
     "lint:critical": "eslint js/config.js js/secure-auth-bridge.js js/security-hardening-runtime.js js/workflow-policy.js",
+    "lint:baseline": "node scripts/check-eslint-baseline.mjs",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "firebase:rules:deploy": "npx firebase-tools deploy --only database",
     "firebase:rules:list": "npx firebase-tools login:list",
