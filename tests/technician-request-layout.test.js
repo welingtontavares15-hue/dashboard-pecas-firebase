@@ -1,9 +1,29 @@
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const root = path.resolve(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'css/technician-history.css'), 'utf8');
 const technicianExperience = fs.readFileSync(path.join(root, 'js/technician-experience.js'), 'utf8');
+
+function loadTechnicianApi() {
+  const context = {
+    window: {},
+    document: null,
+    console,
+    setInterval() { return 1; },
+    clearInterval() {},
+    setTimeout(fn) { fn(); }
+  };
+  context.window.setInterval = context.setInterval;
+  context.window.clearInterval = context.clearInterval;
+  context.window.setTimeout = context.setTimeout;
+  context.window.addEventListener = () => {};
+  context.globalThis = context.window;
+  vm.createContext(context);
+  vm.runInContext(technicianExperience, context);
+  return context.window.TechnicianExperience;
+}
 
 describe('Minhas solicitações - layout do técnico', () => {
   test('lista e cards ocupam toda a largura disponível', () => {
@@ -44,6 +64,22 @@ describe('Minhas solicitações - layout do técnico', () => {
     expect(technicianExperience).toContain('fa-eye');
     expect(technicianExperience).toContain('fa-copy');
     expect(technicianExperience).toContain('fa-file-pdf');
+  });
+
+  test('KPIs exibem valor total solicitado e valor solicitado no mês', () => {
+    const api = loadTechnicianApi();
+    const rows = [
+      { id: '1', status: 'pendente', data: '2026-08-12T10:00:00', total: 100, itens: [{ quantidade: 1, valorUnit: 100 }] },
+      { id: '2', status: 'finalizada', data: '2026-08-20T10:00:00', itens: [{ quantidade: 2, valorUnit: 25 }] },
+      { id: '3', status: 'rejeitada', data: '2026-07-31T10:00:00', total: 200, itens: [{ quantidade: 1, valorUnit: 200 }] }
+    ];
+    const summary = api.buildSummary(rows, '2026-08-30T12:00:00');
+    expect(summary.totalValue).toBe(350);
+    expect(summary.monthValue).toBe(150);
+    expect(summary.monthRequests).toBe(2);
+    const html = api.renderSummaryCards(rows, '2026-08-30T12:00:00');
+    expect(html).toContain('Total solicitado');
+    expect(html).toContain('Solicitado no mês');
   });
 
   test('responsividade quebra o rodapé sem largura fixa em tablet e mobile', () => {
