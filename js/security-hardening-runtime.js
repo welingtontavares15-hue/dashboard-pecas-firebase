@@ -72,6 +72,24 @@
         }
     }
 
+    if (typeof CloudStorage !== 'undefined') {
+        CloudStorage.getManagedKeys = function secureManagedKeys() {
+            return allowedCloudKeys();
+        };
+        if (typeof CloudStorage.persistAccessSession === 'function') {
+            CloudStorage.persistAccessSession = async function securePersistAccessSession() { return true; };
+        }
+        if (typeof CloudStorage.ensureAccessSession === 'function') {
+            CloudStorage.ensureAccessSession = async function secureEnsureAccessSession() { return true; };
+        }
+        if (typeof CloudStorage.clearAccessSession === 'function') {
+            CloudStorage.clearAccessSession = async function secureClearAccessSession() {
+                this.accessSession = null;
+                return true;
+            };
+        }
+    }
+
     DataManager.migrateUserPasswords = async function securePasswordMigrationNoop() {
         return false;
     };
