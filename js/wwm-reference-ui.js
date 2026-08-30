@@ -17,13 +17,19 @@
         const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
         const referenceLink = links.find((item) => item.href.includes('/css/wwm-reference-theme.css'));
         const responsiveLink = links.find((item) => item.href.includes('/css/responsive-system.css'));
-        const stylesheetTail = links.slice(-2);
-        const alreadyOrdered = stylesheetTail[0] === referenceLink && stylesheetTail[1] === responsiveLink;
+        const visualStandardLink = links.find((item) => item.href.includes('/css/wwm-visual-standard.css'));
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink].filter(Boolean);
+        const stylesheetTail = links.slice(-expectedTail.length);
+        const alreadyOrdered = expectedTail.length >= 2
+            && stylesheetTail.every((item, index) => item === expectedTail[index]);
         if (!referenceLink || !responsiveLink || alreadyOrdered || orderingTheme) {
             return;
         }
         orderingTheme = true;
         document.head.append(referenceLink, responsiveLink);
+        if (visualStandardLink) {
+            document.head.append(visualStandardLink);
+        }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
         });
