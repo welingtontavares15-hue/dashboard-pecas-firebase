@@ -56,6 +56,13 @@ describe('WWM Smart Layout v67', () => {
         expect(css).toContain('.wwm-history-state-note.is-rejected');
     });
 
+    test('historico preserva selecao durante MutationObserver e evita enriquecimento em loop', () => {
+        expect(runtime).toContain('table.dataset.wwmSelectedIndex = String(selectedIndex)');
+        expect(runtime).toContain("table.dataset.wwmSelectedIndex || '0'");
+        expect(runtime).toContain('detail.dataset.wwmContextKey === contextKey');
+        expect(runtime).toContain('detail.dataset.wwmContextKey = contextKey');
+    });
+
     test('historico e relatorios removem altura artificial e preenchem largura util', () => {
         expect(css).toContain('.wwm-history-summary-grid');
         expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr)) !important');
@@ -70,7 +77,9 @@ describe('WWM Smart Layout v67', () => {
         expect(runtime).toContain('Maior impacto');
         expect(runtime).toContain('Custo dos itens exibidos');
         expect(runtime).toContain('rows.reduce');
+        expect(runtime).toContain("pieces.classList.add('wwm-table-smart', 'wwm-table--compact')");
         expect(css).toContain('.wwm-dashboard-insight');
+        expect(css).toContain('.wwm-table--compact .wwm-column-empty');
     });
 
     test('preserva responsividade e scroll somente quando o viewport exige', () => {
