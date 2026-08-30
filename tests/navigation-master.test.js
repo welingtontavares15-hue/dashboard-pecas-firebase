@@ -36,8 +36,8 @@ describe('Navegação consolidada WWM v66', () => {
         expect(index).toContain('js/premium-release-v55.js');
     });
 
-    test('mantém suporte offline sincronizado com o contrato visual v66', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v70-fornecedor-acoes'");
+    test('mantém suporte offline sincronizado com o contrato visual v71', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v71-visual-integrity'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
@@ -45,6 +45,9 @@ describe('Navegação consolidada WWM v66', () => {
         expect(serviceWorker).toContain("'./css/wwm-reference-theme.css'");
         expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
         expect(serviceWorker).toContain("'./css/brand-slogan.css'");
+        expect(serviceWorker).toContain("'./css/visual-premium-v4.css'");
+        expect(serviceWorker).toContain("'./css/desktop-mobile-premium.css'");
+        expect(serviceWorker).toContain("'./css/visual-integrity-v71.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
     });
 });

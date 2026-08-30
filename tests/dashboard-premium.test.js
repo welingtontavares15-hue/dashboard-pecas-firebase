@@ -47,14 +47,15 @@ describe('Dashboard WWM v66 reference layout', () => {
         expect(page).not.toContain('applyDashboardWwmV57');
     });
 
-    test('mantém responsividade histórica sob o contrato visual v66', () => {
+    test('mantém responsividade histórica sob o contrato visual v71', () => {
         expect(css).toContain('body.wwm-dashboard-v59-active .content-area');
         expect(css).toContain('@media (max-width: 680px)');
         expect(visualStandard).toContain('.wwm-page-dashboard .v59-detail-grid');
         expect(visualStandard).toContain('@media (max-width: 760px)');
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v70-fornecedor-acoes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v71-visual-integrity'");
         expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
+        expect(serviceWorker).toContain("'./css/visual-integrity-v71.css'");
     });
 });

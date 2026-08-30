@@ -9,7 +9,11 @@
         'wwm-page-pecas',
         'wwm-page-tecnicos',
         'wwm-page-fornecedores',
-        'wwm-page-sistema'
+        'wwm-page-sistema',
+        'wwm-page-fornecedor',
+        'wwm-page-perfil',
+        'wwm-page-ajuda',
+        'wwm-page-historico'
     ];
     let orderingTheme = false;
 
@@ -40,6 +44,17 @@
             deviceCss.href = 'css/desktop-mobile-premium.css?v=20260830a';
             deviceCss.dataset.wwmDeviceLayout = 'true';
             document.head.appendChild(deviceCss);
+        }
+    }
+
+    function ensureVisualIntegrityLayer() {
+        let integrityCss = document.querySelector('link[data-wwm-visual-integrity]');
+        if (!integrityCss) {
+            integrityCss = document.createElement('link');
+            integrityCss.rel = 'stylesheet';
+            integrityCss.href = 'css/visual-integrity-v71.css?v=20260830a';
+            integrityCss.dataset.wwmVisualIntegrity = 'true';
+            document.head.appendChild(integrityCss);
         }
     }
 
@@ -79,7 +94,8 @@
         const smartLayoutLink = links.find((item) => item.href.includes('/css/wwm-smart-layout.css'));
         const premiumVisualLink = links.find((item) => item.href.includes('/css/visual-premium-v4.css'));
         const deviceLayoutLink = links.find((item) => item.href.includes('/css/desktop-mobile-premium.css'));
-        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink].filter(Boolean);
+        const visualIntegrityLink = links.find((item) => item.href.includes('/css/visual-integrity-v71.css'));
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink, visualIntegrityLink].filter(Boolean);
         const stylesheetTail = links.slice(-expectedTail.length);
         const alreadyOrdered = expectedTail.length >= 2
             && stylesheetTail.every((item, index) => item === expectedTail[index]);
@@ -99,6 +115,9 @@
         }
         if (deviceLayoutLink) {
             document.head.append(deviceLayoutLink);
+        }
+        if (visualIntegrityLink) {
+            document.head.append(visualIntegrityLink);
         }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
@@ -146,6 +165,7 @@
         enforcePortalPalette();
         ensureSmartLayer();
         ensureDeviceLayoutLayer();
+        ensureVisualIntegrityLayer();
         keepReferenceThemeLast();
         enhanceSolicitationLayout();
         syncProfile();
@@ -157,6 +177,7 @@
         enforcePortalPalette();
         ensureSmartLayer();
         ensureDeviceLayoutLayer();
+        ensureVisualIntegrityLayer();
         keepReferenceThemeLast();
         enhanceSolicitationLayout();
         document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');
