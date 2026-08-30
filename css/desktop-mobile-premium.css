@@ -1,0 +1,338 @@
+/* WWM Desktop + Mobile Premium Refinement
+ * Escopo deliberado: computador (1366/1440+) e celular (360/390/412).
+ * Nao altera dados, Firebase, autenticacao, permissoes ou regras de negocio.
+ */
+
+body.visual-premium-v4.wwm-reference-theme {
+    --dm-gap: 16px;
+    --dm-mobile-gap: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Solicitacoes - desktop
+   -------------------------------------------------------------------------- */
+body.visual-premium-v4.wwm-page-solicitacoes .filters-bar {
+    display: grid !important;
+    grid-template-columns: minmax(270px, 1.5fr) repeat(4, minmax(132px, 1fr)) auto !important;
+    gap: 12px !important;
+    align-items: end !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes .filters-bar > * {
+    min-width: 0;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes .filters-bar .search-box {
+    width: auto !important;
+    max-width: none !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes .filters-bar > .btn {
+    min-height: 42px;
+    align-self: end;
+    white-space: nowrap;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    min-width: 1010px !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td) {
+    position: static !important;
+    padding: 10px 8px !important;
+    vertical-align: middle !important;
+    box-shadow: none !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(1) { width: 15%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(2) { width: 15%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(3) { width: 14%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(4) { width: 20%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(5) { width: 11%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(6) { width: 11%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(7) { width: 10%; }
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(8) { width: 132px; }
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table :is(th, td):is(:nth-child(1), :nth-child(5), :nth-child(6), :nth-child(7), :nth-child(8)) {
+    white-space: nowrap !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table td:is(:nth-child(2), :nth-child(3), :nth-child(4)) {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .actions {
+    justify-content: flex-end !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+}
+
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .actions .btn-sm,
+body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .premium-row-menu > summary {
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+}
+
+/* Notebook 1366: grade deterministica 3 x 2, evitando linha 4 + 2. */
+@media (min-width: 768px) and (max-width: 1399px) {
+    body.visual-premium-v4.wwm-page-solicitacoes .filters-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Solicitacoes - celular
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-page-title {
+        gap: 10px !important;
+        margin-bottom: 14px !important;
+        padding-bottom: 12px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .btn-success {
+        grid-column: 1;
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .wwm-export-action {
+        grid-column: 2;
+        display: inline-flex !important;
+        width: 44px;
+        min-width: 44px;
+        height: 42px;
+        padding: 0 !important;
+        justify-content: center;
+        font-size: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .wwm-export-action i {
+        font-size: 14px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .action-menu {
+        grid-column: 3;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .action-menu > summary {
+        display: inline-flex;
+        width: 44px;
+        min-width: 44px;
+        height: 42px;
+        padding: 0 !important;
+        align-items: center;
+        justify-content: center;
+        font-size: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .page-actions > .action-menu > summary i {
+        font-size: 14px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .filter-context-summary {
+        gap: 8px !important;
+        margin-bottom: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .filter-panel {
+        margin-bottom: 12px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .filters-bar {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .filters-bar > .btn {
+        width: 100%;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-card {
+        min-height: 96px !important;
+        padding: 12px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-icon {
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        min-height: 34px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-content {
+        min-width: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-content h4 {
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-value {
+        font-size: 22px !important;
+        line-height: 1.05 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .wwm-solicitation-kpis .kpi-change {
+        font-size: 9.5px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .card:has(#sol-table-container) {
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes .card:has(#sol-table-container) > .card-body {
+        padding: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table-info {
+        margin: 0 0 10px !important;
+        padding: 0 2px !important;
+        color: var(--vp-muted) !important;
+        font-size: 11px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table-container {
+        overflow: visible !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        table-layout: auto !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table thead {
+        display: none !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody {
+        display: grid !important;
+        gap: var(--dm-mobile-gap) !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody tr {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        gap: 8px 14px !important;
+        padding: 14px !important;
+        border: 1px solid var(--vp-line) !important;
+        border-radius: 14px !important;
+        background: linear-gradient(180deg, rgba(6, 60, 64, .82), rgba(4, 43, 49, .92)) !important;
+        box-shadow: 0 12px 30px rgba(0, 9, 18, .18) !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td {
+        position: static !important;
+        display: grid !important;
+        grid-template-columns: 88px minmax(0, 1fr) !important;
+        gap: 8px !important;
+        width: auto !important;
+        max-width: none !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #e9f4f4 !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td::before {
+        content: attr(data-label);
+        color: var(--vp-muted);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .055em;
+        text-transform: uppercase;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Nº"] {
+        grid-column: 1 / -1;
+        display: block !important;
+        padding-bottom: 8px !important;
+        border-bottom: 1px solid rgba(128, 206, 201, .13) !important;
+        color: #fff !important;
+        font-size: 14px !important;
+        white-space: nowrap !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Nº"]::before {
+        display: none !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Peça"],
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Itens/Peças"],
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Cliente"],
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Técnico"] {
+        grid-column: 1 / -1;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Valor"],
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Data"],
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Status"] {
+        white-space: nowrap !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Ações"] {
+        grid-column: 1 / -1;
+        display: flex !important;
+        justify-content: flex-end !important;
+        padding-top: 10px !important;
+        border-top: 1px solid rgba(128, 206, 201, .13) !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .table tbody td[data-label="Ações"]::before {
+        display: none !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .actions {
+        width: 100% !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+    }
+
+    body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .pagination {
+        margin-top: 14px !important;
+    }
+}
