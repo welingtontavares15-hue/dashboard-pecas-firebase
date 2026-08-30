@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release WWM v66 reference layout', () => {
+describe('Release WWM reference layout', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
@@ -68,8 +68,8 @@ describe('Release WWM v66 reference layout', () => {
         expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
     });
 
-    test('publica cache v66 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v66-visual-system'");
+    test('publica cache da release atual com os ativos críticos e de segurança', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v68-security-hardening'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -82,7 +82,9 @@ describe('Release WWM v66 reference layout', () => {
             './css/responsive-system.css',
             './css/brand-slogan.css',
             './css/wwm-visual-standard.css',
-            './js/wwm-reference-ui.js'
+            './js/wwm-reference-ui.js',
+            './js/secure-auth-bridge.js',
+            './js/security-hardening-runtime.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
     });
