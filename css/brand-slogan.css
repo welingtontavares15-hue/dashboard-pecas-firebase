@@ -1,0 +1,10 @@
+/* Padrao corporativo do slogan Diversey / Solenis.
+   Escopo intencionalmente restrito ao texto "A SOLENIS COMPANY". */
+body.wwm-reference-theme .logo-subtitle,
+body.wwm-reference-theme #login-screen .wwm-brand-copy span,
+body.wwm-reference-theme #login-screen .premium-login-brand-meta span {
+    color: var(--wwm-teal-400, #16d2c2) !important;
+    font-weight: 800 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+}
