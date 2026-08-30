@@ -515,3 +515,73 @@ body.visual-premium-v4 :is(button, a, input, select, textarea):focus-visible {
         animation-iteration-count: 1 !important;
     }
 }
+
+/* ==========================================================================
+   Correções de coesão v4.1 — alinhamento, padronização e telas quebradas
+   1) O shell do app herdava o teal claro de .app-container (wwm-reference-theme)
+      e ignorava o fundo premium do v4: login ficava escuro e o app claro.
+   2) O valor do KPI (.v59-kpi > strong, 26px) estourava a caixa de ~130px e
+      invadia o card vizinho ("R$ 732.158,80").
+   3) Tabelas-resumo do dashboard no mobile quebravam a data no meio
+      ("23/08/202" + "6") por falta de nowrap/rolagem.
+   ========================================================================== */
+
+/* 1) Fundo do app shell: teal profundo, coeso com o login e a referência WWM. */
+body.visual-premium-v4 .app-container {
+    background:
+        radial-gradient(circle at 85% 6%, rgba(23, 184, 173, .10), transparent 30%),
+        linear-gradient(160deg, #012a2e 0%, #01383b 55%, #02474a 100%) !important;
+}
+
+/* 2) KPI do dashboard: caixa do valor mais folgada e valor fluido que cabe
+      mesmo no layout de 4 colunas (card ~254px). */
+body.visual-premium-v4 .v59-kpi {
+    padding: 20px 16px 18px 82px !important;
+}
+
+body.visual-premium-v4 .v59-kpi-top i {
+    left: 16px !important;
+    width: 52px !important;
+    height: 52px !important;
+}
+
+body.visual-premium-v4 .v59-kpi > strong {
+    font-size: clamp(18px, 1.35vw, 24px) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -.02em !important;
+    overflow-wrap: normal;
+}
+
+/* Rótulos da faixa de status secundária não devem transbordar a célula. */
+body.visual-premium-v4 .v59-status {
+    min-width: 0;
+}
+
+body.visual-premium-v4 .v59-status span,
+body.visual-premium-v4 .v59-status small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* 3) Tabelas-resumo do dashboard: datas, ids e valores em UMA linha.
+      A camada wwm-visual-standard aplicava overflow-wrap:anywhere nessas
+      células (0,4,2) e quebrava "23/08/2026" em "23/08/202" + "6" e
+      "#WR-2026-0209" no meio. Aqui só as células numéricas/data/id ficam
+      nowrap (as de texto continuam podendo quebrar); a tabela já rola na
+      horizontal quando falta largura. Especificidade (0,5,1) para vencer. */
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table :is(.wwm-cell-date, .wwm-cell-id, .wwm-cell-money, .wwm-cell-number),
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table :is(.wwm-cell-date, .wwm-cell-id, .wwm-cell-money, .wwm-cell-number) strong {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+}
+
+/* 4) Botão "Limpar" dos filtros: no grid de filtros ele esticava como uma
+      coluna inteira (barra larga, sozinho na 2ª linha). Vira botão de largura
+      natural, alinhado à base da linha — vale p/ Solicitações e Aprovações. */
+body.wwm-reference-theme .filters-bar > .btn,
+body.wwm-reference-theme .filter-panel-body > .btn {
+    justify-self: start;
+    align-self: end;
+    width: auto;
+    min-height: 44px;
+}
