@@ -47,14 +47,14 @@
         }
     }
 
-    function ensureVisualIntegrityLayer() {
-        let integrityCss = document.querySelector('link[data-wwm-visual-integrity]');
-        if (!integrityCss) {
-            integrityCss = document.createElement('link');
-            integrityCss.rel = 'stylesheet';
-            integrityCss.href = 'css/visual-integrity-v71.css?v=20260830a';
-            integrityCss.dataset.wwmVisualIntegrity = 'true';
-            document.head.appendChild(integrityCss);
+    function ensureVisualArchitectureLayer() {
+        let architectureCss = document.querySelector('link[data-wwm-visual-architecture]');
+        if (!architectureCss) {
+            architectureCss = document.createElement('link');
+            architectureCss.rel = 'stylesheet';
+            architectureCss.href = 'css/visual-architecture-v72.css?v=20260830a';
+            architectureCss.dataset.wwmVisualArchitecture = 'true';
+            document.head.appendChild(architectureCss);
         }
     }
 
@@ -94,8 +94,8 @@
         const smartLayoutLink = links.find((item) => item.href.includes('/css/wwm-smart-layout.css'));
         const premiumVisualLink = links.find((item) => item.href.includes('/css/visual-premium-v4.css'));
         const deviceLayoutLink = links.find((item) => item.href.includes('/css/desktop-mobile-premium.css'));
-        const visualIntegrityLink = links.find((item) => item.href.includes('/css/visual-integrity-v71.css'));
-        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink, visualIntegrityLink].filter(Boolean);
+        const visualArchitectureLink = links.find((item) => item.href.includes('/css/visual-architecture-v72.css'));
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink, visualArchitectureLink].filter(Boolean);
         const stylesheetTail = links.slice(-expectedTail.length);
         const alreadyOrdered = expectedTail.length >= 2
             && stylesheetTail.every((item, index) => item === expectedTail[index]);
@@ -116,8 +116,8 @@
         if (deviceLayoutLink) {
             document.head.append(deviceLayoutLink);
         }
-        if (visualIntegrityLink) {
-            document.head.append(visualIntegrityLink);
+        if (visualArchitectureLink) {
+            document.head.append(visualArchitectureLink);
         }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
@@ -165,7 +165,7 @@
         enforcePortalPalette();
         ensureSmartLayer();
         ensureDeviceLayoutLayer();
-        ensureVisualIntegrityLayer();
+        ensureVisualArchitectureLayer();
         keepReferenceThemeLast();
         enhanceSolicitationLayout();
         syncProfile();
@@ -173,11 +173,12 @@
 
     function enrichShell() {
         document.documentElement.setAttribute('data-ui-reference', 'wwm-2026');
+        document.documentElement.setAttribute('data-visual-architecture', 'v72');
         document.body.classList.add('wwm-reference-theme');
         enforcePortalPalette();
         ensureSmartLayer();
         ensureDeviceLayoutLayer();
-        ensureVisualIntegrityLayer();
+        ensureVisualArchitectureLayer();
         keepReferenceThemeLast();
         enhanceSolicitationLayout();
         document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');

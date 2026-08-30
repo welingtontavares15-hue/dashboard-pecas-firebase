@@ -1,0 +1,484 @@
+/* WWM Visual Architecture v72
+ * Authoritative final visual layer for desktop, notebook, tablet and mobile.
+ * Consolidates viewport containment and responsive exceptions without changing
+ * Firebase, authentication, permissions, data or business rules.
+ */
+
+html,
+body.visual-premium-v4.wwm-reference-theme {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(
+    .app-container,
+    .main-content,
+    .main-header,
+    .header-left,
+    .header-actions,
+    .header-search-zone,
+    .header-controls,
+    .content-area,
+    #content-area,
+    .page-container,
+    .page-content,
+    .card,
+    .card-body,
+    .filter-panel,
+    .page-filters,
+    .premium-report-filter-shell,
+    .table-container,
+    .v59-table-wrap,
+    .dashboard-compact-table,
+    .chart-container
+) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+body.visual-premium-v4.wwm-reference-theme .main-header {
+    width: 100%;
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(.header-left, .header-actions) {
+    min-width: 0 !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(img, video, canvas) {
+    max-width: 100%;
+}
+
+body.visual-premium-v4.wwm-reference-theme svg:not(.dvy-mark svg) {
+    max-width: 100%;
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(
+    .page-actions,
+    .corporate-page-actions,
+    .header-actions-row,
+    .v59-hero-actions,
+    .modal-footer
+) {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
+/* Operational tables scroll inside their own surface, never the document. */
+body.visual-premium-v4.wwm-reference-theme :is(
+    .table-container,
+    .v59-table-wrap,
+    .dashboard-compact-table,
+    .corporate-grid-shell,
+    .premium-table-shell
+) {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(.wwm-cell-date, .wwm-cell-id, .wwm-cell-money, .wwm-cell-number) {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+/* Destructive system actions are visually separated from normal configuration. */
+body.visual-premium-v4.wwm-reference-theme.wwm-page-sistema .card:has(.btn-danger) {
+    border-color: color-mix(in srgb, #ef4444 38%, transparent) !important;
+    background: linear-gradient(180deg, color-mix(in srgb, #ef4444 5%, transparent), transparent 84%) !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-sistema .card:has(.btn-danger) .btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-sistema .card:has(.btn-danger) .btn-danger {
+    margin-inline-start: auto;
+}
+
+/* Overlays remain inside the active viewport. */
+body.visual-premium-v4.wwm-reference-theme .notification-panel {
+    right: 12px;
+    width: min(420px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+}
+
+body.visual-premium-v4.wwm-reference-theme .modal-container {
+    max-width: 100vw;
+    overflow: hidden;
+}
+
+body.visual-premium-v4.wwm-reference-theme .modal-content {
+    width: min(920px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+}
+
+body.visual-premium-v4.wwm-reference-theme :is(
+    .premium-multi-filter-popover,
+    .status-filter-dropdown,
+    .action-menu-dropdown
+) {
+    max-width: min(360px, calc(100vw - 24px));
+}
+
+/* Supplier actions stay readable and contained. */
+body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor :is(
+    .supplier-header,
+    .supplier-filters-bar,
+    .supplier-summary-grid,
+    .supplier-summary-card,
+    .table-container
+) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor .supplier-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+    width: 100%;
+    min-width: 112px;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor .supplier-actions :is(.btn, .btn-sm) {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 36px !important;
+    padding: 7px 10px !important;
+    white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+    body.visual-premium-v4.wwm-reference-theme .main-header {
+        gap: 10px;
+        padding-inline: 14px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-left {
+        flex: 0 1 auto;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-actions {
+        flex: 1 1 auto;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-profile {
+        min-width: 44px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .premium-report-filter-grid,
+        .wwm-smart-filter-grid,
+        .filters-bar,
+        .supplier-filters-bar
+    ) > * {
+        min-width: 0 !important;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 767px) {
+    body.visual-premium-v4.wwm-reference-theme {
+        min-width: 320px;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .main-header {
+        min-height: 60px;
+        height: auto !important;
+        padding: 7px 9px !important;
+        gap: 6px;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-left {
+        flex: 0 0 auto;
+        min-width: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .mobile-nav-buttons {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 4px;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-actions {
+        flex: 1 1 auto;
+        min-width: 0 !important;
+        justify-content: flex-end;
+        gap: 4px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-search-zone,
+    body.visual-premium-v4.wwm-reference-theme .header-profile-meta,
+    body.visual-premium-v4.wwm-reference-theme .header-profile-chevron {
+        display: none !important;
+    }
+
+    /* Keep a compact sync control visible on mobile instead of hiding status entirely. */
+    body.visual-premium-v4.wwm-reference-theme .sync-status {
+        display: flex !important;
+        flex: 0 0 auto;
+        min-width: 40px !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .sync-status > span {
+        display: none !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-controls {
+        min-width: 0;
+        gap: 4px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-controls > * + * {
+        padding-left: 0 !important;
+        border-left: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .btn-icon,
+        .header-profile,
+        .sync-status .btn-icon,
+        #notifications-toggle
+    ) {
+        min-width: 40px !important;
+        min-height: 40px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .header-profile {
+        width: 40px;
+        padding: 2px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(.content-area, #content-area) {
+        width: 100%;
+        max-width: 100%;
+        padding: 14px 12px 28px !important;
+        overflow-x: clip;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .wwm-page-title,
+        .page-header,
+        .corporate-page-header,
+        .reports-header-compact,
+        .supplier-header
+    ) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        align-items: start !important;
+        gap: 10px !important;
+        width: 100%;
+    }
+
+    /* Shared actions stack, except Solicitações which has a deliberate compact toolbar. */
+    body.visual-premium-v4.wwm-reference-theme:not(.wwm-page-solicitacoes) :is(
+        .page-actions,
+        .corporate-page-actions,
+        .header-actions-row,
+        .v59-hero-actions
+    ) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px !important;
+        width: 100%;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme:not(.wwm-page-solicitacoes) :is(
+        .page-actions,
+        .corporate-page-actions,
+        .header-actions-row,
+        .v59-hero-actions
+    ) > :is(.btn, button, .action-menu) {
+        width: 100%;
+        min-width: 0;
+    }
+
+    /* Preserve the compact 1fr + icon + menu composition defined for Solicitações. */
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes .page-actions {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes .page-actions > .btn-success {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes .page-actions > :is(.wwm-export-action, .action-menu) {
+        width: auto !important;
+        min-width: 44px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .premium-report-filter-grid,
+        .wwm-smart-filter-grid,
+        .filters-bar,
+        .supplier-filters-bar,
+        .settings-grid,
+        .system-grid,
+        .config-grid
+    ) {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    /* Keep decision KPIs scannable as 2x2 even on 360/390/412px devices. */
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .kpi-grid,
+        .report-kpi-grid,
+        .reports-summary-grid,
+        .page-kpis,
+        .supplier-summary-grid,
+        .wwm-solicitation-kpis
+    ) {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .table-container,
+        .premium-table-shell,
+        .corporate-grid-shell
+    ) {
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, .18);
+        background:
+            linear-gradient(90deg, rgba(255,255,255,.04), transparent 18px) 0 0 / 28px 100% no-repeat,
+            var(--card-bg, rgba(8, 31, 38, .82));
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .wwm-page-aprovacoes,
+        .wwm-page-pecas,
+        .wwm-page-tecnicos,
+        .wwm-page-fornecedores
+    ) .table-container > .table {
+        min-width: 700px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .report-tabs-modern {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .report-tabs-modern > * {
+        flex: 0 0 auto;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .notification-panel {
+        top: 66px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        max-width: none;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .modal-container {
+        padding: 8px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .modal-content {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(100dvh - 16px);
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .modal-body {
+        max-height: calc(100dvh - 150px);
+        overflow: auto;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor .supplier-actions {
+        min-width: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-sistema .card:has(.btn-danger) .btn-group {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-sistema .card:has(.btn-danger) .btn-danger {
+        margin-inline-start: 0;
+    }
+}
+
+@media (max-width: 520px) {
+    /* v72 intentionally keeps KPI grids at two columns; v71's 1-column override is removed. */
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .kpi-grid,
+        .report-kpi-grid,
+        .reports-summary-grid,
+        .page-kpis,
+        .supplier-summary-grid,
+        .wwm-solicitation-kpis
+    ) {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(.card-header, .compact-card-header, .v59-card-head) {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor .supplier-actions {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .premium-multi-filter-popover,
+        .status-filter-dropdown,
+        .action-menu-dropdown
+    ) {
+        left: 0;
+        right: auto;
+        width: min(320px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+    }
+}
+
+@media (max-width: 360px) {
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .kpi-grid,
+        .report-kpi-grid,
+        .reports-summary-grid,
+        .page-kpis,
+        .supplier-summary-grid,
+        .wwm-solicitation-kpis
+    ) {
+        gap: 8px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme :is(
+        .kpi-card,
+        .report-kpi,
+        .supplier-summary-card
+    ) {
+        padding-inline: 10px !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.visual-premium-v4.wwm-reference-theme *,
+    body.visual-premium-v4.wwm-reference-theme *::before,
+    body.visual-premium-v4.wwm-reference-theme *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}
