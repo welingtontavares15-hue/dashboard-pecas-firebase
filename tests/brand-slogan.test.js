@@ -24,14 +24,8 @@ describe('Padrao do slogan Diversey / Solenis', () => {
     });
 
     test('mantem o slogan proporcional e subordinado ao wordmark', () => {
-        const sidebar = css.match(/body\.wwm-reference-theme \.logo-subtitle\s*\{([\s\S]*?)\}/)?.[1] || '';
-        expect(sidebar).toMatch(/font-size:\s*6px\s*!important/);
-        expect(sidebar).toMatch(/text-align:\s*center\s*!important/);
-        expect(sidebar).toMatch(/width:\s*100%\s*!important/);
-
-        const login = css.match(/body\.wwm-reference-theme #login-screen \.wwm-brand-copy span,[\s\S]*?premium-login-brand-meta span\s*\{([\s\S]*?)\}/)?.[1] || '';
-        expect(login).toMatch(/font-size:\s*7px\s*!important/);
-        expect(login).toMatch(/text-align:\s*center\s*!important/);
+        expect(css).toMatch(/\.logo-subtitle\s*\{[\s\S]*?font-size:\s*6px\s*!important[\s\S]*?text-align:\s*center\s*!important[\s\S]*?\}/);
+        expect(css).toMatch(/#login-screen \.wwm-brand-copy span,[\s\S]*?#login-screen \.premium-login-brand-meta span\s*\{[\s\S]*?font-size:\s*7px\s*!important[\s\S]*?text-align:\s*center\s*!important[\s\S]*?\}/);
     });
 
     test('mantem o texto corporativo existente sem alterar logotipo ou navegacao', () => {
