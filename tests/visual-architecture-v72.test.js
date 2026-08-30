@@ -3,13 +3,17 @@ const path = require('path');
 
 describe('WWM visual architecture v72', () => {
     const root = path.resolve(__dirname, '..');
+    const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const css = fs.readFileSync(path.join(root, 'css/visual-architecture-v72.css'), 'utf8');
     const referenceUi = fs.readFileSync(path.join(root, 'js/wwm-reference-ui.js'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('makes v72 the authoritative final visual layer', () => {
+    test('makes v72 explicit in the HTML entrypoint and keeps JS as ordering fallback', () => {
+        expect(index).toContain('css/visual-architecture-v72.css?v=20260830b');
+        expect(index).toContain('data-wwm-visual-architecture="true"');
+        expect(index.indexOf('css/visual-premium-v4.css')).toBeLessThan(index.indexOf('css/visual-architecture-v72.css'));
+        expect(index).toContain('js/wwm-reference-ui.js?v=20260830b');
         expect(referenceUi).toContain('ensureVisualArchitectureLayer');
-        expect(referenceUi).toContain("architectureCss.href = 'css/visual-architecture-v72.css?v=20260830a'");
         expect(referenceUi).toContain('visualArchitectureLink');
         expect(referenceUi).toContain('document.head.append(visualArchitectureLink)');
         expect(referenceUi).toContain("data-visual-architecture', 'v72'");
