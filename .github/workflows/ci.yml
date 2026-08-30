@@ -50,5 +50,11 @@ jobs:
           node --check js/security-hardening-runtime.js
           node --check js/workflow-policy.js
 
-      - name: Lint
-        run: npm run lint:check
+      - name: Critical lint
+        run: npm run lint:critical
+
+      - name: Legacy lint non-regression
+        run: npm run lint:baseline
+
+      - name: Production dependency audit
+        run: npm run audit:production
