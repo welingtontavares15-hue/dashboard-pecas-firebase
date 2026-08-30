@@ -54,7 +54,7 @@ describe('Dashboard WWM v66 reference layout', () => {
         expect(visualStandard).toContain('@media (max-width: 760px)');
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v66-visual-system'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v67-visual-align'");
         expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
     });
 });

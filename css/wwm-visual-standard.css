@@ -645,7 +645,115 @@ body.wwm-reference-theme.wwm-page-sistema :is(.settings-grid, .system-grid, .con
     gap: var(--wwm-layout-gap) !important;
 }
 
-/* ========================================================================== 
+/* ==========================================================================
+   v67.1 — Alinhamento e padronizacao (correcoes visuais)
+   ========================================================================== */
+
+/* --- Rosca "Distribuicao por status": nunca sufocar a legenda -------------
+   O cartao da direita e estreito (.75fr); a rosca fixa em 190px deixava a
+   legenda com ~147px e cortava rotulos ("Finalizada"). Vira flex que quebra:
+   lado a lado quando ha espaco, legenda abaixo (largura total) quando aperta. */
+body.wwm-reference-theme .v59-chart-box.is-donut {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 16px 24px;
+    height: auto;
+    min-height: clamp(210px, 23vw, 300px);
+}
+body.wwm-reference-theme .v59-chart-box.is-donut .v59-donut-wrap {
+    flex: 0 0 auto;
+    width: clamp(148px, 44%, 190px);
+    height: clamp(148px, 44%, 190px);
+    margin-inline: auto;
+}
+body.wwm-reference-theme .v59-chart-box.is-donut .v59-donut-legend {
+    flex: 1 1 190px;
+    min-width: 170px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    align-content: center;
+    gap: 9px 18px;
+}
+body.wwm-reference-theme .v59-donut-legend li {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    column-gap: 8px;
+}
+body.wwm-reference-theme .v59-legend-label {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.wwm-reference-theme .v59-legend-value {
+    white-space: nowrap;
+    justify-self: end;
+}
+
+/* --- Tabela de Solicitacoes: caber no desktop -----------------------------
+   A coluna Acoes (sticky right) cobria a coluna Data porque a tabela
+   transbordava (1124px num container de 1027px) e ficava rolada a esquerda.
+   Solucao deterministica: largura 100% + truncar so as colunas de texto
+   (Tecnico/Cliente/Peca). Assim a tabela cabe, o sticky fica inerte e nada
+   se sobrepoe. Em telas estreitas volta a rolar com as bordas fixadas. */
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table-container > .table {
+    width: 100%;
+    min-width: 0;
+}
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td) {
+    padding-inline: 8px;
+    white-space: nowrap;
+}
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(4)) {
+    max-width: 172px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Acoes compactas: 2 botoes visiveis + menu; evita a coluna inflar e cobrir a Data */
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .actions {
+    gap: 4px;
+}
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):last-child {
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+}
+
+/* Datas nunca cortam em nenhuma tabela densa */
+body.wwm-reference-theme :is(.wwm-cell-date, .wwm-cell-id) { white-space: nowrap; }
+
+/* --- Padronizacao da caixa de busca (Pecas e afins) -----------------------
+   O botao de busca era .btn-primary (vira pastilha branca no tema) e o
+   .search-box o empilhava em largura total -> barra branca gigante. Agora
+   fica inline e como botao teal quadrado, alinhado aos demais filtros. */
+body.wwm-reference-theme .filters-bar .search-box {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+}
+body.wwm-reference-theme .filters-bar .search-box .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+body.wwm-reference-theme .filters-bar .search-box > .btn {
+    flex: 0 0 auto;
+    width: var(--wwm-control-height-standard);
+    min-width: var(--wwm-control-height-standard);
+    height: var(--wwm-control-height-standard);
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, var(--wwm-teal-400, #16d2c2), var(--wwm-teal-600, #0b948b)) !important;
+    color: #052b2b !important;
+    border: none !important;
+    box-shadow: 0 8px 18px -10px rgba(11, 148, 139, .8) !important;
+}
+body.wwm-reference-theme .filters-bar .search-box > .btn:hover {
+    filter: brightness(1.05);
+}
+
+/* ==========================================================================
    Breakpoints
    ========================================================================== */
 @media (max-width: 1480px) {

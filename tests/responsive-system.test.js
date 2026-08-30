@@ -81,7 +81,7 @@ describe('WWM global responsive system v66', () => {
 
     test('uses the Visão Geral teal surfaces as the global colour standard', () => {
         expect(index).toContain('responsive-system.css?v=20260830b');
-        expect(index).toContain('wwm-visual-standard.css?v=20260830b');
+        expect(index).toContain('wwm-visual-standard.css?v=20260830c');
         expect(index).toContain('<meta name="theme-color" content="#004449">');
         expect(css).toContain('--wwm-panel-gradient: linear-gradient(160deg, rgba(4, 86, 91, .46), rgba(0, 62, 72, .25))');
         expect(css).toContain('--cui-surface: var(--wwm-panel-surface)');

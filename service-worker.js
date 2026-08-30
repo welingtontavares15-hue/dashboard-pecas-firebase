@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v66-visual-system';
+const CACHE_VERSION = 'v67-visual-align';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
