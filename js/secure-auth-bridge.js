@@ -9,7 +9,9 @@ async function waitForFirebaseApp(timeoutMs = 15000) {
         if (window.FirebaseInit && !window.FirebaseInit.isInitialized) {
             await window.FirebaseInit.init();
         }
-        if (window.firebaseApp) return window.firebaseApp;
+        if (window.firebaseApp) {
+            return window.firebaseApp;
+        }
         if ((Date.now() - startedAt) >= timeoutMs) {
             throw new Error('firebase_app_timeout');
         }
@@ -61,7 +63,9 @@ const SecureAuthBridge = {
     },
 
     async refreshProfile() {
-        if (!this.isCorporateAuthenticated()) return null;
+        if (!this.isCorporateAuthenticated()) {
+            return null;
+        }
         const { functions } = await this.getContext();
         const callable = httpsCallable(functions, 'getCurrentProfile');
         const response = await callable({});
