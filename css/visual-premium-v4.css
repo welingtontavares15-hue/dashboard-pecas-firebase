@@ -585,3 +585,92 @@ body.wwm-reference-theme .filter-panel-body > .btn {
     width: auto;
     min-height: 44px;
 }
+
+/* ==========================================================================
+   Logo oficial Diversey — marca (swoosh) + wordmark "Diversey™" + tagline
+   verde "A SOLENIS COMPANY". Substitui o emblema legado (caixa com gradiente
+   azul→verde de .brand-emblem) e a fonte genérica do wordmark, em TODAS as
+   telas (sidebar + login). !important para vencer as camadas legadas.
+   ========================================================================== */
+body .dvy-logo {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+body .dvy-mark {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+body .dvy-mark::before,
+body .dvy-mark::after {
+    content: none !important;
+    display: none !important;
+}
+
+body .dvy-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+body .dvy-lockup {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    min-width: 0;
+}
+
+body .dvy-word {
+    font-family: 'Baloo 2', 'Nunito', 'Manrope', system-ui, sans-serif !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    letter-spacing: .2px !important;
+    line-height: 1 !important;
+    text-transform: none !important;
+    white-space: nowrap;
+}
+
+body .dvy-word sup {
+    font-size: .34em;
+    font-weight: 700;
+    vertical-align: super;
+    margin-left: 2px;
+    letter-spacing: 0;
+}
+
+/* Verde do slogan puxado para o tom "grama" da logo oficial (a camada
+   brand-slogan.css resolve a cor via esta variável, então basta redefini-la
+   — sem duelo de especificidade). */
+body.visual-premium-v4 {
+    --diversey-solenis-slogan: #4cb84a;
+}
+
+body .dvy-tag {
+    color: var(--diversey-solenis-slogan, #4cb84a) !important;
+    font-family: 'Manrope', 'Inter', sans-serif !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap;
+}
+
+/* Tamanhos por contexto */
+body .sidebar-header .dvy-mark { width: 34px; height: 34px; }
+body .sidebar-header .dvy-word { font-size: 21px !important; }
+body .sidebar-header .dvy-tag { font-size: 8px !important; }
+
+body .premium-login-brand .dvy-mark { width: 42px; height: 42px; }
+body .premium-login-brand .dvy-word { font-size: 26px !important; }
+body .premium-login-brand .dvy-tag { font-size: 9.5px !important; }

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v68-visual-cohesion';
+const CACHE_VERSION = 'v69-logo-oficial';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

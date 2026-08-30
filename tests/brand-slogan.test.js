@@ -28,9 +28,11 @@ describe('Padrao do slogan Diversey / Solenis', () => {
         expect(css).toMatch(/#login-screen \.wwm-brand-copy span,[\s\S]*?#login-screen \.premium-login-brand-meta span\s*\{[\s\S]*?font-size:\s*7px\s*!important[\s\S]*?text-align:\s*center\s*!important[\s\S]*?\}/);
     });
 
-    test('mantem o texto corporativo existente sem alterar logotipo ou navegacao', () => {
-        expect(index).toContain('<small class="logo-subtitle">A Solenis Company</small>');
-        expect(index).toContain('<span>A Solenis Company</span>');
+    test('mantem o texto corporativo existente sem alterar navegacao', () => {
+        // Logo oficial Diversey: marca (swoosh SVG) + wordmark "Diversey" + tagline.
+        // O slogan "A Solenis Company" permanece no sidebar e no login.
+        expect(index).toContain('<small class="dvy-tag logo-subtitle">A Solenis Company</small>');
+        expect(index).toContain('<span class="dvy-tag">A Solenis Company</span>');
         expect(css).not.toContain('.logo-title');
         expect(css).not.toContain('.sidebar-brand');
         expect(css).not.toContain('.nav-item');

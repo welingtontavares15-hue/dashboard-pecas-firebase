@@ -69,7 +69,7 @@ describe('Release WWM v66 reference layout', () => {
     });
 
     test('publica cache v66 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v68-visual-cohesion'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v69-logo-oficial'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
