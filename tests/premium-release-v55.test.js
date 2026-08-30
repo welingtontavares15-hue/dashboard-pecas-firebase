@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-describe('Release WWM v66 reference layout', () => {
+describe('Release WWM v72 reference layout', () => {
     const root = path.resolve(__dirname, '..');
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const navigation = fs.readFileSync(path.join(root, 'js/navigation-master-v55.js'), 'utf8');
@@ -15,6 +15,7 @@ describe('Release WWM v66 reference layout', () => {
     const referenceCss = fs.readFileSync(path.join(root, 'css/wwm-reference-theme.css'), 'utf8');
     const responsiveCss = fs.readFileSync(path.join(root, 'css/responsive-system.css'), 'utf8');
     const visualCss = fs.readFileSync(path.join(root, 'css/wwm-visual-standard.css'), 'utf8');
+    const visualArchitecture = fs.readFileSync(path.join(root, 'css/visual-architecture-v72.css'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
     test('mantém o login WWM proporcional à referência', () => {
@@ -37,15 +38,17 @@ describe('Release WWM v66 reference layout', () => {
         expect(navigation).not.toContain("dashboard: { pageId: 'solicitacoes' }");
     });
 
-    test('impede que as camadas legadas sobrescrevam o portal', () => {
+    test('mantém uma camada visual final autoritativa sobre o portal', () => {
         expect(referenceUi).toContain('keepReferenceThemeLast');
         expect(referenceUi).toContain("document.body.classList.remove('light-mode')");
-        expect(referenceUi).toContain('visual-integrity-v71.css');
+        expect(referenceUi).toContain('visual-architecture-v72.css');
+        expect(referenceUi).not.toContain('visual-integrity-v71.css');
         expect(uiModern).toContain("document.body.classList.contains('wwm-reference-theme')");
         expect(referenceCss).toContain('.premium-dashboard-side-nav');
         expect(referenceCss).toContain('display: none !important');
         expect(referenceCss).not.toContain('background: #eef6f6 !important');
         expect(visualCss).toContain('Contrato visual final e compartilhado do portal');
+        expect(visualArchitecture).toContain('WWM Visual Architecture v72');
     });
 
     test('aplica home WWM v59 aprovada e hidratação da base consolidada', () => {
@@ -69,8 +72,8 @@ describe('Release WWM v66 reference layout', () => {
         expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
     });
 
-    test('publica cache v71 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v71-visual-integrity'");
+    test('publica cache v72 com os ativos críticos e a camada visual final', () => {
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v72-visual-architecture'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -85,9 +88,10 @@ describe('Release WWM v66 reference layout', () => {
             './css/wwm-visual-standard.css',
             './css/visual-premium-v4.css',
             './css/desktop-mobile-premium.css',
-            './css/visual-integrity-v71.css',
+            './css/visual-architecture-v72.css',
             './js/wwm-reference-ui.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
+        expect(serviceWorker).not.toContain("'./css/visual-integrity-v71.css'");
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
     });
 });
