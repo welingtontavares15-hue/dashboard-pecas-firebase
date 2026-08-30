@@ -164,7 +164,7 @@ describe('Report filters', () => {
         const clientInput = document.getElementById('report-cliente');
 
         expect(periodSelect).not.toBeNull();
-        expect(Array.from(periodSelect.options).map((option) => option.value)).toEqual(['7', '30', '90', 'custom']);
+        expect(Array.from(periodSelect.options).map((option) => option.value)).toEqual(['7', '30', '90', '180', '365', 'custom']);
         expect(supplierSelect).not.toBeNull();
         expect(clientInput).not.toBeNull();
         expect(clientInput.getAttribute('placeholder')).toBe('Nome do cliente');

@@ -17,7 +17,7 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../relatorios.js?v=20260829c', import.meta.url).href, 'Relatorios');
+    await ensureClassicScript(new URL('../relatorios.js?v=20260830a', import.meta.url).href, 'Relatorios');
     applyEnhancements();
     ready = true;
 }

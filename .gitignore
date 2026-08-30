@@ -6,6 +6,7 @@ npm-debug.log*
 .eslintcache
 
 # Arquivos temporários de harness/preview (não versionar)
+__ui_*
 __*_harness.html
 __*_seed.js
 __ui_debug.html

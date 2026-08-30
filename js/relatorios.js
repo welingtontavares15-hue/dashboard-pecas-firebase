@@ -37,7 +37,11 @@ const Relatorios = {
 
     getDefaultFilters() {
         // Utilize sempre um período dinâmico baseado no intervalo padrão ao invés de um filtro global possivelmente fixo.
-        const defaultRange = AnalyticsHelper.getDefaultRangeDays();
+        // Padroniza o período inicial dos Relatórios em 6 meses (igual ao Dashboard), evitando o
+        // gráfico de evolução mensal quase vazio quando o padrão do sistema é curto (ex.: 30 dias,
+        // que agrupado por mês vira um único ponto). Uma preferência explícita maior é respeitada.
+        const preferredRange = AnalyticsHelper.getDefaultRangeDays();
+        const defaultRange = preferredRange > 30 ? preferredRange : 180;
         const period = AnalyticsHelper.normalizePeriod({ rangeDays: defaultRange });
         return {
             search: '',
@@ -139,6 +143,8 @@ const Relatorios = {
             { value: '7', label: 'Últimos 7 dias' },
             { value: '30', label: 'Últimos 30 dias' },
             { value: '90', label: 'Últimos 90 dias' },
+            { value: '180', label: 'Últimos 6 meses' },
+            { value: '365', label: 'Últimos 12 meses' },
             { value: 'custom', label: 'Personalizado' }
         ];
     },
@@ -151,7 +157,7 @@ const Relatorios = {
             return 'custom';
         }
 
-        return ['7', '30', '90'].includes(activeRange) ? activeRange : 'custom';
+        return ['7', '30', '90', '180', '365'].includes(activeRange) ? activeRange : 'custom';
     },
 
     getReportData() {
