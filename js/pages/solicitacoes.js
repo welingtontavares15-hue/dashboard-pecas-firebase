@@ -11,7 +11,7 @@ export async function ensureLoaded() {
 
     await ensureClassicScript(new URL('../pecas.js?v=20260315i', import.meta.url).href, 'Pecas');
     await ensureClassicScript(new URL('../solicitacoes.js?v=20260811a', import.meta.url).href, 'Solicitacoes');
-    await ensureClassicScript(new URL('../technician-experience.js?v=20260811a', import.meta.url).href, 'TechnicianExperience');
+    await ensureClassicScript(new URL('../technician-experience.js?v=20260830b', import.meta.url).href, 'TechnicianExperience');
 
     ready = true;
 }
