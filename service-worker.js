@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v70-fornecedor-acoes';
+const CACHE_VERSION = 'v71-tabelas-resumo';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
