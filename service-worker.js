@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v72-visual-architecture';
+const CACHE_VERSION = 'v73-tabelas-resumo';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

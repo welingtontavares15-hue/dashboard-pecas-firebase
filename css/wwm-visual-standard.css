@@ -908,3 +908,72 @@ body.wwm-reference-theme .filters-bar .search-box > .btn:hover {
         transition-duration: .01ms !important;
     }
 }
+
+/* ==========================================================================
+   Correções de tabelas-resumo (sobre a arquitetura visual v72)
+   1) Linha de detalhe do dashboard SEMPRE em 1 coluna (largura total): os 6
+      campos de "Solicitações recentes" cabem sem truncar o Nº nem quebrar o
+      nome do técnico. Acima de 1480px o v72 mantinha 2 colunas estreitas e o
+      #REQ-… virava reticências / o técnico quebrava em 2 linhas.
+   2) Células em nowrap + reticências (só o texto longo trunca) e faixas
+      recalibradas para a largura total.
+   3) Relatórios: data, número, custo, quantidade e status nunca quebram no
+      meio do valor (cabeçalho idem — "QUANTIDADE" deixou de virar 2 linhas).
+   4) align-items:start nas linhas de 2 colunas: o cartão mais curto não é
+      esticado, acabando com o vão interno ("muito espaço livre").
+   ========================================================================== */
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid {
+    grid-template-columns: 1fr !important;
+    align-items: start !important;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid > .v59-card {
+    height: auto !important;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table th,
+body.wwm-reference-theme.wwm-page-dashboard .v59-detail-grid .v59-table td {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    overflow-wrap: normal !important;
+}
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(1) { width: 10% !important; }
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(2) { width: 17% !important; }
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(3) { width: 23% !important; }
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(4) { width: 19% !important; }
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(5) { width: 14% !important; }
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent th:nth-child(6) { width: 17% !important; }
+
+body.wwm-reference-theme.wwm-page-dashboard .v59-table--recent .status-badge {
+    white-space: nowrap !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column {
+    align-items: start !important;
+}
+
+/* A linha de TABELAS dos relatórios ("Peças com maior custo" + "Histórico
+   recente") ocupa a largura toda: as 6 colunas do histórico cabem sem esconder
+   a coluna Status atrás da borda do card. Só afeta linhas que contêm tabela
+   (os gráficos seguem lado a lado). */
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:has(.dashboard-compact-table) {
+    grid-template-columns: 1fr !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table {
+    overflow-x: auto !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table .table :is(.wwm-cell-date, .wwm-cell-id, .wwm-cell-money, .wwm-cell-number, .wwm-cell-status),
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table .table thead th {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+
+body.wwm-reference-theme.wwm-page-relatorios .reports-two-column:not(.report-detail-grid) .dashboard-compact-table .table td {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
