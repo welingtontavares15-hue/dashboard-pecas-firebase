@@ -1,12 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="DP - Portal de Pecas WWM">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1f4b99"/>
-      <stop offset="100%" stop-color="#22c55e"/>
+    <linearGradient id="bg" x1="58" y1="40" x2="454" y2="472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06172d"/>
+      <stop offset="0.48" stop-color="#0a2944"/>
+      <stop offset="1" stop-color="#08766f"/>
     </linearGradient>
+    <linearGradient id="edge" x1="72" y1="76" x2="445" y2="446" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9dc7ff" stop-opacity="0.34"/>
+      <stop offset="0.55" stop-color="#1cd8d0" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#38f08f" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="206" y1="345" x2="344" y2="266" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16a6cf"/>
+      <stop offset="0.52" stop-color="#1ed7b3"/>
+      <stop offset="1" stop-color="#51f07f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(423 108) rotate(132) scale(264 250)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38e6cc" stop-opacity="0.46"/>
+      <stop offset="1" stop-color="#38e6cc" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="72" fill="url(#grad)"/>
-  <g fill="#ffffff" font-family="Arial, sans-serif" font-weight="700">
-    <text x="50%" y="55%" font-size="180" text-anchor="middle" dominant-baseline="middle">DP</text>
+
+  <!-- Full-bleed background keeps the icon valid for Android maskable shapes. -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <!-- Premium glass rim, intentionally kept inside the safe zone. -->
+  <rect x="20" y="20" width="472" height="472" rx="118" fill="none" stroke="url(#edge)" stroke-width="5"/>
+  <rect x="29" y="29" width="454" height="454" rx="110" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+
+  <!-- Subtle motion lines. -->
+  <g fill="none" stroke="#36c9db" stroke-opacity="0.18" stroke-width="1.4">
+    <path d="M26 363C119 309 181 316 249 355C322 397 389 392 487 321"/>
+    <path d="M18 382C112 327 180 331 252 371C329 414 399 405 497 336"/>
+    <path d="M13 401C108 348 179 349 256 389C337 431 410 418 501 354"/>
+    <path d="M10 420C105 369 181 366 260 407C344 450 420 431 503 373"/>
   </g>
+
+  <!-- DP monogram. -->
+  <g fill="#ffffff">
+    <path d="M124 148H216C287 148 329 191 329 256C329 322 287 364 216 364H124V148ZM180 199V313H214C251 313 271 293 271 256C271 219 251 199 214 199H180Z"/>
+    <path d="M294 148H381C437 148 470 179 470 225C470 272 437 301 381 301H350V364H294V148ZM350 197V253H377C401 253 414 243 414 225C414 207 401 197 377 197H350Z"/>
+  </g>
+
+  <!-- Integrated leaf/swoosh: innovation + Diversey/Solenis-inspired accent. -->
+  <path d="M205 360C243 318 282 292 348 270C323 319 287 353 225 382C217 375 210 368 205 360Z" fill="url(#leaf)" filter="url(#softGlow)"/>
+  <path d="M211 371C250 348 289 323 333 287" fill="none" stroke="#d8fff1" stroke-opacity="0.82" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Controlled highlight for premium depth. -->
+  <path d="M79 92C161 47 307 38 414 84" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="7" stroke-linecap="round"/>
 </svg>
