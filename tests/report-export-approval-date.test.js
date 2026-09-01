@@ -2,15 +2,16 @@ const fs = require('fs');
 const path = require('path');
 
 describe('Report Excel approval date columns', () => {
-    const source = fs.readFileSync(path.join(__dirname, '../js/lazy/relatorios.js'), 'utf8')
-        .replace(/^\uFEFF?import .*$/m, '')
+    const source = fs.readFileSync(path.join(__dirname, '../js/pages/relatorios-v55.js'), 'utf8')
+        .replace(/^\uFEFF?import .*$/gm, '')
         .replace('export async function ensureLoaded()', 'async function ensureLoaded()')
-        .replace('import.meta.url', "'https://example.test/js/lazy/relatorios.js'");
+        .replace('export function render()', 'function render()')
+        .replace('import.meta.url', "'https://example.test/js/pages/relatorios-v55.js'");
 
     const loadHelpers = (windowMock) => {
         const factory = new Function(
             'window',
-            `${source}; return { transformExportRows, installApprovalDateColumns };`
+            `${source}; return { transformExportRows, installApprovalDateColumns, applyEnhancements };`
         );
         return factory(windowMock);
     };
@@ -48,6 +49,11 @@ describe('Report Excel approval date columns', () => {
                     : null;
             }
         }
+    });
+
+    it('targets the active premium reports loader', () => {
+        expect(source).toContain('installApprovalDateColumns();');
+        expect(source).toContain("../relatorios.js?v=20260901b");
     });
 
     it('replaces generic Data with DataSolicitacao and canonical DataAprovacao', () => {
