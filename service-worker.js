@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v73-tabelas-resumo';
+const CACHE_VERSION = 'v74-custo-por-aprovacao';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -48,6 +48,7 @@ const PRECACHE = {
     './js/pwa.js',
     './js/utils.js',
     './js/analytics-engine.js',
+    './js/analytics-cost-recognition.js',
     './js/logger.js',
     './js/indexeddb-storage.js',
     './js/storage.js',
