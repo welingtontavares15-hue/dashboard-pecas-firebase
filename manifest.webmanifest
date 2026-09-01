@@ -7,7 +7,7 @@
   "background_color": "#ffffff",
   "icons": [
     {
-      "src": "./icons/icon.svg",
+      "src": "./icons/icon.svg?v=20260901-premium-dp",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
