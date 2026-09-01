@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v73-tabelas-resumo';
+const CACHE_VERSION = 'v74-premium-dp-icon';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
