@@ -4,7 +4,8 @@ const path = require('path');
 describe('Report Excel approval date columns', () => {
     const source = fs.readFileSync(path.join(__dirname, '../js/lazy/relatorios.js'), 'utf8')
         .replace(/^\uFEFF?import .*$/m, '')
-        .replace('export async function ensureLoaded()', 'async function ensureLoaded()');
+        .replace('export async function ensureLoaded()', 'async function ensureLoaded()')
+        .replace('import.meta.url', "'https://example.test/js/lazy/relatorios.js'");
 
     const loadHelpers = (windowMock) => {
         const factory = new Function(
