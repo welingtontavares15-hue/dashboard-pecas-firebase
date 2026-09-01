@@ -48,6 +48,7 @@ const PRECACHE = {
     './js/pwa.js',
     './js/utils.js',
     './js/analytics-engine.js',
+    './js/analytics-cost-recognition.js',
     './js/logger.js',
     './js/indexeddb-storage.js',
     './js/storage.js',
