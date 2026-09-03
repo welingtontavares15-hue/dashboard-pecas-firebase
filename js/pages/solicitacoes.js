@@ -6,7 +6,8 @@ export async function ensureLoaded() {
     if (ready
         && typeof window.Solicitacoes !== 'undefined'
         && typeof window.TechnicianExperience !== 'undefined'
-        && typeof window.SolicitacoesDivisaoPatch !== 'undefined') {
+        && typeof window.SolicitacoesDivisaoPatch !== 'undefined'
+        && typeof window.SolicitacoesDivisaoFiltroPatch !== 'undefined') {
         return;
     }
 
@@ -14,8 +15,10 @@ export async function ensureLoaded() {
     await ensureClassicScript(new URL('../solicitacoes.js?v=20260903a', import.meta.url).href, 'Solicitacoes');
     await ensureClassicScript(new URL('../technician-experience.js?v=20260830b', import.meta.url).href, 'TechnicianExperience');
     await ensureClassicScript(new URL('../solicitacoes-divisao.js?v=20260903a', import.meta.url).href, 'SolicitacoesDivisaoPatch');
+    await ensureClassicScript(new URL('../solicitacoes-divisao-filtro.js?v=20260903a', import.meta.url).href, 'SolicitacoesDivisaoFiltroPatch');
 
     window.SolicitacoesDivisaoPatch?.patch?.();
+    window.SolicitacoesDivisaoFiltroPatch?.patch?.();
     ready = true;
 }
 
