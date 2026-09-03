@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v74-premium-dp-icon';
+const CACHE_VERSION = 'v75-divisao-solicitacoes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -93,6 +93,7 @@ const PRECACHE = {
   ],
   solicitacoes: [
     './js/solicitacoes.js',
+    './js/solicitacoes-divisao.js',
     './js/technician-experience.js',
     './css/technician-history.css',
     './js/aprovacoes.js',
