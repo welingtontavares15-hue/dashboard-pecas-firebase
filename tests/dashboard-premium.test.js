@@ -57,7 +57,7 @@ describe('Dashboard WWM v72 reference layout', () => {
         expect(visualArchitecture).toContain('grid-template-columns: repeat(2, minmax(0, 1fr)) !important');
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v74-premium-dp-icon'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v75-divisao-solicitacoes'");
         expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
     });
