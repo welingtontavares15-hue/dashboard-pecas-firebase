@@ -78,8 +78,10 @@ const PRECACHE = {
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
     './js/components/dashboard-wwm-v59.js',
+    './js/components/dashboard-division-filter.js',
     './js/components/reports-modern.js',
     './js/components/reports-multi-select.js',
+    './js/components/reports-division-filter.js',
     './js/components/report-multi-filter-utils.js',
     './js/components/reports-chart-hardening-v55.js'
   ],
@@ -89,11 +91,13 @@ const PRECACHE = {
     './js/onedrive.js',
     './js/relatorios.js',
     './js/vendor/chart.umd.js',
-    './js/components/dashboard-wwm-v59.js'
+    './js/components/dashboard-wwm-v59.js',
+    './js/components/dashboard-division-filter.js'
   ],
   solicitacoes: [
     './js/solicitacoes.js',
     './js/solicitacoes-divisao.js',
+    './js/solicitacoes-divisao-filtro.js',
     './js/technician-experience.js',
     './css/technician-history.css',
     './js/aprovacoes.js',
@@ -109,6 +113,7 @@ const PRECACHE = {
     './js/pages/relatorios-v55.js',
     './js/components/reports-modern.js',
     './js/components/reports-multi-select.js',
+    './js/components/reports-division-filter.js',
     './js/components/report-multi-filter-utils.js',
     './js/components/reports-chart-hardening-v55.js'
   ]
