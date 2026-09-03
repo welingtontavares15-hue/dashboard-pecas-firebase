@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const VERSION = '20260903a';
+    const VERSION = '20260903b';
     const VALID = new Set(['F&B', 'IN']);
     const normalize = (value) => {
         const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -20,7 +20,12 @@
         return `<span title="Divisão" style="display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:2px 7px;border-radius:999px;border:1px solid rgba(20,184,166,.28);font-size:11px;font-weight:700;${muted}"><i class="fas fa-layer-group"></i>${esc(division || 'Não classificado')}</span>`;
     };
 
+    function isAdministrator() {
+        return String(root.Auth?.getRole?.() || '').trim().toLowerCase() === 'administrador';
+    }
+
     function canClassify(sol) {
+        if (!isAdministrator()) return false;
         if (!root.Auth?.hasPermission?.('solicitacoes', 'edit')) return false;
         return !root.Solicitacoes?.canCurrentUserAccessSolicitation
             || root.Solicitacoes.canCurrentUserAccessSolicitation(sol);
@@ -70,21 +75,23 @@
             }
 
             const safeId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            output = output.replace(
-                new RegExp(`<button[^>]*onclick="Solicitacoes\\.openForm\\('${safeId}'\\)"[^>]*>[\\s\\S]*?<\\/button>`, 'g'),
-                ''
-            );
+
+            // Para o administrador, a ação Editar de um pedido existente é usada
+            // exclusivamente para classificar/reclassificar a Divisão. Para os
+            // demais perfis, preserva-se o comportamento original de edição.
+            if (canClassify(sol)) {
+                output = output.replace(
+                    new RegExp(`<button[^>]*onclick="Solicitacoes\\.openForm\\('${safeId}'\\)"[^>]*>[\\s\\S]*?<\\/button>`, 'g'),
+                    ''
+                );
+            }
+
             if (!canClassify(sol)) return;
 
             const tableView = new RegExp(`(<button class="btn btn-sm btn-outline" onclick="Solicitacoes\\.viewDetails\\('${safeId}'\\)" title="Visualizar">[\\s\\S]*?<\\/button>)`);
             if (tableView.test(output)) {
-                output = output.replace(tableView, `$1<button class="btn btn-sm btn-outline" onclick="Solicitacoes.openDivisionClassifier('${esc(id)}')" title="Classificar divisão"><i class="fas fa-layer-group"></i></button>`);
+                output = output.replace(tableView, `$1<button class="btn btn-sm btn-outline" onclick="Solicitacoes.openDivisionClassifier('${esc(id)}')" title="Editar divisão (Administrador)"><i class="fas fa-pen-to-square"></i></button>`);
                 return;
-            }
-
-            const techView = new RegExp(`(<button class="primary" type="button" onclick="Solicitacoes\\.viewDetails\\('${safeId}'\\)"><i class="fas fa-eye"><\\/i><span>Detalhes<\\/span><\\/button>)`);
-            if (techView.test(output)) {
-                output = output.replace(techView, `$1<button type="button" onclick="Solicitacoes.openDivisionClassifier('${esc(id)}')"><i class="fas fa-layer-group"></i><span>Divisão</span></button>`);
             }
         });
         return output;
@@ -101,6 +108,19 @@
         group.innerHTML = `<label>Divisão</label><p><strong>${esc(label(sol.divisao))}</strong></p>`;
         const row = body.querySelector('.form-row');
         row ? row.appendChild(group) : body.prepend(group);
+
+        if (canClassify(sol)) {
+            const footer = body.parentElement?.querySelector('.modal-footer');
+            if (footer && !footer.querySelector('[data-admin-division-edit]')) {
+                const button = root.document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn btn-outline';
+                button.dataset.adminDivisionEdit = 'true';
+                button.innerHTML = '<i class="fas fa-pen-to-square"></i> Editar Divisão';
+                button.addEventListener('click', () => s.openDivisionClassifier(sol.id));
+                footer.prepend(button);
+            }
+        }
     }
 
     function patch() {
@@ -114,9 +134,14 @@
 
         s.normalizeDivision = normalize;
         s.getDivisionLabel = label;
+        s.canAdministratorClassifyDivision = canClassify;
 
         s.openForm = function (id = null) {
-            if (id) return this.openDivisionClassifier(id);
+            if (id) {
+                const sol = root.DataManager?.getSolicitationById?.(id);
+                if (sol && canClassify(sol)) return this.openDivisionClassifier(id);
+                return originalOpenForm(id);
+            }
             const result = originalOpenForm();
             injectNewDivisionField(this);
             return result;
@@ -139,18 +164,20 @@
         s.openDivisionClassifier = function (id) {
             const sol = root.DataManager?.getSolicitationById?.(id);
             if (!sol) return root.Utils?.showToast?.('Solicitação não encontrada', 'error');
-            if (!canClassify(sol)) return root.Utils?.showToast?.('Você não tem permissão para classificar esta solicitação.', 'error');
+            if (!canClassify(sol)) return root.Utils?.showToast?.('Somente o Administrador pode classificar pedidos históricos por divisão.', 'error');
 
             const current = normalize(sol.divisao);
             const technician = this.getRequesterName?.(sol, 'Não informado') || sol.tecnicoNome || 'Não informado';
+            const currentLabel = current || 'Não classificado';
             root.Utils.showModal(`
                 <div class="modal-header">
-                    <h3>Classificar Divisão - Solicitação #${esc(sol.numero || id)}</h3>
+                    <h3>Editar Divisão - Solicitação #${esc(sol.numero || id)}</h3>
                     <button class="modal-close" onclick="Utils.closeModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body">
                     <div style="margin-bottom:16px;padding:11px 13px;border:1px solid rgba(20,184,166,.22);border-radius:8px">
-                        Em pedidos já existentes, somente a divisão será alterada. Os demais dados permanecem bloqueados.
+                        <strong>Classificação administrativa de pedido existente.</strong><br>
+                        Somente a Divisão será alterada. Técnico, cliente, peças, valores, datas e status permanecem inalterados.
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>Pedido</label><p><strong>#${esc(sol.numero || '-')}</strong></p></div>
@@ -159,7 +186,11 @@
                         <div class="form-group"><label>Cliente</label><p><strong>${esc(sol.cliente || 'Não informado')}</strong></p></div>
                     </div>
                     <div class="form-group">
-                        <label for="sol-divisao-classificacao">Divisão *</label>
+                        <label>Classificação atual</label>
+                        <p><strong>${esc(currentLabel)}</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="sol-divisao-classificacao">Nova Divisão *</label>
                         <select id="sol-divisao-classificacao" class="form-control" required>
                             <option value="">Selecione...</option>
                             <option value="F&amp;B" ${current === 'F&B' ? 'selected' : ''}>F&amp;B</option>
@@ -188,12 +219,21 @@
 
             const sol = root.DataManager?.getSolicitationById?.(id);
             if (!sol) return root.Utils?.showToast?.('Solicitação não encontrada', 'error');
-            if (!canClassify(sol)) return root.Utils?.showToast?.('Você não tem permissão para classificar esta solicitação.', 'error');
+            if (!canClassify(sol)) return root.Utils?.showToast?.('Somente o Administrador pode classificar pedidos históricos por divisão.', 'error');
 
             const user = root.Auth?.getCurrentUser?.() || {};
             const now = Date.now();
+            const previousDivision = normalize(sol.divisao) || null;
             const history = Array.isArray(sol.divisaoClassificacaoHistorico) ? sol.divisaoClassificacaoHistorico.slice() : [];
-            history.push({ divisao: division, at: now, by: user.name || 'Sistema', byUserId: user.id || null, byEmail: user.email || null, byRole: user.role || null });
+            history.push({
+                divisaoAnterior: previousDivision,
+                divisao: division,
+                at: now,
+                by: user.name || 'Sistema',
+                byUserId: user.id || null,
+                byEmail: user.email || null,
+                byRole: user.role || null
+            });
 
             this.isDivisionClassificationSubmitting = true;
             try {
@@ -262,7 +302,7 @@
         }, 100);
     }
 
-    root.SolicitacoesDivisaoPatch = Object.freeze({ version: VERSION, normalize, label, patch });
+    root.SolicitacoesDivisaoPatch = Object.freeze({ version: VERSION, normalize, label, patch, canClassify, isAdministrator });
     if (root.document) root.document.readyState === 'loading'
         ? root.document.addEventListener('DOMContentLoaded', init, { once: true })
         : init();
