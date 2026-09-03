@@ -21,15 +21,22 @@ describe('Report Excel approval date columns', () => {
             parseAsLocalDate: (value) => new Date(value),
             formatDate: (value, includeTime = false) => {
                 const date = value instanceof Date ? value : new Date(value);
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = date.getFullYear();
+                const parts = new Intl.DateTimeFormat('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: includeTime ? '2-digit' : undefined,
+                    minute: includeTime ? '2-digit' : undefined,
+                    hour12: false
+                }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+                const day = parts.day;
+                const month = parts.month;
+                const year = parts.year;
                 if (!includeTime) {
                     return `${day}/${month}/${year}`;
                 }
-                const hour = String(date.getHours()).padStart(2, '0');
-                const minute = String(date.getMinutes()).padStart(2, '0');
-                return `${day}/${month}/${year} ${hour}:${minute}`;
+                return `${day}/${month}/${year} ${parts.hour}:${parts.minute}`;
             }
         },
         AnalyticsEngine: {

@@ -3009,6 +3009,76 @@ const DataManager = {
         return changed;
     },
 
+    async updateSolicitationDivision(id, division, actor = {}) {
+        const role = String(typeof Auth !== 'undefined' ? Auth.getRole?.() || '' : '').trim().toLowerCase();
+        const normalizedDivision = String(division || '').trim().toUpperCase().replace(/\s+/g, '');
+        const validDivision = ['F&B', 'FB', 'F-E-B', 'F_E_B'].includes(normalizedDivision)
+            ? 'F&B'
+            : (normalizedDivision === 'IN' ? 'IN' : '');
+
+        if (role !== 'administrador') {
+            return { success: false, error: 'forbidden', message: 'Somente o Administrador pode classificar pedidos históricos por divisão.' };
+        }
+        if (!['F&B', 'IN'].includes(validDivision)) {
+            return { success: false, error: 'invalid_division', message: 'Selecione F&B ou IN.' };
+        }
+
+        const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
+        const index = solicitations.findIndex((record) => String(record?.id || '') === String(id || ''));
+        if (index < 0) {
+            return { success: false, error: 'not_found', message: 'Solicitação não encontrada.' };
+        }
+        if (typeof CloudStorage === 'undefined' || typeof CloudStorage.updateSolicitationDivision !== 'function') {
+            return { success: false, error: 'cloud_update_unavailable', message: 'Atualização da classificação indisponível.' };
+        }
+
+        const existing = solicitations[index];
+        const previousDivisionRaw = String(existing.divisao || '').trim().toUpperCase().replace(/\s+/g, '');
+        const previousDivision = ['F&B', 'FB', 'F-E-B', 'F_E_B'].includes(previousDivisionRaw)
+            ? 'F&B'
+            : (previousDivisionRaw === 'IN' ? 'IN' : null);
+        const now = Date.now();
+        const administratorName = actor.name || actor.username || 'Administrador';
+        const administratorId = actor.id || (typeof window !== 'undefined' ? window.firebaseUser?.uid : null) || null;
+        const history = Array.isArray(existing.divisaoClassificacaoHistorico)
+            ? this.cloneSerializable(existing.divisaoClassificacaoHistorico, [])
+            : [];
+        history.push({
+            divisaoAnterior: previousDivision,
+            novaDivisao: validDivision,
+            dataHora: now,
+            usuarioAdministrador: administratorName,
+            usuarioId: administratorId,
+            usuarioEmail: actor.email || null,
+            divisao: validDivision,
+            at: now,
+            by: administratorName,
+            byUserId: administratorId,
+            byEmail: actor.email || null,
+            byRole: role
+        });
+
+        const classificationPatch = {
+            divisao: validDivision,
+            divisaoClassificadaEm: now,
+            divisaoClassificadaPor: administratorName,
+            divisaoClassificacaoHistorico: history
+        };
+        const saved = await CloudStorage.updateSolicitationDivision(existing.id, classificationPatch);
+        if (!saved) {
+            return { success: false, error: 'cloud_save_failed', message: 'Não foi possível persistir a classificação no Firebase.' };
+        }
+
+        const persistedSolicitation = { ...existing, ...classificationPatch };
+        solicitations[index] = persistedSolicitation;
+        this._sessionCache[this.KEYS.SOLICITATIONS] = this.cloneSerializable(solicitations, solicitations);
+        this.emitDataUpdated([this.KEYS.SOLICITATIONS], 'local');
+        this.queueOneDriveBackup(persistedSolicitation);
+        this.createSolicitationsBackup({ download: false, reason: 'division-classification', silent: true });
+
+        return { success: true, solicitation: this.cloneSerializable(persistedSolicitation, persistedSolicitation) };
+    },
+
     async saveSolicitation(solicitation) {
         const normalizedSolicitation = this.normalizeHistoricalStatus(this.cloneSerializable(solicitation, { ...solicitation }) || {});
         normalizedSolicitation.status = this.normalizeWorkflowStatus(normalizedSolicitation.status || this.STATUS.PENDENTE);

@@ -4,6 +4,10 @@ const path = require('path');
 describe('Classificação de divisão das solicitações', () => {
     const root = path.resolve(__dirname, '..');
     const patch = fs.readFileSync(path.join(root, 'js/solicitacoes-divisao.js'), 'utf8');
+    const solicitacoes = fs.readFileSync(path.join(root, 'js/solicitacoes.js'), 'utf8');
+    const data = fs.readFileSync(path.join(root, 'js/data.js'), 'utf8');
+    const storage = fs.readFileSync(path.join(root, 'js/storage.js'), 'utf8');
+    const rules = fs.readFileSync(path.join(root, 'firebase/database.rules.level2.json'), 'utf8');
     const auth = fs.readFileSync(path.join(root, 'js/auth.js'), 'utf8');
     const solicitacoesPage = fs.readFileSync(path.join(root, 'js/pages/solicitacoes.js'), 'utf8');
     const aprovacoesPage = fs.readFileSync(path.join(root, 'js/pages/aprovacoes.js'), 'utf8');
@@ -24,10 +28,11 @@ describe('Classificação de divisão das solicitações', () => {
         expect(patch).toContain('Classificação administrativa de pedido existente.');
         expect(patch).toContain('Somente a Divisão será alterada. Técnico, cliente, peças, valores, datas e status permanecem inalterados.');
         expect(patch).toContain('saveDivisionClassification');
-        expect(patch).toContain('divisaoClassificacaoHistorico');
-        expect(patch).toContain('divisaoAnterior');
-        expect(patch).toContain('divisaoClassificadaEm');
-        expect(patch).toContain('divisaoClassificadaPor');
+        expect(data).toContain('divisaoClassificacaoHistorico');
+        expect(data).toContain('divisaoAnterior');
+        expect(data).toContain('novaDivisao');
+        expect(data).toContain('usuarioAdministrador');
+        expect(storage).toContain('async updateSolicitationDivision(recordId, fields)');
     });
 
     test('preserva edição normal para perfis que não usam classificação administrativa', () => {
@@ -37,7 +42,9 @@ describe('Classificação de divisão das solicitações', () => {
     });
 
     test('mostra ação administrativa na lista e nos detalhes', () => {
-        expect(patch).toContain('Editar divisão (Administrador)');
+        expect(solicitacoes).toContain('data-admin-division-edit="true"');
+        expect(solicitacoes).toContain('<span>Editar Divisão</span>');
+        expect(solicitacoes).toContain('solicitation-view-action');
         expect(patch).toContain('data-admin-division-edit');
         expect(patch).toContain('Editar Divisão');
         expect(patch).toContain('Não classificado');
@@ -46,9 +53,14 @@ describe('Classificação de divisão das solicitações', () => {
     });
 
     test('carrega o patch atualizado nas rotas de solicitações e aprovações e no cache PWA', () => {
-        expect(solicitacoesPage).toContain('solicitacoes-divisao.js?v=20260903b');
-        expect(aprovacoesPage).toContain('solicitacoes-divisao.js?v=20260903b');
+        expect(solicitacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
+        expect(aprovacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
         expect(serviceWorker).toContain("'./js/solicitacoes-divisao.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v75-divisao-solicitacoes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v76-divisao-historicos'");
+    });
+
+    test('regras impedem perfis não administrativos de alterar a classificação existente', () => {
+        expect(rules).toContain("newData.child('divisao').val() == data.child('divisao').val()");
+        expect(rules).toContain("newData.child('divisaoClassificacaoHistorico').val() == data.child('divisaoClassificacaoHistorico').val()");
     });
 });
