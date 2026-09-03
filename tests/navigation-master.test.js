@@ -37,7 +37,7 @@ describe('Navegação consolidada WWM v72', () => {
     });
 
     test('mantém suporte offline sincronizado com o contrato visual v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v74-premium-dp-icon'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v75-divisao-solicitacoes'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
@@ -49,5 +49,6 @@ describe('Navegação consolidada WWM v72', () => {
         expect(serviceWorker).toContain("'./css/desktop-mobile-premium.css'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
+        expect(serviceWorker).toContain("'./js/solicitacoes-divisao.js'");
     });
 });
