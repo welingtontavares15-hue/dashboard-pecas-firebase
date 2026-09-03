@@ -773,6 +773,81 @@ const CloudStorage = {
     },
 
     /**
+     * Atomically update only the division classification fields of one
+     * solicitation. No operational field or record metadata is rewritten.
+     */
+    async updateSolicitationDivision(recordId, fields) {
+        const key = 'diversey_solicitacoes';
+        const id = String(recordId || '').trim();
+        const role = String(this.getScopedSessionUser()?.role || '').trim().toLowerCase();
+        const allowedKeys = new Set([
+            'divisao',
+            'divisaoClassificadaEm',
+            'divisaoClassificadaPor',
+            'divisaoClassificacaoHistorico'
+        ]);
+        const payload = {};
+
+        const hasInvalidPathCharacter = ['.', '#', '$', '[', ']', '/'].some((character) => id.includes(character));
+        if (!id || hasInvalidPathCharacter || !['admin', 'administrador'].includes(role)) {
+            this.rememberSyntheticOperationError('division_classification_forbidden', { key, recordId: id || null });
+            return false;
+        }
+
+        Object.entries(fields || {}).forEach(([field, value]) => {
+            if (allowedKeys.has(field)) {
+                payload[field] = value;
+            }
+        });
+
+        if (!['F&B', 'IN'].includes(payload.divisao)
+            || !Number.isFinite(payload.divisaoClassificadaEm)
+            || !Array.isArray(payload.divisaoClassificacaoHistorico)) {
+            this.rememberSyntheticOperationError('invalid_division_classification_payload', { key, recordId: id });
+            return false;
+        }
+
+        const opId = this.generateOpId('division-classification');
+        this.clearLastOperationError();
+        const ready = await this.ensureWriteReady(key, opId, {});
+        if (!ready) {
+            this.rememberSyntheticOperationError('cloud_not_ready', { key, opId });
+            return false;
+        }
+
+        const { update } = window.firebaseModules || {};
+        if (typeof update !== 'function') {
+            this.rememberSyntheticOperationError('firebase_update_unavailable', { key, opId });
+            return false;
+        }
+
+        let lastError = null;
+        for (let attempt = 1; attempt <= Math.max(1, this.maxRetries); attempt++) {
+            try {
+                await update(FirebaseInit.getRef(`data/${key}/${id}`), payload);
+                this.logSyncEvent('info', 'solicitation_division_updated', { recordId: id, opId });
+                this.clearLastOperationError();
+                return true;
+            } catch (error) {
+                lastError = error;
+                if (this.isPermissionDeniedError(error)) {
+                    const recovered = await this.recoverAccessSession('division_classification_permission_denied', { key, opId, attempt });
+                    if (recovered) {
+                        continue;
+                    }
+                }
+                if (attempt >= this.maxRetries || !this.isRetryableSaveError(error)) {
+                    break;
+                }
+                await this.delay(this.retryDelay * attempt);
+            }
+        }
+
+        this.rememberOperationError(lastError || 'division_classification_failed', { key, opId, recordId: id });
+        return false;
+    },
+
+    /**
      * Save data to cloud storage - Online-only mode
      * Requires cloud connection; does NOT fallback to local storage.
      * @param {string} key - Storage key

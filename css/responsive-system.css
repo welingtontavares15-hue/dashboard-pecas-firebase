@@ -374,6 +374,33 @@ body.wwm-reference-theme .table .actions {
     min-width: max-content;
 }
 
+body.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .actions :is(.solicitation-view-action, .division-classification-action) {
+    width: auto !important;
+    min-width: max-content !important;
+    padding-inline: 9px !important;
+    gap: 5px;
+}
+
+.solicitation-division-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 7px;
+    padding: 2px 7px;
+    border: 1px solid rgba(20, 184, 166, .32);
+    border-radius: 999px;
+    color: #bff7f1;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.solicitation-division-badge.is-unclassified {
+    color: #b8c4c5;
+    border-color: rgba(184, 196, 197, .28);
+}
+
 body.wwm-reference-theme .pagination {
     display: flex;
     flex-wrap: wrap;

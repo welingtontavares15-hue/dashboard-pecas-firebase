@@ -28,6 +28,42 @@ const Solicitacoes = {
     isDeliverySubmitting: false,
     isDeleteSubmitting: false,
 
+    normalizeDivision(value) {
+        const normalized = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+        if (['F&B', 'FB', 'F-E-B', 'F_E_B'].includes(normalized)) {
+            return 'F&B';
+        }
+        return normalized === 'IN' ? 'IN' : '';
+    },
+
+    getDivisionLabel(value) {
+        return this.normalizeDivision(value) || 'Não classificado';
+    },
+
+    canAdministratorClassifyDivision(sol) {
+        return Auth.getRole() === 'administrador'
+            && Auth.hasPermission('solicitacoes', 'edit')
+            && this.canCurrentUserAccessSolicitation(sol);
+    },
+
+    renderDivisionBadge(sol) {
+        const division = this.normalizeDivision(sol?.divisao);
+        const label = division || 'Não classificado';
+        const stateClass = division ? `is-${division === 'IN' ? 'in' : 'fb'}` : 'is-unclassified';
+        return `<span class="solicitation-division-badge ${stateClass}" data-division-badge-for="${Utils.escapeHtml(sol?.id || '')}" title="Divisão: ${Utils.escapeHtml(label)}"><i class="fas fa-layer-group" aria-hidden="true"></i>${Utils.escapeHtml(label)}</span>`;
+    },
+
+    renderDivisionEditAction(sol) {
+        if (!this.canAdministratorClassifyDivision(sol)) {
+            return '';
+        }
+        return `
+            <button type="button" class="btn btn-sm btn-outline division-classification-action" data-admin-division-edit="true" data-solicitation-id="${Utils.escapeHtml(sol.id)}" onclick="Solicitacoes.openDivisionClassifier('${Utils.escapeHtml(sol.id)}')" title="Editar Divisão">
+                <i class="fas fa-pen-to-square" aria-hidden="true"></i><span>Editar Divisão</span>
+            </button>
+        `;
+    },
+
     getDefaultFilters() {
         // Always return the plural `statuses` property. Leaving a singular `status` property
         // causes duplication and breaks the persisted filter state restoration.
@@ -598,7 +634,7 @@ const Solicitacoes = {
             if (isTecnico) {
                 return `
                     <tr>
-                        <td><strong>#${sol.numero}</strong></td>
+                        <td><strong>#${sol.numero}</strong>${this.renderDivisionBadge(sol)}</td>
                         <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                         <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                         <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
@@ -607,8 +643,8 @@ const Solicitacoes = {
                         <td>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : '-'}</td>
                         <td>
                             <div class="actions">
-                                <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
-                                    <i class="fas fa-eye"></i>
+                                <button class="btn btn-sm btn-outline solicitation-view-action" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                    <i class="fas fa-eye" aria-hidden="true"></i><span>Visualizar</span>
                                 </button>
                                 ${canEdit && normalizedStatus === 'pendente' ? `
                                     <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
@@ -634,7 +670,7 @@ const Solicitacoes = {
 
             return `
                 <tr>
-                    <td><strong>#${sol.numero}</strong></td>
+                    <td><strong>#${sol.numero}</strong>${this.renderDivisionBadge(sol)}</td>
                     <td>${Utils.escapeHtml(this.getRequesterName(sol, '-'))}</td>
                     <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
                     <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
@@ -643,14 +679,15 @@ const Solicitacoes = {
                     <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                     <td>
                         <div class="actions">
-                            <button class="btn btn-sm btn-outline" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
-                                <i class="fas fa-eye"></i>
+                            <button class="btn btn-sm btn-outline solicitation-view-action" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
+                                <i class="fas fa-eye" aria-hidden="true"></i><span>Visualizar</span>
                             </button>
-                            ${canEdit && normalizedStatus === 'pendente' ? `
+                            ${canEdit && normalizedStatus === 'pendente' && Auth.getRole() !== 'administrador' ? `
                                 <button class="btn btn-sm btn-outline" onclick="Solicitacoes.openForm('${sol.id}')" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </button>
                             ` : ''}
+                            ${this.renderDivisionEditAction(sol)}
                             <button class="btn btn-sm btn-outline" onclick="Solicitacoes.duplicate('${sol.id}')" title="Duplicar">
                                 <i class="fas fa-copy"></i>
                             </button>
@@ -1163,6 +1200,10 @@ const Solicitacoes = {
                         <label>Cliente</label>
                         <p><strong>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</strong></p>
                     </div>
+                    <div class="form-group" data-division-details="true">
+                        <label>Divisão</label>
+                        <p><strong>${Utils.escapeHtml(this.getDivisionLabel(sol.divisao))}</strong></p>
+                    </div>
                 </div>
 
                 ${this.renderRequesterDeliveryCard(sol)}
@@ -1267,6 +1308,11 @@ const Solicitacoes = {
                 ${this.renderTimeline(sol)}
             </div>
             <div class="modal-footer">
+                ${this.canAdministratorClassifyDivision(sol) ? `
+                    <button type="button" class="btn btn-outline division-classification-action" data-admin-division-edit="true" data-solicitation-id="${Utils.escapeHtml(sol.id)}" onclick="Solicitacoes.openDivisionClassifier('${Utils.escapeHtml(sol.id)}')">
+                        <i class="fas fa-pen-to-square" aria-hidden="true"></i> Editar Divisão
+                    </button>
+                ` : ''}
                 <button class="btn btn-outline" onclick="Solicitacoes.downloadPDF('${sol.id}'); Utils.closeModal();">
                     <i class="fas fa-file-pdf"></i> Download PDF
                 </button>
@@ -2279,9 +2325,6 @@ const Solicitacoes = {
 if (typeof window !== 'undefined') {
     window.Solicitacoes = Solicitacoes;
 }
-
-
-
 
 
 

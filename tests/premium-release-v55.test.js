@@ -27,7 +27,7 @@ describe('Release WWM v72 reference layout', () => {
         expect(release).toContain('Portal de Solicitação de Peças WWM');
         expect(loginCss).toContain('width: min(500px, 100%)');
         expect(referenceCss).toContain('width: min(850px, 92vw)');
-        expect(index).toContain('css/responsive-system.css?v=20260830b');
+        expect(index).toContain('css/responsive-system.css?v=20260903c');
         expect(responsiveCss).toContain('width: min(720px, calc(100vw - 32px))');
     });
 
@@ -73,7 +73,7 @@ describe('Release WWM v72 reference layout', () => {
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v75-divisao-solicitacoes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v76-divisao-historicos'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',

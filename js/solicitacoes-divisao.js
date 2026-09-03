@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const VERSION = '20260903b';
+    const VERSION = '20260903c';
     const VALID = new Set(['F&B', 'IN']);
     const normalize = (value) => {
         const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -69,7 +69,7 @@
             const id = String(sol?.id || '');
             if (!id) return;
             const number = String(sol?.numero || '');
-            if (number) {
+            if (number && !output.includes(`data-division-badge-for="${esc(id)}"`)) {
                 const needle = `<strong>#${esc(number)}</strong>`;
                 if (output.includes(needle)) output = output.replace(needle, `${needle}${badge(sol.divisao)}`);
             }
@@ -88,16 +88,18 @@
 
             if (!canClassify(sol)) return;
 
+            if (output.includes(`data-admin-division-edit="true" data-solicitation-id="${esc(id)}"`)) return;
+
             const tableView = new RegExp(`(<button class="btn btn-sm btn-outline" onclick="Solicitacoes\\.viewDetails\\('${safeId}'\\)" title="Visualizar">[\\s\\S]*?<\\/button>)`);
             if (tableView.test(output)) {
-                output = output.replace(tableView, `$1<button class="btn btn-sm btn-outline" onclick="Solicitacoes.openDivisionClassifier('${esc(id)}')" title="Editar divisão (Administrador)"><i class="fas fa-pen-to-square"></i></button>`);
+                output = output.replace(tableView, `$1<button type="button" class="btn btn-sm btn-outline division-classification-action" data-admin-division-edit="true" data-solicitation-id="${esc(id)}" onclick="Solicitacoes.openDivisionClassifier('${esc(id)}')" title="Editar Divisão"><i class="fas fa-pen-to-square" aria-hidden="true"></i><span>Editar Divisão</span></button>`);
                 return;
             }
         });
         return output;
     }
 
-    function injectDetails(sol) {
+    function injectDetails(s, sol) {
         if (!root.document || !sol) return;
         const bodies = Array.from(root.document.querySelectorAll('.modal-body'));
         const body = bodies[bodies.length - 1];
@@ -222,36 +224,15 @@
             if (!canClassify(sol)) return root.Utils?.showToast?.('Somente o Administrador pode classificar pedidos históricos por divisão.', 'error');
 
             const user = root.Auth?.getCurrentUser?.() || {};
-            const now = Date.now();
-            const previousDivision = normalize(sol.divisao) || null;
-            const history = Array.isArray(sol.divisaoClassificacaoHistorico) ? sol.divisaoClassificacaoHistorico.slice() : [];
-            history.push({
-                divisaoAnterior: previousDivision,
-                divisao: division,
-                at: now,
-                by: user.name || 'Sistema',
-                byUserId: user.id || null,
-                byEmail: user.email || null,
-                byRole: user.role || null
-            });
-
             this.isDivisionClassificationSubmitting = true;
             try {
-                const result = await root.DataManager.saveSolicitation({
-                    ...sol,
-                    divisao: division,
-                    divisaoClassificadaEm: now,
-                    divisaoClassificadaPor: user.name || 'Sistema',
-                    divisaoClassificacaoHistorico: history,
-                    updatedBy: user.name || sol.updatedBy || 'Sistema'
-                });
+                const result = await root.DataManager.updateSolicitationDivision(id, division, user);
                 const saved = result === true || (result && result.success !== false && !result.error);
                 if (!saved) return root.Utils?.showToast?.(result?.message || result?.error || 'Não foi possível salvar a classificação.', 'error');
 
                 root.Utils?.showToast?.(`Solicitação #${sol.numero || ''} classificada como ${division}.`, 'success');
                 root.Utils?.closeModal?.();
                 if (root.document?.getElementById('sol-table-container')) this.refreshTable?.();
-                root.Auth?.renderMenu?.(root.App?.currentPage);
             } finally {
                 this.isDivisionClassificationSubmitting = false;
             }
@@ -261,7 +242,7 @@
         s.viewDetails = function (id) {
             const sol = root.DataManager?.getSolicitationById?.(id);
             const result = originalDetails(id);
-            injectDetails(sol);
+            injectDetails(this, sol);
             return result;
         };
 

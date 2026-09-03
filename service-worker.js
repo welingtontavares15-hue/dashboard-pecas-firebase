@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v75-divisao-solicitacoes';
+const CACHE_VERSION = 'v76-divisao-historicos';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
