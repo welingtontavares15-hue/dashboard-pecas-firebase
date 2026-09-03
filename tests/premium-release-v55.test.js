@@ -73,7 +73,7 @@ describe('Release WWM v72 reference layout', () => {
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v74-premium-dp-icon'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v75-divisao-solicitacoes'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',
@@ -89,7 +89,8 @@ describe('Release WWM v72 reference layout', () => {
             './css/visual-premium-v4.css',
             './css/desktop-mobile-premium.css',
             './css/visual-architecture-v72.css',
-            './js/wwm-reference-ui.js'
+            './js/wwm-reference-ui.js',
+            './js/solicitacoes-divisao.js'
         ].forEach((asset) => expect(serviceWorker).toContain(`'${asset}'`));
         expect(serviceWorker).not.toContain("'./css/visual-integrity-v71.css'");
         expect(serviceWorker).toContain("fetch(request, { cache: 'no-store' })");
