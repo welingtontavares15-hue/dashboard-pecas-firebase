@@ -1,5 +1,6 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
 import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829e';
+import { applyDashboardDivisionFilter } from '../components/dashboard-division-filter.js?v=20260903a';
 
 let ready = false;
 
@@ -11,10 +12,15 @@ function ensureWwmDashboardStyles() {
     document.getElementById('wwm-dashboard-v58-styles')?.remove();
 }
 
+function applyEnhancements() {
+    applyDashboardWwmV59();
+    applyDashboardDivisionFilter();
+}
+
 export async function ensureLoaded() {
     ensureWwmDashboardStyles();
     if (ready && typeof window.Dashboard !== 'undefined') {
-        applyDashboardWwmV59();
+        applyEnhancements();
         return;
     }
 
@@ -22,12 +28,13 @@ export async function ensureLoaded() {
     await ensureClassicScript(new URL('../aprovacoes.js', import.meta.url).href, 'Aprovacoes');
     await ensureClassicScript(new URL('../dashboard.js', import.meta.url).href, 'Dashboard');
 
-    applyDashboardWwmV59();
+    applyEnhancements();
     ready = true;
 }
 
 export function render() {
     if (typeof window.Dashboard?.render === 'function') {
+        applyEnhancements();
         window.Dashboard.render();
     }
 }
