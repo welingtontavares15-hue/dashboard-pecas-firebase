@@ -7,6 +7,7 @@ describe('Filtros de custo por divisão F&B/IN', () => {
     const dashboardFilter = fs.readFileSync(path.join(root, 'js/components/dashboard-division-filter.js'), 'utf8');
     const solicitationFilter = fs.readFileSync(path.join(root, 'js/solicitacoes-divisao-filtro.js'), 'utf8');
     const premiumUi = fs.readFileSync(path.join(root, 'js/premium-ui-v3.js'), 'utf8');
+    const visualArchitecture = fs.readFileSync(path.join(root, 'css/visual-architecture-v72.css'), 'utf8');
     const reportsPage = fs.readFileSync(path.join(root, 'js/pages/relatorios-v55.js'), 'utf8');
     const dashboardPage = fs.readFileSync(path.join(root, 'js/pages/dashboard-v55.js'), 'utf8');
     const solicitationsPage = fs.readFileSync(path.join(root, 'js/pages/solicitacoes.js'), 'utf8');
@@ -28,7 +29,18 @@ describe('Filtros de custo por divisão F&B/IN', () => {
     });
 
     test('mantém ações dos filtros alinhadas e visualização compacta por ícone', () => {
-        expect(reportsFilter).toContain('grid-column: span 1 !important;');
+        // O JS não deve reintroduzir geometria inline; o layout pertence à camada CSS responsiva.
+        expect(reportsFilter).not.toContain('style="grid-column:');
+
+        // Valida o contrato estrutural que evita colisão sem acoplar o teste ao número
+        // de colunas externas do grid de filtros.
+        expect(visualArchitecture).toContain('.premium-report-filter-actions .report-filter-actions-row');
+        expect(visualArchitecture).toContain('grid-template-columns: repeat(2, minmax(0, 1fr)) !important;');
+        expect(visualArchitecture).toContain('.premium-report-filter-actions .btn');
+        expect(visualArchitecture).toContain('min-width: 0 !important;');
+        expect(visualArchitecture).toContain('@media (max-width: 760px)');
+        expect(visualArchitecture).toContain('grid-template-columns: minmax(0, 1fr) !important;');
+
         expect(premiumUi).toContain("button.classList.contains('solicitation-view-action')");
         expect(premiumUi).toContain("viewButton.querySelector(':scope > span')?.remove();");
         expect(premiumUi).toContain("button.setAttribute('aria-label', normalized)");
