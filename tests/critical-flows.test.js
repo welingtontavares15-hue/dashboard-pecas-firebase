@@ -1,185 +1,71 @@
 /**
- * Critical Flow Tests
- * Tests for the mandatory critical flows that must pass before release
+ * Release coverage contract.
+ *
+ * This file intentionally does not duplicate the behavioral assertions that
+ * already live in focused suites. Its job is to prevent the release gate from
+ * silently losing coverage for the business-critical areas and to keep the
+ * runtime mode aligned with the tests.
  */
 
-// Mock localStorage
-const localStorageMock = (() => {
-    let store = {};
-    return {
-        getItem: (key) => store[key] || null,
-        setItem: (key, value) => { store[key] = String(value); },
-        removeItem: (key) => { delete store[key]; },
-        clear: () => { store = {}; }
-    };
-})();
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
-
-// Mock crypto
-const mockCrypto = {
-    subtle: {
-        digest: jest.fn(async (algorithm, data) => {
-            const mockBuffer = new ArrayBuffer(32);
-            const view = new Uint8Array(mockBuffer);
-            for (let i = 0; i < 32; i++) {
-                view[i] = i;
-            }
-            return mockBuffer;
-        })
-    },
-    getRandomValues: jest.fn((array) => {
-        for (let i = 0; i < array.length; i++) {
-            array[i] = Math.floor(Math.random() * 256);
-        }
-        return array;
-    })
-};
-global.crypto = mockCrypto;
-global.window = { crypto: mockCrypto };
-
-// Mock navigator
-Object.defineProperty(global, 'navigator', {
-    value: {
-        userAgent: 'test-agent',
-        platform: 'test-platform',
-        language: 'pt-BR'
-    }
-});
-
-// Load dependencies
 const fs = require('fs');
 const path = require('path');
 
-// Load Utils first
-const utilsCode = fs.readFileSync(path.join(__dirname, '../js/utils.js'), 'utf8');
-const loadUtils = new Function(`${utilsCode}; return Utils;`);
-global.Utils = loadUtils();
+const ROOT = path.resolve(__dirname, '..');
 
-describe('Critical Flows', () => {
-    describe('1. Login Flows', () => {
-        describe('Admin Login', () => {
-            it('should allow admin login with valid credentials', () => {
-                // Test will be implemented when testing infrastructure is ready
-                expect(true).toBe(true);
-            });
+function read(relativePath) {
+    return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+}
 
-            it('should provide admin permissions after login', () => {
-                expect(true).toBe(true);
-            });
-        });
+function expectRealSuite(relativePath, requiredFragments = []) {
+    const source = read(relativePath);
+    expect(source).toMatch(/\b(?:test|it)\s*\(/);
+    expect(source).not.toContain('expect(true).toBe(true)');
+    requiredFragments.forEach((fragment) => expect(source).toContain(fragment));
+}
 
-        describe('Gestor Login', () => {
-            it('should allow gestor login with valid credentials', () => {
-                expect(true).toBe(true);
-            });
-
-            it('should provide gestor permissions after login', () => {
-                expect(true).toBe(true);
-            });
-        });
-
-        describe('Técnico Login', () => {
-            it('should allow técnico login with valid credentials', () => {
-                expect(true).toBe(true);
-            });
-
-            it('should provide técnico permissions after login', () => {
-                expect(true).toBe(true);
-            });
-        });
+describe('Critical release coverage contract', () => {
+    test('authentication has substantive login, role and rate-limit coverage', () => {
+        expectRealSuite('tests/auth-login-alias.test.js', ['Auth login aliases']);
+        expectRealSuite('tests/auth-rate-limit.test.js', ['Auth Rate Limiting']);
+        expectRealSuite('tests/user-access.test.js', ['Authentication Role Permissions']);
+        expectRealSuite('tests/production-security.test.js', ['Production Credential Seeding']);
     });
 
-    describe('2. Request Creation Flow', () => {
-        it('should create a new draft request', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should save draft request locally', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should submit request changing status to pending', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should generate sequential number on submit', () => {
-            expect(true).toBe(true);
-        });
+    test('solicitation creation and lifecycle have substantive regression coverage', () => {
+        expectRealSuite('tests/incident-regressions.test.js', ['approval flow']);
+        expectRealSuite('tests/solicitacoes-divisao.integration.test.js', ['salva F&B por atualização atômica']);
+        expectRealSuite('tests/storage-division-atomic.test.js', ['CloudStorage.updateSolicitationDivision']);
+        expectRealSuite('tests/solicitacoes-reset.test.js', ['limpeza de dados de teste']);
     });
 
-    describe('3. Approval Flow', () => {
-        it('should approve request with comment', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should reject request with comment', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should update approval timeline', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should record approver information', () => {
-            expect(true).toBe(true);
-        });
+    test('supplier scope, reporting and exports have dedicated suites', () => {
+        expectRealSuite('tests/supplier-portal-scope.test.js', ['Fornecedor portal scope isolation']);
+        expectRealSuite('tests/reports-filters.test.js', ['Report filters']);
+        expectRealSuite('tests/report-export-approval-date.test.js', ['Report Excel approval date columns']);
+        expectRealSuite('tests/solicitacao-pdf.test.js', ['generateSolicitacaoPdf']);
+        expectRealSuite('tests/export-artifact.test.js', ['DataManager export artifacts']);
     });
 
-    describe('4. Status Change Flow', () => {
-        it('should change status from approved to in_transit', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should change status from in_transit to delivered', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should change status from delivered to finalized', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should record all status changes in timeline', () => {
-            expect(true).toBe(true);
-        });
+    test('realtime synchronization and write idempotency have dedicated suites', () => {
+        expectRealSuite('tests/data-realtime-subscriptions.test.js', ['re-attaches realtime listeners']);
+        expectRealSuite('tests/idempotency.test.js', ['CloudStorage Online-Only Mode']);
+        expectRealSuite('tests/gestores-sync.test.js', ['Gestores Sync Merge Logic']);
     });
 
-    describe('5. Offline Flow', () => {
-        it('should create draft request while offline', () => {
-            expect(true).toBe(true);
-        });
+    test('runtime and tests agree that writes are online-only', () => {
+        const storage = read('js/storage.js');
+        const idempotency = read('tests/idempotency.test.js');
 
-        it('should queue changes when offline', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should sync queued changes on reconnection', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should handle sync conflicts properly', () => {
-            expect(true).toBe(true);
-        });
+        expect(storage).toContain('[ONLINE-ONLY] enqueueOperation disabled - writes require connection');
+        expect(storage).toContain('[ONLINE-ONLY] Cannot save - cloud not connected');
+        expect(idempotency).toContain('Offline Queue Disabled (Online-Only Mode)');
+        expect(idempotency).toContain('does not persist data locally when cloud unavailable');
     });
 
-    describe('6. Export Flow', () => {
-        it('should export to PDF', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should export to Excel', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should export to CSV', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should save export metadata in system', () => {
-            expect(true).toBe(true);
-        });
-
-        it('should log export success/failure', () => {
-            expect(true).toBe(true);
-        });
+    test('responsive and visual regressions remain release-gated', () => {
+        expectRealSuite('tests/responsive-system.test.js', ['keeps dropdowns above following cards without clipping']);
+        expectRealSuite('tests/wwm-smart-layout.test.js', ['preserva responsividade e scroll somente quando o viewport exige']);
+        expectRealSuite('tests/visual-architecture-v72.test.js', ['WWM visual architecture v72']);
+        expectRealSuite('tests/technician-request-layout.test.js', ['Minhas solicitações - layout do técnico']);
     });
 });
