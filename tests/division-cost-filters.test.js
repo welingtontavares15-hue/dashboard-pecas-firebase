@@ -7,6 +7,7 @@ describe('Filtros de custo por divisão F&B/IN', () => {
     const dashboardFilter = fs.readFileSync(path.join(root, 'js/components/dashboard-division-filter.js'), 'utf8');
     const solicitationFilter = fs.readFileSync(path.join(root, 'js/solicitacoes-divisao-filtro.js'), 'utf8');
     const premiumUi = fs.readFileSync(path.join(root, 'js/premium-ui-v3.js'), 'utf8');
+    const visualArchitecture = fs.readFileSync(path.join(root, 'css/visual-architecture-v72.css'), 'utf8');
     const reportsPage = fs.readFileSync(path.join(root, 'js/pages/relatorios-v55.js'), 'utf8');
     const dashboardPage = fs.readFileSync(path.join(root, 'js/pages/dashboard-v55.js'), 'utf8');
     const solicitationsPage = fs.readFileSync(path.join(root, 'js/pages/solicitacoes.js'), 'utf8');
@@ -28,7 +29,11 @@ describe('Filtros de custo por divisão F&B/IN', () => {
     });
 
     test('mantém ações dos filtros alinhadas e visualização compacta por ícone', () => {
-        expect(reportsFilter).toContain('grid-column: span 1 !important;');
+        expect(reportsFilter).not.toContain('grid-column: span 1 !important;');
+        expect(visualArchitecture).toContain('.premium-report-filter-actions');
+        expect(visualArchitecture).toContain('grid-column: span 2 !important;');
+        expect(visualArchitecture).toContain('.report-filter-actions-row > .btn');
+        expect(visualArchitecture).toContain('min-width: 0 !important;');
         expect(premiumUi).toContain("button.classList.contains('solicitation-view-action')");
         expect(premiumUi).toContain("viewButton.querySelector(':scope > span')?.remove();");
         expect(premiumUi).toContain("button.setAttribute('aria-label', normalized)");
