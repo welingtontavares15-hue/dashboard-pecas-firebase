@@ -1,7 +1,6 @@
 const STORAGE_KEY = 'premium_reports_division_filter_v1';
 const MODE = Object.freeze({
     ALL: 'all',
-    BOTH: 'both',
     FB: 'F&B',
     IN: 'IN',
     UNCLASSIFIED: 'unclassified'
@@ -15,7 +14,8 @@ function normalizeDivision(value) {
 
 function normalizeMode(value) {
     const raw = String(value || '').trim();
-    return [MODE.ALL, MODE.BOTH, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw)
+    if (raw === 'both') return MODE.ALL;
+    return [MODE.ALL, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw)
         ? raw
         : MODE.ALL;
 }
@@ -45,8 +45,6 @@ function writeMode(mode) {
 function matchesDivision(record, mode) {
     const division = normalizeDivision(record?.divisao);
     switch (normalizeMode(mode)) {
-    case MODE.BOTH:
-        return division === MODE.FB || division === MODE.IN;
     case MODE.FB:
         return division === MODE.FB;
     case MODE.IN:
@@ -60,7 +58,6 @@ function matchesDivision(record, mode) {
 
 function modeLabel(mode) {
     switch (normalizeMode(mode)) {
-    case MODE.BOTH: return 'F&B + IN';
     case MODE.FB: return 'F&B';
     case MODE.IN: return 'IN';
     case MODE.UNCLASSIFIED: return 'Não classificado';
@@ -75,7 +72,6 @@ function renderDivisionControl(currentMode) {
             <label>Divisão</label>
             <select id="report-divisao" class="form-control" aria-label="Filtrar custos por divisão">
                 <option value="all" ${mode === MODE.ALL ? 'selected' : ''}>Todos</option>
-                <option value="both" ${mode === MODE.BOTH ? 'selected' : ''}>F&amp;B + IN</option>
                 <option value="F&amp;B" ${mode === MODE.FB ? 'selected' : ''}>F&amp;B</option>
                 <option value="IN" ${mode === MODE.IN ? 'selected' : ''}>IN</option>
                 <option value="unclassified" ${mode === MODE.UNCLASSIFIED ? 'selected' : ''}>Não classificado</option>
