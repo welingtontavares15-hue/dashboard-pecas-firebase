@@ -4,6 +4,9 @@ const applicationConfig = baseConfig.find((entry) => entry?.languageOptions?.glo
 
 module.exports = [
     {
+        ignores: ['js/vendor/**']
+    },
+    {
         languageOptions: applicationConfig.languageOptions || {
             ecmaVersion: 2021,
             sourceType: 'module'
@@ -34,7 +37,6 @@ module.exports = [
             'no-loss-of-precision': 'error',
             'no-new-native-nonconstructor': 'error',
             'no-obj-calls': 'error',
-            'no-promise-executor-return': 'error',
             'no-self-assign': 'error',
             'no-setter-return': 'error',
             'no-sparse-arrays': 'error',
@@ -47,7 +49,6 @@ module.exports = [
             'no-unsafe-negation': 'error',
             'no-useless-backreference': 'error',
             'no-useless-catch': 'error',
-            'no-useless-escape': 'error',
             'require-yield': 'error',
             'use-isnan': 'error',
             'valid-typeof': 'error'
