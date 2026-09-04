@@ -1,157 +1,91 @@
 # Security Review and Compliance
 
-## Overview
-This document tracks the security posture and compliance requirements for the Dashboard de Solicitação de Peças application.
+## Status
 
-## Security Features Implemented
+**Revisão técnica atualizada em setembro de 2026.**
 
-### 1. Authentication Security
-- ✅ **Password Hashing**: SHA-256 with per-user salt
-- ✅ **Rate Limiting**: Progressive lockout (5 attempts → 15 min, then doubles)
-- ✅ **Session Management**: 8-hour sessions with expiration validation
-- ✅ **Enumeration Prevention**: Failed attempts tracked for all usernames
+O sistema possui controles de interface, rate limiting client-side, trilha de auditoria e regras do Firebase, mas **não deve ser considerado com autorização forte enquanto a autenticação/RBAC atual depender de atributos de sessão originados no cliente**.
 
-### 2. Authorization (RBAC)
-- ✅ **Multi-layer RBAC**: Claims + Database Rules + Frontend Guards
-- ✅ **Role-based Permissions**: Admin, Gestor, Técnico with granular permissions
-- ✅ **Region-based Access**: Gestor can only approve in their region
-- ✅ **Action Validation**: Backend must validate all critical operations
+Detalhes de exploração não devem ser publicados neste repositório público. O mecanismo completo deve ser tratado em canal restrito de segurança.
 
-### 3. Data Security
-- ✅ **Audit Trail**: All changes tracked with version, user, timestamp
-- ✅ **Timeline**: Complete history of status changes and approvals
-- ✅ **Optimistic Concurrency**: Version-based conflict detection
-- ✅ **Server-side Calculations**: Totals calculated on backend, not client
+## Arquitetura observada
 
-### 4. Input Validation
-- ✅ **XSS Prevention**: HTML escaping (Utils.escapeHtml)
-- ✅ **CNPJ Validation**: Proper validation with checksum
-- ✅ **Email Validation**: RFC-compliant email validation
-- ✅ **Filename Sanitization**: Safe filename generation
+### Autenticação
+- O navegador estabelece Firebase Auth anônimo para acesso ao RTDB.
+- O login do portal usa cadastro próprio em `diversey_users` e comparação de `passwordHash` no cliente.
+- O hash atual é SHA-256 determinístico com salt configurado no frontend e identificador do usuário; isso não substitui um provedor de autenticação confiável nem um password KDF moderno.
+- A sessão do portal tem duração configurada de 30 dias (`Auth.SESSION_DURATION_MS`).
+- O rate limiting atual é uma proteção de UX/client-side e não deve ser tratado como barreira suficiente contra um cliente malicioso.
 
-## Security Checklist
+### Autorização
+- O frontend possui guards por perfil.
+- O RTDB possui regras por coleção e sessão.
+- Existe um **bloqueador crítico de confiança** entre a identidade Firebase anônima, a sessão do portal e o RBAC. A decisão de autorização precisa ser migrada para identidade/claims verificadas por um componente confiável antes de considerar o modelo seguro para produção.
 
-### Authentication
-- [x] Passwords are hashed with salt
-- [x] Rate limiting prevents brute force attacks
-- [x] Session timeout is enforced
-- [x] Failed login attempts are logged
-- [ ] **TODO**: Add MFA for Admin and Gestor roles
-- [ ] **TODO**: Implement password complexity requirements
-- [ ] **TODO**: Add password expiration policy
+### Dados e integridade
+- Solicitações possuem trilha/timeline e vários fluxos usam gravações atômicas/controle de versão.
+- Scripts administrativos de backup, restore, seed e importação possuem validações e testes automatizados na branch de hardening.
+- O frontend é predominantemente client-side; não declarar cálculos ou validações como server-side sem evidência de backend efetivamente responsável por eles.
 
-### Authorization
-- [x] RBAC is enforced at multiple layers
-- [x] Users can only access their permitted resources
-- [x] Menu items are filtered by role
-- [ ] **TODO**: Review and harden Firebase security rules
-- [ ] **TODO**: Add backend API endpoint validation
-- [ ] **TODO**: Implement approval matrix based on value/category
+### Entrada e saída
+- `Utils.escapeHtml` é utilizado em vários renderizadores para reduzir risco de XSS.
+- Existem validadores para CPF, CNPJ, e-mail e nomes de arquivo.
+- A presença desses helpers não prova que todos os sinks estejam protegidos; novos usos de `innerHTML` devem manter escaping explícito ou usar APIs de DOM seguras.
 
-### Data Protection
-- [x] Sensitive data (passwords) are hashed
-- [x] CNPJ can be masked where not fully needed
-- [x] Audit logs don't contain sensitive data
-- [ ] **TODO**: Implement TLS for all connections
-- [ ] **TODO**: Enable Firebase encryption at rest
-- [ ] **TODO**: Add data backup and recovery procedures
+## Bloqueadores e riscos conhecidos
 
-### Input Validation
-- [x] All user inputs are validated
-- [x] XSS prevention through HTML escaping
-- [x] SQL injection not applicable (NoSQL database)
-- [x] File uploads are sanitized
-- [ ] **TODO**: Add file type validation for attachments
-- [ ] **TODO**: Implement file size limits
-- [ ] **TODO**: Add virus scanning for uploaded files
+### Crítico — arquitetura de autenticação/RBAC
+**Status: aberto / release blocker.**
 
-### Logging and Monitoring
-- [x] Authentication events are logged
-- [x] Failed login attempts are tracked
-- [x] Audit trail for all data changes
-- [ ] **TODO**: Implement structured logging with correlation IDs
-- [ ] **TODO**: Add alerting for suspicious activities
-- [ ] **TODO**: Create security dashboard
+A autorização atual depende de estado que não possui uma fronteira de confiança adequada. A correção segura exige migrar a autenticação para um verificador confiável (por exemplo Firebase Auth com identidade não-anônima e claims administradas fora do cliente, ou backend equivalente), migrar perfis e somente depois endurecer as regras do RTDB.
 
-## Compliance Requirements
+Não endurecer isoladamente as regras atuais sem plano de migração: o login existente depende do desenho client-side atual e uma alteração parcial pode indisponibilizar o sistema sem resolver a causa raiz.
 
-### LGPD (Brazilian Data Protection Law)
-- [ ] **TODO**: Data processing consent mechanism
-- [ ] **TODO**: Right to access personal data
-- [ ] **TODO**: Right to delete personal data
-- [ ] **TODO**: Data retention policies
-- [ ] **TODO**: Privacy policy document
+### Alto — cadeia de dependências de desenvolvimento
+Na execução de CI de 04/09/2026, `npm ci` reportou 32 vulnerabilidades conhecidas na árvore de desenvolvimento: 2 low, 11 moderate, 15 high e 4 critical. Como o deploy publica somente arquivos estáticos selecionados e não publica `node_modules`, isso é principalmente risco de supply chain/CI, mas deve ser tratado por atualização controlada de dependências e reexecução integral dos testes.
 
-### Internal Security Policies
-- [x] Minimum privilege principle applied
-- [x] Separation of duties (Técnico/Gestor/Admin)
-- [ ] **TODO**: Document security incident response plan
-- [ ] **TODO**: Implement regular security audits
-- [ ] **TODO**: Security awareness training materials
+### Médio — dívida de lint
+O lint histórico contém centenas de violações, majoritariamente de estilo/estrutura. O CI de hardening separa um gate bloqueante de defeitos críticos do relatório completo legado para impedir novas falhas relevantes sem mascarar a dívida existente.
 
-## Vulnerability Assessment
+## Controles automatizados observados
 
-### Current Known Issues
-None at present.
+- Testes JavaScript abrangendo autenticação, autorização de interface, sincronização, solicitações, aprovações, fornecedores, relatórios, exportações, idempotência e arquitetura responsiva.
+- Testes de segurança de configuração de produção e rate limiting.
+- Privacy guard para evitar fallback de dados pessoais no frontend público.
+- Testes Python para schema/hash do seed, importação transacional, sanitização de chaves, backup atômico e restore com validação.
+- Lint crítico bloqueante para código JavaScript first-party; `js/vendor/**` é tratado como código de terceiro e não é reformatado pelo projeto.
 
-### Regular Security Tasks
-- [ ] Monthly review of user permissions
-- [ ] Quarterly security rule audit
-- [ ] Annual penetration testing
-- [ ] Continuous dependency vulnerability scanning
+## Requisitos para fechar o bloqueador crítico
 
-## Security Testing
+- [ ] Escolher provedor de identidade confiável para usuários reais.
+- [ ] Definir estratégia de migração/reset de credenciais existentes; hashes atuais não permitem recuperar senhas em texto claro.
+- [ ] Vincular perfil/role a UID/claims administrados por processo confiável.
+- [ ] Remover dependência de leitura client-side da coleção de credenciais para autenticar.
+- [ ] Impedir que o cliente determine atributos de autorização privilegiados.
+- [ ] Reescrever e testar regras do RTDB em emulador/staging antes de produção.
+- [ ] Adicionar testes negativos de autorização e tentativa de escalada de privilégio.
+- [ ] Reduzir duração de sessão conforme política corporativa e risco operacional.
+- [ ] Invalidar sessões antigas durante a migração.
 
-### Manual Testing
-- [x] Login with invalid credentials
-- [x] Attempt to access unauthorized pages
-- [x] Test rate limiting
-- [x] Verify session expiration
-- [ ] **TODO**: Test XSS attack vectors
-- [ ] **TODO**: Test CSRF protection
-- [ ] **TODO**: Test authorization bypass attempts
+## Segurança de release
 
-### Automated Testing
-- [x] Unit tests for authentication module
-- [x] Unit tests for rate limiting
-- [ ] **TODO**: Integration tests for RBAC
-- [ ] **TODO**: E2E security tests
-- [ ] **TODO**: Automated vulnerability scanning
+Uma release somente deve ser considerada candidata quando:
+- testes JS e Python estiverem verdes;
+- `npm run lint:critical` estiver verde;
+- privacy guard estiver verde;
+- dependency audit tiver sido revisado;
+- regras Firebase tiverem evidência de teste no modelo de identidade adotado;
+- o bloqueador crítico de autenticação/RBAC estiver encerrado para produção.
 
-## Incident Response
+## Compliance / LGPD
 
-### Security Incident Classification
-1. **Critical**: Data breach, unauthorized access to admin accounts
-2. **High**: Multiple failed authentication attempts, privilege escalation
-3. **Medium**: Single failed authentication, suspicious activity
-4. **Low**: Policy violations, configuration issues
+Pendências de governança continuam fora do escopo do código atual e precisam de validação jurídica/processual:
+- base legal e transparência do tratamento;
+- retenção e descarte;
+- direito de acesso/correção/eliminação quando aplicável;
+- minimização de dados pessoais;
+- resposta a incidente e registro de evidências.
 
-### Response Procedures
-1. **Detection**: Monitor logs and alerts
-2. **Containment**: Disable affected accounts, block IPs
-3. **Investigation**: Review logs, identify scope
-4. **Recovery**: Restore from backups if needed
-5. **Post-Incident**: Document lessons learned, update procedures
+---
 
-## Recommendations
-
-### High Priority
-1. Implement MFA for privileged accounts (Admin/Gestor)
-2. Review and harden Firebase security rules
-3. Add structured logging with correlation IDs
-4. Implement automated security testing
-
-### Medium Priority
-1. Add file type and size validation
-2. Implement password complexity requirements
-3. Create security monitoring dashboard
-4. Document disaster recovery procedures
-
-### Low Priority
-1. Add LGPD compliance features
-2. Implement password expiration
-3. Add security awareness training
-4. Conduct annual penetration testing
-
-## Last Updated
-2024-12-26
+**Última atualização:** 04/09/2026

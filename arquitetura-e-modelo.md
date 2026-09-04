@@ -1,120 +1,173 @@
 # Arquitetura e Modelo de Dados
 
-Documento de referência rápida para a visão de arquitetura, modelo de dados e fluxos críticos do **Dashboard de Solicitação de Peças**.
+Este documento separa **arquitetura observada** de **arquitetura-alvo**. Não trate itens de roadmap como controles já implementados.
 
-## 1) Arquitetura base (Core)
-- **PWA + Service Worker**: instalação no dispositivo, cache seletivo e fallback offline via `service-worker.js` + `offline.html`.
-- **Persistência offline com IndexedDB**: `IndexedDBStorage` mantém o cache principal (dados, versões, sessão), com localStorage apenas como compatibilidade. Stores dedicados: `requests`, `parts`, `users`, `suppliers`, `reports` e `queue`, com índices para status/region/cnpj/username e versão da coleção.
-- **Fila e retry offline**: gravações vão para IndexedDB e, se a conexão Firebase cair, entram na store `queue`; ao reconectar o listener `.info/connected` dispara `flushQueue()` com backoff.
-- **Cache por módulo**: o Service Worker usa caches versionados por módulo (`core`, `dashboard`, `solicitacoes`, `catalogo`, `relatorios`) e publica `CACHE_UPDATED` ao ativar para habilitar refresh seguro.
-- **Backend**: Firestore + Cloud Functions (ou RTDB + Functions) para validações server-side, auditoria, sequenciais e integrações.
-- **RBAC em camadas**: claims no token, regras no banco e guarda de rota no front (menus dinâmicos e checagens de permissão).
+## 1. Arquitetura observada
 
-## 2) Collections e relacionamentos (Data Model)
-### 2.1 requests (Solicitações)
-- ID sequencial `REQ-YYYYMMDD-####` (imutável, gerado em função transacional).
-- Auditoria: `audit.version`, `lastUpdatedBy`, `lastUpdatedAt`.
-- Status: `draft | pending | approved | rejected | in_transit | delivered | finalized`.
-- Trilhas: `approvals[]` e `timeline[]`.
-- Totais: `totals.amount`, `itemsCount`, `currency`.
+### Frontend
+- HTML, CSS e JavaScript executados diretamente no navegador.
+- PWA com Service Worker para cache de recursos e fallback de navegação.
+- Interface construída por módulos JavaScript globais e múltiplas camadas históricas de CSS.
 
-### 2.2 parts (Peças)
-- Catálogo: `code`, `description`, `category`, `unitPrice`, `status`.
-- Metadados: unidade (`uom`) e estoque mínimo (`minStock`).
+### Dados
+- Firebase Realtime Database é a persistência operacional observada.
+- Dados principais ficam sob `/data/*`.
+- `CloudStorage` em `js/storage.js` normaliza coleções e usa metadados como `updatedAt`, `updatedBy` e `opId`.
+- Escritas operacionais estão em modo **online-only**. `enqueueOperation()` não mantém fila offline de gravação no runtime atual.
 
-### 2.3 users (Admin / Gestor / Técnico / Fornecedor)
-- `role` define acesso; `region` define escopo (ex.: GO).
-- Claims para permissões e limite de orçamento.
+### Autenticação e autorização
+- O navegador estabelece Firebase Anonymous Auth para a conexão técnica atual com o RTDB.
+- O portal possui login próprio em `js/auth.js` e registros de usuário em `diversey_users`.
+- Guards de interface aplicam permissões por perfil.
+- As regras RTDB aplicam restrições adicionais.
+- A auditoria de setembro de 2026 identificou um bloqueador crítico na fronteira de confiança entre identidade Firebase, sessão do portal e RBAC. Consulte `SECURITY-REVIEW.md`.
 
-### 2.4 suppliers (Fornecedores)
-- Cadastro com `cnpj`, `contacts[]`, `status`.
+### Backend
+- Não foi observado backend de aplicação responsável por autenticação, cálculo de totais, sequenciais ou autorização crítica no fluxo principal do frontend.
+- Scripts Python em `scripts/` são ferramentas administrativas executadas separadamente; não constituem backend online do portal.
 
-### 2.5 reports (Cache materializado de KPIs)
-- Coleção de KPIs prontos (pendências, tempo médio, valor em aberto, top técnicos) para evitar agregações pesadas no client.
+### Deploy
+- O site estático é publicado no GitHub Pages por `.github/workflows/deploy.yml`.
+- O deploy monta um artefato `dist/` com arquivos de runtime selecionados.
 
-## 3) Sequenciais e consistência (Regras de integridade)
-- Sequencial imutável: gerado em Cloud Function transacional com prefixo de data + contador diário.
-- Controle de versão (optimistic concurrency): validar `audit.version` antes de gravar.
-- Totais sempre server-side: cálculo e validação no back, cliente apenas exibe.
+## 2. Modelo de dados observado
 
-## 4) Segurança e compliance
-- Auth confiável: OAuth2/OIDC (Microsoft Entra ID ou Google); MFA opcional para gestores/admin.
-- Regras por perfil: Técnico cria/lê suas solicitações; Gestor aprova/rejeita no próprio escopo; Admin com confirmações críticas em dois passos.
-- Privacidade/logs: TLS, criptografia at-rest, mascarar CNPJ em telas públicas, logs sem dados sensíveis.
-- Proteções: rate limiting + bloqueio progressivo em tentativas falhas; backups incrementais diários + snapshots semanais (restauração em staging).
+Principais conjuntos:
 
-### 4.1 Rate Limiting (Implementado)
-- **Limite de tentativas**: 5 tentativas falhas por usuário antes de bloqueio.
-- **Bloqueio progressivo**: Primeira vez = 15 minutos; cada bloqueio subsequente dobra o tempo (até 24h máx).
-- **Prevenção de enumeração**: Tentativas para usuários inexistentes também contam.
-- **Reset automático**: O contador é limpo após login bem-sucedido.
-- Implementação em `js/auth.js`: `checkRateLimit()`, `recordFailedAttempt()`, `clearRateLimit()`.
-
-## 5) Offline, sync e performance
-- **Offline-first**: IndexedDB + Service Worker com cache seletivo por módulo.
-- **Fila de envio**: operações offline viram deltas com retry exponencial; conflitos resolvidos com prioridade do servidor (last-write-wins + alerta).
-- **Performance**: paginação por cursor e índices (status, createdAt, createdBy, supplier); lazy load de libs pesadas (Chart.js, jsPDF, XLSX); KPIs materializados em `reports`.
-
-## 6) Workflow e melhorias de UX
-- **Solicitações**: formulário guiado (Itens → Revisão → Envio), autocomplete de peça, preço médio histórico, alerta de orçamento, anexos no storage com referência.
-- **Aprovações**: matriz por valor/categoria/região, SLA visível (cronômetro + cores), histórico e contexto (consumo por técnico, peças recorrentes, orçamento do mês).
-- **Dashboard**: KPIs “clicáveis” com filtro aplicado, filtros salvos/compartilháveis, ações rápidas com confirmação + comentário obrigatório.
-
-## 7) Relatórios e analytics
-- Filtros consistentes entre telas e exportações; exportação XLSX/CSV com sequencial e status.
-- Métricas: SLA por etapa, retrabalho (rejeições), ranking por peça/região, alertas de anomalia.
-- Agendamento de PDF/XLS semanal para gestores + logs de entrega/falha.
-
-## 8) DevOps e qualidade
-- Ambientes isolados (dev/staging/prod) + dados segregados.
-- CI/CD: lint, type-check, unit/integração/e2e (Cypress/Playwright); migração gradual para TypeScript.
-- Feature flags + rollback rápido; observabilidade com logs estruturados e correlação por `request.id`.
-- Documentação viva + playbooks curtos.
-
-## 9) Snippets (referência técnica)
-### 9.1 Service Worker (cache + fallback)
-```js
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('v1').then((cache) => cache.addAll([
-    '/', '/index.html', '/styles.css', '/app.js'
-  ])));
-});
-
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((cached) =>
-      cached || fetch(e.request).catch(() => caches.match('/offline.html'))
-    )
-  );
-});
+```text
+/data
+  /diversey_users
+  /diversey_tecnicos
+  /diversey_fornecedores
+  /diversey_pecas
+  /diversey_solicitacoes
+  /diversey_sessions
+  /diversey_settings
 ```
 
-### 9.2 Regras de segurança (Firestore – exemplo)
-```js
-match /requests/{id} {
-  allow read: if isAdmin() || isManager() || isOwnerOfRequest(id);
-  allow create: if isTechnician() && request.resource.data.status == 'pending';
-  allow update: if isManager() && request.resource.data.status in ['approved','rejected','in_transit','delivered','finalized'];
-  allow delete: if false;
+Algumas coleções usam o wrapper:
+
+```json
+{
+  "data": [],
+  "updatedAt": 0,
+  "updatedBy": "identificador",
+  "opId": "identificador-da-operacao"
 }
 ```
 
-### 9.3 Geração do sequencial (Cloud Function)
-```js
-exports.generateSeq = functions.firestore.document('requests/{id}')
-  .onCreate(async (snap, ctx) => {
-    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const counterRef = admin.firestore().doc(`counters/${date}`);
-    await admin.firestore().runTransaction(async (tx) => {
-      const doc = await tx.get(counterRef);
-      const next = (doc.exists ? doc.data().count : 0) + 1;
-      tx.set(counterRef, { count: next }, { merge: true });
-      tx.update(snap.ref, { id: `REQ-${date}-${String(next).padStart(4,'0')}` });
-    });
-  });
-```
+Os scripts administrativos devem preservar esse formato quando operarem sobre coleções consumidas pelo frontend.
 
-## 10) Roadmap por fases
-- **Fase 1 — Fundamentos**: PWA + IndexedDB, RBAC + guardas de rota, sequencial e totais server-side.
-- **Fase 2 — Fluxos e UX**: Matriz de aprovação, dashboard materializado + filtros salvos, anexos + portal fornecedor (MVP).
-- **Fase 3 — Observabilidade e escala**: Relatórios agendados + anomalias, CI/CD completo + feature flags, backups + retenção + auditoria avançada.
+## 3. Solicitações e consistência
+
+O código atual mantém campos de status, timeline, aprovação e snapshots compatíveis com registros legados. Há testes específicos para:
+
+- reconhecimento de custo por data de aprovação;
+- classificação de divisão F&B/IN;
+- atualização atômica de divisão;
+- escopo de fornecedor;
+- idempotência de escrita;
+- sincronização em tempo real;
+- PDFs e artefatos de exportação.
+
+Não assumir geração server-side de sequencial ou cálculo server-side de totais sem implementação e evidência específicas.
+
+## 4. Modo online-only
+
+O Service Worker continua útil para shell/cache PWA, porém o comportamento de escrita deve ser entendido separadamente:
+
+- falta de conexão cloud faz a gravação falhar de forma explícita;
+- o runtime não deve prometer fila persistente de alterações offline;
+- testes de idempotência verificam que os dados não são persistidos localmente como substituto de uma escrita cloud indisponível.
+
+Esse contrato é protegido por `tests/idempotency.test.js` e pelo manifesto `tests/critical-flows.test.js`.
+
+## 5. Responsividade e arquitetura visual
+
+A UI possui camadas de estilo acumuladas ao longo de várias versões. As camadas finais autoritativas e sua ordem de carregamento são verificadas por testes de regressão.
+
+Testes relevantes:
+
+- `tests/responsive-system.test.js`
+- `tests/premium-release-v55.test.js`
+- `tests/wwm-smart-layout.test.js`
+- `tests/visual-architecture-v72.test.js`
+- `tests/technician-request-layout.test.js`
+- `tests/navigation-master.test.js`
+
+A existência de CSS histórico é dívida arquitetural, mas remoção/reordenação exige prova de não uso e validação visual em múltiplos viewports.
+
+## 6. Segurança observada
+
+Controles existentes incluem:
+
+- hash de senha do portal;
+- rate limiting client-side;
+- expiração de sessão do portal;
+- guards por perfil;
+- regras RTDB;
+- escaping e sanitizadores em diversos fluxos;
+- privacy guard no CI;
+- trilhas e metadados de auditoria em operações relevantes.
+
+Esses controles **não eliminam** o bloqueador crítico de confiança de autenticação/RBAC descrito em `SECURITY-REVIEW.md`.
+
+## 7. Scripts administrativos Python
+
+- `seed_admin.py`: cria/atualiza usuário usando schema compatível com o portal e transação.
+- `import_pecas_xlsx.py`: valida dados e mescla catálogo em transação única.
+- `backup_rtdb.py`: gera backup atômico de `/data`.
+- `restore_rtdb.py`: exige confirmação explícita e valida o restore por readback.
+
+Os helpers possuem testes em `tests_python/`.
+
+## 8. CI/CD e qualidade
+
+O CI executa:
+
+1. instalação npm;
+2. testes JavaScript;
+3. compilação sintática Python;
+4. testes Python;
+5. lint crítico first-party;
+6. privacy guard;
+7. verificação dos arquivos necessários ao artefato;
+8. relatório de lint legado;
+9. relatório de dependências vulneráveis.
+
+O deploy em `main` repete os gates críticos antes de publicar no GitHub Pages.
+
+## 9. Arquitetura-alvo recomendada
+
+Os itens abaixo são **recomendações**, não estado atual:
+
+### Identidade e RBAC
+- Migrar usuários para provedor de identidade confiável.
+- Associar perfis a UID/claims administrados fora do navegador.
+- Remover autenticação do portal baseada em leitura client-side da coleção de credenciais.
+- Reescrever regras RTDB contra identidade verificada.
+- Testar tentativas negativas de autorização em emulador/staging.
+
+### Dados
+- Considerar funções/backend confiável para operações que necessitem invariantes impossíveis de garantir apenas no cliente.
+- Manter transações e idempotência para atualizações concorrentes.
+- Definir política formal de backup, retenção e restauração.
+
+### Qualidade
+- Reduzir progressivamente a dívida de lint completo.
+- Manter testes de regressão por módulo.
+- Adicionar smoke/E2E autenticado em navegador real para fluxos críticos e múltiplos viewports.
+- Atualizar dependências npm de forma controlada, evitando `--force` sem regressão completa.
+
+## 10. Princípios de manutenção
+
+- Diferenciar claramente código observado de roadmap.
+- Não declarar controle server-side quando a decisão é tomada no navegador.
+- Não confundir cache PWA com capacidade de gravação offline.
+- Não alterar regras Firebase isoladamente sem testar o fluxo de autenticação completo.
+- Não remover CSS histórico sem evidência de não uso e regressão visual.
+- Toda mudança de dados deve ter rollback e readback quando aplicável.
+
+---
+
+**Última atualização:** setembro de 2026
