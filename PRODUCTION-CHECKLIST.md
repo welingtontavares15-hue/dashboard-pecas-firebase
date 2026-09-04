@@ -6,138 +6,100 @@ Este checklist deve ser completado antes de cada deploy para produção.
 
 ### Código e Qualidade
 
-- [ ] Todos os testes automatizados passaram (`npm test`)
-- [ ] Linting passou sem erros (`npm run lint:check`)
+- [ ] Todos os testes JavaScript passaram (`npm test`)
+- [ ] Todos os testes Python passaram (`npm run test:python`)
+- [ ] Lint crítico passou sem erros (`npm run lint:critical`)
+- [ ] Lint completo foi revisado (`npm run lint:check`); a dívida legada deve permanecer visível até ser eliminada
+- [ ] Privacy guard passou (`node scripts/redact-technician-fallback.mjs --check`)
 - [ ] Code review completado e aprovado
 - [ ] PR mergeado na branch target
-- [ ] Sem vulnerabilidades críticas (`npm audit`)
+- [ ] `npm audit` revisado; nenhuma vulnerabilidade crítica nova aceita sem avaliação de risco
 
 ### Versionamento
 
-- [ ] `CACHE_VERSION` atualizado em `service-worker.js`
-- [ ] `version` atualizado em `js/config.js` (deve coincidir)
-- [ ] `package.json` version atualizado (se aplicável)
-- [ ] `RELEASE-NOTES.md` atualizado com mudanças
+- [ ] `CACHE_VERSION` atualizado em `service-worker.js` quando arquivos cacheados mudarem
+- [ ] `version` atualizado em `js/config.js` quando aplicável
+- [ ] `package.json` atualizado quando aplicável
+- [ ] Notas de release atualizadas quando aplicável
 
 ### Configuração de Ambiente
 
-- [ ] `APP_CONFIG.environment` definido como `'production'`
-- [ ] Credenciais de login NÃO visíveis na tela de login (produção)
-- [ ] Firebase configurado para projeto de produção
-- [ ] Variáveis de ambiente corretas
+- [ ] `APP_CONFIG.environment` definido como `production`
+- [ ] Credenciais de login não visíveis na tela de login em produção
+- [ ] Firebase configurado para o projeto correto
+- [ ] Regras do Realtime Database revisadas e validadas
+- [ ] Nenhum segredo ou service account versionado
 
 ### Smoke Tests
 
-- [ ] Smoke tests executados em staging
-- [ ] Todos os fluxos críticos passaram
+- [ ] Smoke tests executados em staging ou ambiente controlado equivalente
+- [ ] Login validado com conta autorizada
+- [ ] Criação, aprovação/rejeição, trânsito e finalização de solicitação validados conforme o perfil
+- [ ] Filtros, busca e ordenação principais validados
+- [ ] Exportações principais validadas
+- [ ] Layout conferido em desktop, tablet e mobile
+- [ ] Console do navegador sem erro crítico nos fluxos exercitados
 - [ ] Evidências documentadas
-- [ ] `SMOKE-TEST-CHECKLIST.md` preenchido e assinado
 
 ---
 
 ## Deploy
 
-### Staging (Obrigatório antes de Produção)
-
-- [ ] Deploy para staging executado
-- [ ] Aguardar 15 minutos de monitoramento
-- [ ] Verificar logs de erro
-- [ ] Testar fluxos críticos manualmente
+O deploy atual é feito pelo workflow `.github/workflows/deploy.yml` para GitHub Pages após o job `quality` concluir com sucesso.
 
 ### Produção
 
-- [ ] Tag de release criada
-- [ ] Deploy para produção executado
-- [ ] Verificar disponibilidade do sistema
-- [ ] Testar login com usuário real
-- [ ] Verificar que dados existentes estão intactos
+- [ ] Commit/PR aprovado está em `main`
+- [ ] Workflow `Deploy to GitHub Pages` concluiu com sucesso
+- [ ] SHA implantado corresponde ao SHA aprovado
+- [ ] URL publicada responde corretamente
+- [ ] Login e fluxos críticos foram revalidados
+- [ ] Dados existentes permanecem íntegros
 
 ---
 
 ## Pós-Deploy
 
-### Monitoramento Imediato (0-15 min)
+### Verificação imediata
 
-- [ ] Verificar logs de erro no Firebase Console
-- [ ] Monitorar taxa de sucesso de login
-- [ ] Verificar que Service Worker atualizou
-- [ ] Testar criação de solicitação
-- [ ] Testar exportação (PDF/Excel)
+- [ ] GitHub Actions sem falhas de deploy
+- [ ] Logs relevantes do Firebase revisados
+- [ ] Service Worker atualizado sem prender clientes em versão incompatível
+- [ ] Criação de solicitação validada
+- [ ] Aprovação/rejeição validada com perfil autorizado
+- [ ] Exportação principal validada
 
-### Monitoramento Curto Prazo (0-24h)
+### Monitoramento curto prazo
 
-- [ ] Acompanhar feedback de usuários
-- [ ] Verificar tendências de erro
-- [ ] Monitorar performance do banco
-- [ ] Verificar logs de auditoria
-
-### Monitoramento Longo Prazo (1 semana)
-
-- [ ] Analisar padrões de uso
-- [ ] Verificar métricas de performance
-- [ ] Revisar logs de exportação
-- [ ] Validar integridade de dados
+- [ ] Feedback de usuários acompanhado
+- [ ] Erros de sincronização e autorização acompanhados
+- [ ] Performance do banco acompanhada
+- [ ] Logs de auditoria revisados
 
 ---
 
 ## Rollback
 
-Se qualquer problema crítico for detectado:
+Se um problema crítico for detectado:
 
-1. Executar rollback imediato:
-   ```bash
-   firebase hosting:rollback
-   ```
-
-2. Notificar equipe via canal de comunicação
-
-3. Documentar o problema em issue
-
-4. Seguir `ROLLBACK-PLAN.md` para procedimentos detalhados
-
----
-
-## Contatos de Emergência
-
-| Função | Nome | Contato |
-|--------|------|---------|
-| Tech Lead | [Nome] | [Email/Telefone] |
-| DevOps | [Nome] | [Email/Telefone] |
-| On-Call | [Rotação] | [Contato] |
+1. Identificar o último commit estável publicado no GitHub Pages.
+2. Criar um revert do commit/PR defeituoso na `main` ou reaplicar o commit estável por PR controlado.
+3. Confirmar que o workflow `Deploy to GitHub Pages` republicou o SHA de rollback.
+4. Validar disponibilidade, login, integridade dos dados e fluxos críticos.
+5. Para rollback de dados, usar o procedimento específico em `ROLLBACK-PLAN.md`; não restaurar RTDB como efeito colateral de rollback de código.
 
 ---
 
 ## Aprovações
 
-| Etapa | Responsável | Assinatura | Data |
-|-------|-------------|------------|------|
-| Code Review | | | |
-| QA/Testes | | | |
-| Deploy Staging | | | |
-| Deploy Produção | | | |
+| Etapa | Responsável | Evidência/Data |
+|-------|-------------|---------------|
+| Code Review | | |
+| QA/Testes | | |
+| Deploy Produção | | |
+| Verificação Pós-Deploy | | |
 
 ---
 
-## Notas da Release
-
-**Versão:** _______________
-
-**Data do Deploy:** _______________
-
-**Principais Mudanças:**
-1. 
-2. 
-3. 
-
-**Riscos Identificados:**
-1. 
-2. 
-
-**Plano de Mitigação:**
-1. 
-2. 
-
----
-
-**Versão do documento:** 1.0  
-**Última atualização:** Dezembro 2024
+**Versão do documento:** 2.0  
+**Última atualização:** Setembro 2026
