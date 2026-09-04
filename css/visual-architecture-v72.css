@@ -482,3 +482,152 @@ body.visual-premium-v4.wwm-reference-theme.wwm-page-fornecedor .supplier-actions
         transition-duration: .01ms !important;
     }
 }
+
+/* ========================================================================== 
+   v72.1 - overlap hardening for filters and analytical tables
+   ========================================================================== */
+
+/* Report filters: the eleventh filter plus Actions completes a 6-column row.
+   Buttons are allowed to shrink inside the Actions cell instead of overlapping. */
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-actions {
+    grid-column: span 1 !important;
+    min-width: 0 !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-actions .report-filter-actions-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100%;
+    min-width: 0;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-actions .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    padding-inline: 10px !important;
+    white-space: nowrap;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-filter-field--division select.form-control {
+    appearance: auto !important;
+    -webkit-appearance: menulist !important;
+    padding-inline-end: 30px !important;
+}
+
+/* Solicitation table: reserve real space for Status/Data/Actions and stack the
+   division badge below the request number so it never enters the technician cell. */
+@media (min-width: 768px) {
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table {
+        width: 100% !important;
+        min-width: 1120px !important;
+        table-layout: fixed !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(1) { width: 14% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(2) { width: 18% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(3) { width: 12% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(4) { width: 18% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(5) { width: 10% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(6) { width: 15% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(7) { width: 8% !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(8) { width: 5% !important; }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:first-child {
+        white-space: normal !important;
+        overflow: hidden !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:first-child > strong {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .solicitation-division-badge {
+        display: flex !important;
+        width: max-content;
+        max-width: 100%;
+        margin: 4px 0 0 !important;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:nth-child(2),
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:nth-child(3),
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:nth-child(4) {
+        max-width: none !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:nth-child(6) {
+        overflow: hidden !important;
+        white-space: normal !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table td:nth-child(6) .status-badge {
+        max-width: 100%;
+        white-space: normal !important;
+        line-height: 1.15;
+        text-align: center;
+        justify-content: center;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(7) {
+        white-space: nowrap !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table :is(th, td):nth-child(8) {
+        min-width: 76px !important;
+        overflow: visible !important;
+    }
+}
+
+/* Analytical tables: dedicate width to textual columns and keep numeric data aligned. */
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) {
+    width: 100% !important;
+    min-width: 920px !important;
+    table-layout: fixed !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(1) { width: 32% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(2) { width: 10% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(3) { width: 15% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(4) { width: 15% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(5) { width: 14% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) th:nth-child(6) { width: 14% !important; }
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) {
+    width: 100% !important;
+    min-width: 980px !important;
+    table-layout: fixed !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(1) { width: 5% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(2) { width: 25% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(3) { width: 10% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(4) { width: 15% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(5) { width: 20% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(6) { width: 12.5% !important; }
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) th:nth-child(7) { width: 12.5% !important; }
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(7):last-child) td:nth-child(2),
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table:has(thead th:nth-child(6):last-child) td:nth-child(1) {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .dashboard-compact-table .table :is(th, td):not(:first-child) {
+    vertical-align: middle;
+}
+
+@media (max-width: 760px) {
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .premium-report-filter-actions .report-filter-actions-row {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
