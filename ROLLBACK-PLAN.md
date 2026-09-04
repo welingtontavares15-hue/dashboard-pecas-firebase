@@ -1,207 +1,112 @@
 # Plano de Rollback - Dashboard de Peças
 
-Este documento descreve os procedimentos para reverter uma release em caso de problemas críticos.
+Este documento descreve como reverter código publicado no GitHub Pages e, separadamente, como restaurar dados do Firebase Realtime Database.
 
-## Quando Fazer Rollback
+## Quando executar rollback
 
-Execute rollback imediatamente se:
+Considere rollback imediato quando houver:
+- falha crítica de login ou autorização;
+- criação/aprovação/finalização de solicitação indisponível;
+- corrupção ou perda de integridade de dados;
+- vulnerabilidade crítica introduzida pela release;
+- erro de runtime generalizado após o deploy.
 
-- ❌ Funcionalidade crítica está quebrada (login, criação de solicitação, aprovação)
-- ❌ Corrupção de dados detectada
-- ❌ Vulnerabilidade de segurança descoberta
-- ❌ Reclamações de usuários excedem threshold (>10% de erro)
-- ❌ Performance degradada significativamente (>50% mais lento)
+## Rollback do site publicado (GitHub Pages)
 
-## Procedimento Rápido (Firebase Hosting)
+O site é publicado pelo workflow `.github/workflows/deploy.yml` quando `main` recebe uma alteração e o job de qualidade passa. Não use comandos de Firebase Hosting para reverter o frontend deste repositório.
 
-### 1. Rollback Automático
+### 1. Identificar o último SHA estável
 
 ```bash
-# Listar deploys anteriores
-firebase hosting:channel:list
-
-# Executar rollback para versão anterior
-firebase hosting:rollback
-
-# Verificar que versão anterior está ativa
-firebase hosting:channel:list
+git log --oneline -20
 ```
 
-### 2. Verificação Pós-Rollback
+Confirme no histórico do GitHub Actions qual SHA foi implantado com sucesso antes do incidente.
 
-- [ ] Sistema está acessível
-- [ ] Login funciona
-- [ ] Dados estão intactos
+### 2. Reverter a mudança defeituosa
+
+Preferência: crie um PR de revert, preservando trilha de auditoria.
+
+```bash
+git checkout main
+git pull --ff-only
+git checkout -b hotfix/rollback-<identificador>
+git revert <sha-ou-merge-commit-defeituoso>
+git push -u origin hotfix/rollback-<identificador>
+```
+
+Após revisão, mescle o PR na `main`. O workflow de Pages publicará o estado revertido automaticamente.
+
+### 3. Verificar o redeploy
+
+- [ ] Job `quality` concluiu com sucesso
+- [ ] Job `deploy` concluiu com sucesso
+- [ ] SHA publicado corresponde ao commit de rollback
+- [ ] Site abre sem erro crítico
+- [ ] Login funciona com conta autorizada
 - [ ] Fluxos críticos funcionam
+- [ ] Console do navegador não apresenta erro crítico nos fluxos exercitados
 
-### 3. Comunicação
+## Rollback de dados do Firebase
 
-1. Notificar equipe técnica imediatamente
-2. Atualizar status page (se houver)
-3. Documentar incidente
+Rollback de código e rollback de dados são operações independentes. Não restaure o RTDB apenas porque uma versão do frontend foi revertida.
 
-## Procedimento Manual
+### 1. Preservar o estado atual
 
-Se o rollback automático falhar:
-
-### 1. Identificar Versão Estável
+Antes de qualquer restauração, faça um backup novo:
 
 ```bash
-# Ver histórico de tags
-git log --oneline -10
-
-# Identificar última tag estável
-git tag -l "v*" --sort=-version:refname | head -5
+cd scripts
+python backup_rtdb.py \
+  --service-account ../serviceAccountKey.json \
+  --database-url https://SEU-PROJETO-default-rtdb.firebaseio.com \
+  --out backup-pre-rollback.json
 ```
 
-### 2. Checkout e Deploy
+### 2. Validar o backup que será restaurado
+
+O arquivo deve representar o conteúdo de `/data` e ter origem conhecida. Revise especialmente usuários, solicitações, técnicos, fornecedores e catálogo de peças.
+
+### 3. Restaurar somente com autorização explícita
 
 ```bash
-# Checkout da versão anterior
-git checkout <tag-anterior>
-
-# Deploy manual
-firebase use production
-firebase deploy --only hosting
-
-# Verificar deploy
-curl -I https://dashboard-pecas.example.com
+python restore_rtdb.py \
+  --service-account ../serviceAccountKey.json \
+  --database-url https://SEU-PROJETO-default-rtdb.firebaseio.com \
+  --in backup-estavel.json \
+  --force
 ```
 
-### 3. Criar Tag de Rollback
+O script faz readback de `/data` e falha se o conteúdo persistido divergir do arquivo.
 
-```bash
-# Documentar o rollback
-git tag -a "v$(date +'%Y.%m.%d')-rollback" -m "Rollback para versão anterior"
-git push origin --tags
-```
+### 4. Validar integridade após restore
 
-## Rollback de Dados (Firebase)
+- [ ] Usuários e perfis esperados existem
+- [ ] Solicitações críticas estão íntegras
+- [ ] Técnicos e fornecedores estão íntegros
+- [ ] Catálogo de peças está íntegro
+- [ ] Regras de acesso continuam funcionando
+- [ ] Fluxos principais foram testados
 
-### ATENÇÃO: Procedimento de Alto Risco
+## Cache do cliente / Service Worker
 
-Rollback de dados deve ser último recurso. Pode causar perda de dados novos.
+Se um cliente permanecer preso em uma versão incompatível:
 
-### 1. Backup Atual
+1. Acesse `/clear-cache.html` e execute a limpeza indicada pela própria página; ou
+2. faça hard refresh (`Ctrl+Shift+R` no Windows/Linux, `Cmd+Shift+R` no macOS).
 
-```bash
-# Fazer backup do estado atual antes de qualquer ação
-firebase database:get / > backup-pre-rollback-$(date +%Y%m%d-%H%M%S).json
-```
+Não oriente limpeza indiscriminada de dados locais se houver informação do usuário que ainda não foi sincronizada; valide primeiro o modo de persistência da versão afetada.
 
-### 2. Restaurar Backup
+## Pós-rollback
 
-```bash
-# Acessar Firebase Console
-# https://console.firebase.google.com
-# Realtime Database → Import JSON
-
-# OU via CLI (CUIDADO: substitui todos os dados)
-firebase database:set / backup-anterior.json
-```
-
-### 3. Validar Dados
-
-- [ ] Verificar integridade das solicitações
-- [ ] Verificar usuários e permissões
-- [ ] Testar fluxos com dados restaurados
-
-## Cache do Cliente (Service Worker)
-
-Se usuários estiverem presos em versão antiga:
-
-### 1. Forçar Atualização
-
-Instruir usuários a:
-
-1. Acessar `/clear-cache.html`
-2. Clicar em "Limpar Cache e Dados Locais"
-3. Recarregar a aplicação
-
-### 2. Hard Refresh
-
-Alternativamente:
-
-- **Windows/Linux:** `Ctrl + Shift + R`
-- **Mac:** `Cmd + Shift + R`
-
-### 3. Via Console do Navegador
-
-```javascript
-// Limpar Service Worker e caches
-navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.unregister());
-});
-caches.keys().then(names => {
-    names.forEach(name => caches.delete(name));
-});
-localStorage.clear();
-location.reload(true);
-```
-
-## Comunicação de Incidente
-
-### Template de Notificação
-
-```
-🚨 ROLLBACK EXECUTADO
-
-Sistema: Dashboard de Peças
-Hora: [HORA]
-Versão revertida: [VERSÃO]
-Motivo: [BREVE DESCRIÇÃO]
-
-Status: Sistema operacional com versão anterior
-Próximos passos: [AÇÕES]
-
-Contato: [RESPONSÁVEL]
-```
-
-### Canais de Comunicação
-
-1. Slack/Teams (equipe técnica)
-2. Email (stakeholders)
-3. Status page (se houver)
-
-## Pós-Rollback
-
-### Documentação
-
-1. [ ] Criar issue detalhando o problema
-2. [ ] Documentar timeline do incidente
-3. [ ] Identificar root cause
-4. [ ] Definir ações corretivas
-
-### Correção
-
-1. [ ] Criar branch de hotfix
-2. [ ] Corrigir o problema
-3. [ ] Testar extensivamente em staging
-4. [ ] Seguir processo normal de deploy
-
-### Retrospectiva
-
-1. [ ] O que causou o problema?
-2. [ ] Como foi detectado?
-3. [ ] O rollback foi eficiente?
-4. [ ] O que pode ser melhorado?
-
-## Contatos de Emergência
-
-| Função | Nome | Contato | Horário |
-|--------|------|---------|---------|
-| Tech Lead | [Nome] | [Telefone] | 24/7 |
-| DevOps | [Nome] | [Telefone] | Horário comercial |
-| DBA | [Nome] | [Telefone] | Sob demanda |
-
-## Histórico de Rollbacks
-
-| Data | Versão | Motivo | Duração | Impacto |
-|------|--------|--------|---------|---------|
-| - | - | - | - | - |
+- [ ] Registrar o incidente e o SHA revertido
+- [ ] Preservar logs/evidências
+- [ ] Identificar causa raiz
+- [ ] Criar correção em branch isolada
+- [ ] Executar testes automatizados e smoke tests
+- [ ] Revisar o plano de prevenção de recorrência
 
 ---
 
-**Versão do documento:** 1.0  
-**Última atualização:** Dezembro 2024  
-**Próxima revisão:** Trimestral
+**Versão do documento:** 2.0  
+**Última atualização:** Setembro 2026
