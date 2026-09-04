@@ -144,8 +144,7 @@ export function applyReportsDivisionFilter() {
         const html = baseRenderCostFilters();
         const control = renderDivisionControl(this._divisionFilter || readMode());
         const marker = '<div class="filter-group report-filter-field premium-report-filter-actions">';
-        const alignedMarker = '<div class="filter-group report-filter-field premium-report-filter-actions" style="grid-column: span 1 !important;">';
-        if (html.includes(marker)) return html.replace(marker, `${control}${alignedMarker}`);
+        if (html.includes(marker)) return html.replace(marker, `${control}${marker}`);
         return `${html}${control}`;
     };
 
