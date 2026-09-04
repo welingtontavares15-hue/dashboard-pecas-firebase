@@ -2,7 +2,7 @@
     'use strict';
 
     const STORAGE_KEY = 'solicitacoes_division_filter_v1';
-    const MODE = Object.freeze({ ALL: 'all', BOTH: 'both', FB: 'F&B', IN: 'IN', UNCLASSIFIED: 'unclassified' });
+    const MODE = Object.freeze({ ALL: 'all', FB: 'F&B', IN: 'IN', UNCLASSIFIED: 'unclassified' });
 
     const normalizeDivision = (value) => {
         const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -12,7 +12,8 @@
 
     const normalizeMode = (value) => {
         const raw = String(value || '').trim();
-        return [MODE.ALL, MODE.BOTH, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw) ? raw : MODE.ALL;
+        if (raw === 'both') return MODE.ALL;
+        return [MODE.ALL, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw) ? raw : MODE.ALL;
     };
 
     function readMode() {
@@ -36,7 +37,6 @@
     function matches(record, mode) {
         const division = normalizeDivision(record?.divisao);
         switch (normalizeMode(mode)) {
-        case MODE.BOTH: return division === MODE.FB || division === MODE.IN;
         case MODE.FB: return division === MODE.FB;
         case MODE.IN: return division === MODE.IN;
         case MODE.UNCLASSIFIED: return !division;
@@ -46,7 +46,6 @@
 
     function label(mode) {
         switch (normalizeMode(mode)) {
-        case MODE.BOTH: return 'F&B + IN';
         case MODE.FB: return 'F&B';
         case MODE.IN: return 'IN';
         case MODE.UNCLASSIFIED: return 'Não classificado';
@@ -65,7 +64,6 @@
             <label for="sol-divisao-filter">Divisão:</label>
             <select id="sol-divisao-filter" class="form-control" aria-label="Filtrar solicitações por divisão">
                 <option value="all" ${mode === MODE.ALL ? 'selected' : ''}>Todas</option>
-                <option value="both" ${mode === MODE.BOTH ? 'selected' : ''}>F&amp;B + IN</option>
                 <option value="F&amp;B" ${mode === MODE.FB ? 'selected' : ''}>F&amp;B</option>
                 <option value="IN" ${mode === MODE.IN ? 'selected' : ''}>IN</option>
                 <option value="unclassified" ${mode === MODE.UNCLASSIFIED ? 'selected' : ''}>Não classificado</option>

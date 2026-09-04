@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'dashboard_division_filter_v1';
-const MODE = Object.freeze({ ALL: 'all', BOTH: 'both', FB: 'F&B', IN: 'IN', UNCLASSIFIED: 'unclassified' });
+const MODE = Object.freeze({ ALL: 'all', FB: 'F&B', IN: 'IN', UNCLASSIFIED: 'unclassified' });
 
 function normalizeDivision(value) {
     const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -9,7 +9,8 @@ function normalizeDivision(value) {
 
 function normalizeMode(value) {
     const raw = String(value || '').trim();
-    return [MODE.ALL, MODE.BOTH, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw) ? raw : MODE.ALL;
+    if (raw === 'both') return MODE.ALL;
+    return [MODE.ALL, MODE.FB, MODE.IN, MODE.UNCLASSIFIED].includes(raw) ? raw : MODE.ALL;
 }
 
 function readMode() {
@@ -33,7 +34,6 @@ function writeMode(mode) {
 function matches(record, mode) {
     const division = normalizeDivision(record?.divisao);
     switch (normalizeMode(mode)) {
-    case MODE.BOTH: return division === MODE.FB || division === MODE.IN;
     case MODE.FB: return division === MODE.FB;
     case MODE.IN: return division === MODE.IN;
     case MODE.UNCLASSIFIED: return !division;
@@ -54,7 +54,6 @@ function injectControl() {
         <i class="fas fa-layer-group" aria-hidden="true"></i>
         <select id="v59-division" aria-label="Filtrar dashboard por divisão">
             <option value="all" ${currentMode === MODE.ALL ? 'selected' : ''}>Todos</option>
-            <option value="both" ${currentMode === MODE.BOTH ? 'selected' : ''}>F&amp;B + IN</option>
             <option value="F&amp;B" ${currentMode === MODE.FB ? 'selected' : ''}>F&amp;B</option>
             <option value="IN" ${currentMode === MODE.IN ? 'selected' : ''}>IN</option>
             <option value="unclassified" ${currentMode === MODE.UNCLASSIFIED ? 'selected' : ''}>Não classificado</option>

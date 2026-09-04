@@ -6,18 +6,32 @@ describe('Filtros de custo por divisão F&B/IN', () => {
     const reportsFilter = fs.readFileSync(path.join(root, 'js/components/reports-division-filter.js'), 'utf8');
     const dashboardFilter = fs.readFileSync(path.join(root, 'js/components/dashboard-division-filter.js'), 'utf8');
     const solicitationFilter = fs.readFileSync(path.join(root, 'js/solicitacoes-divisao-filtro.js'), 'utf8');
+    const premiumUi = fs.readFileSync(path.join(root, 'js/premium-ui-v3.js'), 'utf8');
     const reportsPage = fs.readFileSync(path.join(root, 'js/pages/relatorios-v55.js'), 'utf8');
     const dashboardPage = fs.readFileSync(path.join(root, 'js/pages/dashboard-v55.js'), 'utf8');
     const solicitationsPage = fs.readFileSync(path.join(root, 'js/pages/solicitacoes.js'), 'utf8');
     const serviceWorker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
-    test('relatórios permitem custo F&B, IN, ambos e não classificados', () => {
-        ['F&B + IN', 'F&amp;B', 'IN', 'Não classificado'].forEach((label) => expect(reportsFilter).toContain(label));
-        expect(reportsFilter).toContain("case MODE.BOTH");
-        expect(reportsFilter).toContain("case MODE.FB");
-        expect(reportsFilter).toContain("case MODE.IN");
+    test('usa Todos como visão combinada sem opção F&B + IN redundante', () => {
+        ['Todos', 'F&amp;B', 'IN', 'Não classificado'].forEach((label) => expect(reportsFilter).toContain(label));
+        expect(reportsFilter).not.toContain('F&amp;B + IN');
+        expect(reportsFilter).not.toContain('case MODE.BOTH');
+        expect(reportsFilter).toContain("if (raw === 'both') return MODE.ALL;");
         expect(reportsFilter).toContain('AnalyticsHelper.computeMetrics');
         expect(reportsPage).toContain('applyReportsDivisionFilter');
+
+        [dashboardFilter, solicitationFilter].forEach((source) => {
+            expect(source).not.toContain('F&amp;B + IN');
+            expect(source).not.toContain('case MODE.BOTH');
+            expect(source).toContain("if (raw === 'both') return MODE.ALL;");
+        });
+    });
+
+    test('mantém ações dos filtros alinhadas e visualização compacta por ícone', () => {
+        expect(reportsFilter).toContain('grid-column: span 1 !important;');
+        expect(premiumUi).toContain("button.classList.contains('solicitation-view-action')");
+        expect(premiumUi).toContain("viewButton.querySelector(':scope > span')?.remove();");
+        expect(premiumUi).toContain("button.setAttribute('aria-label', normalized)");
     });
 
     test('dashboard recalcula indicadores e custos conforme a divisão', () => {
