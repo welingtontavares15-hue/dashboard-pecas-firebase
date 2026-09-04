@@ -79,6 +79,11 @@
         document.querySelectorAll('.table tbody .actions').forEach((actions) => {
             if (actions.dataset.premiumCompacted === 'true') return;
             const buttons = Array.from(actions.querySelectorAll(':scope > button.btn'));
+            const viewButton = buttons.find((button) => button.classList.contains('solicitation-view-action')) || buttons[0] || null;
+            if (viewButton) {
+                labelActionButton(viewButton);
+                viewButton.querySelector(':scope > span')?.remove();
+            }
             if (buttons.length <= 2) {
                 buttons.forEach(labelActionButton);
                 actions.dataset.premiumCompacted = 'true';
@@ -86,7 +91,6 @@
             }
 
             buttons.forEach(labelActionButton);
-            const viewButton = buttons[0];
             const primaryButton = buttons.slice(1).find((button) => button.classList.contains('btn-success')) || null;
             const keep = new Set([viewButton, primaryButton].filter(Boolean));
             const overflow = buttons.filter((button) => !keep.has(button));
