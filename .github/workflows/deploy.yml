@@ -27,18 +27,36 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Test
+      - name: JavaScript tests
         run: npm test -- --runInBand
+
+      - name: Python syntax
+        run: python -m compileall -q scripts
+
+      - name: Python tests
+        run: npm run test:python
+
+      - name: Critical JavaScript lint
+        run: npm run lint:critical
 
       - name: Privacy guard
         run: node scripts/redact-technician-fallback.mjs --check
 
-      - name: Lint baseline (non-blocking until legacy debt is removed)
+      - name: Legacy style lint report
         continue-on-error: true
         run: npm run lint:check
+
+      - name: Dependency audit report
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
   deploy:
     needs: quality
