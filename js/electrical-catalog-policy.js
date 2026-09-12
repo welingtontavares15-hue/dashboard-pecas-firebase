@@ -1,11 +1,17 @@
 /**
- * Política premium do catálogo: oculta categorias elétricas sem apagar histórico.
- * Camada reversível carregada após data.js e antes dos módulos de interface.
+ * Catalog compatibility policy.
+ *
+ * Historical versions of this file hid electrical parts from the active catalog.
+ * Electrical parts are valid requestable items and must remain visible. The legacy
+ * filename is intentionally preserved because index.html and the service worker
+ * already load/cache it.
+ *
+ * The policy now has two responsibilities only:
+ * 1) preserve every catalog category, including "Elétrica";
+ * 2) canonicalize CS codes such as "CS 135" to "CS135" on reads and writes.
  */
-(function installElectricalCatalogPolicy(global) {
+(function installCatalogCompatibilityPolicy(global) {
     'use strict';
-
-    const EXCLUDED = new Set(['eletrica', 'eletrico', 'eletricas', 'eletricos']);
 
     function normalize(value) {
         return String(value || '')
@@ -16,27 +22,56 @@
     }
 
     function isElectricalCategory(value) {
-        return EXCLUDED.has(normalize(value));
+        return ['eletrica', 'eletrico', 'eletricas', 'eletricos'].includes(normalize(value));
     }
 
     function isElectricalPart(part) {
         return Boolean(part && isElectricalCategory(part.categoria || part.category));
     }
 
+    function canonicalizePartCode(value) {
+        const raw = String(value ?? '').trim();
+        if (!raw) return '';
+
+        const csMatch = raw.match(/^cs\s*[-_ ]?\s*(\d{1,4})$/i);
+        if (!csMatch) return raw;
+
+        return `CS${csMatch[1].padStart(3, '0')}`;
+    }
+
+    function normalizePart(part) {
+        if (!part || typeof part !== 'object') return part;
+        const codigo = canonicalizePartCode(part.codigo);
+        return codigo && codigo !== part.codigo ? { ...part, codigo } : { ...part };
+    }
+
     function filterParts(parts) {
-        return Array.isArray(parts) ? parts.filter((part) => !isElectricalPart(part)) : [];
+        // Backward-compatible method name. No category is filtered anymore.
+        return Array.isArray(parts) ? parts.map(normalizePart) : [];
+    }
+
+    function normalizeImportRow(row) {
+        if (!row || typeof row !== 'object') return row;
+        const code = row.codigo ?? row.Código ?? row.CODIGO;
+        const canonical = canonicalizePartCode(code);
+        if (!canonical) return { ...row };
+        return { ...row, codigo: canonical };
     }
 
     const policy = Object.freeze({
-        id: 'catalog-no-electrical-v1',
-        excludedCategories: Object.freeze(Array.from(EXCLUDED)),
+        id: 'catalog-all-categories-v2',
+        excludedCategories: Object.freeze([]),
+        allowsElectricalParts: true,
         normalize,
         isElectricalCategory,
         isElectricalPart,
+        canonicalizePartCode,
+        normalizePart,
         filterParts
     });
 
     global.ElectricalCatalogPolicy = policy;
+    global.CatalogCompatibilityPolicy = policy;
 
     function patchDataManager() {
         const manager = global.DataManager;
@@ -46,22 +81,25 @@
         readMethods.forEach((name) => {
             if (typeof manager[name] !== 'function') return;
             const original = manager[name].bind(manager);
-            manager[name] = function filteredCatalogReader(...args) {
+            manager[name] = function visibleNormalizedCatalogReader(...args) {
                 return filterParts(original(...args));
             };
         });
 
-        const writeMethods = ['addPart', 'addPeca', 'savePart', 'savePeca', 'createPart', 'updatePart'];
-        writeMethods.forEach((name) => {
-            if (typeof manager[name] !== 'function') return;
-            const original = manager[name].bind(manager);
-            manager[name] = function guardedCatalogWriter(part, ...args) {
-                if (isElectricalPart(part)) {
-                    return { success: false, error: 'A categoria elétrica foi excluída do catálogo ativo.' };
-                }
-                return original(part, ...args);
+        if (typeof manager.savePart === 'function') {
+            const originalSavePart = manager.savePart.bind(manager);
+            manager.savePart = function saveNormalizedPart(part, ...args) {
+                return originalSavePart(normalizePart(part), ...args);
             };
-        });
+        }
+
+        if (typeof manager.importParts === 'function') {
+            const originalImportParts = manager.importParts.bind(manager);
+            manager.importParts = function importNormalizedParts(rows, ...args) {
+                const normalizedRows = Array.isArray(rows) ? rows.map(normalizeImportRow) : rows;
+                return originalImportParts(normalizedRows, ...args);
+            };
+        }
 
         Object.defineProperty(manager, '__electricalPolicyInstalled', {
             value: true,
@@ -72,32 +110,10 @@
         return true;
     }
 
-    function sanitizeCategoryControls(root = document) {
-        root.querySelectorAll('select').forEach((select) => {
-            Array.from(select.options).forEach((option) => {
-                if (isElectricalCategory(option.value) || isElectricalCategory(option.textContent)) {
-                    option.remove();
-                }
-            });
-        });
-    }
-
-    function installDomGuard() {
-        sanitizeCategoryControls();
-        const observer = new MutationObserver(() => sanitizeCategoryControls());
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-    }
-
     if (!patchDataManager()) {
         const timer = global.setInterval(() => {
             if (patchDataManager()) global.clearInterval(timer);
         }, 50);
         global.setTimeout(() => global.clearInterval(timer), 10000);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', installDomGuard, { once: true });
-    } else {
-        installDomGuard();
     }
 })(window);
