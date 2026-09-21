@@ -17,7 +17,7 @@ const APP_CONFIG = {
     /**
      * Application version aligned with service-worker.js CACHE_VERSION.
      */
-    version: 'v76-divisao-historicos',
+    version: 'v77-mobile-usability',
 
     /**
      * Runtime timestamp. A future build pipeline may replace this with a fixed
