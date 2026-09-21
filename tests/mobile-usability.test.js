@@ -45,6 +45,20 @@ describe('mobile usability contract', () => {
         expect(css).toContain('grid-template-columns: minmax(92px, 34%) minmax(0, 1fr)');
     });
 
+    test('prevents nested report KPI grids from collapsing on phones', () => {
+        const css = read('css/desktop-mobile-premium.css');
+
+        expect(css).toContain('REPORTS MOBILE HOTFIX');
+        expect(css).toContain('.wwm-page-relatorios .page-kpis');
+        expect(css).toContain('grid-template-columns: none !important');
+        expect(css).toContain('.wwm-page-relatorios .reports-summary-grid');
+        expect(css).toContain('grid-template-columns: minmax(0, 1fr) !important');
+        expect(css).toContain('.wwm-page-relatorios .report-summary-card');
+        expect(css).toContain('word-break: normal !important');
+        expect(css).toContain('.wwm-page-relatorios .report-tabs-modern');
+        expect(css).toContain('overflow-x: auto !important');
+    });
+
     test('keeps mobile menu accessibility state synchronized', () => {
         const html = read('index.html');
         const app = read('js/app.js');
