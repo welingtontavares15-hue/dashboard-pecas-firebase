@@ -803,3 +803,74 @@ body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .premium-row-m
         -webkit-tap-highlight-color: rgba(45, 212, 191, .16);
     }
 }
+
+/* ==========================================================================
+   REPORTS MOBILE HOTFIX — nested KPI grid regression (2026-09-20)
+   The reports page renders .reports-summary-grid inside .page-kpis. The v72
+   generic 2-column mobile rule applied to both containers, shrinking the inner
+   KPI grid to half the viewport and forcing labels to wrap character-by-character.
+   ========================================================================== */
+@media (max-width: 640px) {
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .page-kpis {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        grid-template-columns: none !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .reports-summary-grid,
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .wwm-history-summary-grid {
+        display: grid !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-summary-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        grid-template-columns: 48px minmax(0, 1fr) !important;
+        gap: 12px !important;
+        min-height: 92px !important;
+        padding: 14px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-summary-card > div {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-summary-card :is(h4, small) {
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-summary-card strong {
+        white-space: nowrap !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-tabs-modern {
+        display: flex !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-relatorios .report-tab-btn {
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        scroll-snap-align: start;
+    }
+}
