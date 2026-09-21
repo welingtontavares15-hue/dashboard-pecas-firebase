@@ -176,8 +176,18 @@ const App = {
         
         // Close modal on escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.key !== 'Escape') {
+                return;
+            }
+
+            const modalContainer = document.getElementById('modal-container');
+            if (modalContainer && !modalContainer.classList.contains('hidden')) {
                 Utils.closeModal();
+                return;
+            }
+
+            if (document.body.classList.contains('sidebar-open')) {
+                this.toggleSidebar(false);
             }
         });
 
@@ -244,11 +254,16 @@ const App = {
         window.addEventListener('resize', () => {
             const sidebar = document.getElementById('sidebar');
             const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
             if (window.innerWidth > 992) {
                 sidebar.classList.remove('active');
                 document.body.classList.remove('sidebar-open');
                 if (sidebarBackdrop) {
                     sidebarBackdrop.classList.remove('active');
+                }
+                if (mobileMenuBtn) {
+                    mobileMenuBtn.setAttribute('aria-expanded', 'false');
+                    mobileMenuBtn.setAttribute('aria-label', 'Abrir menu');
                 }
             }
         });
@@ -734,6 +749,7 @@ const App = {
     toggleSidebar(forceState = null) {
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         if (!sidebar) {
             return;
         }
@@ -746,6 +762,15 @@ const App = {
             if (sidebarBackdrop) {
                 sidebarBackdrop.classList.toggle('active', shouldOpen);
             }
+            if (mobileMenuBtn) {
+                mobileMenuBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+                mobileMenuBtn.setAttribute('aria-label', shouldOpen ? 'Fechar menu' : 'Abrir menu');
+            }
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            if (sidebarToggle) {
+                sidebarToggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+                sidebarToggle.setAttribute('aria-label', shouldOpen ? 'Fechar menu lateral' : 'Abrir menu lateral');
+            }
         } else {
             // Desktop: toggle collapsed class
             const collapsed = sidebar.classList.toggle('collapsed');
@@ -754,6 +779,10 @@ const App = {
                 sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 sidebarToggle.setAttribute('aria-label', collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral');
                 sidebarToggle.title = collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral';
+            }
+            if (mobileMenuBtn) {
+                mobileMenuBtn.setAttribute('aria-expanded', 'false');
+                mobileMenuBtn.setAttribute('aria-label', 'Abrir menu');
             }
         }
     },
