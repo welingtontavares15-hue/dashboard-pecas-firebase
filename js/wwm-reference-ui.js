@@ -41,7 +41,7 @@
         if (!deviceCss) {
             deviceCss = document.createElement('link');
             deviceCss.rel = 'stylesheet';
-            deviceCss.href = 'css/desktop-mobile-premium.css?v=20260830a';
+            deviceCss.href = 'css/desktop-mobile-premium.css?v=20260920a';
             deviceCss.dataset.wwmDeviceLayout = 'true';
             document.head.appendChild(deviceCss);
         }
@@ -95,7 +95,7 @@
         const premiumVisualLink = links.find((item) => item.href.includes('/css/visual-premium-v4.css'));
         const deviceLayoutLink = links.find((item) => item.href.includes('/css/desktop-mobile-premium.css'));
         const visualArchitectureLink = links.find((item) => item.href.includes('/css/visual-architecture-v72.css'));
-        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, deviceLayoutLink, visualArchitectureLink].filter(Boolean);
+        const expectedTail = [referenceLink, responsiveLink, visualStandardLink, smartLayoutLink, premiumVisualLink, visualArchitectureLink, deviceLayoutLink].filter(Boolean);
         const stylesheetTail = links.slice(-expectedTail.length);
         const alreadyOrdered = expectedTail.length >= 2
             && stylesheetTail.every((item, index) => item === expectedTail[index]);
@@ -113,11 +113,11 @@
         if (premiumVisualLink) {
             document.head.append(premiumVisualLink);
         }
-        if (deviceLayoutLink) {
-            document.head.append(deviceLayoutLink);
-        }
         if (visualArchitectureLink) {
             document.head.append(visualArchitectureLink);
+        }
+        if (deviceLayoutLink) {
+            document.head.append(deviceLayoutLink);
         }
         window.requestAnimationFrame(() => {
             orderingTheme = false;
