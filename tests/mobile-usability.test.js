@@ -4,6 +4,16 @@ const path = require('path');
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 
 describe('mobile usability contract', () => {
+    test('keeps app and service-worker release versions aligned', () => {
+        const config = read('js/config.js');
+        const serviceWorker = read('service-worker.js');
+        const appVersion = config.match(/version:\s*'([^']+)'/)?.[1];
+        const cacheVersion = serviceWorker.match(/const CACHE_VERSION = '([^']+)'/)?.[1];
+
+        expect(appVersion).toBe('v77-mobile-usability');
+        expect(cacheVersion).toBe(appVersion);
+    });
+
     test('loads the device refinement after visual architecture for first paint', () => {
         const html = read('index.html');
         const architecture = html.indexOf('css/visual-architecture-v72.css');
