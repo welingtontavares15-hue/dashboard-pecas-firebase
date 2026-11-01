@@ -27,8 +27,9 @@ const Utils = {
         : '',
     BRAND_NAME: 'Diversey',
     // Display name shown in the portal header and login screen. Updated to use
-    // proper Portuguese diacritics and the correct abbreviation (MWW instead of WMW).
-    PORTAL_DISPLAY_NAME: 'Portal de Solicitação de Peças MWW',
+    // proper Portuguese diacritics and the official abbreviation WWM (WareWashing
+    // Machine), aligned with the Power Apps "WWM - Request" reference app.
+    PORTAL_DISPLAY_NAME: 'Portal de Solicitação de Peças WWM',
     BRAND_SIGNATURE: 'Equipe Diversey',
     PASSWORD_RESET_SYSTEM_LINK: 'https://welingtontavares15-hue.github.io/dashboard-pecas-firebase/index.html',
     _operationalEmailQueue: Promise.resolve(),
