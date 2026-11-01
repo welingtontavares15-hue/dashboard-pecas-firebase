@@ -195,7 +195,7 @@ function renderQuickActions() {
 function renderHomeStage(source, summary) {
     return `<section class="wwm-home-stage" aria-labelledby="wwm-home-title">
         <div class="wwm-stage-brandline">
-            <span>Plataforma de Controle de Peças MWW — Solenis Brasil</span>
+            <span>Plataforma de Controle de Peças WWM — Solenis Brasil</span>
             <span class="wwm-stage-sync"><i class="fas fa-circle" aria-hidden="true"></i> Sistema sincronizado</span>
         </div>
         <div class="wwm-stage-content">

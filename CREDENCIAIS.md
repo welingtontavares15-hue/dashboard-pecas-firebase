@@ -16,4 +16,4 @@
 - Dados pessoais de colaboradores não devem ser mantidos como fallback no frontend público.
 
 ### Suporte
-Use o canal corporativo oficial definido para a operação do Portal de Peças MWW. Não publique e-mail pessoal, telefone pessoal, senha, token ou dados residenciais neste repositório.
+Use o canal corporativo oficial definido para a operação do Portal de Peças WWM. Não publique e-mail pessoal, telefone pessoal, senha, token ou dados residenciais neste repositório.
