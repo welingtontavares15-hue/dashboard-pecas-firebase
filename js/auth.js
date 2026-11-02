@@ -587,6 +587,31 @@ const Auth = {
     },
 
     /**
+     * Only called after the backend has verified a WebAuthn assertion and
+     * Firebase has accepted the signed custom token.
+     */
+    async loginWithVerifiedPasskey(profile) {
+        const verifiedId = window.firebaseAuth?.currentUser?.uid;
+        const claims = await window.firebaseAuth?.currentUser?.getIdTokenResult();
+        if (!verifiedId || claims?.claims?.portal_user_id !== String(profile?.id)
+            || claims?.claims?.portal_role !== profile?.role) {
+            throw new Error('A sessão autenticada não corresponde ao usuário.');
+        }
+        if (!this.permissions[profile.role]) throw new Error('Perfil não autorizado.');
+        this.currentUser = this.buildSessionUser(profile);
+        this.persistSession(this.currentUser);
+        if (typeof DataManager !== 'undefined') {
+            if (typeof DataManager.ensureCloudAccessSession === 'function') {
+                await DataManager.ensureCloudAccessSession(this.currentUser);
+            }
+            if (typeof DataManager.syncAll === 'function') {
+                await DataManager.syncAll('auth_passkey');
+            }
+        }
+        return this.currentUser;
+    },
+
+    /**
      * Logout
      */
     logout() {
