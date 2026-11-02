@@ -60,12 +60,21 @@ function credentialForWebauthn(c) {
   return { id: c.id, publicKey: Buffer.from(c.publicKey, 'base64url'), counter: Number(c.counter || 0), transports: c.transports || [] };
 }
 async function createToken(user) {
+  // All authorization-critical identity attributes are signed by Firebase.
   return getAuth().createCustomToken(firebaseUid(user.id), {
-    portal_user_id: String(user.id), portal_role: user.role
+    portal_user_id: String(user.id),
+    portal_role: user.role,
+    portal_username: String(user.username),
+    portal_name: String(user.name || user.username).slice(0, 120),
+    portal_email: String(user.email || '').slice(0, 160),
+    portal_tecnico_id: String(user.tecnicoId || ''),
+    portal_fornecedor_id: String(user.fornecedorId || ''),
+    portal_auth_method: 'passkey'
   });
 }
-async function beginRegistration(body) {
+async function beginRegistration(body, ip = 'unknown') {
   const { username, password } = body;
+  await throttle('registration-ip:' + ip, 20);
   await throttle('registration:' + String(username || '').toLowerCase(), 5);
   const user = await getUser(username);
   if (!activeUser(user) || !checkLegacyPassword(user, password)) invalid('Credenciais inválidas', 401);
@@ -92,38 +101,34 @@ async function finishRegistration(body) {
   const { credential } = verification.registrationInfo;
   const id = credential.id;
   const key = credentialKey(id);
-  const previous = (await credentialsRef().child(key).get()).val();
-  if (previous) invalid('Esta credencial já está cadastrada', 409);
   const record = {
     id, publicKey: encode(credential.publicKey), counter: credential.counter,
     transports: body.response?.response?.transports || [], userId: String(user.id),
     createdAt: Date.now()
   };
-  await db().ref().update({
-    ['passkeys/credentials/' + key]: record,
-    ['passkeys/userIndex/' + userKey(user.id) + '/' + key]: true
-  });
+  // Transaction makes a credential globally unique even under concurrent requests.
+  const inserted = await credentialsRef().child(key).transaction((previous) => previous ? undefined : record, undefined, false);
+  if (!inserted.committed) invalid('Esta credencial já está cadastrada', 409);
+  await userIndexRef().child(userKey(user.id)).child(key).set(true);
   return { success: true };
 }
-async function beginAuthentication(body) {
-  await throttle('authentication:' + String(body.username || '').toLowerCase(), 15);
-  const user = await getUser(body.username);
-  const list = activeUser(user) ? await credentialsFor(user.id) : [];
-  if (!list.length) invalid('Nenhuma chave de acesso cadastrada para este usuário', 404);
+async function beginAuthentication(_body, ip = 'unknown') {
+  await throttle('authentication-ip:' + ip, 40);
+  // An empty allowCredentials list enables discoverable (usernameless) passkeys.
+  // The user account is determined only AFTER server-side assertion verification.
   const options = await generateAuthenticationOptions({
-    rpID, userVerification: 'required',
-    allowCredentials: list.map((c) => ({ id: c.id, transports: c.transports || [] }))
+    rpID, userVerification: 'required', allowCredentials: []
   });
-  const challengeId = await storeChallenge({ type: 'login', challenge: options.challenge, userId: String(user.id) });
+  const challengeId = await storeChallenge({ type: 'login', challenge: options.challenge });
   return { challengeId, options };
 }
 async function finishAuthentication(body) {
   const challenge = await consumeChallenge(body.challengeId, 'login');
-  const user = await getUserId(challenge.userId);
-  if (!activeUser(user)) invalid('Usuário desativado ou ausente', 403);
   const recordKey = credentialKey(body.response?.id || '');
   const record = (await credentialsRef().child(recordKey).get()).val();
-  if (!record || record.userId !== String(user.id)) invalid('Credencial não autorizada', 401);
+  if (!record) invalid('Credencial não autorizada', 401);
+  const user = await getUserId(record.userId);
+  if (!activeUser(user)) invalid('Usuário desativado ou ausente', 403);
   const result = await verifyAuthenticationResponse({
     response: body.response, expectedChallenge: challenge.challenge,
     expectedOrigin: allowedOrigin, expectedRPID: rpID,
@@ -151,7 +156,7 @@ export const portalPasskeys = onRequest({ region: 'southamerica-east1', cors: [a
       'login/options': beginAuthentication, 'login/verify': finishAuthentication
     };
     if (!Object.hasOwn(routes, body.action)) invalid('Ação inválida', 404);
-    const result = await routes[body.action](body);
+    const result = await routes[body.action](body, String(req.ip || 'unknown'));
     return res.status(200).json(result);
   } catch (error) {
     console.error('portalPasskeys:', error?.message || 'unknown');
