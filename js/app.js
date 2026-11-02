@@ -59,7 +59,7 @@ const App = {
             await DataManager.init();
 
             // Check if user is logged in
-            if (Auth.init()) {
+            if (!window.PasskeyAuth?.endpoint() && Auth.init()) {
                 this.setLoginBootstrapState(true, 'Restaurando sessão e sincronizando dados...');
                 if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
                     try {
@@ -652,7 +652,9 @@ const App = {
         
         let result;
         try {
-            result = await Auth.login(username, password);
+            result = window.PasskeyAuth?.endpoint()
+                ? await window.PasskeyAuth.passwordLogin(username, password)
+                : await Auth.login(username, password);
         } catch (error) {
             console.error('Erro de autenticação', error);
             const browserOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
