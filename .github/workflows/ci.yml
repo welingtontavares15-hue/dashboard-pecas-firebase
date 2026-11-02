@@ -66,3 +66,17 @@ jobs:
       - name: Dependency audit report
         continue-on-error: true
         run: npm audit --audit-level=high
+
+  passkey-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check passkey backend syntax
+        run: node --check functions/index.js && node --check functions/passkey-utils.js && node --check js/passkeys.js
+      - name: Test passkey helpers
+        run: node --test functions/test/*.test.js
