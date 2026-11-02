@@ -73,9 +73,8 @@ const PasskeyAuth = {
         if (!credential) throw new Error('Cadastro biométrico cancelado.');
         return this.request('register/verify', { challengeId, response: this.serialize(credential) });
     },
-    async login(username) {
-        if (!username) throw new Error('Informe seu usuário para entrar com a digital.');
-        const { challengeId, options } = await this.request('login/options', { username });
+    async login() {
+        const { challengeId, options } = await this.request('login/options', {});
         const credential = await navigator.credentials.get({ publicKey: this.authenticationOptions(options) });
         if (!credential) throw new Error('Acesso biométrico cancelado.');
         const verified = await this.request('login/verify', { challengeId, response: this.serialize(credential) });
