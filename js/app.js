@@ -86,6 +86,8 @@ const App = {
         const passwordInput = document.getElementById('login-password');
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
+        const passkeyButton = document.getElementById('passkey-login-btn');
+        if (passkeyButton) passkeyButton.disabled = !!isBusy;
 
         if (usernameInput) {
             usernameInput.disabled = !!isBusy;
