@@ -687,8 +687,7 @@ const App = {
         button.disabled = true;
         errorDiv.classList.add('hidden');
         try {
-            const username = document.getElementById('login-username').value.trim();
-            const result = await PasskeyAuth.login(username);
+            const result = await PasskeyAuth.login();
             document.getElementById('login-form').reset();
             Utils.showToast('Acesso por digital autorizado', 'success');
             this.showApp();
