@@ -687,7 +687,7 @@ const App = {
         button.disabled = true;
         errorDiv.classList.add('hidden');
         try {
-            const result = await PasskeyAuth.login();
+            const result = await window.PasskeyAuth.login();
             document.getElementById('login-form').reset();
             Utils.showToast('Acesso por digital autorizado', 'success');
             this.showApp();
@@ -713,7 +713,7 @@ const App = {
         }
         button.disabled = true;
         try {
-            await PasskeyAuth.register(current.username, field.value);
+            await window.PasskeyAuth.register(current.username, field.value);
             field.value = '';
             Utils.showToast('Digital cadastrada. Você poderá usá-la no próximo acesso.', 'success');
         } catch (error) {
