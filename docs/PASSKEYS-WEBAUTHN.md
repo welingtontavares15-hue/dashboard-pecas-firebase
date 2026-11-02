@@ -10,7 +10,7 @@ WebAuthn não fornece digitais ao site: o dispositivo usa digital, rosto ou PIN 
 - `functions/index.js`: registra desafio aleatório com expiração de cinco minutos, consome-o uma única vez por transação, confere RP ID/origem, assinatura, verificação de usuário e contador antes de emitir Firebase Custom Token.
 - `passkeys/credentials` e `passkeys/userIndex`: credenciais públicas e índices, acessados **somente pelo Firebase Admin SDK**. Jamais liberar regras públicas/cliente para esses nós.
 - Cadastro inicial: confirmação do usuário e senha existentes, verificados pelo backend contra o hash legado; depois criação da Passkey no dispositivo.
-- Login: informa usuário, autentica com o dispositivo e recebe token Firebase após verificação no servidor.
+- Login: seleciona **Entrar com digital** sem informar nome ou senha, utiliza a Passkey descoberta pelo dispositivo e recebe token Firebase somente após verificação da assinatura no servidor.
 - O backend exige o **domínio configurado em PASSKEY_ORIGIN**; RP ID deve ser o domínio correspondente.
 
 ## Bloqueadores antes do deploy
@@ -28,3 +28,10 @@ WebAuthn não fornece digitais ao site: o dispositivo usa digital, rosto ou PIN 
 5. Verificar o fluxo em homologação e apenas então habilitar para produção.
 
 **Não configurar passkeyEndpoint nem alterar main sem liberação de segurança.** O frontend oculta os botões quando o endpoint não está preenchido ou o dispositivo não oferece WebAuthn.
+
+## Atualização de implementação (02/11/2026)
+- A função de login solicita credenciais descobríveis (sem campo de usuário). O servidor identifica a conta a partir do ID de credencial registrado, não de um nome fornecido pelo navegador.
+- Cadastro da credencial usa uma transação para impedir uso simultâneo do mesmo ID de Passkey por dois perfis.
+- O token customizado inclui claims assinadas para ID, usuário, perfil e IDs operacionais. A interface confirma método passkey e identidade/role/username antes da sessão.
+- O CI contém validação de sintaxe e testes unitários dos utilitários, mas **não** constitui teste E2E com Firebase implantado.
+- A URL de backend permanece vazia de propósito. A integração com Firebase precisa de conta conectada e revisão da migração da arquitetura de permissões antes de ativação.
