@@ -593,8 +593,10 @@ const Auth = {
     async loginWithVerifiedPasskey(profile) {
         const verifiedId = window.firebaseAuth?.currentUser?.uid;
         const claims = await window.firebaseAuth?.currentUser?.getIdTokenResult();
-        if (!verifiedId || claims?.claims?.portal_user_id !== String(profile?.id)
-            || claims?.claims?.portal_role !== profile?.role) {
+        if (!verifiedId || claims?.claims?.portal_auth_method !== 'passkey'
+            || claims?.claims?.portal_user_id !== String(profile?.id)
+            || claims?.claims?.portal_role !== profile?.role
+            || claims?.claims?.portal_username !== profile?.username) {
             throw new Error('A sessão autenticada não corresponde ao usuário.');
         }
         if (!this.permissions[profile.role]) throw new Error('Perfil não autorizado.');
