@@ -25,6 +25,7 @@ if (typeof window !== 'undefined') {
         getDatabase,
         getAuth,
         signInAnonymously,
+        signInWithCustomToken,
         onAuthStateChanged,
         ref,
         set,
