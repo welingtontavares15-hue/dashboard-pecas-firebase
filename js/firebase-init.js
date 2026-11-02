@@ -1,5 +1,5 @@
 ﻿import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 import { getDatabase, ref, set, get, update, remove, query, orderByChild, equalTo, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
 
 /**
