@@ -79,12 +79,8 @@ const PasskeyAuth = {
         if (!credential) throw new Error('Cadastro biométrico cancelado.');
         return this.request('register/verify', { challengeId, response: this.serialize(credential) });
     },
-    async login() {
-        const { challengeId, options } = await this.request('login/options', {});
-        const credential = await navigator.credentials.get({ publicKey: this.authenticationOptions(options) });
-        if (!credential) throw new Error('Acesso biométrico cancelado.');
-        const verified = await this.request('login/verify', { challengeId, response: this.serialize(credential) });
-        if (!verified.token || !verified.user) throw new Error('Resposta do servidor inválida.');
+    async exchangeToken(verified) {
+        if (!verified?.token || !verified.user) throw new Error('Resposta do servidor inválida.');
         const firebaseAuth = window.firebaseAuth || window.FirebaseInit?.auth;
         if (!firebaseAuth) throw new Error('Firebase ainda não está pronto.');
         await window.firebaseModules.signInWithCustomToken(firebaseAuth, verified.token);
@@ -92,9 +88,19 @@ const PasskeyAuth = {
             window.FirebaseInit.isAuthenticated = true;
             window.firebaseUser = firebaseAuth.currentUser;
         }
-        // A sessão do portal é criada somente após o token emitido pelo backend.
         const user = await Auth.loginWithVerifiedPasskey(verified.user);
         return { success: true, user };
+    },
+    async passwordLogin(username, password) {
+        if (!username || !password) throw new Error('Preencha usuário e senha.');
+        return this.exchangeToken(await this.request('login/password', { username, password }));
+    },
+    async login() {
+        const { challengeId, options } = await this.request('login/options', {});
+        const credential = await navigator.credentials.get({ publicKey: this.authenticationOptions(options) });
+        if (!credential) throw new Error('Acesso biométrico cancelado.');
+        const verified = await this.request('login/verify', { challengeId, response: this.serialize(credential) });
+        return this.exchangeToken(verified);
     }
 };
 if (typeof window !== 'undefined') window.PasskeyAuth = PasskeyAuth;
