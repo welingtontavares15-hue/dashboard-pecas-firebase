@@ -678,6 +678,50 @@ const App = {
         }
     },
 
+    async handlePasskeyLogin() {
+        const errorDiv = document.getElementById('login-error');
+        const button = document.getElementById('passkey-login-btn');
+        if (this.isBootstrapping || !window.PasskeyAuth?.supported()) return;
+        button.disabled = true;
+        errorDiv.classList.add('hidden');
+        try {
+            const username = document.getElementById('login-username').value.trim();
+            const result = await PasskeyAuth.login(username);
+            document.getElementById('login-form').reset();
+            Utils.showToast('Acesso por digital autorizado', 'success');
+            this.showApp();
+        } catch (error) {
+            errorDiv.textContent = error?.name === 'NotAllowedError'
+                ? 'Autenticação cancelada no dispositivo.'
+                : (error?.message || 'Não foi possível entrar com a digital.');
+            errorDiv.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+        }
+    },
+
+    async registerMyPasskey() {
+        if (!window.PasskeyAuth?.supported()) return;
+        const current = Auth.getCurrentUser();
+        if (!current) return;
+        const field = document.getElementById('passkey-register-password');
+        const button = document.getElementById('passkey-register-btn');
+        if (!field?.value) {
+            Utils.showToast('Confirme sua senha atual antes de cadastrar a digital.', 'warning');
+            return;
+        }
+        button.disabled = true;
+        try {
+            await PasskeyAuth.register(current.username, field.value);
+            field.value = '';
+            Utils.showToast('Digital cadastrada. Você poderá usá-la no próximo acesso.', 'success');
+        } catch (error) {
+            Utils.showToast(error?.message || 'Não foi possível cadastrar a digital.', 'error');
+        } finally {
+            button.disabled = false;
+        }
+    },
+
     /**
      * Handle logout
      */
