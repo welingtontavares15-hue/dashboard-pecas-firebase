@@ -1905,6 +1905,20 @@ const App = {
                 </div>
             </div>
             
+            ${window.PasskeyAuth?.supported() ? `
+            <div class="card mt-3">
+                <div class="card-header"><h4><i class="fas fa-fingerprint"></i> Acesso com digital</h4></div>
+                <div class="card-body">
+                    <p>Cadastre uma chave de acesso neste dispositivo. A impressão digital não é enviada ao portal.</p>
+                    <div class="form-group">
+                        <label for="passkey-register-password">Confirme sua senha atual</label>
+                        <input id="passkey-register-password" type="password" autocomplete="current-password" class="form-control">
+                    </div>
+                    <button id="passkey-register-btn" class="btn btn-primary" type="button" onclick="App.registerMyPasskey()">
+                        <i class="fas fa-fingerprint"></i> Cadastrar minha digital
+                    </button>
+                </div>
+            </div>` : ''}
             <div class="card mt-3">
                 <div class="card-header">
                     <h4>Alterar Senha</h4>
