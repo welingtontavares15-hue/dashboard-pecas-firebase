@@ -593,7 +593,7 @@ const Auth = {
     async loginWithVerifiedPasskey(profile) {
         const verifiedId = window.firebaseAuth?.currentUser?.uid;
         const claims = await window.firebaseAuth?.currentUser?.getIdTokenResult();
-        if (!verifiedId || claims?.claims?.portal_auth_method !== 'passkey'
+        if (!verifiedId || !['passkey', 'password'].includes(claims?.claims?.portal_auth_method)
             || claims?.claims?.portal_user_id !== String(profile?.id)
             || claims?.claims?.portal_role !== profile?.role
             || claims?.claims?.portal_username !== profile?.username) {
