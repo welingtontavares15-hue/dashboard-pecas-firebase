@@ -35,3 +35,10 @@ WebAuthn não fornece digitais ao site: o dispositivo usa digital, rosto ou PIN 
 - O token customizado inclui claims assinadas para ID, usuário, perfil e IDs operacionais. A interface confirma método passkey e identidade/role/username antes da sessão.
 - O CI contém validação de sintaxe e testes unitários dos utilitários, mas **não** constitui teste E2E com Firebase implantado.
 - A URL de backend permanece vazia de propósito. A integração com Firebase precisa de conta conectada e revisão da migração da arquitetura de permissões antes de ativação.
+
+## Preparação adicional da migração (02/11/2026)
+- Cloud Function passou a incluir login de recuperação via senha validada **no servidor** (rota `login/password`) e exige token Firebase emitido pelo servidor para iniciar e concluir cadastro de Passkeys.
+- O fluxo de login por senha passa a usar o servidor quando `APP_CONFIG.passkeyEndpoint` estiver configurado; com endpoint vazio, mantém-se a versão legado no modo seguro de transição **não habilitado**.
+- A emissão de custom token cria concessão curta em `authz/users/<uid>`; **as regras atuais ainda não confiam nessas concessões e precisam ser migradas e testadas antes de ativar o endpoint**.
+- O registro de passkey exige autenticação de conta e revalidação da senha atual. Usuário desabilitado é recusado pelo backend.
+- A instalação Firebase e autorização do projeto são dependências externas de uma conta conectada. Não ativar endpoint ou mesclar PR sem validação de regras RTDB e de endpoints no emulador e no Firebase real.
