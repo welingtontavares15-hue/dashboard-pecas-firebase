@@ -283,6 +283,8 @@ const App = {
      */
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
+        const passkeyPanel = document.getElementById('passkey-login-panel');
+        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !window.PasskeyAuth?.supported());
         document.getElementById('app-container').classList.add('hidden');
         document.getElementById('login-username').focus();
         
