@@ -60,8 +60,14 @@ function credentialForWebauthn(c) {
   return { id: c.id, publicKey: Buffer.from(c.publicKey, 'base64url'), counter: Number(c.counter || 0), transports: c.transports || [] };
 }
 async function createToken(user) {
-  // All authorization-critical identity attributes are signed by Firebase.
-  return getAuth().createCustomToken(firebaseUid(user.id), {
+  // Only backend-verified identities receive short-lived, server-owned grants.
+  const uid = firebaseUid(user.id);
+  await db().ref('authz/users/' + uid).set({
+    allowed: true, userId: String(user.id), role: user.role,
+    tecnicoId: String(user.tecnicoId || ''), fornecedorId: String(user.fornecedorId || ''),
+    expiresAt: Date.now() + (60 * 60 * 1000), updatedAt: Date.now()
+  });
+  return getAuth().createCustomToken(uid, {
     portal_user_id: String(user.id),
     portal_role: user.role,
     portal_username: String(user.username),
@@ -72,12 +78,37 @@ async function createToken(user) {
     portal_auth_method: 'passkey'
   });
 }
-async function beginRegistration(body, ip = 'unknown') {
+async function authenticatedAccount(req) {
+  const header = String(req.get('authorization') || '');
+  const match = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(header);
+  if (!match) invalid('Sessão autenticada obrigatória', 401);
+  let decoded;
+  try { decoded = await getAuth().verifyIdToken(match[1], true); }
+  catch { invalid('Sessão expirada ou inválida', 401); }
+  const user = await getUserId(decoded.portal_user_id);
+  const grant = (await db().ref('authz/users/' + decoded.uid).get()).val();
+  if (!activeUser(user) || decoded.uid !== firebaseUid(user.id)
+    || decoded.portal_role !== user.role || decoded.portal_username !== user.username
+    || !['passkey', 'password'].includes(decoded.portal_auth_method)
+    || grant?.allowed !== true || grant.role !== user.role || grant.userId !== String(user.id)
+    || Number(grant.expiresAt) <= Date.now()) invalid('Sessão sem autorização', 403);
+  return user;
+}
+async function beginPasswordLogin(body, req) {
   const { username, password } = body;
-  await throttle('registration-ip:' + ip, 20);
-  await throttle('registration:' + String(username || '').toLowerCase(), 5);
+  const normalized = String(username || '').trim().toLowerCase();
+  await throttle('password-ip:' + String(req.ip || 'unknown'), 20);
+  await throttle('password-account:' + normalized, 5);
   const user = await getUser(username);
   if (!activeUser(user) || !checkLegacyPassword(user, password)) invalid('Credenciais inválidas', 401);
+  return { token: await createToken(user), user: publicProfile(user) };
+}
+async function beginRegistration(body, req) {
+  const { username, password } = body;
+  const user = await authenticatedAccount(req);
+  await throttle('registration-ip:' + String(req.ip || 'unknown'), 20);
+  await throttle('registration:' + String(user.id), 5);
+  if (String(username) !== user.username || !checkLegacyPassword(user, password)) invalid('Credenciais inválidas', 401);
   const existing = await credentialsFor(user.id);
   const options = await generateRegistrationOptions({
     rpID, rpName, userName: user.username, userDisplayName: user.name || user.username,
@@ -89,10 +120,10 @@ async function beginRegistration(body, ip = 'unknown') {
   const challengeId = await storeChallenge({ type: 'register', challenge: options.challenge, userId: String(user.id) });
   return { challengeId, options };
 }
-async function finishRegistration(body) {
+async function finishRegistration(body, req) {
+  const user = await authenticatedAccount(req);
   const challenge = await consumeChallenge(body.challengeId, 'register');
-  const user = await getUserId(challenge.userId);
-  if (!activeUser(user)) invalid('Usuário indisponível', 403);
+  if (String(user.id) !== String(challenge.userId)) invalid('Desafio pertence a outro usuário', 403);
   const verification = await verifyRegistrationResponse({
     response: body.response, expectedChallenge: challenge.challenge,
     expectedOrigin: allowedOrigin, expectedRPID: rpID, requireUserVerification: true
@@ -112,8 +143,8 @@ async function finishRegistration(body) {
   await userIndexRef().child(userKey(user.id)).child(key).set(true);
   return { success: true };
 }
-async function beginAuthentication(_body, ip = 'unknown') {
-  await throttle('authentication-ip:' + ip, 40);
+async function beginAuthentication(_body, req) {
+  await throttle('authentication-ip:' + String(req.ip || 'unknown'), 40);
   // An empty allowCredentials list enables discoverable (usernameless) passkeys.
   // The user account is determined only AFTER server-side assertion verification.
   const options = await generateAuthenticationOptions({
@@ -153,10 +184,11 @@ export const portalPasskeys = onRequest({ region: 'southamerica-east1', cors: [a
     if (JSON.stringify(body).length > 25000) invalid('Requisição excede o limite', 413);
     const routes = {
       'register/options': beginRegistration, 'register/verify': finishRegistration,
+      'login/password': beginPasswordLogin,
       'login/options': beginAuthentication, 'login/verify': finishAuthentication
     };
     if (!Object.hasOwn(routes, body.action)) invalid('Ação inválida', 404);
-    const result = await routes[body.action](body, String(req.ip || 'unknown'));
+    const result = await routes[body.action](body, req);
     return res.status(200).json(result);
   } catch (error) {
     console.error('portalPasskeys:', error?.message || 'unknown');
