@@ -57,8 +57,14 @@ const PasskeyAuth = {
         const endpoint = this.endpoint();
         if (!endpoint || !this.supported()) throw new Error('Acesso por digital não está habilitado neste ambiente.');
         const timeout = AbortSignal.timeout(20000);
+        const headers = { 'Content-Type': 'application/json' };
+        if (action.startsWith('register/')) {
+            const token = await window.firebaseAuth?.currentUser?.getIdToken();
+            if (!token) throw new Error('Faça login para cadastrar sua digital.');
+            headers.Authorization = 'Bearer ' + token;
+        }
         const response = await fetch(endpoint, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers,
             body: JSON.stringify({ action, ...payload }), signal: timeout,
             credentials: 'omit', cache: 'no-store'
         });
