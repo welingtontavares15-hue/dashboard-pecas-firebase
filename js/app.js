@@ -124,6 +124,12 @@ const App = {
             });
         }
         
+        // Use native passkey verification; password remains available for recovery.
+        const passkeyButton = document.getElementById('passkey-login-btn');
+        if (passkeyButton) {
+            passkeyButton.addEventListener('click', () => this.handlePasskeyLogin());
+        }
+
         // Logout button
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
