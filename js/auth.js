@@ -603,6 +603,12 @@ const Auth = {
         this.currentUser = this.buildSessionUser(profile);
         this.persistSession(this.currentUser);
         if (typeof DataManager !== 'undefined') {
+            // Non-admins must never load the full credential registry. The
+            // backend-verified self profile supports existing UI references.
+            const userKey = DataManager.KEYS?.USERS;
+            if (userKey && profile.role !== 'administrador' && DataManager._sessionCache) {
+                DataManager._sessionCache[userKey] = [{ ...profile }];
+            }
             if (typeof DataManager.ensureCloudAccessSession === 'function') {
                 await DataManager.ensureCloudAccessSession(this.currentUser);
             }
