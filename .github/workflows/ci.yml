@@ -82,3 +82,22 @@ jobs:
         run: node --test functions/test/*.test.js
       - name: Verify staged Firebase rules
         run: node scripts/check-passkey-rules.mjs
+
+  passkey-database-emulator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup Java for Realtime Database emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install passkey and rules-testing dependencies
+        run: npm install --prefix functions --no-package-lock --no-audit --no-fund
+      - name: Run RTDB authorization integration tests
+        run: npx --yes firebase-tools@14 emulators:exec --only database --project demo-wwm-rules --config firebase.passkeys.emulator.json "node --test functions/integration/rtdb-rules.test.js"
