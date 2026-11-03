@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v77-mobile-usability';
+const CACHE_VERSION = 'v78-biometric-login-option';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -55,6 +55,7 @@ const PRECACHE = {
     './js/data.js',
     './js/electrical-catalog-policy.js',
     './js/auth.js',
+    './js/passkeys.js',
     './js/audit-log.js',
     './js/app.js',
     './js/ui-modern.js',
