@@ -42,3 +42,10 @@ WebAuthn não fornece digitais ao site: o dispositivo usa digital, rosto ou PIN 
 - A emissão de custom token cria concessão curta em `authz/users/<uid>`; **as regras atuais ainda não confiam nessas concessões e precisam ser migradas e testadas antes de ativar o endpoint**.
 - O registro de passkey exige autenticação de conta e revalidação da senha atual. Usuário desabilitado é recusado pelo backend.
 - A instalação Firebase e autorização do projeto são dependências externas de uma conta conectada. Não ativar endpoint ou mesclar PR sem validação de regras RTDB e de endpoints no emulador e no Firebase real.
+
+## Regras de autorização preparadas
+- Criado `firebase/database.rules.passkeys.json` **isolado**, sem alterar `firebase.json` ou as regras legadas de produção.
+- O modelo passa a negar sessões gravadas pelo cliente, exige grants em `authz/users/{uid}` e claims verificadas nos tokens do Firebase para operações de RTDB.
+- Nós de autenticação e Passkeys ficam inacessíveis a clientes; coleção de usuários fica restrita a administradores autenticados.
+- CI executa `node scripts/check-passkey-rules.mjs` para validações estruturais; **não substitui teste real de regras no Firebase Emulator com cenário negativo**.
+- **Bloqueio operacional:** o frontend ainda depende de leitura de usuários e rotinas de sessão legadas; implantar essas regras sem migração completa quebraria o acesso. Há necessidade de realizar migração de frontend, testes negativos, homologação e autorização do projeto Firebase. Não publicar esse arquivo diretamente.
