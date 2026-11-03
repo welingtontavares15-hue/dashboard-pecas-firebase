@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/ui-consolidation.css?v=20260730a">
     <link rel="stylesheet" href="css/premium-ui-v3.css?v=20260828a">
-    <link rel="stylesheet" href="css/premium-login-v55.css?v=20261103a">
+    <link rel="stylesheet" href="css/premium-login-v55.css?v=20261103b">
     <link rel="stylesheet" href="css/premium-release-v55.css?v=20260828c">
     <link rel="stylesheet" href="css/wwm-reference-theme.css?v=20260829c">
     <link rel="stylesheet" href="css/responsive-system.css?v=20260903c">
@@ -109,19 +109,20 @@
                         <div id="login-error" class="error-message hidden" role="alert"></div>
                     </form>
 
-                    <div id="saved-password-panel" class="saved-password-panel">
-                        <button id="saved-password-btn" type="button" class="btn btn-outline btn-block" aria-describedby="saved-password-status">
-                            <i class="fas fa-fingerprint" aria-hidden="true"></i> Entrar com senha salva
+                    <div id="device-biometric-panel" class="device-biometric-panel">
+                        <button id="device-biometric-login" type="button" class="device-biometric-button" aria-describedby="device-biometric-status" disabled>
+                            <span class="device-biometric-symbol" aria-hidden="true"><i class="fas fa-fingerprint"></i></span>
+                            <strong>Entrar com digital</strong>
                         </button>
-                        <p id="saved-password-status" class="helper-text" role="status" aria-live="polite">Use sua senha salva no celular. O Google pode pedir a digital ou o PIN para preencher os campos.</p>
-                        <details id="saved-password-help">
-                            <summary>Como usar a digital no celular</summary>
+                        <p id="device-biometric-status" class="helper-text" role="status" aria-live="polite">Verificando a biometria deste celular...</p>
+                        <details id="device-biometric-help">
+                            <summary>Primeiro acesso? Ative a digital</summary>
                             <ol>
-                                <li>Abra este portal no Chrome do celular.</li>
-                                <li>No primeiro acesso, entre com usuário e senha e aceite salvar no Gerenciador de Senhas do Google.</li>
-                                <li>Nos próximos acessos, toque em Entrar com senha salva, selecione sua conta e autorize no celular. Se usar o preenchimento pelo teclado, toque em Entrar.</li>
+                                <li>Entre uma vez com seu usuário e senha.</li>
+                                <li>Em Meu Perfil, confirme sua senha e toque em Ativar digital neste celular.</li>
+                                <li>Confirme no celular. Nos próximos acessos, toque no símbolo de digital e use o sensor do aparelho.</li>
                             </ol>
-                            <p>A solicitação de digital depende das configurações do celular e do navegador. O portal continua validando sua senha.</p>
+                            <p>Disponível em aparelhos e navegadores compatíveis. O Android pode oferecer o PIN. A senha fica criptografada neste navegador e continua sendo validada pelo portal.</p>
                         </details>
                     </div>
                     <div id="passkey-login-panel" class="hidden" style="margin: 12px 0 18px;">
@@ -214,10 +215,10 @@
     <script src="js/electrical-catalog-policy.js?v=20260729a"></script>
     <script src="js/auth.js?v=20260829c"></script>
     <script src="js/passkeys.js?v=20261103b"></script>
-    <script src="js/saved-passwords.js?v=20261103a"></script>
+    <script src="js/device-biometric.js?v=20261103a"></script>
     <script src="js/navigation-master-v55.js?v=20260828c"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20261103c"></script>
+    <script src="js/app.js?v=20261103d"></script>
     <script src="js/ui-modern.js?v=20260829b"></script>
     <script src="js/premium-plus.js?v=20260730a"></script>
     <script src="js/corporate-platform.js?v=20260709b"></script>
