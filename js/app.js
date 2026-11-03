@@ -99,7 +99,17 @@ const App = {
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
         const passkeyButton = document.getElementById('passkey-login-btn');
-        if (passkeyButton) passkeyButton.disabled = !!isBusy || !window.PasskeyAuth?.availability()?.available;
+        const biometricReadiness = window.PasskeyAuth?.availability();
+        if (passkeyButton) {
+            const disabled = !!isBusy || !biometricReadiness?.available;
+            passkeyButton.disabled = disabled;
+            passkeyButton.setAttribute('aria-disabled', String(disabled));
+        }
+        const passkeyStatus = document.getElementById('passkey-login-status');
+        if (passkeyStatus && !isBusy) {
+            passkeyStatus.textContent = biometricReadiness?.message
+                || 'Acesso por digital indisponível. Utilize usuário e senha.';
+        }
 
         if (usernameInput) {
             usernameInput.disabled = !!isBusy;
