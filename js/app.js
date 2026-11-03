@@ -58,8 +58,20 @@ const App = {
             // Initialize data (now async for cloud storage)
             await DataManager.init();
 
-            // Check if user is logged in
-            if (Auth.init()) {
+            // Only the backend may restore sessions in signed-identity mode.
+            let restored = false;
+            if (window.PasskeyAuth?.enabled()) {
+                try {
+                    restored = await window.PasskeyAuth.restore();
+                } catch (_error) {
+                    Auth.currentUser = null;
+                    Auth.clearSession();
+                    restored = false;
+                }
+            } else {
+                restored = Auth.init();
+            }
+            if (restored) {
                 this.setLoginBootstrapState(true, 'Restaurando sessão e sincronizando dados...');
                 if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
                     try {
@@ -86,6 +98,8 @@ const App = {
         const passwordInput = document.getElementById('login-password');
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
+        const passkeyButton = document.getElementById('passkey-login-btn');
+        if (passkeyButton) passkeyButton.disabled = !!isBusy;
 
         if (usernameInput) {
             usernameInput.disabled = !!isBusy;
@@ -124,6 +138,12 @@ const App = {
             });
         }
         
+        // Use native passkey verification; password remains available for recovery.
+        const passkeyButton = document.getElementById('passkey-login-btn');
+        if (passkeyButton) {
+            passkeyButton.addEventListener('click', () => this.handlePasskeyLogin());
+        }
+
         // Logout button
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
@@ -275,6 +295,8 @@ const App = {
      */
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
+        const passkeyPanel = document.getElementById('passkey-login-panel');
+        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !window.PasskeyAuth?.supported());
         document.getElementById('app-container').classList.add('hidden');
         document.getElementById('login-username').focus();
         
@@ -642,7 +664,9 @@ const App = {
         
         let result;
         try {
-            result = await Auth.login(username, password);
+            result = window.PasskeyAuth?.enabled()
+                ? await window.PasskeyAuth.passwordLogin(username, password)
+                : await Auth.login(username, password);
         } catch (error) {
             console.error('Erro de autenticação', error);
             const browserOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
@@ -670,6 +694,49 @@ const App = {
         }
     },
 
+    async handlePasskeyLogin() {
+        const errorDiv = document.getElementById('login-error');
+        const button = document.getElementById('passkey-login-btn');
+        if (this.isBootstrapping || !window.PasskeyAuth?.supported()) return;
+        button.disabled = true;
+        errorDiv.classList.add('hidden');
+        try {
+            const result = await window.PasskeyAuth.login();
+            document.getElementById('login-form').reset();
+            Utils.showToast('Acesso por digital autorizado', 'success');
+            this.showApp();
+        } catch (error) {
+            errorDiv.textContent = error?.name === 'NotAllowedError'
+                ? 'Autenticação cancelada no dispositivo.'
+                : (error?.message || 'Não foi possível entrar com a digital.');
+            errorDiv.classList.remove('hidden');
+        } finally {
+            button.disabled = false;
+        }
+    },
+
+    async registerMyPasskey() {
+        if (!window.PasskeyAuth?.supported()) return;
+        const current = Auth.getCurrentUser();
+        if (!current) return;
+        const field = document.getElementById('passkey-register-password');
+        const button = document.getElementById('passkey-register-btn');
+        if (!field?.value) {
+            Utils.showToast('Confirme sua senha atual antes de cadastrar a digital.', 'warning');
+            return;
+        }
+        button.disabled = true;
+        try {
+            await window.PasskeyAuth.register(current.username, field.value);
+            field.value = '';
+            Utils.showToast('Digital cadastrada. Você poderá usá-la no próximo acesso.', 'success');
+        } catch (error) {
+            Utils.showToast(error?.message || 'Não foi possível cadastrar a digital.', 'error');
+        } finally {
+            button.disabled = false;
+        }
+    },
+
     /**
      * Handle logout
      */
@@ -677,6 +744,7 @@ const App = {
         const confirmed = await Utils.confirm('Deseja realmente sair?', 'Sair');
         
         if (confirmed) {
+            if (window.PasskeyAuth?.enabled()) await window.PasskeyAuth.logout();
             Auth.logout();
             Utils.showToast('Sessão encerrada', 'info');
             this.showLogin();
@@ -1851,6 +1919,20 @@ const App = {
                 </div>
             </div>
             
+            ${window.PasskeyAuth?.supported() ? `
+            <div class="card mt-3">
+                <div class="card-header"><h4><i class="fas fa-fingerprint"></i> Acesso com digital</h4></div>
+                <div class="card-body">
+                    <p>Cadastre uma chave de acesso neste dispositivo. A impressão digital não é enviada ao portal.</p>
+                    <div class="form-group">
+                        <label for="passkey-register-password">Confirme sua senha atual</label>
+                        <input id="passkey-register-password" type="password" autocomplete="current-password" class="form-control">
+                    </div>
+                    <button id="passkey-register-btn" class="btn btn-primary" type="button" onclick="App.registerMyPasskey()">
+                        <i class="fas fa-fingerprint"></i> Cadastrar minha digital
+                    </button>
+                </div>
+            </div>` : ''}
             <div class="card mt-3">
                 <div class="card-header">
                     <h4>Alterar Senha</h4>

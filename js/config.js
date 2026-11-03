@@ -18,6 +18,8 @@ const APP_CONFIG = {
      * Application version aligned with service-worker.js CACHE_VERSION.
      */
     version: 'v77-mobile-usability',
+    // Set only after Cloud Functions + server-side identity rules are deployed and tested.
+    passkeyEndpoint: '',
 
     /**
      * Runtime timestamp. A future build pipeline may replace this with a fixed
