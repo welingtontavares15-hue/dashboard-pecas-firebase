@@ -80,3 +80,5 @@ jobs:
         run: node --check functions/index.js && node --check functions/passkey-utils.js && node --check js/passkeys.js
       - name: Test passkey helpers
         run: node --test functions/test/*.test.js
+      - name: Verify staged Firebase rules
+        run: node scripts/check-passkey-rules.mjs
