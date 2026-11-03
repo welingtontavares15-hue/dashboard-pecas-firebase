@@ -59,7 +59,7 @@ const App = {
             await DataManager.init();
 
             // Check if user is logged in
-            if (!window.PasskeyAuth?.endpoint() && Auth.init()) {
+            if (!window.PasskeyAuth?.enabled() && Auth.init()) {
                 this.setLoginBootstrapState(true, 'Restaurando sessão e sincronizando dados...');
                 if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
                     try {
@@ -652,7 +652,7 @@ const App = {
         
         let result;
         try {
-            result = window.PasskeyAuth?.endpoint()
+            result = window.PasskeyAuth?.enabled()
                 ? await window.PasskeyAuth.passwordLogin(username, password)
                 : await Auth.login(username, password);
         } catch (error) {
@@ -732,6 +732,7 @@ const App = {
         const confirmed = await Utils.confirm('Deseja realmente sair?', 'Sair');
         
         if (confirmed) {
+            if (window.PasskeyAuth?.enabled()) await window.PasskeyAuth.logout();
             Auth.logout();
             Utils.showToast('Sessão encerrada', 'info');
             this.showLogin();
