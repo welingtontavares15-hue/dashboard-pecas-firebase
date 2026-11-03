@@ -19,7 +19,9 @@ export function userByName(users, input) {
 }
 
 export function userById(users, id) {
-  return users.find((user) => String(user.id) === String(id)) || null;
+  if (id == null || String(id).trim() === '') return null;
+  const matches = users.filter((user) => user && user.id != null && String(user.id) === String(id));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export function activeUser(user) {
