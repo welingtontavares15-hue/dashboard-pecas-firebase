@@ -534,7 +534,7 @@ const Tecnicos = {
         );
 
         let passwordHash = existingUserIndex >= 0 ? users[existingUserIndex].passwordHash : null;
-        if (password) {
+        if (password && !DataManager.usesServerIdentity()) {
             try {
                 passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
             } catch (error) {
@@ -544,7 +544,7 @@ const Tecnicos = {
             }
         }
 
-        if (!passwordHash) {
+        if (!passwordHash && !DataManager.usesServerIdentity()) {
             const message = password ? 'Não foi possível proteger a senha informada' : 'Informe uma senha válida para o técnico';
             Utils.showToast(message, 'warning');
             return;
@@ -555,7 +555,7 @@ const Tecnicos = {
         const persistResult = await DataManager.saveTechnicianAndUser(technician, {
             id: existingUser?.id || (`user_${technician.id}`),
             username,
-            passwordHash,
+            ...(DataManager.usesServerIdentity() ? { password: password || undefined } : { passwordHash }),
             name: nome,
             email: normalizedEmail,
             tecnicoId: technician.id,

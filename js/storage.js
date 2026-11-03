@@ -210,6 +210,7 @@ const CloudStorage = {
             // Initial sync from cloud if connected (using centralized state)
             if (initiallyConnected && FirebaseInit.isRTDBConnected()) {
                 this.cloudReady = true;
+                if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server') && (!window.firebaseAuth?.currentUser || window.firebaseAuth.currentUser.isAnonymous)) return true;
                 await this.syncFromCloud();
                 await this.flushQueue();
             }
@@ -300,6 +301,7 @@ const CloudStorage = {
     },
 
     getStoredSessionUser() {
+        if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server')) return null;
         if (typeof Auth === 'undefined') {
             return null;
         }
@@ -865,6 +867,7 @@ const CloudStorage = {
      * @returns {Promise<boolean>} - Success status
      */
     async saveData(key, data, options = {}) {
+        if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server') && key === 'diversey_users') return false;
         const opId = (data && data.opId) || this.generateOpId(key);
         this.clearLastOperationError();
 
@@ -954,6 +957,10 @@ const CloudStorage = {
      * @returns {Promise<any>} - Retrieved data
      */
     async loadData(key) {
+        if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server') && key === 'diversey_users') {
+            if (!window.firebaseAuth?.currentUser || window.firebaseAuth.currentUser.isAnonymous) return null;
+            return (await window.PasskeyAuth.request('users/list', {})).users;
+        }
         // Online-only mode: Load from cloud only
         if (this.isInitialized && this.database && typeof FirebaseInit !== 'undefined' && FirebaseInit.isReady() && FirebaseInit.isRTDBConnected()) {
             try {
@@ -1031,6 +1038,11 @@ const CloudStorage = {
                 }
 
                 if (originalKey === 'diversey_users' && Array.isArray(entryData)) {
+                    if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server')) {
+                        DataManager._sessionCache[originalKey] = entryData;
+                        keysUpdated++;
+                        continue;
+                    }
                     const localUsers = DataManager._sessionCache[originalKey] || [];
                     const cloudUsers = entryData;
                     const mergedUsers = this.mergeUsers(localUsers, cloudUsers);
@@ -1193,6 +1205,7 @@ const CloudStorage = {
      * @param {function} callback - Callback function when data changes
      */
     subscribe(key, callback) {
+        if (typeof APP_CONFIG !== 'undefined' && (APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server') && key === 'diversey_users') return;
         if (!this.isInitialized || !this.database || !FirebaseInit.isReady()) {
             return;
         }

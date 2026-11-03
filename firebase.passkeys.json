@@ -1,0 +1,4 @@
+{
+  "functions": [{ "source": "functions", "codebase": "portal-identity", "runtime": "nodejs22" }],
+  "database": { "rules": "firebase/database.rules.passkeys.json" }
+}

@@ -145,6 +145,7 @@ const Auth = {
 
     resolveSupplierId(user = null) {
         const candidate = user || this.currentUser;
+        if (window.PasskeyAuth?.configured()) return candidate?.role === 'fornecedor' ? (candidate.fornecedorId || null) : null;
         if (!candidate || String(candidate.role || '').trim().toLowerCase() !== 'fornecedor') {
             return null;
         }
@@ -273,6 +274,7 @@ const Auth = {
      * On page reload, session is validated against cloud data and renewed.
      */
     init() {
+        if (window.PasskeyAuth?.configured()) { this.currentUser = null; this.clearSession(); return false; }
         const savedUser = this.getStoredSession();
         if (savedUser) {
             try {
@@ -339,6 +341,10 @@ const Auth = {
      * Attempt login
      */
     async login(username, password) {
+        if (window.PasskeyAuth?.configured()) {
+            try { return await window.PasskeyAuth.passwordLogin(username, password); }
+            catch (error) { return { success: false, error: error.message }; }
+        }
         const rawInputUsername = (username || '').trim();
         const rawNormalizedUsername = Utils.normalizeText(rawInputUsername);
 
@@ -606,7 +612,7 @@ const Auth = {
             // Non-admins must never load the full credential registry. The
             // backend-verified self profile supports existing UI references.
             const userKey = DataManager.KEYS?.USERS;
-            if (userKey && profile.role !== 'administrador' && DataManager._sessionCache) {
+            if (userKey && DataManager._sessionCache) {
                 DataManager._sessionCache[userKey] = [{ ...profile }];
             }
             if (typeof DataManager.ensureCloudAccessSession === 'function') {

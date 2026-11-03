@@ -285,6 +285,25 @@ const DataManager = {
     // Online-only mode: Track connection status
     _isOnline: true,
     _connectionToastMemory: {},
+    usesServerIdentity() {
+        return typeof APP_CONFIG !== 'undefined' && !!(APP_CONFIG.passkeyEndpoint || APP_CONFIG.authMode === 'server');
+    },
+    async identityOperation(action, payload = {}) {
+        try {
+            const result = await window.PasskeyAuth.request(action, payload);
+            if (result.reauthenticate) {
+                await window.PasskeyAuth.logout(); Auth.logout();
+                if (typeof App !== 'undefined') App.showLogin();
+                return result;
+            }
+            if (action !== 'users/list') {
+                const response = await window.PasskeyAuth.request('users/list', {});
+                this._sessionCache[this.KEYS.USERS] = response.users;
+                this.emitDataUpdated([this.KEYS.USERS], 'server');
+            }
+            return result;
+        } catch (error) { return { success: false, error: error.message }; }
+    },
 
     /**
      * Initialize data manager - Online-only mode
@@ -313,6 +332,10 @@ const DataManager = {
                 if (typeof CloudStorage !== 'undefined') {
                     try {
                         this.cloudInitialized = await CloudStorage.init();
+                        if (this.usesServerIdentity()) {
+                            success = true;
+                            return true;
+                        }
                         cloudReady = this.cloudInitialized && typeof CloudStorage.waitForCloudReady === 'function'
                             ? await CloudStorage.waitForCloudReady(15000)
                             : this.cloudInitialized;
@@ -1661,6 +1684,7 @@ const DataManager = {
     },
 
     async _persistUsersToCloud(users) {
+        if (this.usesServerIdentity()) return false;
         return this._persistCollectionToCloud(this.KEYS.USERS, users);
     },
 
@@ -1691,6 +1715,7 @@ const DataManager = {
     },
 
     async deleteUserById(userId) {
+        if (this.usesServerIdentity()) return (await this.identityOperation('users/delete', { userId })).success === true;
         if (!userId) {
             return false;
         }
@@ -1710,6 +1735,11 @@ const DataManager = {
     },
 
     async resetUserPasswordById(userId, newPassword) {
+        if (this.usesServerIdentity()) {
+            const result = await this.identityOperation('users/password', { userId, newPassword });
+            if (result.success) return { ...result, user: this.getUserById(userId), validated: true, affectedUsers: 1, affectedUserIds: [userId] };
+            return result;
+        }
         const password = String(newPassword || '').trim();
         if (!userId || password.length < 4) {
             return { success: false, error: 'Informe uma nova senha com pelo menos 4 caracteres.' };
@@ -1915,6 +1945,7 @@ const DataManager = {
     },
 
     async saveUser(user) {
+        if (this.usesServerIdentity()) return this.identityOperation('users/save', { user });
         if (!user || !user.username) {
             return { success: false, error: 'Usuário inválido' };
         }
@@ -2323,6 +2354,13 @@ const DataManager = {
     },
 
     async saveTechnicianAndUser(technician, userPayload = {}) {
+        if (this.usesServerIdentity()) {
+            const record = { ...technician, id: technician.id || Utils.generateId() };
+            const user = { ...userPayload, id: userPayload.id || `user_${record.id}`, role: 'tecnico', tecnicoId: record.id, disabled: record.ativo === false };
+            const result = await this.identityOperation('users/save', { user, linked: { type: 'technician', record } });
+            if (result.success) { await this.syncAll('identity_saved'); return { ...result, technician: record }; }
+            return result;
+        }
         if (!technician || !technician.nome) {
             return { success: false, error: 'Dados do técnico inválidos.' };
         }
@@ -2406,6 +2444,11 @@ const DataManager = {
     },
 
     async deleteTechnicianAndUser(technicianId) {
+        if (this.usesServerIdentity()) {
+            const result = await this.identityOperation('users/delete', { linked: { type: 'technician', id: technicianId } });
+            if (result.success) await this.syncAll('identity_removed');
+            return result;
+        }
         if (!technicianId) {
             return { success: false, error: 'Técnico inválido.' };
         }
@@ -2512,6 +2555,13 @@ const DataManager = {
     },
 
     async saveSupplierAndUser(supplier, userPayload = {}) {
+        if (this.usesServerIdentity()) {
+            const record = { ...supplier, id: supplier.id || Utils.generateId() };
+            const user = { ...userPayload, id: userPayload.id || `fornecedor_${record.id}`, role: 'fornecedor', fornecedorId: record.id, disabled: record.ativo === false };
+            const result = await this.identityOperation('users/save', { user, linked: { type: 'supplier', record } });
+            if (result.success) { await this.syncAll('identity_saved'); return { ...result, supplier: record }; }
+            return result;
+        }
         if (!supplier || !supplier.nome) {
             return { success: false, error: 'Dados do fornecedor inválidos.' };
         }
@@ -2593,6 +2643,11 @@ const DataManager = {
     },
 
     async deleteSupplierAndUser(supplierId) {
+        if (this.usesServerIdentity()) {
+            const result = await this.identityOperation('users/delete', { linked: { type: 'supplier', id: supplierId } });
+            if (result.success) await this.syncAll('identity_removed');
+            return result;
+        }
         if (!supplierId) {
             return { success: false, error: 'Fornecedor inválido.' };
         }
@@ -3188,6 +3243,18 @@ const DataManager = {
     },
     
     async updateSolicitationStatus(id, status, extra = {}) {
+        if (this.usesServerIdentity() && typeof Auth !== 'undefined' && (Auth.getRole() === 'fornecedor' || (Auth.getRole() === 'tecnico' && status === 'finalizada'))) {
+            try {
+                const receipt = Auth.getRole() === 'tecnico';
+                if (!receipt && status !== 'em-transito') throw Error('Transição não autorizada para fornecedor.');
+                const result = await window.PasskeyAuth.request(receipt ? 'solicitations/receipt' : 'solicitations/tracking', { id, trackingCode: extra.trackingCode });
+                const list = this.getSolicitations().filter(item => item.id !== id);
+                list.push(result.solicitation);
+                this._sessionCache[this.KEYS.SOLICITATIONS] = list;
+                this.emitDataUpdated([this.KEYS.SOLICITATIONS], 'server');
+                return result;
+            } catch (error) { return { success: false, error: error.message, message: error.message }; }
+        }
         const solicitations = this.cloneSerializable(this.getSolicitations(), []) || [];
         const index = solicitations.findIndex(s => s.id === id);
 

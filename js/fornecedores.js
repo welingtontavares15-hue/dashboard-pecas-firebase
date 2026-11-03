@@ -389,7 +389,7 @@ const Fornecedores = {
         };
 
         let passwordHash = linkedUser?.passwordHash || null;
-        if (password) {
+        if (password && !DataManager.usesServerIdentity()) {
             try {
                 passwordHash = await Utils.hashSHA256(password, `${Utils.PASSWORD_SALT}:${username}`);
             } catch (error) {
@@ -399,7 +399,7 @@ const Fornecedores = {
             }
         }
 
-        if (!passwordHash) {
+        if (!passwordHash && !DataManager.usesServerIdentity()) {
             Utils.showToast('Senha inválida para o usuário do fornecedor', 'warning');
             return;
         }
@@ -407,7 +407,7 @@ const Fornecedores = {
         const persistResult = await DataManager.saveSupplierAndUser(supplier, {
             id: linkedUser?.id || null,
             username,
-            passwordHash,
+            ...(DataManager.usesServerIdentity() ? { password: password || undefined } : { passwordHash }),
             name: nome,
             email: normalizedEmail,
             fornecedorId: supplier.id,
