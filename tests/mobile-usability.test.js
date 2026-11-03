@@ -10,7 +10,7 @@ describe('mobile usability contract', () => {
         const appVersion = config.match(/version:\s*'([^']+)'/)?.[1];
         const cacheVersion = serviceWorker.match(/const CACHE_VERSION = '([^']+)'/)?.[1];
 
-        expect(appVersion).toBe('v80-device-biometric-unlock');
+        expect(appVersion).toBe('v81-biometric-enrollment-confirmed');
         expect(cacheVersion).toBe(appVersion);
     });
 

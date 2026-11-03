@@ -675,7 +675,7 @@ const App = {
     /**
      * Handle login
      */
-    async handleLogin() {
+    async handleLogin({ activateDevice = false } = {}) {
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value;
         const errorDiv = document.getElementById('login-error');
@@ -715,9 +715,29 @@ const App = {
         
         if (result.success) {
             errorDiv.classList.add('hidden');
+            let activationMessage = '';
+            let activationFailed = false;
+            if (activateDevice && !window.PasskeyAuth?.configured()) {
+                this.setLoginBootstrapState(true, 'Confirme a ativação da digital no celular...');
+                try {
+                    if (!window.DeviceBiometric) throw new Error('A ativação da digital não está disponível.');
+                    await window.DeviceBiometric.enroll({
+                        username, password, userId: result.user.id, name: result.user.name,
+                        onProgress: message => { document.getElementById('device-biometric-status').textContent = message; }
+                    });
+                    activationMessage = 'Digital ativada e verificada neste navegador. Agora você pode sair e entrar pelo símbolo de digital.';
+                } catch (error) {
+                    activationFailed = true;
+                    activationMessage = this.deviceActivationError(error);
+                } finally { this.setLoginBootstrapState(false); }
+            }
             document.getElementById('login-form').reset();
             Utils.showToast(`Bem-vindo, ${result.user.name}!`, 'success');
             this.showApp();
+            if (activateDevice) {
+                await this.navigate('perfil');
+                this.setDeviceActivationStatus(activationMessage, activationFailed);
+            }
         } else {
             errorDiv.textContent = result.error;
             errorDiv.classList.remove('hidden');
@@ -728,12 +748,19 @@ const App = {
         const button = document.getElementById('device-biometric-login');
         const status = document.getElementById('device-biometric-status');
         if (!button || !status || !window.DeviceBiometric) return;
-        const available = await window.DeviceBiometric.available();
-        const enrolled = available && await window.DeviceBiometric.hasEnrollment();
-        button.disabled = this.isBootstrapping || this._deviceAuthBusy || !available;
-        status.textContent = !available ? 'Biometria indisponível neste navegador. Utilize usuário e senha.'
-            : (enrolled ? 'Toque na digital e confirme no sensor do celular. O sistema pode oferecer o PIN.'
-                : 'Para o primeiro uso, entre com senha e ative a digital em Meu Perfil.');
+        try {
+            const available = await window.DeviceBiometric.available();
+            const enrolled = available && await window.DeviceBiometric.hasEnrollment();
+            button.disabled = this.isBootstrapping || this._deviceAuthBusy || !available;
+            const label = document.getElementById('device-biometric-label');
+            if (label) label.textContent = enrolled ? 'Entrar com digital' : 'Entrar e ativar digital';
+            status.textContent = !available ? 'Biometria indisponível neste navegador. Utilize usuário e senha.'
+                : (enrolled ? 'Digital cadastrada neste navegador. Toque no símbolo e confirme no celular.'
+                    : 'Para ativar aqui, preencha Usuário e Senha acima e toque em Entrar e ativar digital.');
+        } catch (_error) {
+            button.disabled = true;
+            status.textContent = 'Não foi possível ler o cadastro da digital neste navegador. Seu acesso por senha continua disponível.';
+        }
     },
 
     async handleDeviceBiometric() {
@@ -746,7 +773,12 @@ const App = {
         try {
             if (!window.DeviceBiometric || !(await window.DeviceBiometric.hasEnrollment())) {
                 document.getElementById('device-biometric-help').open = true;
-                throw new Error('Entre uma vez com senha e ative a digital em Meu Perfil neste celular.');
+                if (!document.getElementById('login-username').value.trim() || !document.getElementById('login-password').value) {
+                    document.getElementById('login-username').focus();
+                    throw new Error('O cadastro da digital não foi encontrado neste navegador. Preencha Usuário e Senha e toque no símbolo para entrar e ativar.');
+                }
+                await this.handleLogin({ activateDevice: true });
+                return;
             }
             errorDiv.classList.add('hidden');
             unlocked = await window.DeviceBiometric.unlock();
@@ -772,6 +804,21 @@ const App = {
         }
     },
 
+    deviceActivationError(error) {
+        return error?.name === 'NotAllowedError' || error?.name === 'AbortError'
+            ? 'A ativação não foi concluída no celular. Seu login por senha funcionou; confirme todas as etapas ao ativar a digital.'
+            : (error?.message || 'Não foi possível concluir a ativação da digital. Seu acesso por senha continua disponível.');
+    },
+
+    setDeviceActivationStatus(message, failed = false) {
+        const status = document.getElementById('device-biometric-profile-status');
+        if (status) {
+            status.textContent = message;
+            status.setAttribute('role', failed ? 'alert' : 'status');
+            status.style.color = failed ? '#a12634' : '#006e66';
+        }
+    },
+
     async enrollDeviceBiometric() {
         if (this._deviceEnrollmentBusy || window.PasskeyAuth?.configured()) return;
         const user = Auth.getCurrentUser();
@@ -783,6 +830,7 @@ const App = {
         }
         this._deviceEnrollmentBusy = true;
         button.disabled = true;
+        this.setDeviceActivationStatus('Validando sua senha antes de ativar a digital...');
         try {
             const password = field.value;
             const verified = await Auth.login(user.username, password);
@@ -791,12 +839,14 @@ const App = {
                 Auth.logout(); this.showLogin();
                 throw new Error('A conta mudou. Faça login novamente.');
             }
-            await window.DeviceBiometric.enroll({ username: user.username, password, userId: user.id, name: user.name });
-            Utils.showToast('Digital ativada neste navegador. No próximo acesso, toque no símbolo de digital.', 'success');
+            await window.DeviceBiometric.enroll({ username: user.username, password, userId: user.id, name: user.name,
+                onProgress: message => this.setDeviceActivationStatus(message) });
+            this.setDeviceActivationStatus('Digital ativada e verificada neste navegador. Você já pode sair e entrar pelo símbolo de digital.');
+            Utils.showToast('Digital ativada e verificada neste navegador.', 'success');
         } catch (error) {
-            Utils.showToast(error?.name === 'NotAllowedError' || error?.name === 'AbortError'
-                ? 'Ativação cancelada. Seu acesso por senha continua disponível.'
-                : (error?.message || 'Não foi possível ativar a digital.'), 'warning');
+            const message = this.deviceActivationError(error);
+            this.setDeviceActivationStatus(message, true);
+            Utils.showToast(message, 'warning');
         } finally {
             field.value = '';
             button.disabled = false;
@@ -2051,6 +2101,7 @@ const App = {
                 <div class="card-body">
                     <p>Ative uma vez para entrar pelo sensor do celular. O sistema pode pedir duas confirmações durante a ativação e pode oferecer o PIN do aparelho.</p>
                     <p class="helper-text">Sua senha ficará criptografada neste navegador, protegida pela chave do celular. Ao trocar a senha ou limpar os dados do navegador, ative novamente.</p>
+                    <p id="device-biometric-profile-status" class="helper-text" role="status" aria-live="polite">A ativação só termina quando aparecer “Digital ativada e verificada neste navegador”.</p>
                     <div class="form-group">
                         <label for="device-biometric-password">Confirme sua senha atual</label>
                         <input id="device-biometric-password" name="device-biometric-password" type="password" autocomplete="current-password" class="form-control">

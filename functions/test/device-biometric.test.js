@@ -8,7 +8,7 @@ const source = readFileSync(new URL('../../js/device-biometric.js', import.meta.
 function harness() {
   let saved = null;
   const calls = [];
-  const state = { prf: true, cancelled: false, uv: true, correctChallenge: true, attachment: 'platform', secret: 31 };
+  const state = { prf: true, createEnabled: true, cancelled: false, uv: true, correctChallenge: true, attachment: 'platform', secret: 31 };
   const id = new Uint8Array([1, 2, 3, 4]);
   const encode = value => Buffer.from(value).toString('base64url');
   const ctx = {
@@ -21,7 +21,7 @@ function harness() {
       create: async options => {
         calls.push({ type: 'create', options });
         if (state.cancelled) throw new DOMException('Cancelled', 'NotAllowedError');
-        return { type: 'public-key', rawId: id, authenticatorAttachment: state.attachment, getClientExtensionResults: () => ({ prf: { enabled: state.prf } }) };
+        return { type: 'public-key', rawId: id, authenticatorAttachment: state.attachment, getClientExtensionResults: () => ({ prf: { enabled: state.prf ? state.createEnabled : false } }) };
       },
       get: async options => {
         calls.push({ type: 'get', options });
@@ -104,4 +104,22 @@ test('missing local enrollment and absent platform support fail closed', async (
   ctx.window.isSecureContext = false;
   await assert.rejects(client.enroll(user), /indisponível/);
   assert.equal(calls.length, 0);
+});
+
+test('nullable browser metadata and an omitted creation marker still require real PRF output', async () => {
+  const { client, state } = harness(); state.attachment = null; state.createEnabled = undefined;
+  await client.enroll(user);
+  assert.equal((await client.unlock()).password, user.password);
+  state.prf = false;
+  await assert.rejects(client.unlock(), /proteção necessária/);
+});
+
+test('unconfirmed storage never reports successful enrollment', async () => {
+  const { client } = harness(); client.storage = async () => null;
+  await assert.rejects(client.enroll(user), /não confirmou o salvamento/);
+});
+
+test('storage read failures are not misreported as a missing enrollment', async () => {
+  const { client } = harness(); client.storage = async () => { throw Error('Storage unavailable'); };
+  await assert.rejects(client.hasEnrollment(), /Storage unavailable/);
 });
