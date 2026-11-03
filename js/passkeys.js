@@ -18,6 +18,38 @@ const PasskeyAuth = {
         return !!(this.enabled() && window.PublicKeyCredential
             && navigator.credentials && window.crypto?.subtle);
     },
+    availability() {
+        // Keep the login option visible without pretending biometric login
+        // works before a verified server endpoint has been deployed.
+        if (!this.endpoint()) {
+            return {
+                available: false,
+                message: 'Acesso por digital em configuração. Utilize usuário e senha por enquanto.'
+            };
+        }
+        if (!window.isSecureContext) {
+            return {
+                available: false,
+                message: 'Para entrar com digital, abra o portal usando uma conexão HTTPS.'
+            };
+        }
+        if (!window.PublicKeyCredential || !navigator.credentials || !window.crypto?.subtle) {
+            return {
+                available: false,
+                message: 'Este navegador ou celular não oferece chaves de acesso. Utilize usuário e senha.'
+            };
+        }
+        if (!window.firebaseModules?.signInWithCustomToken) {
+            return {
+                available: false,
+                message: 'Preparando a autenticação segura. Utilize usuário e senha se necessário.'
+            };
+        }
+        return {
+            available: true,
+            message: 'Use a digital cadastrada no celular. No primeiro acesso, cadastre-a em Meu Perfil.'
+        };
+    },
     bytes(encoded) {
         const value = String(encoded).replace(/-/g, '+').replace(/_/g, '/');
         const decoded = atob(value.padEnd(Math.ceil(value.length / 4) * 4, '='));

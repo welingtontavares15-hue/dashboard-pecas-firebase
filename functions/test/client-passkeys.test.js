@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../../js/passkeys.js', import.meta.url), 'utf8');
-function harness({ supportsBiometric = false } = {}) {
+function harness({ supportsBiometric = false, endpoint = 'https://example.test/auth', secure = true } = {}) {
   const auth = { currentUser: { isAnonymous: false, async getIdToken() { return 'valid-test-token'; } } };
   const calls = [];
   const ctx = {
-    APP_CONFIG: { passkeyEndpoint: 'https://example.test/auth' },
+    APP_CONFIG: { passkeyEndpoint: endpoint },
     window: {
-      isSecureContext: true,
+      isSecureContext: secure,
       PublicKeyCredential: supportsBiometric ? function Credential() {} : undefined,
       crypto: { subtle: {} },
       firebaseAuth: auth,
@@ -56,4 +56,33 @@ test('logout still signs out locally if server is unreachable', async () => {
   client.request = async () => { throw Error('offline'); };
   await client.logout();
   assert.deepEqual(calls, ['signOut']);
+});
+
+test('biometric option reports unconfigured service without implying successful login', () => {
+  const { client } = harness({ supportsBiometric: true, endpoint: '' });
+  const state = client.availability();
+  assert.equal(state.available, false);
+  assert.match(state.message, /em configuração/i);
+  assert.equal(client.supported(), false);
+});
+test('biometric option reports device capability and HTTPS requirements', () => {
+  const unsupported = harness({ supportsBiometric: false }).client.availability();
+  assert.equal(unsupported.available, false);
+  assert.match(unsupported.message, /celular/i);
+  const insecure = harness({ supportsBiometric: true, secure: false }).client.availability();
+  assert.equal(insecure.available, false);
+  assert.match(insecure.message, /HTTPS/);
+  const available = harness({ supportsBiometric: true }).client.availability();
+  assert.equal(available.available, true);
+});
+test('login screen always includes biometric choice and live availability text', () => {
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+  const panel = html.match(/<div id="passkey-login-panel"[^>]*>/)?.[0] || '';
+  assert.ok(panel, 'biometric panel is missing');
+  assert.doesNotMatch(panel, /class="[^"]*hidden/);
+  assert.match(html, /id="passkey-login-btn"[^>]*aria-describedby="passkey-login-status"/);
+  assert.match(html, /id="passkey-login-status"[^>]*role="status"/);
+  const app = readFileSync(new URL('../../js/app.js', import.meta.url), 'utf8');
+  assert.match(app, /passkeyPanel\.classList\.remove\('hidden'\)/);
+  assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!readiness\.available/);
 });
