@@ -58,7 +58,7 @@ describe('WWM visual architecture v72', () => {
     });
 
     test('pre-caches the authoritative visual layer under v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v79-saved-password-login'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v80-device-biometric-unlock'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).not.toContain("'./css/visual-integrity-v71.css'");
     });

@@ -98,8 +98,9 @@ const App = {
         const passwordInput = document.getElementById('login-password');
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
-        const savedPasswordButton = document.getElementById('saved-password-btn');
-        if (savedPasswordButton) savedPasswordButton.disabled = !!isBusy;
+        const deviceButton = document.getElementById('device-biometric-login');
+        if (deviceButton) deviceButton.disabled = !!isBusy;
+        if (!isBusy) void this.refreshDeviceBiometric();
         const passkeyButton = document.getElementById('passkey-login-btn');
         const biometricReadiness = window.PasskeyAuth?.availability();
         if (passkeyButton) {
@@ -156,7 +157,7 @@ const App = {
             passkeyButton.addEventListener('click', () => this.handlePasskeyLogin());
         }
 
-        document.getElementById('saved-password-btn')?.addEventListener('click', () => this.handleSavedPassword());
+        document.getElementById('device-biometric-login')?.addEventListener('click', () => this.handleDeviceBiometric());
 
         // Logout button
         const logoutBtn = document.getElementById('logout-btn');
@@ -310,10 +311,11 @@ const App = {
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
         const passkeyPanel = document.getElementById('passkey-login-panel');
-        // Only show Passkeys when a server is configured. Saved passwords use the existing login.
+        // Server Passkeys and device-only password unlock have separate enrollment paths.
         const serverIdentity = !!window.PasskeyAuth?.configured();
         if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !serverIdentity);
-        document.getElementById('saved-password-panel')?.classList.toggle('hidden', serverIdentity);
+        document.getElementById('device-biometric-panel')?.classList.toggle('hidden', serverIdentity);
+        if (!serverIdentity) void this.refreshDeviceBiometric();
         const passkeyStatus = document.getElementById('passkey-login-status');
         const readiness = window.PasskeyAuth?.availability() || {
             available: false,
@@ -713,8 +715,6 @@ const App = {
         
         if (result.success) {
             errorDiv.classList.add('hidden');
-            // The native manager handles consent; do not delay entry while it offers to save.
-            void window.SavedPasswords?.rememberVerified(username, password);
             document.getElementById('login-form').reset();
             Utils.showToast(`Bem-vindo, ${result.user.name}!`, 'success');
             this.showApp();
@@ -724,32 +724,93 @@ const App = {
         }
     },
 
-    async handleSavedPassword() {
-        if (this.isBootstrapping || this._choosingSavedPassword) return;
-        const button = document.getElementById('saved-password-btn');
-        const status = document.getElementById('saved-password-status');
-        const username = document.getElementById('login-username');
-        const password = document.getElementById('login-password');
-        this._choosingSavedPassword = true;
+    async refreshDeviceBiometric() {
+        const button = document.getElementById('device-biometric-login');
+        const status = document.getElementById('device-biometric-status');
+        if (!button || !status || !window.DeviceBiometric) return;
+        const available = await window.DeviceBiometric.available();
+        const enrolled = available && await window.DeviceBiometric.hasEnrollment();
+        button.disabled = this.isBootstrapping || this._deviceAuthBusy || !available;
+        status.textContent = !available ? 'Biometria indisponível neste navegador. Utilize usuário e senha.'
+            : (enrolled ? 'Toque na digital e confirme no sensor do celular. O sistema pode oferecer o PIN.'
+                : 'Para o primeiro uso, entre com senha e ative a digital em Meu Perfil.');
+    },
+
+    async handleDeviceBiometric() {
+        if (this.isBootstrapping || this._deviceAuthBusy || window.PasskeyAuth?.configured()) return;
+        const button = document.getElementById('device-biometric-login');
+        const errorDiv = document.getElementById('login-error');
+        this._deviceAuthBusy = true;
         if (button) button.disabled = true;
+        let unlocked;
         try {
-            const result = await window.SavedPasswords?.choose();
-            if (result?.status === 'selected') {
-                username.value = result.username;
-                password.value = result.password;
-                document.getElementById('login-error')?.classList.add('hidden');
-                if (status) status.textContent = 'Senha selecionada no gerenciador do celular. Validando acesso...';
-                await this.handleLogin();
-                if (status) status.textContent = 'Acesso com a senha salva do celular. Se a senha mudou, digite sua senha atual e entre novamente.';
-            } else {
-                if (status) status.textContent = 'Toque no campo Usuário e selecione uma senha salva no teclado. No primeiro acesso, entre com sua senha e aceite salvar no Google.';
-                const help = document.getElementById('saved-password-help');
-                if (help) help.open = true;
-                username?.focus();
+            if (!window.DeviceBiometric || !(await window.DeviceBiometric.hasEnrollment())) {
+                document.getElementById('device-biometric-help').open = true;
+                throw new Error('Entre uma vez com senha e ative a digital em Meu Perfil neste celular.');
             }
+            errorDiv.classList.add('hidden');
+            unlocked = await window.DeviceBiometric.unlock();
+            if (document.getElementById('login-screen').classList.contains('hidden')) return;
+            const result = await Auth.login(unlocked.username, unlocked.password);
+            if (!result.success) throw new Error('A senha ou as permissões mudaram. Entre com senha e ative a digital novamente.');
+            if (String(result.user.id) !== unlocked.userId) {
+                Auth.logout();
+                throw new Error('A conta mudou. Entre com sua senha e ative a digital novamente.');
+            }
+            document.getElementById('login-form').reset();
+            this.showApp();
+            Utils.showToast('Acesso confirmado no celular', 'success');
+        } catch (error) {
+            errorDiv.textContent = error?.name === 'NotAllowedError' || error?.name === 'AbortError'
+                ? 'Verificação cancelada no celular. Tente novamente ou entre com sua senha.'
+                : (error?.message || 'Não foi possível confirmar a digital. Use sua senha.');
+            errorDiv.classList.remove('hidden');
         } finally {
-            this._choosingSavedPassword = false;
-            if (button) button.disabled = this.isBootstrapping;
+            if (unlocked) unlocked.password = '';
+            this._deviceAuthBusy = false;
+            void this.refreshDeviceBiometric();
+        }
+    },
+
+    async enrollDeviceBiometric() {
+        if (this._deviceEnrollmentBusy || window.PasskeyAuth?.configured()) return;
+        const user = Auth.getCurrentUser();
+        const field = document.getElementById('device-biometric-password');
+        const button = document.getElementById('device-biometric-enroll');
+        if (!user || !field?.value || !window.DeviceBiometric) {
+            Utils.showToast('Confirme sua senha atual para ativar a digital.', 'warning');
+            return;
+        }
+        this._deviceEnrollmentBusy = true;
+        button.disabled = true;
+        try {
+            const password = field.value;
+            const verified = await Auth.login(user.username, password);
+            if (!verified.success) throw new Error('Senha atual inválida. A digital não foi ativada.');
+            if (String(verified.user.id) !== String(user.id)) {
+                Auth.logout(); this.showLogin();
+                throw new Error('A conta mudou. Faça login novamente.');
+            }
+            await window.DeviceBiometric.enroll({ username: user.username, password, userId: user.id, name: user.name });
+            Utils.showToast('Digital ativada neste navegador. No próximo acesso, toque no símbolo de digital.', 'success');
+        } catch (error) {
+            Utils.showToast(error?.name === 'NotAllowedError' || error?.name === 'AbortError'
+                ? 'Ativação cancelada. Seu acesso por senha continua disponível.'
+                : (error?.message || 'Não foi possível ativar a digital.'), 'warning');
+        } finally {
+            field.value = '';
+            button.disabled = false;
+            this._deviceEnrollmentBusy = false;
+        }
+    },
+
+    async forgetDeviceBiometric() {
+        if (!window.DeviceBiometric) return;
+        if (await Utils.confirm('Remover o acesso por digital somente deste navegador? Sua senha continuará funcionando.', 'Remover digital')) {
+            try {
+                await window.DeviceBiometric.forget();
+                Utils.showToast('Acesso por digital removido deste navegador.', 'info');
+            } catch (_error) { Utils.showToast('Não foi possível remover a configuração. Tente novamente.', 'warning'); }
         }
     },
 
@@ -811,7 +872,6 @@ const App = {
         if (confirmed) {
             if (window.PasskeyAuth?.enabled()) await window.PasskeyAuth.logout();
             Auth.logout();
-            void window.SavedPasswords?.signedOut();
             Utils.showToast('Sessão encerrada', 'info');
             this.showLogin();
         }
@@ -1985,6 +2045,22 @@ const App = {
                 </div>
             </div>
             
+            ${!window.PasskeyAuth?.configured() && window.DeviceBiometric ? `
+            <div class="card mt-3">
+                <div class="card-header"><h4><i class="fas fa-fingerprint" aria-hidden="true"></i> Digital neste celular</h4></div>
+                <div class="card-body">
+                    <p>Ative uma vez para entrar pelo sensor do celular. O sistema pode pedir duas confirmações durante a ativação e pode oferecer o PIN do aparelho.</p>
+                    <p class="helper-text">Sua senha ficará criptografada neste navegador, protegida pela chave do celular. Ao trocar a senha ou limpar os dados do navegador, ative novamente.</p>
+                    <div class="form-group">
+                        <label for="device-biometric-password">Confirme sua senha atual</label>
+                        <input id="device-biometric-password" name="device-biometric-password" type="password" autocomplete="current-password" class="form-control">
+                    </div>
+                    <button id="device-biometric-enroll" class="btn btn-primary" type="button" onclick="App.enrollDeviceBiometric()">
+                        <i class="fas fa-fingerprint" aria-hidden="true"></i> Ativar digital neste celular
+                    </button>
+                    <button class="btn btn-outline" type="button" onclick="App.forgetDeviceBiometric()">Remover digital deste navegador</button>
+                </div>
+            </div>` : ''}
             ${window.PasskeyAuth?.supported() ? `
             <div class="card mt-3">
                 <div class="card-header"><h4><i class="fas fa-fingerprint"></i> Acesso com digital</h4></div>

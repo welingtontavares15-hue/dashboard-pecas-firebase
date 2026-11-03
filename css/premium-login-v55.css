@@ -1,25 +1,54 @@
 /* WWM reference login v56.1 — compact, proportional and faithful to the WWM visual language */
-#login-screen .saved-password-panel {
-    margin: 12px 0 18px;
+#login-screen .device-biometric-panel {
+    margin: 14px 0 18px;
     font-size: 13px;
     line-height: 1.5;
 }
 
-#login-screen .saved-password-panel > button {
+#login-screen .device-biometric-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
     width: 100%;
-    min-height: 44px;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid #b5d6d0;
+    border-radius: 14px;
+    background: #f2faf7;
+    color: #006e66;
+    cursor: pointer;
+    font: inherit;
 }
 
-#login-screen .saved-password-panel summary {
+#login-screen .device-biometric-symbol {
+    display: grid;
+    place-items: center;
+    width: 68px;
+    height: 68px;
+    border: 1px solid #b5d6d0;
+    border-radius: 50%;
+    font-size: 43px;
+}
+
+#login-screen .device-biometric-button:focus-visible {
+    outline: 3px solid #005a50;
+    outline-offset: 3px;
+}
+
+#login-screen .device-biometric-button:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+#login-screen .device-biometric-panel summary {
     cursor: pointer;
     padding: 8px 0;
     color: #006e66;
     font-weight: 600;
 }
 
-#login-screen .saved-password-panel ol {
-    padding-left: 20px;
-}
+#login-screen .device-biometric-panel ol { padding-left: 20px; }
 
 #login-screen.login-container:not(.hidden) {
     position: fixed;

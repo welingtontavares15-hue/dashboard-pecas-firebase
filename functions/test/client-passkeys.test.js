@@ -75,12 +75,12 @@ test('biometric option reports device capability and HTTPS requirements', () => 
   const available = harness({ supportsBiometric: true }).client.availability();
   assert.equal(available.available, true);
 });
-test('login offers saved passwords and reserves the passkey panel for a configured backend', () => {
+test('login offers device unlock and reserves the server passkey panel for a configured backend', () => {
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   const panel = html.match(/<div id="passkey-login-panel"[^>]*>/)?.[0] || '';
   assert.ok(panel, 'biometric panel is missing');
   assert.match(panel, /class="[^"]*hidden/);
-  assert.match(html, /id="saved-password-btn"[^>]*aria-describedby="saved-password-status"/);
+  assert.match(html, /id="device-biometric-login"[^>]*aria-describedby="device-biometric-status"/);
   assert.match(html, /id="passkey-login-btn"[^>]*aria-describedby="passkey-login-status"/);
   assert.match(html, /id="passkey-login-status"[^>]*role="status"/);
   const app = readFileSync(new URL('../../js/app.js', import.meta.url), 'utf8');

@@ -36,6 +36,9 @@ jobs:
       - name: JavaScript tests
         run: npm test -- --runInBand
 
+      - name: Device biometric encryption in Chrome
+        run: npm run test:device-biometric
+
       - name: Python syntax
         run: python -m compileall -q scripts
 
