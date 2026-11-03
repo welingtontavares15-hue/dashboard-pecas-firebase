@@ -103,6 +103,13 @@ const PasskeyAuth = {
         if (!username || !password) throw new Error('Preencha usuário e senha.');
         return this.exchangeToken(await this.request('login/password', { username, password }));
     },
+    async restore() {
+        const user = (window.firebaseAuth || window.FirebaseInit?.auth)?.currentUser;
+        if (!this.enabled() || !user || user.isAnonymous) return false;
+        const response = await this.request('session/profile', {});
+        if (!response?.user) return false;
+        return !!(await Auth.loginWithVerifiedPasskey(response.user));
+    },
     async login() {
         if (!this.supported()) throw new Error('Este dispositivo não suporta chaves de acesso.');
         const { challengeId, options } = await this.request('login/options', {});
