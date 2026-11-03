@@ -3,6 +3,9 @@
  * pela Cloud Function; o navegador nunca autentica alguém somente com biometria.
  */
 const PasskeyAuth = {
+    configured() {
+        return !!(this.endpoint() || (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.authMode === 'server'));
+    },
     endpoint() {
         return String((typeof APP_CONFIG !== 'undefined' && APP_CONFIG.passkeyEndpoint) || '').trim();
     },
@@ -65,7 +68,7 @@ const PasskeyAuth = {
             && !this.supported()) throw new Error('Este dispositivo não suporta chaves de acesso. Utilize sua senha.');
         const timeout = AbortSignal.timeout(20000);
         const headers = { 'Content-Type': 'application/json' };
-        if (action.startsWith('register/') || action.startsWith('session/')) {
+        if (action.startsWith('register/') || action.startsWith('session/') || action.startsWith('users/') || action.startsWith('solicitations/')) {
             const token = await window.firebaseAuth?.currentUser?.getIdToken();
             if (!token) throw new Error('Faça login para cadastrar sua digital.');
             headers.Authorization = 'Bearer ' + token;
@@ -76,7 +79,11 @@ const PasskeyAuth = {
             credentials: 'omit', cache: 'no-store'
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'Erro no serviço de autenticação.');
+        if (!response.ok) {
+            const error = new Error(data.error || 'Erro no serviço de autenticação.');
+            error.status = response.status;
+            throw error;
+        }
         return data;
     },
     async register(username, password) {
@@ -97,6 +104,7 @@ const PasskeyAuth = {
             window.firebaseUser = firebaseAuth.currentUser;
         }
         const user = await Auth.loginWithVerifiedPasskey(verified.user);
+        this.scheduleRenewal();
         return { success: true, user };
     },
     async passwordLogin(username, password) {
@@ -108,7 +116,24 @@ const PasskeyAuth = {
         if (!this.enabled() || !user || user.isAnonymous) return false;
         const response = await this.request('session/profile', {});
         if (!response?.user) return false;
+        this.scheduleRenewal();
         return !!(await Auth.loginWithVerifiedPasskey(response.user));
+    },
+    scheduleRenewal() {
+        clearTimeout(this.renewalTimer);
+        this.renewalTimer = setTimeout(async () => {
+            try {
+                const response = await this.request('session/profile', {});
+                Auth.currentUser = Auth.buildSessionUser(response.user);
+                Auth.persistSession(Auth.currentUser);
+                this.scheduleRenewal();
+            } catch (error) {
+                if (error.status === 401 || error.status === 403) {
+                    await this.logout(); Auth.logout();
+                    if (typeof App !== 'undefined') App.showLogin();
+                } else { this.scheduleRenewal(); }
+            }
+        }, 15 * 60 * 1000);
     },
     async login() {
         if (!this.supported()) throw new Error('Este dispositivo não suporta chaves de acesso.');
@@ -119,6 +144,7 @@ const PasskeyAuth = {
         return this.exchangeToken(verified);
     },
     async logout() {
+        clearTimeout(this.renewalTimer);
         const firebaseAuth = window.firebaseAuth || window.FirebaseInit?.auth;
         if (!firebaseAuth) return;
         try {

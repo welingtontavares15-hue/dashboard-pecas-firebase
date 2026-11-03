@@ -16,3 +16,10 @@ __ui_dbg.js
 # SO / editor
 .DS_Store
 Thumbs.db
+__pycache__/
+firebase-debug.log
+database-debug.log
+ui-debug.log
+dist-passkeys/
+functions/.env.*
+!functions/.env.demo-wwm-rules

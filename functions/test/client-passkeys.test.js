@@ -20,7 +20,7 @@ function harness({ supportsBiometric = false } = {}) {
     },
     navigator: { credentials: supportsBiometric ? {} : undefined },
     Uint8Array, atob, btoa, AbortSignal, fetch: async () => ({ ok: true, json: async () => ({}) }),
-    console
+    console, setTimeout, clearTimeout
   };
   const client = vm.runInNewContext(source + '\nPasskeyAuth;', ctx);
   return { client, calls };

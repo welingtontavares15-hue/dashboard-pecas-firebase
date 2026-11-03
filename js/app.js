@@ -60,7 +60,7 @@ const App = {
 
             // Only the backend may restore sessions in signed-identity mode.
             let restored = false;
-            if (window.PasskeyAuth?.enabled()) {
+            if (window.PasskeyAuth?.configured()) {
                 try {
                     restored = await window.PasskeyAuth.restore();
                 } catch (_error) {
@@ -664,7 +664,7 @@ const App = {
         
         let result;
         try {
-            result = window.PasskeyAuth?.enabled()
+            result = window.PasskeyAuth?.configured()
                 ? await window.PasskeyAuth.passwordLogin(username, password)
                 : await Auth.login(username, password);
         } catch (error) {
@@ -1226,7 +1226,7 @@ const App = {
 
         let passwordHash;
         try {
-            passwordHash = await Auth.hashPassword(password, username);
+            if (!DataManager.usesServerIdentity()) passwordHash = await Auth.hashPassword(password, username);
         } catch (error) {
             console.error('Erro ao gerar hash da senha do gestor', error);
             Utils.showToast('Não foi possível gerar a senha com segurança', 'error');
@@ -1236,7 +1236,7 @@ const App = {
         const result = await DataManager.saveUser({
             name,
             username,
-            passwordHash,
+            ...(DataManager.usesServerIdentity() ? { password } : { passwordHash }),
             email,
             role: 'gestor'
         });
@@ -1982,6 +1982,14 @@ const App = {
         
         if (newPass.length < 4) {
             Utils.showToast('A senha deve ter pelo menos 4 caracteres', 'warning');
+            return;
+        }
+        if (window.PasskeyAuth?.configured()) {
+            try {
+                await window.PasskeyAuth.request('users/password', { currentPassword: current, newPassword: newPass });
+                await window.PasskeyAuth.logout(); Auth.logout(); this.showLogin();
+                Utils.showToast('Senha alterada. Entre novamente com a nova senha.', 'success');
+            } catch (error) { Utils.showToast(error.message, 'error'); }
             return;
         }
         
