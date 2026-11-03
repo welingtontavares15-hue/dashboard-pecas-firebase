@@ -99,7 +99,7 @@ const App = {
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
         const passkeyButton = document.getElementById('passkey-login-btn');
-        if (passkeyButton) passkeyButton.disabled = !!isBusy;
+        if (passkeyButton) passkeyButton.disabled = !!isBusy || !window.PasskeyAuth?.availability()?.available;
 
         if (usernameInput) {
             usernameInput.disabled = !!isBusy;
@@ -296,7 +296,19 @@ const App = {
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
         const passkeyPanel = document.getElementById('passkey-login-panel');
-        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !window.PasskeyAuth?.supported());
+        // The option is visible on every login screen; readiness is explicit.
+        if (passkeyPanel) passkeyPanel.classList.remove('hidden');
+        const passkeyStatus = document.getElementById('passkey-login-status');
+        const readiness = window.PasskeyAuth?.availability() || {
+            available: false,
+            message: 'Acesso por digital indisponível. Utilize usuário e senha.'
+        };
+        const passkeyButton = document.getElementById('passkey-login-btn');
+        if (passkeyButton) {
+            passkeyButton.disabled = this.isBootstrapping || !readiness.available;
+            passkeyButton.setAttribute('aria-disabled', String(!readiness.available));
+        }
+        if (passkeyStatus) passkeyStatus.textContent = readiness.message;
         document.getElementById('app-container').classList.add('hidden');
         document.getElementById('login-username').focus();
         
@@ -697,7 +709,13 @@ const App = {
     async handlePasskeyLogin() {
         const errorDiv = document.getElementById('login-error');
         const button = document.getElementById('passkey-login-btn');
-        if (this.isBootstrapping || !window.PasskeyAuth?.supported()) return;
+        if (this.isBootstrapping) return;
+        if (!window.PasskeyAuth?.supported()) {
+            const readiness = window.PasskeyAuth?.availability();
+            errorDiv.textContent = readiness?.message || 'Acesso por digital indisponível. Utilize usuário e senha.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
         button.disabled = true;
         errorDiv.classList.add('hidden');
         try {
@@ -711,7 +729,7 @@ const App = {
                 : (error?.message || 'Não foi possível entrar com a digital.');
             errorDiv.classList.remove('hidden');
         } finally {
-            button.disabled = false;
+            button.disabled = !window.PasskeyAuth?.availability()?.available;
         }
     },
 
