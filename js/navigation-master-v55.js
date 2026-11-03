@@ -12,7 +12,7 @@
         relatorios: { label: 'Relatórios', icon: 'fa-chart-column', permission: ['relatorios', 'view'] },
         configuracoes: { label: 'Sistema', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
         fornecedor: { label: 'Pedidos Aprovados', icon: 'fa-truck-fast', permission: ['fornecedor', 'view'] },
-        perfil: { label: 'Meu Perfil', icon: 'fa-user-gear', roles: ['tecnico', 'fornecedor'] },
+        perfil: { label: 'Meu Perfil', icon: 'fa-user-gear', roles: ['administrador', 'gestor', 'tecnico', 'fornecedor'] },
         ajuda: { label: 'Ajuda', icon: 'fa-circle-question', roles: ['tecnico'] }
     });
 
@@ -28,11 +28,13 @@
         administrador: [
             { key: 'principal', title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
             { key: 'cadastros', title: 'GESTÃO', items: ['pecas', 'tecnicos', 'fornecedores'] },
-            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
+            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] },
+            { key: 'conta', title: 'CONTA', items: ['perfil'] }
         ],
         gestor: [
             { key: 'principal', title: 'PRINCIPAL', items: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios'] },
-            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] }
+            { key: 'sistema', title: 'SISTEMA', items: ['configuracoes'] },
+            { key: 'conta', title: 'CONTA', items: ['perfil'] }
         ],
         tecnico: [
             { key: 'operacao', title: 'OPERAÇÃO', items: [{ id: 'solicitacoes', label: 'Minhas Solicitações' }] },

@@ -4,8 +4,8 @@ Este modo usa WebAuthn/PRF para liberar uma senha criptografada no navegador e a
 
 ## Uso
 
-1. Acesse com usuário e senha. Em **Meu Perfil**, confirme a senha e selecione **Ativar digital neste celular**.
-2. O sistema cria uma chave de acesso do próprio aparelho e pede confirmação para obter o segredo de criptografia. Pode solicitar duas confirmações durante a ativação.
+1. Sem cadastro local, preencha usuário e senha na tela de acesso e selecione **Entrar e ativar digital**. Também é possível ativar em **Meu Perfil**, disponível para todos os papéis. O login comum, sozinho, não cria uma chave.
+2. O sistema cria uma chave de acesso do próprio aparelho e pede confirmação para obter o segredo de criptografia. Pode solicitar duas confirmações durante a ativação. O sucesso só é mostrado após salvar, reler e descriptografar o registro local; o resultado fica visível no perfil.
 3. Nos acessos seguintes, o botão circular **Entrar com digital** solicita verificação no aparelho, recupera a senha em memória e chama `Auth.login`. Senha inválida, conta desativada ou vínculo de identidade divergente não recebem acesso por esse caminho.
 4. Se trocar a senha, limpar os dados do site ou trocar de navegador, entre com senha e ative novamente. **Remover digital deste navegador** apaga somente o vínculo criptografado local; não elimina a chave da lista de Passkeys do provedor.
 
@@ -14,7 +14,7 @@ O site não lê a impressão digital nem controla o desenho do diálogo do Andro
 ## Proteção e limites
 
 - Cadastro exige sessão existente e revalidação da senha pelo fluxo normal. O registro local só é substituído após concluir as confirmações nativas e a criptografia.
-- Criação da chave pede autenticador `platform`, chave residente e `userVerification: required`. Desbloqueio usa credencial específica com transporte interno, requer verificação e rejeita retorno de autenticador externo.
+- Criação da chave pede autenticador `platform`, chave residente e `userVerification: required`. Desbloqueio usa credencial específica com transporte interno, requer verificação e rejeita retorno explicitamente identificado como autenticador externo. O campo de attachment pode ser nulo conforme WebAuthn; o código exige o resultado PRF de 32 bytes mesmo quando metadados opcionais são omitidos.
 - O segredo da extensão PRF passa por HKDF/SHA-256 com propósito e origem associados. A chave AES-GCM de 256 bits é não exportável. IV de 96 bits e salts são aleatórios. O registro criptografado é autenticado com a origem, RP ID, versão e ID da credencial.
 - O código valida tipo, desafio novo, origem, RP ID, presença e verificação do usuário antes de usar o resultado PRF. O registro contém somente metadados públicos e ciphertext; não contém senha em texto, segredo PRF ou chave de criptografia.
 - Não existe fallback criptográfico se PRF faltar. O login comum continua disponível. O registro fica em um IndexedDB separado dos dados operacionais.

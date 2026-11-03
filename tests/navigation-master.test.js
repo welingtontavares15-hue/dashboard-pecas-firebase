@@ -37,7 +37,7 @@ describe('Navegação consolidada WWM v72', () => {
     });
 
     test('mantém suporte offline sincronizado com o contrato visual v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v80-device-biometric-unlock'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v81-biometric-enrollment-confirmed'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
@@ -50,5 +50,13 @@ describe('Navegação consolidada WWM v72', () => {
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).toContain("'./js/wwm-reference-ui.js'");
         expect(serviceWorker).toContain("'./js/solicitacoes-divisao.js'");
+    });
+
+    test.each(['administrador', 'gestor', 'tecnico', 'fornecedor'])('permite que %s acesse o próprio perfil para ativar a digital', (role) => {
+        new Function(navigation)();
+        const auth = { getRole: () => role, hasPermission: () => false };
+        expect(window.NavigationMaster.getMenuItems(role).some(item => item.id === 'perfil')).toBe(true);
+        expect(window.NavigationMaster.canAccessRoute(auth, 'perfil')).toBe(true);
+        expect(window.NavigationMaster.canAccessRoute(auth, 'configuracoes')).toBe(false);
     });
 });
