@@ -570,6 +570,12 @@ const CloudStorage = {
     },
 
     async persistAccessSession(sessionUser = null) {
+        // Signed Firebase claims replace user-controlled RTDB sessions after migration.
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.passkeyEndpoint) {
+            const user = window.firebaseAuth?.currentUser;
+            const claims = user && await user.getIdTokenResult();
+            return !!(user && !user.isAnonymous && ['passkey', 'password'].includes(claims?.claims?.portal_auth_method));
+        }
         const activeUser = sessionUser || (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function' ? Auth.getCurrentUser() : null);
         const uid = this.getFirebaseUserId();
         const { set } = window.firebaseModules || {};
@@ -637,6 +643,10 @@ const CloudStorage = {
     },
 
     async clearAccessSession() {
+        if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.passkeyEndpoint) {
+            this.accessSession = null;
+            return true;
+        }
         const uid = this.getFirebaseUserId();
         const { remove } = window.firebaseModules || {};
 
