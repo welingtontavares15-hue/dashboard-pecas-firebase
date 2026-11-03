@@ -94,6 +94,10 @@ async function authenticatedAccount(req) {
     || Number(grant.expiresAt) <= Date.now()) invalid('Sessão sem autorização', 403);
   return user;
 }
+async function sessionProfile(_body, req) {
+  const user = await authenticatedAccount(req);
+  return { user: publicProfile(user) };
+}
 async function logoutSession(_body, req) {
   const user = await authenticatedAccount(req);
   const token = String(req.get('authorization') || '').slice(7);
@@ -192,7 +196,7 @@ export const portalPasskeys = onRequest({ region: 'southamerica-east1', cors: [a
     if (JSON.stringify(body).length > 25000) invalid('Requisição excede o limite', 413);
     const routes = {
       'register/options': beginRegistration, 'register/verify': finishRegistration,
-      'login/password': beginPasswordLogin, 'session/logout': logoutSession,
+      'login/password': beginPasswordLogin, 'session/logout': logoutSession, 'session/profile': sessionProfile,
       'login/options': beginAuthentication, 'login/verify': finishAuthentication
     };
     if (!Object.hasOwn(routes, body.action)) invalid('Ação inválida', 404);
