@@ -75,14 +75,15 @@ test('biometric option reports device capability and HTTPS requirements', () => 
   const available = harness({ supportsBiometric: true }).client.availability();
   assert.equal(available.available, true);
 });
-test('login screen always includes biometric choice and live availability text', () => {
+test('login offers saved passwords and reserves the passkey panel for a configured backend', () => {
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   const panel = html.match(/<div id="passkey-login-panel"[^>]*>/)?.[0] || '';
   assert.ok(panel, 'biometric panel is missing');
-  assert.doesNotMatch(panel, /class="[^"]*hidden/);
+  assert.match(panel, /class="[^"]*hidden/);
+  assert.match(html, /id="saved-password-btn"[^>]*aria-describedby="saved-password-status"/);
   assert.match(html, /id="passkey-login-btn"[^>]*aria-describedby="passkey-login-status"/);
   assert.match(html, /id="passkey-login-status"[^>]*role="status"/);
   const app = readFileSync(new URL('../../js/app.js', import.meta.url), 'utf8');
-  assert.match(app, /passkeyPanel\.classList\.remove\('hidden'\)/);
+  assert.match(app, /passkeyPanel\.classList\.toggle\('hidden', !serverIdentity\)/);
   assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!readiness\.available/);
 });

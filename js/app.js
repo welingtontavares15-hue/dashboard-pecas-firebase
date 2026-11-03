@@ -98,6 +98,8 @@ const App = {
         const passwordInput = document.getElementById('login-password');
         const submitBtn = document.getElementById('login-submit');
         const statusEl = document.getElementById('login-status');
+        const savedPasswordButton = document.getElementById('saved-password-btn');
+        if (savedPasswordButton) savedPasswordButton.disabled = !!isBusy;
         const passkeyButton = document.getElementById('passkey-login-btn');
         const biometricReadiness = window.PasskeyAuth?.availability();
         if (passkeyButton) {
@@ -153,6 +155,8 @@ const App = {
         if (passkeyButton) {
             passkeyButton.addEventListener('click', () => this.handlePasskeyLogin());
         }
+
+        document.getElementById('saved-password-btn')?.addEventListener('click', () => this.handleSavedPassword());
 
         // Logout button
         const logoutBtn = document.getElementById('logout-btn');
@@ -306,8 +310,10 @@ const App = {
     showLogin() {
         document.getElementById('login-screen').classList.remove('hidden');
         const passkeyPanel = document.getElementById('passkey-login-panel');
-        // The option is visible on every login screen; readiness is explicit.
-        if (passkeyPanel) passkeyPanel.classList.remove('hidden');
+        // Only show Passkeys when a server is configured. Saved passwords use the existing login.
+        const serverIdentity = !!window.PasskeyAuth?.configured();
+        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !serverIdentity);
+        document.getElementById('saved-password-panel')?.classList.toggle('hidden', serverIdentity);
         const passkeyStatus = document.getElementById('passkey-login-status');
         const readiness = window.PasskeyAuth?.availability() || {
             available: false,
@@ -707,12 +713,43 @@ const App = {
         
         if (result.success) {
             errorDiv.classList.add('hidden');
+            // The native manager handles consent; do not delay entry while it offers to save.
+            void window.SavedPasswords?.rememberVerified(username, password);
             document.getElementById('login-form').reset();
             Utils.showToast(`Bem-vindo, ${result.user.name}!`, 'success');
             this.showApp();
         } else {
             errorDiv.textContent = result.error;
             errorDiv.classList.remove('hidden');
+        }
+    },
+
+    async handleSavedPassword() {
+        if (this.isBootstrapping || this._choosingSavedPassword) return;
+        const button = document.getElementById('saved-password-btn');
+        const status = document.getElementById('saved-password-status');
+        const username = document.getElementById('login-username');
+        const password = document.getElementById('login-password');
+        this._choosingSavedPassword = true;
+        if (button) button.disabled = true;
+        try {
+            const result = await window.SavedPasswords?.choose();
+            if (result?.status === 'selected') {
+                username.value = result.username;
+                password.value = result.password;
+                document.getElementById('login-error')?.classList.add('hidden');
+                if (status) status.textContent = 'Senha selecionada no gerenciador do celular. Validando acesso...';
+                await this.handleLogin();
+                if (status) status.textContent = 'Acesso com a senha salva do celular. Se a senha mudou, digite sua senha atual e entre novamente.';
+            } else {
+                if (status) status.textContent = 'Toque no campo Usuário e selecione uma senha salva no teclado. No primeiro acesso, entre com sua senha e aceite salvar no Google.';
+                const help = document.getElementById('saved-password-help');
+                if (help) help.open = true;
+                username?.focus();
+            }
+        } finally {
+            this._choosingSavedPassword = false;
+            if (button) button.disabled = this.isBootstrapping;
         }
     },
 
@@ -774,6 +811,7 @@ const App = {
         if (confirmed) {
             if (window.PasskeyAuth?.enabled()) await window.PasskeyAuth.logout();
             Auth.logout();
+            void window.SavedPasswords?.signedOut();
             Utils.showToast('Sessão encerrada', 'info');
             this.showLogin();
         }
