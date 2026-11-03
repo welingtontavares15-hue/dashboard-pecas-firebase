@@ -58,8 +58,20 @@ const App = {
             // Initialize data (now async for cloud storage)
             await DataManager.init();
 
-            // Check if user is logged in
-            if (!window.PasskeyAuth?.enabled() && Auth.init()) {
+            // Only the backend may restore sessions in signed-identity mode.
+            let restored = false;
+            if (window.PasskeyAuth?.enabled()) {
+                try {
+                    restored = await window.PasskeyAuth.restore();
+                } catch (_error) {
+                    Auth.currentUser = null;
+                    Auth.clearSession();
+                    restored = false;
+                }
+            } else {
+                restored = Auth.init();
+            }
+            if (restored) {
                 this.setLoginBootstrapState(true, 'Restaurando sessão e sincronizando dados...');
                 if (typeof DataManager !== 'undefined' && typeof DataManager.syncAll === 'function') {
                     try {
