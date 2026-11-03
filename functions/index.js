@@ -94,6 +94,14 @@ async function authenticatedAccount(req) {
     || Number(grant.expiresAt) <= Date.now()) invalid('Sessão sem autorização', 403);
   return user;
 }
+async function logoutSession(_body, req) {
+  const user = await authenticatedAccount(req);
+  const token = String(req.get('authorization') || '').slice(7);
+  const decoded = await getAuth().verifyIdToken(token, true);
+  await db().ref('authz/users/' + decoded.uid).remove();
+  await getAuth().revokeRefreshTokens(decoded.uid);
+  return { success: true };
+}
 async function beginPasswordLogin(body, req) {
   const { username, password } = body;
   const normalized = String(username || '').trim().toLowerCase();
@@ -184,7 +192,7 @@ export const portalPasskeys = onRequest({ region: 'southamerica-east1', cors: [a
     if (JSON.stringify(body).length > 25000) invalid('Requisição excede o limite', 413);
     const routes = {
       'register/options': beginRegistration, 'register/verify': finishRegistration,
-      'login/password': beginPasswordLogin,
+      'login/password': beginPasswordLogin, 'session/logout': logoutSession,
       'login/options': beginAuthentication, 'login/verify': finishAuthentication
     };
     if (!Object.hasOwn(routes, body.action)) invalid('Ação inválida', 404);
