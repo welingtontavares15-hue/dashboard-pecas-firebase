@@ -150,13 +150,13 @@ const Solicitacoes = {
                         </button>
                     ` : ''}
                     ${canExport ? `
-                        <button class="btn btn-outline wwm-export-action" onclick="Solicitacoes.exportList()">
+                        <button class="btn btn-outline wwm-export-action" onclick="Solicitacoes.exportList()" title="Exportar lista" aria-label="Exportar lista">
                             <i class="fas fa-download"></i> Exportar
                         </button>
                     ` : ''}
                     ${canManageBackup ? `
                         <details class="action-menu">
-                            <summary class="btn btn-outline">
+                            <summary class="btn btn-outline" title="Mais ações" aria-label="Mais ações">
                                 <i class="fas fa-ellipsis-v"></i> Mais ações
                             </summary>
                             <div class="action-menu-dropdown">

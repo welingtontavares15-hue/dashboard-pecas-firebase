@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v83-design-system';
+const CACHE_VERSION = 'v84-mobile-fixes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

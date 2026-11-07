@@ -153,6 +153,17 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         if (overlap) failures.push(`${width}px solicitacoes: ${overlap}`);
                     }
                 }
+
+                if (role === 'tecnico' && width < 768) {
+                    // O botão "Nova" da barra inferior precisa abrir o formulário,
+                    // mesmo depois de a navegação reprocessar os botões várias vezes.
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                    await page.click('#technician-bottom-navigation button:first-child');
+                    await new Promise(resolve => setTimeout(resolve, 900));
+                    const opened = await page.evaluate(() => !document.getElementById('modal-container').classList.contains('hidden')
+                        && /Nova Solicita/i.test(document.querySelector('#modal-content')?.textContent || ''));
+                    if (!opened) failures.push(`${width}px tecnico: botão "Nova" da barra inferior não abriu o formulário`);
+                }
                 await page.close();
             }
         }

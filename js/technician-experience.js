@@ -232,6 +232,8 @@ function sync(s){
     const search=root.document.getElementById('sol-search');
     if(search)search.placeholder='Buscar por número, cliente ou peça...';
     ['downloadBackup','triggerRestoreBackup'].forEach(m=>root.document.querySelectorAll(`[onclick*="Solicitacoes.${m}"]`).forEach(el=>el.remove()));
+    // Sem backup/restauração o menu "Mais ações" ficava vazio para o técnico.
+    root.document.querySelectorAll('#content-area .page-actions details.action-menu').forEach(menu=>{if(!menu.querySelector('.action-menu-dropdown > *'))menu.remove();});
 }
 
 function patchSolicitations(){
