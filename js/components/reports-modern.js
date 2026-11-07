@@ -347,7 +347,7 @@ function replaceChartFallback(canvasId, message) {
 
 
 function getReportChartTheme() {
-    const isDark = document.body.classList.contains('dark-mode') && !document.body.classList.contains('wwm-ds');
+    const isDark = document.body.classList.contains('dark-mode');
     return {
         textColor: isDark ? '#D5DFEB' : '#334155',
         gridColor: isDark ? 'rgba(71, 85, 105, 0.42)' : 'rgba(148, 163, 184, 0.18)'
@@ -980,8 +980,8 @@ export function applyReportsModernization() {
                     labels: months.map((month) => month.label),
                     datasets: [{
                         data: months.map((month) => Number(month.totalCost) || 0),
-                        borderColor: '#2ea957',
-                        backgroundColor: 'rgba(46, 169, 87, 0.12)',
+                        borderColor: '#1ee1ce',
+                        backgroundColor: 'rgba(30, 225, 206, 0.14)',
                         fill: true,
                         tension: 0.28,
                         pointRadius: 3,
@@ -1050,7 +1050,7 @@ export function applyReportsModernization() {
                     labels: months.map((month) => month.label),
                     datasets: [{
                         data: months.map((month) => Number(month.totalCost) || 0),
-                        backgroundColor: 'rgba(46, 169, 87, 0.85)',
+                        backgroundColor: 'rgba(11, 183, 158, 0.85)',
                         borderRadius: 8,
                         maxBarThickness: 40
                     }]

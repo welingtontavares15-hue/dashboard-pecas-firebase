@@ -26,7 +26,7 @@ function shortenLabel(label, maxLength = 30) {
 }
 
 function getTheme() {
-    const isDark = document.body.classList.contains('dark-mode') && !document.body.classList.contains('wwm-ds');
+    const isDark = document.body.classList.contains('dark-mode');
     return {
         text: isDark ? '#dce7f4' : '#475569',
         grid: isDark ? 'rgba(100, 116, 139, 0.34)' : 'rgba(148, 163, 184, 0.20)',
@@ -156,8 +156,8 @@ function createMonthlyLineChart(relatorios, canvasId, months = []) {
             datasets: [{
                 label: 'Custo mensal',
                 data: rows.map((month) => Number(month.totalCost) || 0),
-                borderColor: '#2ea957',
-                backgroundColor: 'rgba(46, 169, 87, 0.12)',
+                borderColor: '#1ee1ce',
+                backgroundColor: 'rgba(30, 225, 206, 0.14)',
                 fill: true,
                 tension: 0.28,
                 borderWidth: 3,
@@ -210,7 +210,7 @@ function createMonthlyBarChart(relatorios, canvasId, months = []) {
             datasets: [{
                 label: 'Custo mensal',
                 data: rows.map((month) => Number(month.totalCost) || 0),
-                backgroundColor: 'rgba(46, 169, 87, 0.85)',
+                backgroundColor: 'rgba(11, 183, 158, 0.85)',
                 borderRadius: 8,
                 borderSkipped: false,
                 maxBarThickness: 42
@@ -271,7 +271,7 @@ export function applyReportsChartHardeningV55() {
             'reportOverviewTechChart',
             technicians.slice(0, TECH_OVERVIEW_LIMIT).map((row) => row.nome),
             technicians.slice(0, TECH_OVERVIEW_LIMIT).map((row) => row.totalCost),
-            'rgba(28, 71, 135, 0.82)',
+            'rgba(17, 191, 172, 0.86)',
             'Custo do técnico'
         );
         createHorizontalCurrencyChart(
@@ -279,7 +279,7 @@ export function applyReportsChartHardeningV55() {
             'reportTechnicianCostChart',
             technicians.slice(0, TECH_DETAIL_LIMIT).map((row) => row.nome),
             technicians.slice(0, TECH_DETAIL_LIMIT).map((row) => row.totalCost),
-            'rgba(28, 71, 135, 0.82)',
+            'rgba(17, 191, 172, 0.86)',
             'Custo do técnico'
         );
         createHorizontalCurrencyChart(
@@ -287,7 +287,7 @@ export function applyReportsChartHardeningV55() {
             'reportPartCostChart',
             parts.slice(0, PART_LIMIT).map((row) => row.codigo || row.descricao),
             parts.slice(0, PART_LIMIT).map((row) => row.totalCost),
-            'rgba(46, 169, 87, 0.86)',
+            'rgba(11, 183, 158, 0.86)',
             'Custo da peça'
         );
         createMonthlyBarChart(this, 'reportMonthlyCostChart', months);
@@ -298,7 +298,7 @@ export function applyReportsChartHardeningV55() {
             'costTechniciansChart',
             technicians.slice(0, TECH_OVERVIEW_LIMIT).map((row) => row.nome),
             technicians.slice(0, TECH_OVERVIEW_LIMIT).map((row) => row.totalCost),
-            'rgba(28, 71, 135, 0.82)',
+            'rgba(17, 191, 172, 0.86)',
             'Custo do técnico'
         );
         createHorizontalCurrencyChart(
@@ -306,7 +306,7 @@ export function applyReportsChartHardeningV55() {
             'costTechniciansDetailChart',
             technicians.slice(0, TECH_DETAIL_LIMIT).map((row) => row.nome),
             technicians.slice(0, TECH_DETAIL_LIMIT).map((row) => row.totalCost),
-            'rgba(28, 71, 135, 0.82)',
+            'rgba(17, 191, 172, 0.86)',
             'Custo do técnico'
         );
         createHorizontalCurrencyChart(
@@ -314,7 +314,7 @@ export function applyReportsChartHardeningV55() {
             'costPartsChart',
             parts.slice(0, PART_LIMIT).map((row) => row.codigo || row.descricao),
             parts.slice(0, PART_LIMIT).map((row) => row.totalCost),
-            'rgba(46, 169, 87, 0.86)',
+            'rgba(11, 183, 158, 0.86)',
             'Custo da peça'
         );
         createHorizontalCurrencyChart(
@@ -322,7 +322,7 @@ export function applyReportsChartHardeningV55() {
             'costPartsDetailChart',
             parts.slice(0, PART_LIMIT).map((row) => row.codigo || row.descricao),
             parts.slice(0, PART_LIMIT).map((row) => row.totalCost),
-            'rgba(46, 169, 87, 0.86)',
+            'rgba(11, 183, 158, 0.86)',
             'Custo da peça'
         );
     };

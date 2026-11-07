@@ -40,11 +40,10 @@ describe('WWM design system 2027', () => {
         expect(read('service-worker.js')).toContain("'./css/wwm-design-system.css'");
     });
 
-    test('gráficos usam a paleta clara quando o design system está ativo', () => {
-        ['js/components/reports-chart-hardening-v55.js', 'js/components/reports-modern.js', 'js/relatorios.js', 'js/dashboard.js']
-            .forEach((file) => expect(read(file)).toContain("!document.body.classList.contains('wwm-ds')"));
+    test('mantém o fundo verde-petróleo do portal (identidade preferida pelos usuários)', () => {
+        expect(css).toMatch(/--ds-bg:\s*#01383b/);
+        expect(css).toContain('color-scheme: dark !important;');
         const v59 = read('js/components/dashboard-wwm-v59.js');
         expect(v59).toContain('const CHART_THEME = {');
-        expect(v59).not.toContain("ticks: { color: '#d8ecec'");
     });
 });

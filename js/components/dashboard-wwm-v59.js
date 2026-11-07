@@ -7,24 +7,24 @@ const STATUS_GROUPS = [
     { key: 'rejected', label: 'Rejeitadas', statuses: ['rejeitada'], tone: 'danger', icon: 'fa-circle-xmark' }
 ];
 
-// Cores dos status alinhadas aos tokens do design system (css/wwm-design-system.css).
+// Cores dos status alinhadas aos tokens --ds-*-solid do design system (css/wwm-design-system.css).
 const TONE_COLORS = {
-    warning: '#f0a400',
-    success: '#2f6bed',
-    info: '#0ea5d9',
-    neutral: '#2ea957',
-    danger: '#e5483b'
+    warning: '#ffc21c',
+    success: '#5b95ff',
+    info: '#15a8ff',
+    neutral: '#16df94',
+    danger: '#ff4a54'
 };
 
-// Paleta dos gráficos para o tema claro do design system.
+// Paleta dos gráficos sobre o fundo verde-petróleo do portal.
 const CHART_THEME = {
-    line: '#2ea957',
-    fill: 'rgba(46, 169, 87, .12)',
-    tick: '#64748b',
-    grid: 'rgba(148, 163, 184, .22)',
-    surface: '#ffffff',
-    total: '#0d1b2e',
-    totalLabel: '#64748b'
+    line: '#2fd4c4',
+    fill: 'rgba(47, 212, 196, .14)',
+    tick: '#cfe6e5',
+    grid: 'rgba(255, 255, 255, .10)',
+    surface: '#053c41',
+    total: '#ffffff',
+    totalLabel: '#bcd8d7'
 };
 
 const safeArray = (value) => Array.isArray(value) ? value : [];
