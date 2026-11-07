@@ -114,10 +114,16 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
             for (const { role, pages } of scenarios) {
                 const page = await browser.newPage();
                 await page.setViewport({ width, height: 900 });
+                // Sem Service Worker: na primeira visita o PWA assume a página e chama
+                // location.reload() (controllerchange), o que destrói o contexto no meio
+                // do teste e o deixa instável. O layout não depende do SW.
+                await page.evaluateOnNewDocument(() => {
+                    if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+                });
                 await page.setRequestInterception(true);
                 // Somente arquivos locais: nada de Firebase, CDN ou rede externa.
                 page.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
-                await page.goto(base, { waitUntil: 'domcontentloaded' });
+                await page.goto(base, { waitUntil: 'load' });
                 await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined', { timeout: 20000 });
                 await page.evaluate(`(${seedSyntheticData.toString()})()`);
                 await page.evaluate((currentRole) => {
