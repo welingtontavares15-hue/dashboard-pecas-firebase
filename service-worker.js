@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v82-ui-usability-fixes';
+const CACHE_VERSION = 'v83-design-system';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -37,6 +37,7 @@ const PRECACHE = {
     './css/wwm-smart-layout.css',
     './css/visual-premium-v4.css',
     './css/desktop-mobile-premium.css',
+    './css/wwm-design-system.css',
     './css/visual-architecture-v72.css',
     './manifest.webmanifest',
     './icons/icon.svg',

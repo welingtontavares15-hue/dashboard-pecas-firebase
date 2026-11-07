@@ -104,7 +104,7 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
         });
 
         const scenarios = [
-            { role: 'administrador', pages: ['dashboard', 'solicitacoes', 'aprovacoes'] },
+            { role: 'administrador', pages: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios', 'pecas', 'configuracoes'] },
             { role: 'tecnico', pages: ['solicitacoes'] }
         ];
         const widths = [390, 768, 1280, 1440];

@@ -40,7 +40,7 @@ describe('Dashboard WWM v72 reference layout', () => {
     });
 
     test('carrega somente o renderer v59 no entrypoint', () => {
-        expect(page).toContain('dashboard-wwm-v59.js?v=20260829e');
+        expect(page).toContain('dashboard-wwm-v59.js?v=20261107a');
         expect(page).not.toContain('wwm-dashboard-v59.css?v=20260829c');
         expect(page).toContain("document.getElementById('wwm-dashboard-v59-styles')?.remove()");
         expect(page).toContain('applyDashboardWwmV59');
@@ -57,7 +57,7 @@ describe('Dashboard WWM v72 reference layout', () => {
         expect(visualArchitecture).toContain('grid-template-columns: repeat(2, minmax(0, 1fr)) !important');
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v82-ui-usability-fixes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v83-design-system'");
         expect(serviceWorker).toContain("'./css/wwm-visual-standard.css'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
     });

@@ -7,12 +7,24 @@ const STATUS_GROUPS = [
     { key: 'rejected', label: 'Rejeitadas', statuses: ['rejeitada'], tone: 'danger', icon: 'fa-circle-xmark' }
 ];
 
+// Cores dos status alinhadas aos tokens --ds-*-solid do design system (css/wwm-design-system.css).
 const TONE_COLORS = {
     warning: '#ffc21c',
-    success: '#16df94',
+    success: '#5b95ff',
     info: '#15a8ff',
-    neutral: '#08c9bc',
+    neutral: '#16df94',
     danger: '#ff4a54'
+};
+
+// Paleta dos gráficos sobre o fundo verde-petróleo do portal.
+const CHART_THEME = {
+    line: '#2fd4c4',
+    fill: 'rgba(47, 212, 196, .14)',
+    tick: '#cfe6e5',
+    grid: 'rgba(255, 255, 255, .10)',
+    surface: '#053c41',
+    total: '#ffffff',
+    totalLabel: '#bcd8d7'
 };
 
 const safeArray = (value) => Array.isArray(value) ? value : [];
@@ -216,8 +228,8 @@ function drawCharts(analysis) {
     if (costCanvas && months.length) {
         Dashboard._v59Charts.cost = new Chart(costCanvas, {
             type: 'line',
-            data: { labels: months.map((item) => item.label), datasets: [{ data: months.map((item) => Number(item.totalCost) || 0), borderColor: '#078a83', backgroundColor: 'rgba(7,138,131,.13)', fill: true, tension: .34, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => Utils.formatCurrency(ctx.parsed.y || 0) } } }, scales: { x: { grid: { display: false }, ticks: { color: '#d8ecec' } }, y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.13)' }, ticks: { color: '#d8ecec', callback: (value) => Utils.formatCurrency(value) } } } }
+            data: { labels: months.map((item) => item.label), datasets: [{ data: months.map((item) => Number(item.totalCost) || 0), borderColor: CHART_THEME.line, backgroundColor: CHART_THEME.fill, fill: true, tension: .34, borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: CHART_THEME.surface, pointBorderWidth: 2, pointHoverRadius: 5 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => Utils.formatCurrency(ctx.parsed.y || 0) } } }, scales: { x: { grid: { display: false }, border: { display: false }, ticks: { color: CHART_THEME.tick, font: { family: 'Inter', size: 12 } } }, y: { beginAtZero: true, border: { display: false }, grid: { color: CHART_THEME.grid }, ticks: { color: CHART_THEME.tick, font: { family: 'Inter', size: 12 }, callback: (value) => Utils.formatCurrency(value) } } } }
         });
     }
 
@@ -234,7 +246,7 @@ function drawCharts(analysis) {
                     // cor derivada do tom do grupo: com um status zerado a lista é
                     // filtrada e um array fixo desalinharia rosca e legenda.
                     backgroundColor: statuses.map((item) => TONE_COLORS[item.tone] || TONE_COLORS.neutral),
-                    borderColor: '#04434a',
+                    borderColor: CHART_THEME.surface,
                     borderWidth: 3
                 }]
             },
@@ -248,10 +260,10 @@ function drawCharts(analysis) {
                     const y = (chartArea.top + chartArea.bottom) / 2;
                     ctx.save();
                     ctx.textAlign = 'center';
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = CHART_THEME.total;
                     ctx.font = '800 24px Inter, Manrope, Segoe UI, sans-serif';
                     ctx.fillText(Utils.formatNumber(total), x, y - 2);
-                    ctx.fillStyle = '#bcd8d7';
+                    ctx.fillStyle = CHART_THEME.totalLabel;
                     ctx.font = '600 12px Inter, Manrope, Segoe UI, sans-serif';
                     ctx.fillText('Total', x, y + 18);
                     ctx.restore();
