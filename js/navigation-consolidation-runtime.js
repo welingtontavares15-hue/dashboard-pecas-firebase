@@ -105,10 +105,19 @@
         return true;
     }
 
+    // Idempotente: a rota original (ex.: "nova-solicitacao") fica em
+    // data-route-source. Sem isso, a segunda passada via "solicitacoes", que
+    // não tem ação, e apagava data-route-action — o botão "Nova" da barra
+    // inferior do técnico passava a só abrir a lista, sem o formulário.
     function canonicalizeNode(node) {
-        const routeId = node?.dataset?.page;
-        if (!routeId) return;
-        const resolved = resolveRoute(routeId);
+        const currentPage = node?.dataset?.page;
+        if (!currentPage) return;
+        let source = node.dataset.routeSource;
+        if (!source || resolveRoute(source).pageId !== currentPage) {
+            source = currentPage;
+        }
+        const resolved = resolveRoute(source);
+        node.dataset.routeSource = source;
         node.dataset.page = resolved.pageId;
         if (resolved.action) node.dataset.routeAction = resolved.action;
         else delete node.dataset.routeAction;
