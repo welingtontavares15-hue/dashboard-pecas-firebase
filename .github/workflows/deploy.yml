@@ -43,6 +43,9 @@ jobs:
       - name: Device biometric encryption in Chrome
         run: npm run test:device-biometric
 
+      - name: Layout overflow in Chrome (390/768/1280/1440 px)
+        run: npm run test:layout
+
       - name: Python syntax
         run: python -m compileall -q scripts
 

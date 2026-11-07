@@ -272,7 +272,8 @@ const Solicitacoes = {
 
     getResultsSummary() {
         const solicitations = this.getFilteredSolicitations();
-        return `Base atual: ${Utils.formatNumber(solicitations.length)} solicitações filtradas.`;
+        const count = solicitations.length;
+        return `${Utils.formatNumber(count)} ${count === 1 ? 'solicitação encontrada' : 'solicitações encontradas'}`;
     },
 
     renderActiveFilterChips() {
@@ -725,7 +726,7 @@ const Solicitacoes = {
                 Exibindo ${start + 1}-${Math.min(start + this.itemsPerPage, total)} de ${total} solicitações
             </div>
             <div class="table-container">
-                <table class="table">
+                <table class="table ${isTecnico ? 'sol-table--tecnico' : 'sol-table--gestao'}">
                     <thead>
                         ${tableHeaders}
                     </thead>

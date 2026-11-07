@@ -2,7 +2,7 @@
     const STATUS_TOKENS = {
         criado: { label: 'Em aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
         pendente_aprovacao: { label: 'Em aprovação', icon: 'fa-clock', css: 'status-pendente-aprovacao' },
-        aprovado: { label: 'Aprovado / aguardando envio', icon: 'fa-check', css: 'status-aprovado' },
+        aprovado: { label: 'Aguardando envio', description: 'Aprovada pelo gestor, aguardando envio do fornecedor', icon: 'fa-check', css: 'status-aprovado' },
         reprovado: { label: 'Rejeitado', icon: 'fa-times', css: 'status-reprovado' },
         em_compra: { label: 'Em trânsito', icon: 'fa-cart-shopping', css: 'status-em-compra' },
         enviado: { label: 'Finalizada', icon: 'fa-truck-fast', css: 'status-concluido' },
@@ -56,8 +56,11 @@
 
         // Quick filter only pays off on longer lists; small ranking/preview
         // tables stay clean without an extra input above them.
+        // Pages with their own filter bar (Solicitações, Aprovações...) already
+        // have a search field; a second "quick filter" there only confuses.
         const rowCount = table.querySelectorAll('tbody tr').length;
-        if (rowCount >= 8) {
+        const pageHasSearch = Boolean(tableContainer.closest('#content-area')?.querySelector('.filters-bar input:not([type="date"]):not([type="hidden"])'));
+        if (rowCount >= 8 && !pageHasSearch) {
             const toolbar = document.createElement('div');
             toolbar.className = 'table-toolbar';
             toolbar.innerHTML = '<input type="text" class="table-quick-filter form-control" placeholder="Filtro rápido da tabela">';
@@ -154,7 +157,8 @@
 
         Utils.renderStatusBadge = function (status) {
             const info = this.getStatusInfo(status);
-            return '<span class="status-badge ' + info.css + '"><i class="fas ' + info.icon + '"></i>' + info.label + '</span>';
+            const title = info.description ? ' title="' + info.description + '"' : '';
+            return '<span class="status-badge ' + info.css + '"' + title + '><i class="fas ' + info.icon + '" aria-hidden="true"></i>' + info.label + '</span>';
         };
 
         Utils.showToast = function (message, type) {

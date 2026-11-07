@@ -874,3 +874,204 @@ body.visual-premium-v4.wwm-page-solicitacoes #sol-table-container .premium-row-m
         scroll-snap-align: start;
     }
 }
+
+/* ==========================================================================
+   v82 - correções de layout e usabilidade (nov/2026)
+   Encontradas com medição automatizada em 390, 768, 1280 e 1440 px.
+   Mantenha este bloco no fim do arquivo: ele precisa vencer as camadas v59-v72.
+   ========================================================================== */
+
+/* Painel: a barra de filtros não pode espremer o título.
+   Antes: .v59-hero-toolbar com flex-shrink:0 deixava o título com ~60px
+   (quebrando em 4 linhas) e alargava a grade do painel além da tela no tablet. */
+body.wwm-reference-theme .v59-main {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+body.wwm-reference-theme .v59-hero {
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    row-gap: 16px !important;
+}
+
+body.wwm-reference-theme .v59-hero-copy {
+    flex: 1 1 360px !important;
+    min-width: min(100%, 280px) !important;
+}
+
+body.wwm-reference-theme .v59-hero-toolbar {
+    flex: 1 1 auto !important;
+    flex-shrink: 1 !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+body.wwm-reference-theme .v59-period-control {
+    flex: 1 1 220px !important;
+    min-width: min(100%, 220px) !important;
+}
+
+/* Cabeçalho do app em tablet e celular: uma linha só.
+   Antes: os controles (sincronizar, notificações, perfil) caíam numa segunda
+   coluna fora da tela em 768px, e no celular ocupavam uma linha extra. */
+@media (max-width: 1180px) {
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        height: auto !important;
+        min-height: 60px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-actions {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        width: auto !important;
+        min-width: 0 !important;
+        margin-left: auto !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-controls {
+        flex-wrap: nowrap !important;
+        justify-content: flex-end !important;
+        margin: 0 !important;
+    }
+}
+
+/* Solicitações (visão de gestão): todas as colunas, incluindo Ações, cabem
+   em 1280+ px. Antes a coluna Ações tinha ~56px para 3 botões e cobria a Data,
+   e o número do pedido era cortado ("#REQ-20261107-0…"). */
+@media (min-width: 768px) {
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao {
+        min-width: 900px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(1) { width: 176px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(2) { width: auto !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(3) { width: auto !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(4) { width: auto !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(5) { width: 108px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(6) { width: 150px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(7) { width: 100px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(8) {
+        width: 128px !important;
+        min-width: 128px !important;
+        overflow: visible !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao td:first-child > strong {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        letter-spacing: 0 !important;
+        font-variant-numeric: tabular-nums;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao td:nth-child(6) .status-badge {
+        white-space: nowrap !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao .actions {
+        justify-content: flex-end !important;
+        flex-wrap: nowrap !important;
+    }
+}
+
+/* Celular: indicadores com o ícone acima do texto, para o valor caber inteiro.
+   Antes: "R$ 4.080,0" cortado em cartões de ~170px. */
+@media (max-width: 520px) {
+    body.wwm-reference-theme .kpi-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme .kpi-card .kpi-icon,
+    body.wwm-reference-theme .kpi-card .kpi-icon {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        aspect-ratio: 1 / 1;
+        flex: 0 0 36px !important;
+    }
+
+    body.wwm-reference-theme .kpi-card .kpi-content {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    body.wwm-reference-theme .kpi-card .kpi-value {
+        white-space: nowrap !important;
+        font-size: clamp(17px, 5vw, 20px) !important;
+        overflow: visible !important;
+    }
+}
+
+/* Tablet: indicadores do painel em 2 colunas, sem cartão órfão na última linha. */
+@media (min-width: 600px) and (max-width: 1100px) {
+    body.wwm-reference-theme .v59-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+/* Notebook (1280px): os controles do cabeçalho não encolhem além do conteúdo;
+   quem cede espaço é a busca. Antes o cartão do perfil passava ~14px da borda. */
+@media (min-width: 768px) {
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-controls {
+        flex-shrink: 0 !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-search-zone {
+        flex: 1 1 160px !important;
+        min-width: 0 !important;
+    }
+
+    /* A caixa de busca acompanha a zona (antes tinha 390px fixos e ficava
+       por baixo do selo "Sincronizado" quando a zona encolhia). */
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-search-zone .global-search {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme #app-container .main-header .header-search-zone .global-search input {
+        min-width: 0 !important;
+    }
+}
+
+/* Solicitações em notebook (1280-1399px): colunas fixas mais justas para a
+   tabela caber sem rolagem lateral. */
+@media (min-width: 768px) and (max-width: 1399px) {
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao {
+        min-width: 840px !important;
+    }
+
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(1) { width: 164px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(5) { width: 96px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(6) { width: 140px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(7) { width: 92px !important; }
+    body.visual-premium-v4.wwm-reference-theme.wwm-page-solicitacoes #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(8) {
+        width: 120px !important;
+        min-width: 120px !important;
+    }
+}
+
+/* Painel no celular: filtros e botões em largura total, alinhados à esquerda. */
+@media (max-width: 767px) {
+    body.wwm-reference-theme .v59-hero-toolbar {
+        justify-content: stretch !important;
+        width: 100% !important;
+    }
+
+    body.wwm-reference-theme .v59-period-control,
+    body.wwm-reference-theme .v59-hero-actions {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+}

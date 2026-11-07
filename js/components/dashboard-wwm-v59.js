@@ -91,8 +91,9 @@ function heroActions() {
     return actions.join('');
 }
 
-function metricCard(label, value, note, icon, tone) {
-    return `<article class="v59-kpi is-${tone}">
+function metricCard(label, value, note, icon, tone, hint = '') {
+    const title = hint ? ` title="${Utils.escapeHtml(hint)}"` : '';
+    return `<article class="v59-kpi is-${tone}"${title}>
         <div class="v59-kpi-top"><span>${label}</span><i class="fas ${icon}"></i></div>
         <strong>${value}</strong>
         <small>${note}</small>
@@ -157,9 +158,9 @@ function renderReady(source, period, analysis) {
                 </section>
 
                 <section id="v59-indicators" class="v59-kpi-grid v59-section">
-                    ${metricCard('Custo no período', Utils.formatCurrency(analysis?.totalCost || 0), `${Utils.formatNumber(analysis?.totalRequests || 0)} solicitações`, 'fa-sack-dollar', 'blue')}
+                    ${metricCard('Custo no período', Utils.formatCurrency(analysis?.totalCost || 0), `${Utils.formatNumber(analysis?.totalApproved || 0)} ${Number(analysis?.totalApproved || 0) === 1 ? 'solicitação aprovada' : 'solicitações aprovadas'}`, 'fa-sack-dollar', 'blue', 'Soma das solicitações aprovadas no período, pela data de aprovação. Pedidos em aprovação ou rejeitados não entram no custo.')}
                     ${metricCard('Aguardando aprovação', Utils.formatNumber(pending), 'Solicitações pendentes', 'fa-clock', 'teal')}
-                    ${metricCard('Custo médio', Utils.formatCurrency(analysis?.averageCostPerSolicitation || 0), 'Por solicitação', 'fa-calculator', 'blue')}
+                    ${metricCard('Custo médio', Utils.formatCurrency(analysis?.averageCostPerSolicitation || 0), 'Por solicitação aprovada', 'fa-calculator', 'blue', 'Custo no período dividido pelo número de solicitações aprovadas.')}
                     ${metricCard('Peças movimentadas', Utils.formatNumber(analysis?.totalPieces || 0), 'No período selecionado', 'fa-boxes-stacked', 'teal')}
                 </section>
 

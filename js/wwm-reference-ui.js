@@ -41,7 +41,7 @@
         if (!deviceCss) {
             deviceCss = document.createElement('link');
             deviceCss.rel = 'stylesheet';
-            deviceCss.href = 'css/desktop-mobile-premium.css?v=20260920a';
+            deviceCss.href = 'css/desktop-mobile-premium.css?v=20261107a';
             deviceCss.dataset.wwmDeviceLayout = 'true';
             document.head.appendChild(deviceCss);
         }

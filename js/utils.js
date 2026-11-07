@@ -3484,8 +3484,8 @@ const Utils = {
             criado: { label: 'Em aprovação', icon: 'fa-clock', class: 'status-pendente-aprovacao' },
             pendente: { label: 'Em aprovação', icon: 'fa-clock', class: 'status-pendente-aprovacao' },
             pendente_aprovacao: { label: 'Em aprovação', icon: 'fa-clock', class: 'status-pendente-aprovacao' },
-            aprovada: { label: 'Aprovado / aguardando envio', icon: 'fa-check', class: 'status-aprovado' },
-            aprovado: { label: 'Aprovado / aguardando envio', icon: 'fa-check', class: 'status-aprovado' },
+            aprovada: { label: 'Aguardando envio', description: 'Aprovada pelo gestor, aguardando envio do fornecedor', icon: 'fa-check', class: 'status-aprovado' },
+            aprovado: { label: 'Aguardando envio', description: 'Aprovada pelo gestor, aguardando envio do fornecedor', icon: 'fa-check', class: 'status-aprovado' },
             rejeitada: { label: 'Rejeitado', icon: 'fa-times', class: 'status-reprovado' },
             reprovado: { label: 'Rejeitado', icon: 'fa-times', class: 'status-reprovado' },
             'em-transito': { label: 'Em trânsito', icon: 'fa-truck', class: 'status-em-compra' },
@@ -3505,8 +3505,9 @@ const Utils = {
      */
     renderStatusBadge(status) {
         const info = this.getStatusInfo(status);
-        return `<span class="status-badge ${info.class}">
-            <i class="fas ${info.icon}"></i>
+        const description = info.description ? ` title="${this.escapeHtml(info.description)}"` : '';
+        return `<span class="status-badge ${info.class}"${description}>
+            <i class="fas ${info.icon}" aria-hidden="true"></i>
             ${info.label}
         </span>`;
     },

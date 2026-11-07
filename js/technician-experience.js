@@ -124,7 +124,7 @@ function renderHistoryPanel(requests=[],options={}){
         const q=fmtQty(x.totalQuantity),qLabel=Number(x.totalQuantity)===1?'peça':'peças',rLabel=x.requestCount===1?'pedido':'pedidos',st=LABEL[x.lastStatus]||text(x.lastStatus)||'Status não informado',client=x.lastClient?` · ${esc(x.lastClient)}`:'';
         return`<article class="technician-history-item"><div class="technician-history-part"><span class="technician-history-code">${esc(x.code)}</span><strong>${esc(x.description)}</strong><span class="technician-history-last">Último pedido #${esc(x.lastRequestNumber)} · ${esc(fmtDate(x.lastAt))}${client}</span></div><div class="technician-history-metrics"><span class="technician-history-quantity">${esc(q)} ${qLabel}</span><span>${esc(x.requestCount)} ${rLabel}</span><span class="technician-history-status">${esc(st)}</span></div></article>`;
     }).join(''),remaining=h.length-visible.length;
-    return`<section class="technician-history-panel" aria-labelledby="technician-history-title"><div class="technician-history-header"><div><span class="technician-history-eyebrow">Rastreabilidade pessoal</span><h3 id="technician-history-title"><i class="fas fa-clock-rotate-left"></i> Histórico de peças</h3><p>Consolidado das peças presentes nas suas solicitações, sem duplicar dados no Firebase.</p></div><span class="technician-history-total">${esc(h.length)} ${h.length===1?'peça':'peças'} diferentes</span></div><div class="technician-history-list">${rows}</div>${remaining>0?`<p class="technician-history-more">+${esc(remaining)} peças no histórico. Use os filtros ou a busca para refinar.</p>`:''}</section>`;
+    return`<section class="technician-history-panel" aria-labelledby="technician-history-title"><div class="technician-history-header"><div><span class="technician-history-eyebrow">Rastreabilidade pessoal</span><h3 id="technician-history-title"><i class="fas fa-clock-rotate-left"></i> Histórico de peças</h3><p>Peças que você já pediu, da mais recente para a mais antiga.</p></div><span class="technician-history-total">${esc(h.length)} ${h.length===1?'peça':'peças'} diferentes</span></div><div class="technician-history-list">${rows}</div>${remaining>0?`<p class="technician-history-more">+${esc(remaining)} peças no histórico. Use os filtros ou a busca para refinar.</p>`:''}</section>`;
 }
 
 const isTechnician=()=>root.Auth?.getRole?.()==='tecnico';
@@ -133,7 +133,7 @@ function ensureStyles(){
     if(!root.document||root.document.querySelector('link[data-technician-history]'))return;
     const l=root.document.createElement('link');
     l.rel='stylesheet';
-    l.href='css/technician-history.css?v=20260830c';
+    l.href='css/technician-history.css?v=20261107a';
     l.dataset.technicianHistory='true';
     root.document.head?.appendChild(l);
 }
@@ -227,7 +227,7 @@ function sync(s){
     const sum=root.document.getElementById('sol-summary-container');
     if(sum)sum.innerHTML=renderSummaryCards(filtered);
     let h=root.document.getElementById('sol-technician-history');
-    if(!h&&sum){h=root.document.createElement('div');h.id='sol-technician-history';sum.insertAdjacentElement('afterend',h);}
+    if(!h&&sum){h=root.document.createElement('div');h.id='sol-technician-history';const list=root.document.getElementById('sol-table-container');const anchor=list?.closest('.card')||list||sum;anchor.insertAdjacentElement('afterend',h);}
     if(h)h.innerHTML=renderHistoryPanel(filtered,{limit:12});
     const search=root.document.getElementById('sol-search');
     if(search)search.placeholder='Buscar por número, cliente ou peça...';
