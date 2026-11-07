@@ -1,5 +1,5 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20260829e';
+import { applyDashboardWwmV59 } from '../components/dashboard-wwm-v59.js?v=20261107a';
 import { applyDashboardDivisionFilter } from '../components/dashboard-division-filter.js?v=20260903a';
 
 let ready = false;

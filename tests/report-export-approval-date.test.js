@@ -60,7 +60,7 @@ describe('Report Excel approval date columns', () => {
 
     it('targets the active premium reports loader', () => {
         expect(source).toContain('installApprovalDateColumns();');
-        expect(source).toContain("../relatorios.js?v=20260901b");
+        expect(source).toContain("../relatorios.js?v=20261107a");
     });
 
     it('replaces generic Data with DataSolicitacao and canonical DataAprovacao', () => {

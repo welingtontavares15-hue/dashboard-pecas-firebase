@@ -58,7 +58,7 @@ describe('WWM visual architecture v72', () => {
     });
 
     test('pre-caches the authoritative visual layer under v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v82-ui-usability-fixes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v83-design-system'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).not.toContain("'./css/visual-integrity-v71.css'");
     });

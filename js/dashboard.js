@@ -1050,7 +1050,7 @@
         });
         this.charts = {};
 
-        const isDark = document.body.classList.contains('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode') && !document.body.classList.contains('wwm-ds');
         const textColor = isDark ? '#e4e6eb' : '#212529';
         const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
 
