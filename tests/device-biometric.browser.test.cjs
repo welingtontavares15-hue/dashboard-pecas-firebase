@@ -26,7 +26,7 @@ test('real browser: PRF encryption, persisted vault, device unlock and existing 
         const install = async () => {
             await page.addScriptTag({ content: readFileSync('js/device-biometric.js', 'utf8') });
             await page.evaluate(() => {
-                document.body.innerHTML = '<div id="login-screen"><form id="login-form"><input id="login-username"><input id="login-password" type="password"><button id="login-submit"></button></form><div id="login-error" class="hidden"></div><button id="device-biometric-login"><strong id="device-biometric-label"></strong></button><div id="device-biometric-status"></div><details id="device-biometric-help"></details></div><div id="app-container" class="hidden"></div><input id="device-biometric-password" type="password"><button id="device-biometric-enroll"></button><p id="device-biometric-profile-status"></p>';
+                document.body.innerHTML = '<div id="login-screen"><form id="login-form"><input id="login-username"><input id="login-password" type="password"><button id="login-submit"></button></form><div id="login-error" class="hidden"></div><div id="device-biometric-panel" data-state="checking"><p id="device-biometric-greeting" hidden></p><button id="device-biometric-login"><strong id="device-biometric-label"></strong><small id="device-biometric-hint"></small></button></div><div id="device-biometric-status"></div><details id="device-biometric-help"></details></div><div id="app-container" class="hidden"></div><input id="device-biometric-password" type="password"><button id="device-biometric-enroll"></button><p id="device-biometric-profile-status"></p>';
                 window.testState = { accepted: false, opened: false, logins: 0, messages: [] };
                 window.Auth = {
                     getCurrentUser: () => ({ id: 'test-id', username: 'synthetic.tech', name: 'Synthetic' }),
@@ -63,6 +63,13 @@ test('real browser: PRF encryption, persisted vault, device unlock and existing 
         assert.equal(await page.evaluate(() => DeviceBiometric.hasEnrollment()), true);
         assert.match(await page.$eval('#device-biometric-profile-status', el => el.textContent), /Digital ativada e verificada/);
         assert.equal(await page.evaluate(async () => JSON.stringify(await DeviceBiometric.storage('get')).includes('Synthetic-Password-827')), false);
+        // Saudação no login: só o primeiro nome fica em claro; nunca a senha nem o usuário.
+        const record = await page.evaluate(async () => DeviceBiometric.storage('get'));
+        assert.equal(record.displayName, 'Synthetic');
+        assert.equal(JSON.stringify(record).includes('synthetic.tech'), false, 'Username stays inside the ciphertext');
+        await page.evaluate(() => App.refreshDeviceBiometric());
+        assert.equal(await page.$eval('#device-biometric-panel', el => el.dataset.state), 'ready');
+        assert.match(await page.$eval('#device-biometric-greeting', el => el.textContent), /Olá, Synthetic/);
         await page.evaluate(() => App.handleLogout());
         assert.equal(await page.evaluate(() => DeviceBiometric.hasEnrollment()), true, 'Logout preserves the encrypted enrollment');
         await page.reload(); await install();

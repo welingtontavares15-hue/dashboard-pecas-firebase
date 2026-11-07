@@ -37,7 +37,7 @@ describe('Navegação consolidada WWM v72', () => {
     });
 
     test('mantém suporte offline sincronizado com o contrato visual v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v84-mobile-fixes'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v85-biometric-ux'");
         expect(serviceWorker).toContain("'./js/navigation-master-v55.js'");
         expect(serviceWorker).toContain("'./js/components/dashboard-wwm-v59.js'");
         expect(serviceWorker).not.toContain("'./css/wwm-dashboard-v59.css'");

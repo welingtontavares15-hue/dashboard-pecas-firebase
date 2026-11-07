@@ -61,6 +61,18 @@ const DeviceBiometric = {
         return !!(await this.storage('get'));
     },
 
+    // Só o primeiro nome, para saudar na tela de login ("Olá, Carlos").
+    // Não é segredo e não participa da criptografia; cadastros antigos não têm.
+    greetingName(name) {
+        const first = String(name || '').trim().split(/\s+/)[0] || '';
+        return first.slice(0, 40);
+    },
+
+    async enrollmentInfo() {
+        const record = await this.storage('get');
+        return { enrolled: !!record, displayName: record && typeof record.displayName === 'string' ? record.displayName : '' };
+    },
+
     async forget() { await this.storage('delete'); },
 
     validateRecord(record) {
@@ -134,7 +146,8 @@ const DeviceBiometric = {
         const record = {
             version: 1, origin: window.location.origin, rpId: window.location.hostname,
             credentialId: this.encode(credential.rawId), salt: this.encode(this.random(32)),
-            kdfSalt: this.encode(this.random(32)), iv: this.encode(this.random(12))
+            kdfSalt: this.encode(this.random(32)), iv: this.encode(this.random(12)),
+            displayName: this.greetingName(name)
         };
         report('2 de 3 — Confirme novamente no celular para concluir a proteção.');
         const key = await this.keyFromAssertion(record);
