@@ -20,7 +20,8 @@
     "cleanup:test:dry": "node scripts/cleanup-test-data.mjs --dry-run",
     "cleanup:test": "node scripts/cleanup-test-data.mjs --apply",
     "generate:pdf": "node scripts/generateSolicitacaoPdf.js",
-    "test:device-biometric": "node --test tests/device-biometric.browser.test.cjs"
+    "test:device-biometric": "node --test tests/device-biometric.browser.test.cjs",
+    "test:layout": "node --test tests/layout-overflow.browser.test.cjs"
   },
   "keywords": [
     "pwa",

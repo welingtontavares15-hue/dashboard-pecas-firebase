@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v81-biometric-enrollment-confirmed';
+const CACHE_VERSION = 'v82-ui-usability-fixes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

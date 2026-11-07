@@ -328,7 +328,8 @@ describe('Utils', () => {
 
         it('should return info for approved status', () => {
             const info = Utils.getStatusInfo('aprovada');
-            expect(info.label).toBe('Aprovado / aguardando envio');
+            expect(info.label).toBe('Aguardando envio');
+            expect(info.description).toBe('Aprovada pelo gestor, aguardando envio do fornecedor');
             expect(info.icon).toBe('fa-check');
         });
 

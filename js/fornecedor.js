@@ -256,7 +256,8 @@ const FornecedorPortal = {
 
     getResultsSummary() {
         const solicitations = this.getFilteredSolicitations();
-        return `Base atual: ${Utils.formatNumber(solicitations.length)} pedidos filtrados do fornecedor.`;
+        const count = solicitations.length;
+        return `${Utils.formatNumber(count)} ${count === 1 ? 'pedido encontrado' : 'pedidos encontrados'}`;
     },
 
     renderActiveFilterChips() {

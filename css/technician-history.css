@@ -447,3 +447,68 @@
         flex: 1 1 auto;
     }
 }
+
+/* --------------------------------------------------------------------------
+   Navegação inferior do técnico (celular)
+   Antes ficava sem estilo no fim da página. No celular vira uma barra fixa;
+   do tablet para cima a barra lateral já cumpre esse papel.
+   -------------------------------------------------------------------------- */
+.technician-bottom-navigation {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .technician-bottom-navigation {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 900;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        border-top: 1px solid rgba(94, 234, 212, .18);
+        background: rgba(6, 28, 36, .96);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, .28);
+    }
+
+    .technician-bottom-navigation button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-height: 52px;
+        padding: 4px 2px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #b8d4d2;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .technician-bottom-navigation button i {
+        font-size: 18px;
+    }
+
+    .technician-bottom-navigation button:focus-visible {
+        outline: 2px solid #5eead4;
+        outline-offset: 2px;
+    }
+
+    .technician-bottom-navigation button[data-page="nova-solicitacao"] {
+        color: #5eead4;
+    }
+
+    body:has(.technician-bottom-navigation) :is(#content-area, .content-area) {
+        padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+    }
+
+    body:has(.technician-bottom-navigation) .toast-container {
+        bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    }
+}

@@ -179,7 +179,8 @@ const Aprovacoes = {
 
     getResultsSummary() {
         const pending = this.getFilteredPendingSolicitations();
-        return `Base atual: ${Utils.formatNumber(pending.length)} solicitações pendentes filtradas.`;
+        const count = pending.length;
+        return `${Utils.formatNumber(count)} ${count === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`;
     },
 
     renderActiveFilterChips() {

@@ -17,7 +17,7 @@ const APP_CONFIG = {
     /**
      * Application version aligned with service-worker.js CACHE_VERSION.
      */
-    version: 'v81-biometric-enrollment-confirmed',
+    version: 'v82-ui-usability-fixes',
     // Set only after Cloud Functions + server-side identity rules are deployed and tested.
     passkeyEndpoint: '',
 
