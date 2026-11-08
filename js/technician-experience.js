@@ -130,7 +130,7 @@ function renderHistoryPanel(requests=[],options={}){
 const isTechnician=()=>root.Auth?.getRole?.()==='tecnico';
 
 function ensureStyles(){
-    if(!root.document||root.document.querySelector('link[data-technician-history]'))return;
+    if(!root.document||root.document.documentElement?.dataset.wwmStylesBundled==='true'||root.document.querySelector('link[data-technician-history]'))return;
     const l=root.document.createElement('link');
     l.rel='stylesheet';
     l.href='css/technician-history.css?v=20261107a';
