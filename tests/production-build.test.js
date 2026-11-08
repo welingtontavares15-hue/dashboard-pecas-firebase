@@ -37,6 +37,23 @@ describe('production build: CSS and canonical routes', () => {
             expect(worker).toContain("'./js/pages/dashboard-v55.js'");
             expect(worker).toContain("'./js/pages/relatorios-v55.js'");
             expect(fs.existsSync(path.join(output, 'js/config.js'))).toBe(true);
+            for (const sourceCss of [
+                'css/style.css',
+                'css/wwm-design-system.css',
+                'css/wwm-reference-theme.css',
+                'css/desktop-mobile-premium.css',
+                'css/premium-ui-v3-polish.css',
+                'css/technician-history.css'
+            ]) {
+                expect(fs.existsSync(path.join(output, sourceCss))).toBe(false);
+            }
+            for (const oldPage of ['js/pages/dashboard.js', 'js/pages/relatorios.js']) {
+                expect(fs.existsSync(path.join(output, oldPage))).toBe(false);
+            }
+            expect(fs.existsSync(path.join(output, 'js/pages/dashboard-v55.js'))).toBe(true);
+            expect(fs.existsSync(path.join(output, 'js/pages/relatorios-v55.js'))).toBe(true);
+            expect(cssTheme).toContain('/* BEGIN css/wwm-design-system.css */');
+
         } finally {
             fs.rmSync(temp, { recursive: true, force: true });
         }

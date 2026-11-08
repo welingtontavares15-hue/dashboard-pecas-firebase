@@ -98,6 +98,18 @@ for (const dir of RUNTIME_DIRS) {
 fs.writeFileSync(path.join(OUT, 'css/wwm-core.bundle.css'), renderBundle(beforeIcons));
 fs.writeFileSync(path.join(OUT, 'css/wwm-theme.bundle.css'), renderBundle(themeFiles));
 
+// Folhas-fonte continuam versionadas no repositorio para manutencao, mas
+// nao devem ser publicadas novamente depois de incorporadas aos bundles.
+// As injecoes dinamicas correspondentes ja possuem o guard
+// data-wwm-styles-bundled no runtime de producao.
+for (const file of bundleFiles) {
+    const duplicate = path.join(OUT, file);
+    if (!fs.existsSync(duplicate)) {
+        throw new Error('CSS consolidado ausente do artefato: ' + file);
+    }
+    fs.rmSync(duplicate);
+}
+
 const emitted = { core: false, theme: false };
 let builtHtml = html.replace(LINK_RE, (tag, offset) => {
     if (!pathFromTag(tag)) return tag;
@@ -130,6 +142,12 @@ const inactivePages = new Set([
 builtWorker = builtWorker.split('\n').filter((line) => {
     return ![...inactivePages].some((file) => line.trim() === "'" + file + "',");
 }).join('\n');
+// Rotas antigas sem consumidores no mapa do App nao devem compor o deploy.
+// Os fontes antigos permanecem no Git para rollback e comparacao funcional.
+for (const legacyPage of ['js/pages/dashboard.js', 'js/pages/relatorios.js']) {
+    const legacy = path.join(OUT, legacyPage);
+    if (fs.existsSync(legacy)) fs.rmSync(legacy);
+}
 fs.writeFileSync(path.join(OUT, 'service-worker.js'), builtWorker);
 
 console.log('Build ' + version + ': ' + bundleFiles.length + ' CSS consolidados em 2 bundles.');

@@ -1,5 +1,5 @@
 // Atualizacao do icone de instalacao PWA (mantendo a versao funcional v88).
-const CACHE_VERSION = 'v88-review-fixes';
+const CACHE_VERSION = 'v89-cleanup';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -78,23 +78,14 @@ const PRECACHE = {
     './js/pages/aprovacoes.js',
     './js/pages/pecas.js',
     './js/pages/relatorios.js',
-    './js/pages/relatorios-v55.js',
     './js/pages/fornecedor.js',
     './js/pages/usuarios.js',
-    './js/components/dashboard-wwm-v59.js',
-    './js/components/dashboard-division-filter.js',
-    './js/components/reports-modern.js',
-    './js/components/reports-multi-select.js',
-    './js/components/reports-division-filter.js',
-    './js/components/report-multi-filter-utils.js',
-    './js/components/reports-chart-hardening-v55.js',
     './js/components/reports-insights.js'
   ],
   dashboard: [
     './js/dashboard.js',
     './js/sheets.js',
     './js/onedrive.js',
-    './js/relatorios.js',
     './js/vendor/chart.umd.js',
     './js/components/dashboard-wwm-v59.js',
     './js/components/dashboard-division-filter.js'
