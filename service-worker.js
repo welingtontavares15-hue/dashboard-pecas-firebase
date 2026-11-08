@@ -1,5 +1,5 @@
-// Atualizacao do icone de instalacao PWA (mantendo a versao funcional v88).
-const CACHE_VERSION = 'v89-cleanup';
+// Cache da experiência de login WWM (ícones e módulos funcionais preservados).
+const CACHE_VERSION = 'v90-login-ux';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
