@@ -1,5 +1,5 @@
 // Cache da experiência de login WWM (ícones e módulos funcionais preservados).
-const CACHE_VERSION = 'v90-login-ux';
+const CACHE_VERSION = 'v91-request-ux';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -92,6 +92,7 @@ const PRECACHE = {
   ],
   solicitacoes: [
     './js/solicitacoes.js',
+    './js/solicitacoes-form-ux.js',
     './js/solicitacoes-divisao.js',
     './js/solicitacoes-divisao-filtro.js',
     './js/technician-experience.js',
