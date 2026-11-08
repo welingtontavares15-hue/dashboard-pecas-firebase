@@ -7,9 +7,21 @@
   "background_color": "#061d32",
   "icons": [
     {
-      "src": "./icons/icon.svg?v=20261108-parts",
+      "src": "./icons/icon.svg?v=20261108-washer-v94",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable.svg?v=20261108-washer-v94",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/wwm-industrial-washer.webp",
+      "sizes": "128x128",
+      "type": "image/webp",
       "purpose": "any"
     }
   ],
