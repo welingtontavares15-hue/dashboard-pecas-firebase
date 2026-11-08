@@ -59,7 +59,9 @@ describe('Release WWM v72 reference layout', () => {
         expect(dashboard).toContain('data-dashboard-state="ready"');
         expect(dashboard).toContain("role === 'administrador' || role === 'gestor'");
         expect(dashboard).toContain("'data:updated'");
-        expect(release).toContain("window.App.lazyModules.dashboard = `./pages/dashboard-v55.js");
+        const app = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+        expect(app).toContain("dashboard: './pages/dashboard-v55.js?v=20261108a'");
+        expect(release).not.toContain('window.App.lazyModules.dashboard =');
         expect(dashboardCss).toContain('body.wwm-dashboard-v59-active .content-area');
         expect(referenceCss).toContain('.v59-hero-toolbar');
     });
@@ -69,7 +71,9 @@ describe('Release WWM v72 reference layout', () => {
         expect(reports).toContain('suggestedMax: maximum > 0 ? maximum * 1.12');
         expect(reports).toContain('setChartHeight(canvas, series.labels.length)');
         expect(reports).not.toContain("chart.options.indexAxis = 'y'");
-        expect(release).toContain("window.App.lazyModules.relatorios = `./pages/relatorios-v55.js");
+        const app = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+        expect(app).toContain("relatorios: './pages/relatorios-v55.js?v=20261108a'");
+        expect(release).not.toContain('window.App.lazyModules.relatorios =');
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
