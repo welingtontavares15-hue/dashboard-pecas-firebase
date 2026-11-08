@@ -5,7 +5,7 @@
     let observerReady = false;
 
     function ensurePolishStyles() {
-        if (document.querySelector('link[data-premium-ui-v3-polish]')) return;
+        if (document.documentElement.dataset.wwmStylesBundled === 'true' || document.querySelector('link[data-premium-ui-v3-polish]')) return;
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = 'css/premium-ui-v3-polish.css?v=20260828b';

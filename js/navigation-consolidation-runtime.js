@@ -10,7 +10,7 @@
 
     function ensureStylesheet() {
         const id = 'navigation-consolidation-styles';
-        if (document.getElementById(id)) return;
+        if (document.documentElement.dataset.wwmStylesBundled === 'true' || document.getElementById(id)) return;
         const link = document.createElement('link');
         link.id = id;
         link.rel = 'stylesheet';

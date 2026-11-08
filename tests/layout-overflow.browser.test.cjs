@@ -8,7 +8,7 @@ const path = require('node:path');
 const http = require('node:http');
 const puppeteer = require('puppeteer');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = process.env.WWM_TEST_ROOT ? path.resolve(process.env.WWM_TEST_ROOT) : path.join(__dirname, '..');
 const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
     '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json',

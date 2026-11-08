@@ -9,11 +9,11 @@ const App = {
     currentPage: null,
     isBootstrapping: false,
     lazyModules: {
-        dashboard: './pages/dashboard.js?v=20260709b',
+        dashboard: './pages/dashboard-v55.js?v=20261108a',
         solicitacoes: './pages/solicitacoes.js?v=20260903c',
         aprovacoes: './pages/aprovacoes.js?v=20260903c',
         pecas: './pages/pecas.js?v=20260309n',
-        relatorios: './pages/relatorios.js?v=20260709a',
+        relatorios: './pages/relatorios-v55.js?v=20261108a',
         fornecedor: './pages/fornecedor.js?v=20260709a',
         usuarios: './pages/usuarios.js?v=20260709a'
     },
