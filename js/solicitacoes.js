@@ -1582,17 +1582,19 @@ const Solicitacoes = {
     /**
      * Open solicitation form
      */
-    openForm(id = null) {
+    openForm(id = null, startingDraft = null) {
         const sol = id ? DataManager.getSolicitationById(id) : null;
         const isEdit = !!sol;
         
-        // Store current solicitation for editing
-        this.currentSolicitation = sol ? { ...sol, itens: [...(sol.itens || [])] } : {
+        // Rascunhos só podem ser recuperados explicitamente por quem os criou.
+        const offerDraft = !isEdit && !startingDraft && !!this.readDraft();
+        const initialRequest = {
             id: null,
             tecnicoId: Auth.getTecnicoId() || '',
             tecnicoNome: '',
             data: Utils.getLocalDateString(),
             cliente: '',
+            equipamento: '',
             observacoes: '',
             itens: [],
             subtotal: 0,
@@ -1602,6 +1604,9 @@ const Solicitacoes = {
             status: 'pendente',
             fornecedorId: ''
         };
+        this.currentSolicitation = sol
+            ? { ...sol, itens: [...(sol.itens || [])] }
+            : (startingDraft ? { ...initialRequest, ...startingDraft, itens: (startingDraft.itens || []).map(item => ({ ...item })) } : initialRequest);
         
         const technicians = DataManager.getTechnicians();
         const isTecnico = Auth.getRole() === 'tecnico';
@@ -1617,14 +1622,27 @@ const Solicitacoes = {
         
         const content = `
             <div class="modal-header">
-                <h3>${isEdit ? 'Editar Solicitação #' + sol.numero : 'Nova Solicitação'}</h3>
-                <button class="modal-close" onclick="Utils.closeModal()">
+                <h3>${isEdit ? 'Editar Solicitação #' + Utils.escapeHtml(sol.numero) : 'Nova Solicitação de Peças'}</h3>
+                <button class="modal-close" aria-label="Fechar formulário" onclick="Solicitacoes.closeForm()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <form id="sol-form">
-                    <div class="form-row">
+            <div class="modal-body wwm-request-modal">
+                ${offerDraft ? `
+                    <div class="wwm-request-draft-alert" id="sol-draft-alert" role="status">
+                        <div><strong>Rascunho encontrado</strong><p>Existe um pedido não enviado salvo nesta aba.</p></div>
+                        <div class="wwm-request-draft-actions">
+                            <button type="button" class="btn btn-outline" onclick="Solicitacoes.restoreDraft()">Retomar</button>
+                            <button type="button" class="btn btn-outline" onclick="Solicitacoes.discardDraft()">Descartar</button>
+                        </div>
+                    </div>` : ''}
+                <form id="sol-form" autocomplete="off">
+                    <section class="wwm-request-section" id="sol-section-identificacao" aria-labelledby="sol-head-identificacao">
+                        <div class="wwm-request-section-head">
+                            <span class="wwm-request-step" aria-hidden="true">1</span>
+                            <div><h4 id="sol-head-identificacao">Dados do pedido</h4><p>Identifique o técnico, o cliente e o equipamento.</p></div>
+                        </div>
+                        <div class="form-row">
                         ${!isTecnico ? `
                             <div class="form-group">
                                 <label for="sol-tecnico">Técnico *</label>
@@ -1650,10 +1668,16 @@ const Solicitacoes = {
                                    value="${this.currentSolicitation.data}" required>
                         </div>
                         <div class="form-group">
-                            <label for="sol-cliente">Cliente</label>
+                            <label for="sol-cliente">Cliente / unidade</label>
                             <input type="text" id="sol-cliente" class="form-control"
                                    value="${Utils.escapeHtml(this.currentSolicitation.cliente || '')}"
-                                   placeholder="Cliente / unidade">
+                                   maxlength="180" placeholder="Nome do cliente ou unidade">
+                        </div>
+                        <div class="form-group">
+                            <label for="sol-equipamento">Equipamento (opcional)</label>
+                            <input type="text" id="sol-equipamento" class="form-control"
+                                   value="${Utils.escapeHtml(this.currentSolicitation.equipamento || '')}"
+                                   maxlength="120" placeholder="Modelo ou identificação da lava-louças">
                         </div>
                         <div class="form-group">
                             <label for="sol-fornecedor-sel">Fornecedor *</label>
@@ -1674,23 +1698,38 @@ const Solicitacoes = {
                                 </small>
                             `}
                         </div>
-                    </div>
+                        </div>
+                    </section>
 
+                    <section class="wwm-request-section" id="sol-section-pecas" aria-labelledby="sol-head-pecas">
+                        <div class="wwm-request-section-head">
+                            <span class="wwm-request-step" aria-hidden="true">2</span>
+                            <div><h4 id="sol-head-pecas">Peças e quantidades</h4><p>Pesquise pelo código ou descrição e confira os itens selecionados.</p></div>
+                        </div>
                     <!-- Parts Selection with Auto-complete -->
                     <div class="form-group" id="parts-section">
-                        <label>Adicionar Peça</label>
+                        <label for="parts-autocomplete-input">Buscar peça no catálogo</label>
                         <div id="parts-autocomplete">${this.currentSolicitation.fornecedorId ? '' : '<p class="wwm-part-picker-hint"><i class="fas fa-circle-info" aria-hidden="true"></i>Selecione o fornecedor acima para buscar e adicionar peças.</p>'}</div>
                     </div>
 
                     <!-- Items List -->
                     <div class="form-group">
-                        <label>Itens da Solicitação</label>
+                        <div class="wwm-request-items-title"><label>Itens selecionados</label><span id="sol-items-count">${this.currentSolicitation.itens.length} item(ns)</span></div>
                         <div id="items-list" class="items-list">
                             ${this.renderItemsList()}
                         </div>
                     </div>
                     
+                    </section>
+
+                    <section class="wwm-request-section" id="sol-section-complementos" aria-labelledby="sol-head-complementos">
+                        <div class="wwm-request-section-head">
+                            <span class="wwm-request-step" aria-hidden="true">3</span>
+                            <div><h4 id="sol-head-complementos">Informações complementares</h4><p>Registre observações e revise os valores, quando necessário.</p></div>
+                        </div>
                     <!-- Totals -->
+                    <details class="wwm-request-finance" ${isTecnico ? '' : 'open'}>
+                        <summary>Desconto e frete</summary>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="sol-desconto">Desconto (R$)</label>
@@ -1706,6 +1745,7 @@ const Solicitacoes = {
                         </div>
                     </div>
                     
+                    </details>
                     <div id="totals-display" class="totals-section">
                         ${this.renderTotalsDisplay()}
                     </div>
@@ -1713,19 +1753,27 @@ const Solicitacoes = {
                     <div class="form-group">
                         <label for="sol-observacoes">Observações</label>
                         <textarea id="sol-observacoes" class="form-control" rows="3"
-                                  placeholder="Observações adicionais...">${Utils.escapeHtml(this.currentSolicitation.observacoes || '')}</textarea>
+                                  maxlength="2500" placeholder="Informações necessárias para o atendimento...">${Utils.escapeHtml(this.currentSolicitation.observacoes || '')}</textarea>
                     </div>
+                    </section>
                 </form>
+                <section id="sol-review" class="wwm-request-review hidden" aria-label="Conferência da solicitação" aria-live="polite"></section>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="Solicitacoes.saveSolicitation('pendente')">
-                    <i class="fas fa-paper-plane"></i> Enviar para Aprovação
+            <div class="modal-footer wwm-request-footer" id="sol-form-footer">
+                <button type="button" class="btn btn-outline" onclick="Solicitacoes.closeForm()">Cancelar</button>
+                ${!isEdit ? '<button type="button" class="btn btn-outline" onclick="Solicitacoes.saveDraft()">Salvar rascunho</button>' : ''}
+                <button type="button" class="btn btn-primary" onclick="${isEdit ? "Solicitacoes.saveSolicitation('pendente')" : "Solicitacoes.reviewSolicitation()"}">
+                    <i class="fas fa-${isEdit ? 'save' : 'check-circle'}" aria-hidden="true"></i> ${isEdit ? 'Salvar alterações' : 'Revisar e enviar'}
                 </button>
             </div>
         `;
         
-        Utils.showModal(content, { size: 'lg' });
+        Utils.showModal(content, { size: 'lg', closeOnBackdrop: false });
+        // As alterações de um pedido novo ficam somente nesta aba até o envio.
+        if (!isEdit) {
+            document.getElementById('sol-form')?.addEventListener('input', () => this.scheduleDraftSave());
+            document.getElementById('sol-form')?.addEventListener('change', () => this.scheduleDraftSave());
+        }
         
         // Initialize auto-complete only if supplier already selected (edit mode)
         setTimeout(() => {
