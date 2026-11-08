@@ -1,16 +1,17 @@
 {
-  "name": "Dashboard de Solicitacao de Pecas",
-  "short_name": "Dashboard Pecas",
+  "name": "Portal de Peças WWM — Máquinas de Lavar Louças",
+  "short_name": "Peças WWM",
   "start_url": "./index.html",
   "display": "standalone",
-  "theme_color": "#1f4b99",
-  "background_color": "#ffffff",
+  "theme_color": "#004449",
+  "background_color": "#061d32",
   "icons": [
     {
-      "src": "./icons/icon.svg?v=20260901-premium-dp",
+      "src": "./icons/icon.svg?v=20261108-parts",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ]
+  ],
+  "description": "Solicitações e gestão de peças para máquinas de lavar louças profissionais."
 }
