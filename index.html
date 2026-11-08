@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="css/visual-premium-v4.css?v=20260830g">
     <link rel="stylesheet" href="css/visual-architecture-v72.css?v=20260830b" data-wwm-visual-architecture="true">
     <link rel="stylesheet" href="css/desktop-mobile-premium.css?v=20261107a" data-wwm-device-layout="true">
-    <link rel="stylesheet" href="css/wwm-design-system.css?v=20261108a" data-wwm-design-system="true">
+    <link rel="stylesheet" href="css/wwm-design-system.css?v=20261108b" data-wwm-design-system="true">
     <link rel="manifest" href="manifest.webmanifest">
     <script src="js/vendor/chart.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -110,10 +110,15 @@
                         <div id="login-error" class="error-message hidden" role="alert"></div>
                     </form>
 
-                    <div id="device-biometric-panel" class="device-biometric-panel">
+                    <div id="device-biometric-panel" class="device-biometric-panel" data-state="checking">
+                        <p id="device-biometric-greeting" class="device-biometric-greeting" hidden></p>
                         <button id="device-biometric-login" type="button" class="device-biometric-button" aria-describedby="device-biometric-status" disabled>
                             <span class="device-biometric-symbol" aria-hidden="true"><i class="fas fa-fingerprint"></i></span>
-                            <strong id="device-biometric-label">Entrar com digital</strong>
+                            <span class="device-biometric-copy">
+                                <strong id="device-biometric-label">Entrar com digital</strong>
+                                <small id="device-biometric-hint">Verificando este aparelho...</small>
+                            </span>
+                            <i class="fas fa-chevron-right device-biometric-chevron" aria-hidden="true"></i>
                         </button>
                         <p id="device-biometric-status" class="helper-text" role="status" aria-live="polite">Verificando a biometria deste celular...</p>
                         <details id="device-biometric-help">
@@ -126,6 +131,7 @@
                             <p>Disponível em aparelhos e navegadores compatíveis. O Android pode oferecer o PIN. A senha fica criptografada neste navegador e continua sendo validada pelo portal.</p>
                         </details>
                     </div>
+                    <div id="device-biometric-divider" class="device-biometric-divider" aria-hidden="true"><span>ou entre com usuário e senha</span></div>
                     <div id="passkey-login-panel" class="hidden" style="margin: 12px 0 18px;">
                         <button id="passkey-login-btn" type="button" class="btn btn-outline btn-block" style="width:100%" aria-describedby="passkey-login-status" disabled>
                             <i class="fas fa-fingerprint" aria-hidden="true"></i> Entrar com digital
@@ -216,10 +222,10 @@
     <script src="js/electrical-catalog-policy.js?v=20260729a"></script>
     <script src="js/auth.js?v=20260829c"></script>
     <script src="js/passkeys.js?v=20261103b"></script>
-    <script src="js/device-biometric.js?v=20261103b"></script>
+    <script src="js/device-biometric.js?v=20261108a"></script>
     <script src="js/navigation-master-v55.js?v=20261103a"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20261103e"></script>
+    <script src="js/app.js?v=20261108a"></script>
     <script src="js/ui-modern.js?v=20261107a"></script>
     <script src="js/premium-plus.js?v=20260730a"></script>
     <script src="js/corporate-platform.js?v=20260709b"></script>

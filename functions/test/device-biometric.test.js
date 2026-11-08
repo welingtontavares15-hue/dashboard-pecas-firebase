@@ -56,7 +56,9 @@ test('roundtrip uses device WebAuthn with UV, PRF and nonextractable encryption;
   await client.enroll(user);
   const stored = JSON.stringify(record());
   assert.ok(!stored.includes(user.password) && !stored.includes(user.username));
-  assert.deepEqual(Object.keys(record()).sort(), ['version', 'origin', 'rpId', 'credentialId', 'salt', 'kdfSalt', 'iv', 'ciphertext'].sort());
+  // displayName é a única informação em claro: o primeiro nome, para a saudação do login.
+  assert.deepEqual(Object.keys(record()).sort(), ['version', 'origin', 'rpId', 'credentialId', 'salt', 'kdfSalt', 'iv', 'ciphertext', 'displayName'].sort());
+  assert.equal(record().displayName, 'Synthetic');
   assert.equal((await client.keyFromAssertion(record())).extractable, false);
   const unlocked = await client.unlock();
   assert.equal(unlocked.username, user.username); assert.equal(unlocked.password, user.password); assert.equal(unlocked.userId, user.userId);
@@ -66,6 +68,18 @@ test('roundtrip uses device WebAuthn with UV, PRF and nonextractable encryption;
   for (const call of getCalls) assert.equal(call.options.publicKey.userVerification, 'required');
   assert.notEqual(Buffer.from(getCalls[0].options.publicKey.challenge).toString('hex'), Buffer.from(getCalls[1].options.publicKey.challenge).toString('hex'));
   await client.forget(); assert.equal(await client.hasEnrollment(), false);
+});
+
+test('plaintext displayName keeps only the first name, never credentials', async () => {
+  const { client, record } = harness();
+  await client.enroll({ ...user, name: '  Maria   da Silva Souza  ' });
+  assert.equal(record().displayName, 'Maria');
+  const { client: other, record: otherRecord } = harness();
+  await other.enroll({ ...user, name: undefined });
+  assert.equal(otherRecord().displayName, '');
+  assert.ok(!JSON.stringify(otherRecord()).includes(user.username) && !JSON.stringify(otherRecord()).includes(user.password));
+  const info = await other.enrollmentInfo();
+  assert.equal(info.enrolled, true); assert.equal(info.displayName, '');
 });
 
 test('unsupported PRF never creates a fallback vault', async () => {

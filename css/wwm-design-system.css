@@ -1723,9 +1723,284 @@ body.wwm-ds .login-card .premium-login-form-footer { color: var(--ds-muted) !imp
 body.wwm-ds .login-card .premium-login-form-footer span { color: var(--ds-green-700) !important; font-weight: 600 !important; }
 body.wwm-ds .login-card .login-status { border: 1px solid var(--ds-ok-bd) !important; border-radius: var(--ds-r-sm) !important; background: var(--ds-green-050) !important; color: var(--ds-green-700) !important; }
 body.wwm-ds .login-card .error-message { border: 1px solid var(--ds-err-bd) !important; border-radius: var(--ds-r-sm) !important; background: var(--ds-err-bg) !important; color: var(--ds-err) !important; }
-body.wwm-ds .login-card .device-biometric-button { border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-lg) !important; background: var(--ds-surface-2) !important; color: var(--ds-text) !important; }
-body.wwm-ds .login-card .device-biometric-symbol { background: var(--ds-green-050) !important; color: var(--ds-green-600) !important; border-color: var(--ds-ok-bd) !important; }
 body.wwm-ds .login-card details summary { color: var(--ds-green-700) !important; font-weight: 600 !important; }
+
+/* ---------- Digital no login: estados (data-state no painel) ---------- */
+body.wwm-ds .login-card .login-card-inner { display: flex !important; flex-direction: column !important; }
+body.wwm-ds .login-card .login-card-inner > .login-logo { order: 0 !important; }
+body.wwm-ds .login-card .login-card-inner > #login-form { order: 2 !important; }
+body.wwm-ds .login-card .login-card-inner > #device-biometric-panel { order: 3 !important; }
+body.wwm-ds .login-card .login-card-inner > #device-biometric-divider { order: 3 !important; }
+body.wwm-ds .login-card .login-card-inner > #passkey-login-panel { order: 4 !important; }
+body.wwm-ds .login-card .login-card-inner > .premium-login-form-footer { order: 5 !important; }
+body.wwm-ds .login-card .login-card-inner > #login-credentials { order: 6 !important; }
+
+body.wwm-ds .login-card .device-biometric-panel {
+    margin: 18px 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+body.wwm-ds .login-card .device-biometric-panel[data-state="unavailable"],
+body.wwm-ds .login-card .device-biometric-panel[data-state="unavailable"] + .device-biometric-divider { display: none !important; }
+body.wwm-ds .login-card .device-biometric-divider { display: none !important; }
+
+body.wwm-ds .login-card .device-biometric-greeting {
+    margin: 0 0 10px !important;
+    color: var(--ds-text) !important;
+    font-size: 17px !important;
+    font-weight: 750 !important;
+    letter-spacing: -0.01em !important;
+}
+
+body.wwm-ds .login-card .device-biometric-button {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 14px !important;
+    width: 100% !important;
+    min-height: 68px !important;
+    padding: 12px 16px 12px 12px !important;
+    border: 1px dashed var(--ds-border-strong) !important;
+    border-radius: var(--ds-r-lg) !important;
+    background: var(--ds-surface-2) !important;
+    color: var(--ds-text) !important;
+    text-align: left !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transition: transform .12s ease, box-shadow .15s ease, background-color .15s ease !important;
+}
+
+body.wwm-ds .login-card .device-biometric-button:hover:not(:disabled) { background: var(--ds-green-050) !important; border-color: var(--ds-green-500) !important; }
+body.wwm-ds .login-card .device-biometric-button:active:not(:disabled) { transform: scale(.985) !important; }
+body.wwm-ds .login-card .device-biometric-button:disabled { opacity: .6 !important; cursor: default !important; }
+
+body.wwm-ds .login-card .device-biometric-symbol {
+    position: relative !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 44px !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: var(--ds-green-050) !important;
+    color: var(--ds-green-600) !important;
+    font-size: 22px !important;
+}
+
+body.wwm-ds .login-card .device-biometric-symbol i { color: inherit !important; font-size: inherit !important; }
+body.wwm-ds .login-card .device-biometric-copy { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; min-width: 0 !important; flex: 1 1 auto !important; text-align: left !important; }
+body.wwm-ds .login-card .device-biometric-chevron { flex: 0 0 auto !important; margin-left: auto !important; }
+body.wwm-ds .login-card .device-biometric-copy strong { color: var(--ds-text) !important; font-size: 15px !important; font-weight: 700 !important; }
+body.wwm-ds .login-card .device-biometric-copy small { color: var(--ds-muted) !important; font-size: 12.5px !important; font-weight: 500 !important; line-height: 1.35 !important; }
+body.wwm-ds .login-card .device-biometric-chevron { color: var(--ds-subtle) !important; font-size: 13px !important; }
+
+body.wwm-ds .login-card #device-biometric-status {
+    margin: 8px 2px 0 !important;
+    color: var(--ds-muted) !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* Pronto: a digital vira a ação principal, acima do formulário */
+body.wwm-ds .login-card .login-card-inner > #device-biometric-panel[data-state="ready"],
+body.wwm-ds .login-card .login-card-inner > #device-biometric-panel[data-state="busy"] { order: 1 !important; margin-top: 4px !important; }
+
+body.wwm-ds .login-card .login-card-inner > #device-biometric-panel:is([data-state="ready"], [data-state="busy"]) + #device-biometric-divider {
+    order: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 18px 0 14px !important;
+    color: var(--ds-muted) !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+}
+
+body.wwm-ds .login-card #device-biometric-divider::before,
+body.wwm-ds .login-card #device-biometric-divider::after { content: "" !important; flex: 1 1 auto !important; height: 1px !important; background: var(--ds-border) !important; }
+
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-button {
+    min-height: 76px !important;
+    border: 0 !important;
+    background: linear-gradient(135deg, var(--ds-green-500) 0%, #1f8f60 100%) !important;
+    box-shadow: 0 10px 24px rgba(46, 169, 87, .28) !important;
+    color: #fff !important;
+}
+
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-button:hover:not(:disabled) { background: linear-gradient(135deg, #34b862 0%, #1f8f60 100%) !important; }
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-symbol { flex-basis: 52px !important; width: 52px !important; height: 52px !important; background: rgba(255, 255, 255, .18) !important; color: #fff !important; font-size: 26px !important; }
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-copy strong { color: #fff !important; font-size: 16px !important; }
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-copy small { color: rgba(255, 255, 255, .86) !important; }
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) .device-biometric-chevron { color: rgba(255, 255, 255, .8) !important; }
+body.wwm-ds .login-card .device-biometric-panel:is([data-state="ready"], [data-state="busy"]) #device-biometric-status { display: none !important; }
+body.wwm-ds .login-card .device-biometric-panel:not([data-state="enroll"]) #device-biometric-help { display: none !important; }
+
+/* Aguardando o sensor: anel pulsando */
+body.wwm-ds .login-card .device-biometric-panel[data-state="busy"] .device-biometric-button:disabled { opacity: 1 !important; }
+body.wwm-ds .login-card .device-biometric-panel[data-state="busy"] .device-biometric-symbol::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: -6px !important;
+    border: 2px solid rgba(255, 255, 255, .7) !important;
+    border-radius: 50% !important;
+    animation: ds-bio-pulse 1.4s ease-out infinite !important;
+}
+body.wwm-ds .login-card .device-biometric-panel[data-state="busy"] .device-biometric-chevron { display: none !important; }
+
+/* Erro: tremida curta */
+body.wwm-ds .login-card .device-biometric-panel.is-error .device-biometric-button { animation: ds-bio-shake .45s ease !important; }
+
+body.wwm-ds .login-card .device-biometric-panel[data-state="checking"] .device-biometric-button { opacity: .55 !important; }
+
+body.wwm-ds .login-card #device-biometric-help {
+    margin-top: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: var(--ds-r-md) !important;
+    background: var(--ds-surface-2) !important;
+    color: var(--ds-text-2) !important;
+    font-size: 13px !important;
+}
+body.wwm-ds .login-card #device-biometric-help ol { margin: 8px 0 !important; padding-left: 18px !important; }
+body.wwm-ds .login-card #device-biometric-help li { margin: 4px 0 !important; }
+body.wwm-ds .login-card #device-biometric-help p { margin: 6px 0 0 !important; font-size: 12px !important; }
+
+@keyframes ds-bio-pulse {
+    0% { transform: scale(.85); opacity: .9; }
+    100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes ds-bio-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.wwm-ds .login-card .device-biometric-panel[data-state="busy"] .device-biometric-symbol::after,
+    body.wwm-ds .login-card .device-biometric-panel.is-error .device-biometric-button { animation: none !important; }
+}
+
+/* ---------- Digital em Meu Perfil ---------- */
+body.wwm-ds #content-area .biometric-profile-card .card-header { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; flex-wrap: wrap !important; gap: 8px 12px !important; text-align: left !important; }
+body.wwm-ds #content-area .biometric-profile-card .card-header h4 { margin: 0 !important; text-align: left !important; }
+body.wwm-ds #content-area .biometric-profile-card .card-header h4 i { color: var(--ds-green-400) !important; margin-right: 6px !important; }
+
+body.wwm-ds .biometric-profile-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 26px !important;
+    padding: 3px 10px !important;
+    border: 1px solid var(--ds-border) !important;
+    border-radius: var(--ds-r-pill) !important;
+    background: var(--ds-surface-3) !important;
+    color: var(--ds-text-2) !important;
+    font-size: 12px !important;
+    font-weight: 650 !important;
+    margin: 0 !important;
+}
+
+body.wwm-ds .biometric-profile-card[data-state="on"] .biometric-profile-chip { border-color: var(--ds-ok-bd) !important; background: var(--ds-ok-bg) !important; color: var(--ds-ok) !important; }
+body.wwm-ds .biometric-profile-card[data-state="off"] .biometric-profile-chip { border-color: var(--ds-warn-bd) !important; background: var(--ds-warn-bg) !important; color: var(--ds-warn) !important; }
+
+body.wwm-ds .biometric-profile-intro { display: flex !important; align-items: center !important; gap: 14px !important; margin-bottom: 16px !important; }
+body.wwm-ds .biometric-profile-intro strong { display: block !important; color: var(--ds-text) !important; font-size: 16px !important; font-weight: 700 !important; }
+body.wwm-ds .biometric-profile-intro p { margin: 4px 0 0 !important; color: var(--ds-muted) !important; font-size: 13.5px !important; line-height: 1.45 !important; }
+
+body.wwm-ds .biometric-profile-symbol {
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 52px !important;
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 50% !important;
+    background: var(--ds-green-050) !important;
+    color: var(--ds-green-400) !important;
+    font-size: 24px !important;
+}
+
+body.wwm-ds .biometric-profile-card[data-state="on"] .biometric-profile-symbol { background: var(--ds-ok-bg) !important; color: var(--ds-ok-solid) !important; box-shadow: 0 0 0 4px rgba(22, 223, 148, .08) !important; }
+
+body.wwm-ds .biometric-steps {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin: 0 0 16px !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+body.wwm-ds .biometric-steps li {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border: 1px solid var(--ds-border) !important;
+    border-radius: var(--ds-r-md) !important;
+    background: var(--ds-surface-2) !important;
+    color: var(--ds-text-2) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+}
+
+body.wwm-ds .biometric-steps li span {
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background: var(--ds-green-500) !important;
+    color: #fff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
+body.wwm-ds .biometric-profile-card:is([data-state="on"], [data-state="unavailable"]) .biometric-steps { display: none !important; }
+body.wwm-ds .biometric-profile-card[data-state="unavailable"] .biometric-profile-form { display: none !important; }
+body.wwm-ds .biometric-profile-card:not([data-state="on"]) .biometric-forget { display: none !important; }
+/* Ativa: "Reativar" vira ação secundária (contorno); só é preciso ao trocar a senha */
+body.wwm-ds .biometric-profile-card[data-state="on"] #device-biometric-enroll {
+    background: transparent !important;
+    border-color: var(--ds-border-strong) !important;
+    color: var(--ds-text) !important;
+    box-shadow: none !important;
+}
+body.wwm-ds .biometric-profile-card[data-state="on"] #device-biometric-enroll i { color: var(--ds-green-400) !important; }
+body.wwm-ds .biometric-profile-card[data-state="on"] .biometric-forget { color: var(--ds-err) !important; border-color: var(--ds-err-bd) !important; }
+
+body.wwm-ds .biometric-profile-form .form-group { max-width: 420px !important; }
+body.wwm-ds .biometric-profile-actions { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; }
+
+body.wwm-ds .biometric-profile-status { margin: 12px 0 0 !important; font-size: 13px !important; }
+body.wwm-ds .biometric-profile-status.is-success { color: var(--ds-ok) !important; font-weight: 600 !important; }
+body.wwm-ds .biometric-profile-status.is-error { color: var(--ds-err) !important; font-weight: 600 !important; }
+
+body.wwm-ds .biometric-privacy {
+    display: flex !important;
+    gap: 8px !important;
+    margin: 14px 0 0 !important;
+    padding-top: 12px !important;
+    border-top: 1px solid var(--ds-border) !important;
+    color: var(--ds-muted) !important;
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+}
+body.wwm-ds .biometric-privacy i { color: var(--ds-green-400) !important; margin-top: 2px !important; }
+
+@media (max-width: 767px) {
+    body.wwm-ds .biometric-steps { grid-template-columns: minmax(0, 1fr) !important; }
+    body.wwm-ds .biometric-profile-actions .btn { width: 100% !important; justify-content: center !important; }
+    body.wwm-ds .biometric-profile-form .form-group { max-width: none !important; }
+}
 body.wwm-ds .login-card .toggle-password { color: var(--ds-subtle) !important; background: transparent !important; }
 
 /* --------------------------------------------------------------------------
