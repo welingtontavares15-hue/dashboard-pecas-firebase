@@ -202,7 +202,7 @@
             const node = root.document.getElementById(id);
             if (node) node.value = val == null ? '' : String(val);
         });
-        s.updateTecnicoName?.();
+        if (root.document.getElementById('sol-tecnico')?.tagName === 'SELECT') s.updateTecnicoName?.();
         s.refreshItemsList();
         s.recalculateTotals();
         if (data.fornecedorId) s._initAutocomplete(data.fornecedorId);
