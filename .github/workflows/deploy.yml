@@ -76,13 +76,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Stage runtime-only site
+      - name: Build optimized runtime site
+        run: node scripts/build-site.mjs
+
+      - name: Verify production bundles
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          cp index.html offline.html clear-cache.html manifest.webmanifest firebase-healthcheck.html service-worker.js dist/
-          cp -R css js icons health templates dist/
+          test -s dist/css/wwm-core.bundle.css
+          test -s dist/css/wwm-theme.bundle.css
+          grep -q 'data-wwm-styles-bundled="true"' dist/index.html
+          grep -q 'wwm-core.bundle.css' dist/service-worker.js
+          grep -q 'wwm-theme.bundle.css' dist/service-worker.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
