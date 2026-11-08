@@ -83,6 +83,22 @@ describe('Nova solicitação: fluxo guiado', () => {
         expect(document.querySelector('[data-step="2"]').hidden).toBe(true);
     });
 
+    test('barra de etapas usa três células diretas, sem grade aninhada', () => {
+        const { solicitacoes } = setup();
+        solicitacoes.openForm();
+        const progress = document.getElementById('wwm-request-progress');
+        expect(progress).not.toBeNull();
+        expect(progress.getAttribute('aria-label')).toBe('Etapas da solicitação');
+        expect(progress.children).toHaveLength(3);
+        expect([...progress.children].every(element => element.tagName === 'SPAN')).toBe(true);
+        expect([...progress.querySelectorAll('.wwm-request-step-label')].map(element => element.textContent))
+            .toEqual(['Identificação', 'Peças', 'Revisão']);
+        expect(progress.querySelector('.wwm-request-progress')).toBeNull();
+        document.getElementById('wwm-request-next').click();
+        expect(progress.children).toHaveLength(3);
+        expect(progress.children[1].getAttribute('aria-current')).toBe('step');
+    });
+
     test('exige peças antes de avançar à revisão', () => {
         const { solicitacoes, notices } = setup();
         solicitacoes.openForm();
