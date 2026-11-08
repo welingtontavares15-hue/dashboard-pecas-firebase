@@ -77,7 +77,7 @@ describe('Release WWM v72 reference layout', () => {
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v92-technician-form'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v93-login-proportions'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',

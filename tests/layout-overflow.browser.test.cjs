@@ -120,6 +120,57 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
         const widths = [390, 768, 1280, 1440];
         const failures = [];
 
+        // Valida o login como uma tela própria. A versão anterior aparecia
+        // achatada no desktop apesar dos testes de páginas autenticadas.
+        for (const width of widths) {
+            const loginPage = await browser.newPage();
+            await loginPage.setViewport({ width, height: 900 });
+            await loginPage.evaluateOnNewDocument(() => {
+                if (navigator.serviceWorker) navigator.serviceWorker.register = () => new Promise(() => {});
+            });
+            await loginPage.setRequestInterception(true);
+            loginPage.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
+            await loginPage.goto(base, { waitUntil: 'load' });
+            await loginPage.waitForFunction(() => typeof App !== 'undefined', { timeout: 20000 });
+            await loginPage.evaluate(() => App.showLogin());
+            const geometry = await loginPage.evaluate(() => {
+                const card = document.querySelector('#login-screen .login-card');
+                const header = card?.querySelector('.wwm-login-header');
+                const shell = document.querySelector('#login-screen .premium-login-shell');
+                const field = document.querySelector('#login-username');
+                const submit = document.querySelector('#login-submit');
+                const footer = card?.querySelector('.premium-login-form-footer');
+                const screen = document.querySelector('#login-screen');
+                if (![card, header, shell, field, submit, footer, screen].every(Boolean)) return { missing: true };
+                const bounds = el => el.getBoundingClientRect();
+                return {
+                    width: bounds(card).width,
+                    height: bounds(card).height,
+                    headerHeight: bounds(header).height,
+                    left: bounds(card).left,
+                    right: bounds(card).right,
+                    bottom: bounds(card).bottom,
+                    shellWidth: bounds(shell).width,
+                    screenWidth: bounds(screen).width,
+                    fieldHeight: bounds(field).height,
+                    submitHeight: bounds(submit).height,
+                    footerBottom: bounds(footer).bottom
+                };
+            });
+            if (geometry.missing) failures.push(`${width}px login: estrutura do cartão incompleta`);
+            else {
+                if (geometry.left < -1 || geometry.right > width + 1) failures.push(`${width}px login: cartão sai da viewport`);
+                if (geometry.footerBottom > geometry.bottom + 2) failures.push(`${width}px login: rodapé além da borda inferior`);
+                if (geometry.fieldHeight < 43 || geometry.submitHeight < 43) failures.push(`${width}px login: campos ou botão comprimidos`);
+                if (width >= 721) {
+                    if (geometry.width < 570 || geometry.width > 602) failures.push(`${width}px login: largura desktop incorreta ${Math.round(geometry.width)}px`);
+                    if (geometry.height < 560) failures.push(`${width}px login: cartão ainda achatado (${Math.round(geometry.height)}px)`);
+                    if (geometry.headerHeight < 91) failures.push(`${width}px login: cabeçalho comprimido (${Math.round(geometry.headerHeight)}px)`);
+                }
+            }
+            await loginPage.close();
+        }
+
         for (const width of widths) {
             for (const { role, pages } of scenarios) {
                 const page = await browser.newPage();
