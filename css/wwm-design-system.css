@@ -2670,8 +2670,12 @@ body.wwm-ds .wwm-request-progress {
 body.wwm-ds #wwm-request-progress > span {
     display: flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 7px !important;
     min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     padding: 9px 10px !important;
     border: 1px solid var(--ds-border) !important;
     border-radius: var(--ds-r-md) !important;
@@ -2679,6 +2683,16 @@ body.wwm-ds #wwm-request-progress > span {
     color: var(--ds-muted) !important;
     font-size: 12px !important;
     font-weight: 650 !important;
+}
+body.wwm-ds #wwm-request-progress > span .wwm-request-step-label {
+    display: block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    line-height: 1.3 !important;
+    text-align: center !important;
 }
 body.wwm-ds #wwm-request-progress > span b {
     display: grid !important;
@@ -2843,9 +2857,10 @@ body.wwm-ds .wwm-request-number {
         flex-direction: column !important;
         text-align: center !important;
         justify-content: center !important;
-        padding: 8px 3px !important;
-        font-size: 10px !important;
-        gap: 4px !important;
+        padding: 9px 4px !important;
+        font-size: clamp(10px, 2.7vw, 12px) !important;
+        line-height: 1.3 !important;
+        gap: 6px !important;
     }
     body.wwm-ds .wwm-request-stage > .form-row,
     body.wwm-ds .wwm-request-review-grid {
