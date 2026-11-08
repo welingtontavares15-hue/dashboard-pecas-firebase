@@ -230,6 +230,35 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                     const opened = await page.evaluate(() => !document.getElementById('modal-container').classList.contains('hidden')
                         && /Nova Solicita/i.test(document.querySelector('#modal-content')?.textContent || ''));
                     if (!opened) failures.push(`${width}px tecnico: botão "Nova" da barra inferior não abriu o formulário`);
+                    if (opened) {
+                        // Testa precisamente o indicador que ficava com
+                        // "Identificação / Peças / Revisão" sobrepostos.
+                        for (const step of [0, 1]) {
+                            if (step === 1) {
+                                await page.evaluate(() => document.getElementById('wwm-request-next')?.click());
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                            }
+                            const overlap = await page.evaluate(() => {
+                                const indicator = document.getElementById('wwm-request-progress');
+                                if (!indicator) return ['indicador de etapas ausente'];
+                                const cells = Array.from(indicator.children);
+                                if (cells.length !== 3) return ['indicador não contém exatamente 3 etapas'];
+                                const errors = [];
+                                const row = indicator.getBoundingClientRect();
+                                cells.forEach((cell, i) => {
+                                    const bounds = cell.getBoundingClientRect();
+                                    const label = cell.querySelector('.wwm-request-step-label');
+                                    const labelBounds = label?.getBoundingClientRect();
+                                    if (!label || !label.textContent.trim()) errors.push('rótulo da etapa ' + i + ' ausente');
+                                    if (bounds.left < row.left - 1 || bounds.right > row.right + 1) errors.push('etapa ' + i + ' fora da grade');
+                                    if (labelBounds && (labelBounds.left < bounds.left - 1 || labelBounds.right > bounds.right + 1)) errors.push('texto da etapa ' + i + ' sai da célula');
+                                    if (i > 0 && bounds.left < cells[i - 1].getBoundingClientRect().right - 1) errors.push('etapas ' + (i - 1) + ' e ' + i + ' sobrepostas');
+                                });
+                                return errors;
+                            });
+                            for (const error of overlap) failures.push(`${width}px tecnico etapa ${step + 1}: ${error}`);
+                        }
+                    }
                 }
                 await page.close();
             }

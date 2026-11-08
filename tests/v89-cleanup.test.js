@@ -25,8 +25,8 @@ describe('v89 cleanup release', () => {
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
-        expect(app).toContain("version: 'v91-request-ux'");
-        expect(sw).toContain("const CACHE_VERSION = 'v91-request-ux'");
+        expect(app).toContain("version: 'v91-stepper-fix'");
+        expect(sw).toContain("const CACHE_VERSION = 'v91-stepper-fix'");
     });
 
     test('active navigation routes are unchanged', () => {
