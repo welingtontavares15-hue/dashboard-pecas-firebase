@@ -52,42 +52,17 @@
                 </div>
 
                 <div class="premium-login-brand-copy">
-                    <span class="premium-login-eyebrow"><i class="fas fa-layer-group" aria-hidden="true"></i> Portal corporativo WWM</span>
-                    <h2>Gestão de peças com controle, rastreabilidade e visão financeira.</h2>
-                    <p>Centralize solicitações, aprovações, fornecedores e custos em um fluxo operacional único, seguro e orientado por dados.</p>
-
-                    <div class="premium-login-capabilities" aria-label="Capacidades do portal">
-                        <article class="premium-login-capability">
-                            <i class="fas fa-check-double" aria-hidden="true"></i>
-                            <strong>Aprovações controladas</strong>
-                            <span>Prioridade, SLA e decisão em um único painel.</span>
-                        </article>
-                        <article class="premium-login-capability">
-                            <i class="fas fa-chart-line" aria-hidden="true"></i>
-                            <strong>Inteligência de custos</strong>
-                            <span>Indicadores por técnico, peça, mês e fornecedor.</span>
-                        </article>
-                        <article class="premium-login-capability">
-                            <i class="fas fa-route" aria-hidden="true"></i>
-                            <strong>Rastreabilidade</strong>
-                            <span>Histórico completo do pedido até a finalização.</span>
-                        </article>
-                    </div>
-                </div>
-
-                <div class="premium-login-trust">
-                    <span><i class="fas fa-shield-halved" aria-hidden="true"></i> Ambiente corporativo protegido</span>
-                    <span><i class="fas fa-cloud-arrow-up" aria-hidden="true"></i> Sincronização de dados</span>
+                    <span class="premium-login-eyebrow">PORTAL WWM</span>
+                    <h2>Peças para máquinas de lavar louças profissionais.</h2>
+                    <p>Solicitações, aprovações e rastreio em um só lugar.</p>
                 </div>
             </section>
 
             <main class="login-card" aria-labelledby="login-title">
                 <div class="login-card-inner">
                     <div class="login-logo">
-                        <span class="premium-login-form-badge"><i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro</span>
-                        <span class="login-form-kicker">Portal de Peças WWM</span>
-                        <h1 id="login-title">Acesso ao ambiente corporativo</h1>
-                        <p>Informe seu usuário e senha para acessar o Portal de Solicitação de Peças WWM.</p>
+                        <h1 id="login-title">Entrar no portal</h1>
+                        <p>Use seu usuário e senha para continuar.</p>
                     </div>
 
                     <form id="login-form" name="login" class="login-form" method="post" autocomplete="on">
@@ -111,35 +86,30 @@
                         <div id="login-error" class="error-message hidden" role="alert"></div>
                     </form>
 
-                    <div id="device-biometric-panel" class="device-biometric-panel" data-state="checking">
+                    <div id="device-biometric-panel" class="device-biometric-panel hidden" data-state="checking">
                         <p id="device-biometric-greeting" class="device-biometric-greeting" hidden></p>
                         <button id="device-biometric-login" type="button" class="device-biometric-button" aria-describedby="device-biometric-status" disabled>
                             <span class="device-biometric-symbol" aria-hidden="true"><i class="fas fa-fingerprint"></i></span>
                             <span class="device-biometric-copy">
                                 <strong id="device-biometric-label">Entrar com digital</strong>
-                                <small id="device-biometric-hint">Verificando este aparelho...</small>
+                                <small id="device-biometric-hint"></small>
                             </span>
                             <i class="fas fa-chevron-right device-biometric-chevron" aria-hidden="true"></i>
                         </button>
-                        <p id="device-biometric-status" class="helper-text" role="status" aria-live="polite">Verificando a biometria deste celular...</p>
+                        <p id="device-biometric-status" class="helper-text" role="status" aria-live="polite" hidden></p>
                         <details id="device-biometric-help">
-                            <summary>Primeiro acesso? Ative a digital</summary>
-                            <ol>
-                                <li>Preencha seu usuário e senha acima e toque em Entrar e ativar digital.</li>
-                                <li>Confirme as etapas no celular até o portal mostrar “Digital ativada e verificada”.</li>
-                                <li>Nos próximos acessos, toque no símbolo da digital. Use o mesmo navegador ou aplicativo em que ativou.</li>
-                            </ol>
-                            <p>Disponível em aparelhos e navegadores compatíveis. O Android pode oferecer o PIN. A senha fica criptografada neste navegador e continua sendo validada pelo portal.</p>
+                            <summary>Como ativar a digital</summary>
+                            <p>Informe seu usuário e senha, selecione <strong>Entrar e ativar digital</strong> e confirme no aparelho.</p>
                         </details>
                     </div>
                     <div id="device-biometric-divider" class="device-biometric-divider" aria-hidden="true"><span>ou entre com usuário e senha</span></div>
-                    <div id="passkey-login-panel" class="hidden" style="margin: 12px 0 18px;">
+                    <div id="passkey-login-panel" class="hidden">
                         <button id="passkey-login-btn" type="button" class="btn btn-outline btn-block" style="width:100%" aria-describedby="passkey-login-status" disabled>
                             <i class="fas fa-fingerprint" aria-hidden="true"></i> Entrar com digital
                         </button>
-                        <p id="passkey-login-status" class="helper-text" role="status" aria-live="polite">Verificando disponibilidade da digital neste celular...</p>
+                        <p id="passkey-login-status" class="helper-text" role="status" aria-live="polite" hidden></p>
                     </div>
-                    <div class="premium-login-form-footer"><i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro e monitorado. <span>Solicite acesso à TI.</span></div>
+                    <div class="premium-login-form-footer"><i class="fas fa-lock" aria-hidden="true"></i> Uso interno. <span>Precisa de acesso? Contate o administrador.</span></div>
 
                     <div id="login-credentials" class="credentials-panel hidden">
                         <div class="credentials-header"><div><h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3><p>Use um dos usuários abaixo para acessar.</p></div></div>
