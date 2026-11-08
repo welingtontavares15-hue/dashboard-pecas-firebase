@@ -86,5 +86,5 @@ test('login offers device unlock and reserves the server passkey panel for a con
   const app = readFileSync(new URL('../../js/app.js', import.meta.url), 'utf8');
   assert.match(app, /passkeyPanel\.classList\.toggle\('hidden', !passkeyAvailable\)/);
   assert.match(app, /const passkeyAvailable = serverIdentity && !!readiness\.available/);
-  assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!readiness\.available/);
+  assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!passkeyAvailable/);
 });
