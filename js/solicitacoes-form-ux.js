@@ -256,7 +256,13 @@
         const obs = form.querySelector('#sol-observacoes')?.closest('.form-group');
         const technician = root.Auth?.getRole?.() === 'tecnico';
         put(sections[0], row);
-        if (obs) obs.classList.add('wwm-request-observacoes');
+        if (obs) {
+            obs.classList.add('wwm-request-observacoes');
+            const label = obs.querySelector('label[for="sol-observacoes"]');
+            if (label) label.textContent = 'Observações (opcional)';
+            const comment = obs.querySelector('#sol-observacoes');
+            if (comment) comment.placeholder = 'Descreva a necessidade da peça ou orientações para aprovação...';
+        }
         // Observacoes ficam imediatamente depois dos itens; o total e o
         // ultimo elemento antes de Continuar, sempre atualizado pelo catalogo.
         [parts, items, obs].forEach(node => put(sections[1], node));
