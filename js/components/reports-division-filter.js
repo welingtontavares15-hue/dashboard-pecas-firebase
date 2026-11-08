@@ -118,7 +118,10 @@ export function applyReportsDivisionFilter() {
             totalCount: records.length
         };
         const filterState = typeof this.buildFilterState === 'function' ? this.buildFilterState() : {};
-        const allRecords = (DataManager.getSolicitations?.() || []).filter((record) => matchesDivision(record, mode));
+        const divisionRecords = (DataManager.getSolicitations?.() || []).filter((record) => matchesDivision(record, mode));
+        const allRecords = typeof this.applyPremiumMultiFilters === 'function'
+            ? this.applyPremiumMultiFilters(divisionRecords)
+            : divisionRecords;
         const analysis = AnalyticsHelper.computeMetrics(dataset, {
             moduleKey: 'relatorios',
             allRecords,

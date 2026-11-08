@@ -1,8 +1,9 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
-import { applyReportsModernization } from '../components/reports-modern.js?v=20261107a';
-import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20260830a';
-import { applyReportsDivisionFilter } from '../components/reports-division-filter.js?v=20260903a';
+import { applyReportsModernization } from '../components/reports-modern.js?v=20261108a';
+import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20261108a';
+import { applyReportsDivisionFilter } from '../components/reports-division-filter.js?v=20261108a';
 import { applyReportsChartHardeningV55 } from '../components/reports-chart-hardening-v55.js?v=20261107a';
+import { applyReportsInsights } from '../components/reports-insights.js?v=20261108a';
 
 let ready = false;
 
@@ -141,6 +142,7 @@ function applyEnhancements() {
     applyReportsMultiSelect();
     applyReportsDivisionFilter();
     applyReportsChartHardeningV55();
+    applyReportsInsights();
 }
 
 export async function ensureLoaded() {

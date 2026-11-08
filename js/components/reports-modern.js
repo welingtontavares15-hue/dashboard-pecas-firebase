@@ -177,7 +177,7 @@ function buildHistoryCards(relatorios) {
         { title: 'Solicitações no período', value: Utils.formatNumber(solicitations.length), icon: 'fa-chart-line', tone: 'primary' },
         { title: 'Finalizadas', value: Utils.formatNumber(finalized), icon: 'fa-check', tone: 'success' },
         { title: 'Peças movimentadas', value: Utils.formatNumber(totalPieces), icon: 'fa-box', tone: 'info' },
-        { title: 'Custo total no período', value: Utils.formatCurrency(totalCost), icon: 'fa-sack-dollar', tone: 'warning' }
+        { title: 'Valor total solicitado', value: Utils.formatCurrency(totalCost), icon: 'fa-sack-dollar', tone: 'warning' }
     ];
     return `<div class="reports-summary-grid wwm-history-summary-grid">${cards.map((card) => `<article class="report-summary-card"><span class="report-summary-icon ${card.tone}"><i class="fas ${card.icon}"></i></span><div><h4>${card.title}</h4><strong>${card.value}</strong></div></article>`).join('')}</div>`;
 }
@@ -497,7 +497,7 @@ export function applyReportsModernization() {
                 </div>
 
                 <div class="page-kpis">
-                    ${this.currentReport === 'historico' ? buildHistoryCards(this) : buildExecutiveCards(this)}
+                    ${this.currentReport === 'historico' ? buildHistoryCards(this) : (typeof this.renderExecutiveSummary === 'function' ? this.renderExecutiveSummary() : buildExecutiveCards(this))}
                 </div>
 
                 <div class="page-content reports-content-stack">
