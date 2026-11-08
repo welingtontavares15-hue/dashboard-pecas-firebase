@@ -150,6 +150,10 @@ test('HTTP functions + Auth + RTDB + real WebAuthn verification with virtual aut
     const expired = await login('tech', 'Replacement-123');
     const claims = JSON.parse(Buffer.from(expired.token.split('.')[1], 'base64url'));
     await db.ref('authz/sessions/' + claims.portal_session_id + '/expiresAt').set(Date.now() - 1000);
+    assert.equal((await api('session/profile', {}, expired.token)).status, 403,
+      'An expired server grant must never be renewed');
+    assert.equal(await databaseStatus('data/diversey_settings', expired.token), 401,
+      'Expired server grants must also be rejected by RTDB rules');
     assert.equal((await api('session/logout', {}, expired.token)).status, 200);
     assert.equal((await api('session/profile', {}, expired.token)).status, 403);
   } finally {
