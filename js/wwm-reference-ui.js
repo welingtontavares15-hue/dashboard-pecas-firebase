@@ -152,6 +152,14 @@
         if (sidebarAvatar) {
             sidebarAvatar.innerHTML = `<span>${initials}</span>`;
         }
+        // Nome e perfil podem ser cortados com reticências no rodapé do menu:
+        // o texto completo fica disponível ao passar o mouse.
+        ['user-name', 'user-role', 'header-user-name'].forEach((id) => {
+            const node = document.getElementById(id);
+            if (node) {
+                node.title = node.textContent.trim();
+            }
+        });
     }
 
     function markCurrentPage() {
