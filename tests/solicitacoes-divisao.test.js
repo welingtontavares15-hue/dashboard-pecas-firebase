@@ -56,7 +56,7 @@ describe('Classificação de divisão das solicitações', () => {
         expect(solicitacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
         expect(aprovacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
         expect(serviceWorker).toContain("'./js/solicitacoes-divisao.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v89-cleanup'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v90-login-ux'");
     });
 
     test('regras impedem perfis não administrativos de alterar a classificação existente', () => {

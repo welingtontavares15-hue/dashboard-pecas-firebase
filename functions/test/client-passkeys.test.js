@@ -84,6 +84,7 @@ test('login offers device unlock and reserves the server passkey panel for a con
   assert.match(html, /id="passkey-login-btn"[^>]*aria-describedby="passkey-login-status"/);
   assert.match(html, /id="passkey-login-status"[^>]*role="status"/);
   const app = readFileSync(new URL('../../js/app.js', import.meta.url), 'utf8');
-  assert.match(app, /passkeyPanel\.classList\.toggle\('hidden', !serverIdentity\)/);
-  assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!readiness\.available/);
+  assert.match(app, /passkeyPanel\.classList\.toggle\('hidden', !passkeyAvailable\)/);
+  assert.match(app, /const passkeyAvailable = serverIdentity && !!readiness\.available/);
+  assert.match(app, /passkeyButton\.disabled\s*=\s*this\.isBootstrapping\s*\|\|\s*!passkeyAvailable/);
 });

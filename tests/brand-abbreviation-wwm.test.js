@@ -22,7 +22,7 @@ describe('sigla oficial WWM alinhada ao app WWM - Request', () => {
 
     test('tela de login exibe a sigla WWM', () => {
         const index = read('index.html');
-        expect(index).toContain('Portal corporativo WWM');
+        expect(index).toContain('PORTAL WWM');
         expect(index).toContain('<title>Portal de Solicitação de Peças WWM</title>');
     });
 

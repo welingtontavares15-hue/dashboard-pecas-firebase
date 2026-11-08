@@ -23,7 +23,7 @@ describe('Release WWM v72 reference layout', () => {
         expect(index).toContain('css/premium-login-v55.css');
         expect(release).toContain("const RELEASE_VERSION = 'v61-wwm-portal-exact'");
         expect(release).toContain('Portal de Peças WWM');
-        expect(release).toContain("title.textContent = 'Acesso ao ambiente corporativo'");
+        expect(release).toContain("title.textContent = 'Entrar no portal'");
         expect(release).toContain('Portal de Solicitação de Peças WWM');
         expect(loginCss).toContain('width: min(500px, 100%)');
         expect(referenceCss).toContain('width: min(850px, 92vw)');
@@ -77,7 +77,7 @@ describe('Release WWM v72 reference layout', () => {
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v89-cleanup'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v90-login-ux'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',

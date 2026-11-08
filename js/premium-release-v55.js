@@ -49,27 +49,17 @@
         const footer = inner.querySelector('.premium-login-form-footer');
 
         if (kicker) kicker.textContent = '';
-        if (title) title.textContent = 'Acesso ao ambiente corporativo';
-        if (description) description.textContent = 'Informe seu usuário e senha para acessar o Portal de Solicitação de Peças WWM.';
+        if (title) title.textContent = 'Entrar no portal';
+        if (description) description.textContent = 'Use seu usuário e senha para continuar.';
         if (submit && !submit.dataset.wwmLabelApplied) {
             submit.innerHTML = 'Entrar <i class="fas fa-arrow-right" aria-hidden="true"></i>';
             submit.dataset.wwmLabelApplied = 'true';
         }
-        if (footer) footer.innerHTML = '<i class="fas fa-shield-halved" aria-hidden="true"></i> Acesso seguro e monitorado. <span>Solicite acesso à TI.</span>';
+        if (footer) footer.innerHTML = '<i class="fas fa-lock" aria-hidden="true"></i> Uso interno. <span>Precisa de acesso? Contate o administrador.</span>';
 
-        if (!inner.querySelector('.wwm-login-support')) {
-            const support = document.createElement('p');
-            support.className = 'wwm-login-support';
-            support.textContent = '';
-            inner.appendChild(support);
-        }
-
-        if (!inner.querySelector('.wwm-login-meta')) {
-            const meta = document.createElement('div');
-            meta.className = 'wwm-login-meta';
-            meta.innerHTML = '';
-            inner.appendChild(meta);
-        }
+        // Não acrescentar blocos de suporte/metadados vazios ao login.
+        inner.querySelector('.wwm-login-support')?.remove();
+        inner.querySelector('.wwm-login-meta')?.remove();
 
         return true;
     }
