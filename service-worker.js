@@ -1,5 +1,5 @@
 // Cache da experiência de login WWM (ícones e módulos funcionais preservados).
-const CACHE_VERSION = 'v93-login-proportions';
+const CACHE_VERSION = 'v94-washer-icon';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -41,7 +41,9 @@ const PRECACHE = {
     './css/wwm-design-system.css',
     './css/visual-architecture-v72.css',
     './manifest.webmanifest',
-    './icons/icon.svg?v=20261108-parts',
+    './icons/icon.svg?v=20261108-washer-v94',
+    './icons/icon-maskable.svg?v=20261108-washer-v94',
+    './icons/wwm-industrial-washer.webp',
     './health/firebase-healthcheck.html',
     './js/config.js',
     './js/firebase-config.js',
