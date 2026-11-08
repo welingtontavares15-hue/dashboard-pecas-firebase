@@ -1,5 +1,5 @@
 // Cache da experiência de login WWM (ícones e módulos funcionais preservados).
-const CACHE_VERSION = 'v92-technician-form';
+const CACHE_VERSION = 'v93-login-proportions';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
