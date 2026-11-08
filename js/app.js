@@ -100,7 +100,7 @@ const App = {
         const statusEl = document.getElementById('login-status');
         const deviceButton = document.getElementById('device-biometric-login');
         if (deviceButton) deviceButton.disabled = !!isBusy;
-        if (!isBusy) void this.refreshDeviceBiometric();
+        if (!isBusy && !window.PasskeyAuth?.configured()) void this.refreshDeviceBiometric();
         const passkeyButton = document.getElementById('passkey-login-btn');
         const biometricReadiness = window.PasskeyAuth?.availability();
         if (passkeyButton) {
@@ -110,8 +110,10 @@ const App = {
         }
         const passkeyStatus = document.getElementById('passkey-login-status');
         if (passkeyStatus && !isBusy) {
-            passkeyStatus.textContent = biometricReadiness?.message
-                || 'Acesso por digital indisponível. Utilize usuário e senha.';
+            passkeyStatus.textContent = biometricReadiness?.available
+                ? 'Confirme o acesso no aparelho.'
+                : 'Entre com usuário e senha.';
+            passkeyStatus.hidden = true;
         }
 
         if (usernameInput) {
@@ -313,8 +315,10 @@ const App = {
         const passkeyPanel = document.getElementById('passkey-login-panel');
         // Server Passkeys and device-only password unlock have separate enrollment paths.
         const serverIdentity = !!window.PasskeyAuth?.configured();
-        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !serverIdentity);
-        document.getElementById('device-biometric-panel')?.classList.toggle('hidden', serverIdentity);
+        const devicePanel = document.getElementById('device-biometric-panel');
+        if (devicePanel) devicePanel.classList.add('hidden');
+        // A verificação da digital do aparelho é assíncrona; não mostrar
+        // a opção até confirmar compatibilidade e inscrição.
         if (!serverIdentity) void this.refreshDeviceBiometric();
         const passkeyStatus = document.getElementById('passkey-login-status');
         const readiness = window.PasskeyAuth?.availability() || {
@@ -322,11 +326,16 @@ const App = {
             message: 'Acesso por digital indisponível. Utilize usuário e senha.'
         };
         const passkeyButton = document.getElementById('passkey-login-btn');
+        const passkeyAvailable = serverIdentity && !!readiness.available;
+        if (passkeyPanel) passkeyPanel.classList.toggle('hidden', !passkeyAvailable);
         if (passkeyButton) {
-            passkeyButton.disabled = this.isBootstrapping || !readiness.available;
-            passkeyButton.setAttribute('aria-disabled', String(!readiness.available));
+            passkeyButton.disabled = this.isBootstrapping || !passkeyAvailable;
+            passkeyButton.setAttribute('aria-disabled', String(this.isBootstrapping || !passkeyAvailable));
         }
-        if (passkeyStatus) passkeyStatus.textContent = readiness.message;
+        if (passkeyStatus) {
+            passkeyStatus.textContent = passkeyAvailable ? 'Confirme no aparelho.' : '';
+            passkeyStatus.hidden = true;
+        }
         document.getElementById('app-container').classList.add('hidden');
         document.getElementById('login-username').focus();
         
@@ -752,14 +761,24 @@ const App = {
      */
     setDeviceBiometricView(state, { label, hint, status, greeting } = {}) {
         const panel = document.getElementById('device-biometric-panel');
-        if (panel) panel.dataset.state = state;
+        if (panel) {
+            panel.dataset.state = state;
+            const available = ['ready', 'enroll', 'busy'].includes(state)
+                && !window.PasskeyAuth?.configured();
+            panel.classList.toggle('hidden', !available);
+        }
         const labelEl = document.getElementById('device-biometric-label');
         const hintEl = document.getElementById('device-biometric-hint');
         const statusEl = document.getElementById('device-biometric-status');
         const greetingEl = document.getElementById('device-biometric-greeting');
         if (labelEl && label !== undefined) labelEl.textContent = label;
         if (hintEl && hint !== undefined) hintEl.textContent = hint;
-        if (statusEl && status !== undefined) statusEl.textContent = status;
+        if (statusEl && status !== undefined) {
+            statusEl.textContent = status;
+            // Informações de ativação ficam na ajuda expansível;
+            // erros de login continuam visíveis em #login-error.
+            statusEl.hidden = state !== 'busy';
+        }
         if (greetingEl) {
             greetingEl.textContent = greeting || '';
             greetingEl.hidden = !greeting;
@@ -784,27 +803,27 @@ const App = {
                 this.setDeviceBiometricView('unavailable', {
                     label: 'Entrar com digital',
                     hint: '',
-                    status: 'Biometria indisponível neste navegador. Utilize usuário e senha.'
+                    status: 'Entre com usuário e senha.'
                 });
             } else if (enrolled) {
                 this.setDeviceBiometricView('ready', {
                     label: 'Entrar com digital',
-                    hint: 'Toque aqui e confirme no sensor do celular',
-                    status: 'Digital cadastrada neste navegador. Toque no símbolo e confirme no celular.',
-                    greeting: info.displayName ? `Olá, ${info.displayName}` : 'Bem-vindo de volta'
+                    hint: 'Confirme no aparelho',
+                    status: '',
+                    greeting: info.displayName ? `Olá, ${info.displayName}` : ''
                 });
             } else {
                 this.setDeviceBiometricView('enroll', {
                     label: 'Entrar e ativar digital',
-                    hint: 'Preencha usuário e senha acima e toque aqui',
-                    status: 'Para ativar aqui, preencha Usuário e Senha acima e toque em Entrar e ativar digital.'
+                    hint: 'Primeiro acesso? Informe usuário e senha',
+                    status: ''
                 });
             }
         } catch (_error) {
             button.disabled = true;
-            this.setDeviceBiometricView('enroll', {
-                hint: 'Use usuário e senha',
-                status: 'Não foi possível ler o cadastro da digital neste navegador. Seu acesso por senha continua disponível.'
+            this.setDeviceBiometricView('unavailable', {
+                hint: '',
+                status: 'Entre com usuário e senha.'
             });
         }
     },
