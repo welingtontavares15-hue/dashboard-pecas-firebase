@@ -98,16 +98,17 @@ async function authenticatedAccount(req, allowExpiredGrant = false) {
     || decoded.portal_tecnico_id !== (user.tecnicoId ?? '')
     || decoded.portal_fornecedor_id !== (user.fornecedorId ?? '')
     || grant.tecnicoId !== (user.tecnicoId ?? '') || grant.fornecedorId !== (user.fornecedorId ?? '')
-    || (!allowExpiredGrant && Number(grant.expiresAt) <= Date.now())
+    || (!allowExpiredGrant && (!Number.isFinite(Number(grant.expiresAt)) || Number(grant.expiresAt) <= Date.now()))
     || Date.now() - Number(decoded.auth_time) * 1000 > 12 * 60 * 60 * 1000) invalid('Sessão sem autorização', 403);
   return { ...user, sessionId: decoded.portal_session_id };
 }
 async function sessionProfile(_body, req) {
-  const user = await authenticatedAccount(req, true);
-  // Renew only a still-existing, version-matched grant; logout cannot be undone.
+  const user = await authenticatedAccount(req);
+  // Only renew a CURRENT grant. Expired grants are valid for logout alone.
   const renewed = await db().ref('authz/sessions/' + user.sessionId).transaction(grant => {
     if (grant === null) return null;
-    if (!grant || grant.version !== user.version || grant.allowed !== true) return;
+    if (!grant || grant.version !== user.version || grant.allowed !== true
+      || !Number.isFinite(Number(grant.expiresAt)) || Number(grant.expiresAt) <= Date.now()) return;
     return { ...grant, expiresAt: Date.now() + 3600000 };
   });
   if (!renewed.committed || !renewed.snapshot.exists()) invalid('Sessão revogada', 403);

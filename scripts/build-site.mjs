@@ -136,11 +136,16 @@ if (!insertedBundles) {
 // O Service Worker carrega apenas os entrypoints de producao ativos.
 const inactivePages = new Set([
     './js/pages/dashboard.js',
-    './js/pages/relatorios.js',
-    './js/navigation-master.js'
+    './js/pages/relatorios.js'
 ]);
+// O navigation-master.js continua sendo carregado pelo fallback de
+// premium-plus.js e deve permanecer disponivel no cache offline.
 builtWorker = builtWorker.split('\n').filter((line) => {
-    return ![...inactivePages].some((file) => line.trim() === "'" + file + "',");
+    const entry = line.trim().replace(/,$/, '').replace(/^['"]|['"]$/g, '');
+    // Arquivos CSS ja estao nos bundles e nao existem em dist/css separadamente.
+    if (entry.startsWith('./css/') && entry.endsWith('.css')
+        && bundleFiles.includes(entry.slice(2))) return false;
+    return !inactivePages.has(entry);
 }).join('\n');
 // Rotas antigas sem consumidores no mapa do App nao devem compor o deploy.
 // Os fontes antigos permanecem no Git para rollback e comparacao funcional.
