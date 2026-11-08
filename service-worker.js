@@ -1,5 +1,5 @@
 // Cache da experiência de login WWM (ícones e módulos funcionais preservados).
-const CACHE_VERSION = 'v91-request-ux';
+const CACHE_VERSION = 'v91-stepper-fix';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
