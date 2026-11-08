@@ -287,13 +287,14 @@
             root.Utils.showToast('Rascunho guardado temporariamente nesta aba.', 'info');
         });
         root.document.getElementById('wwm-request-send')?.addEventListener('click', async event => {
-            if (s.isSaveSubmitting || event.currentTarget.disabled) return;
+            const sendButton = event.currentTarget;
+            if (s.isSaveSubmitting || sendButton.disabled) return;
             if (!validateStep(s, 1)) {
                 setStep(s, 1);
                 return;
             }
             s.currentSolicitation.equipamento = value('sol-equipamento').trim();
-            event.currentTarget.disabled = true;
+            sendButton.disabled = true;
             try {
                 // Mantém a validação de divisão e a autorização já existentes.
                 const saved = await s.saveSolicitation('pendente');
@@ -302,7 +303,7 @@
                     success(s, saved);
                 }
             } finally {
-                if (event.currentTarget.isConnected) event.currentTarget.disabled = false;
+                if (sendButton.isConnected) sendButton.disabled = false;
             }
         });
 
