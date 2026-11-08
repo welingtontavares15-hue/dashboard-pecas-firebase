@@ -79,10 +79,11 @@
     }
 
     function progress(step) {
-        return '<div class="wwm-request-progress" aria-label="Etapas da solicitação">'
-            + steps.map((label, i) => '<span class="' + (i === step ? 'is-current' : i < step ? 'is-done' : '')
-                + '" ' + (i === step ? 'aria-current="step"' : '') + '><b>' + (i + 1)
-                + '</b>' + label + '</span>').join('') + '</div>';
+        // O contêiner #wwm-request-progress já é a grade de três colunas.
+        // Criar outro <div> aqui deslocava os rótulos e os sobrepunha no celular.
+        return steps.map((label, i) => '<span class="' + (i === step ? 'is-current' : i < step ? 'is-done' : '')
+            + '" ' + (i === step ? 'aria-current="step"' : '') + '><b>' + (i + 1)
+            + '</b><span class="wwm-request-step-label">' + label + '</span></span>').join('');
     }
 
     function review(s) {
@@ -261,6 +262,8 @@
         flow.id = 'wwm-request-flow';
         const indicator = root.document.createElement('div');
         indicator.id = 'wwm-request-progress';
+        indicator.setAttribute('role', 'group');
+        indicator.setAttribute('aria-label', 'Etapas da solicitação');
         indicator.innerHTML = progress(0);
         flow.appendChild(indicator);
         sections.forEach(section => flow.appendChild(section));
