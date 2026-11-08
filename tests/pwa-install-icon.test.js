@@ -12,23 +12,27 @@ describe('PWA - approved dishwasher gear emblem', () => {
         expect(manifest.short_name).toBe('Peças WWM');
         expect(manifest.theme_color).toBe('#004449');
         expect(manifest.icons[0]).toEqual({
-            src: './icons/icon.svg?v=20261108-washer-v94',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: './icons/wwm-shield-dishwasher.webp?v=20261108-new-shield',
+            sizes: '256x256',
+            type: 'image/webp',
             purpose: 'any'
         });
-        expect(manifest.icons[1]).toEqual({
+        const publishedIcon = fs.readFileSync(path.join(root, 'icons/wwm-shield-dishwasher.webp'));
+        expect(publishedIcon.toString('ascii', 0, 4)).toBe('RIFF');
+        expect(publishedIcon.toString('ascii', 8, 12)).toBe('WEBP');
+        expect(publishedIcon.length).toBeGreaterThan(4000);
+        expect(manifest.icons[2]).toEqual({
             src: './icons/icon-maskable.svg?v=20261108-washer-v94',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'maskable'
         });
-        expect(manifest.icons[2].src).toBe('./icons/wwm-industrial-washer.webp');
-        expect(manifest.icons[2].sizes).toBe('128x128');
+        expect(manifest.icons[3].src).toBe('./icons/wwm-industrial-washer.webp');
+        expect(manifest.icons[3].sizes).toBe('128x128');
         expect(html).toContain('rel="manifest" href="manifest.webmanifest?v=20261108-washer-v94"');
-        expect(html).toContain('rel="icon" type="image/svg+xml" href="icons/icon.svg?v=20261108-washer-v94"');
+        expect(html).toContain('rel="icon" type="image/webp" href="icons/wwm-shield-dishwasher.webp?v=20261108-new-shield"');
         for (const asset of [
-            './icons/icon.svg?v=20261108-washer-v94',
+            './icons/wwm-shield-dishwasher.webp?v=20261108-new-shield',
             './icons/icon-maskable.svg?v=20261108-washer-v94',
             './icons/wwm-industrial-washer.webp'
         ]) {
