@@ -2113,6 +2113,9 @@ const Solicitacoes = {
                     Utils.showToast('Solicitação enviada, mas a notificação automática ao gestor não foi disparada.', 'warning');
                 }
             }
+            // Retorna apenas após persistência bem-sucedida, para permitir
+            // exibir o protocolo confirmado ao usuário.
+            return persistedSolicitation;
         } finally {
             this.isSaveSubmitting = false;
         }
