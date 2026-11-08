@@ -121,10 +121,15 @@ let builtWorker = worker.replace(/^\s*'\.\/css\/[^']+\.css',\r?\n/gm, () => {
 if (!insertedBundles) {
     throw new Error('Precache CSS do Service Worker nao foi identificado.');
 }
-// Esses entrypoints antigos foram substituidos na tabela de rotas ativa.
-for (const oldPath of ['./js/pages/dashboard.js', './js/pages/relatorios.js', './js/navigation-master.js']) {
-    builtWorker = builtWorker.replace(new RegExp("^\\s*'" + oldPath.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&') + "',\\r?\\n", 'gm'), '');
-}
+// O Service Worker carrega apenas os entrypoints de producao ativos.
+const inactivePages = new Set([
+    './js/pages/dashboard.js',
+    './js/pages/relatorios.js',
+    './js/navigation-master.js'
+]);
+builtWorker = builtWorker.split('\n').filter((line) => {
+    return ![...inactivePages].some((file) => line.trim() === "'" + file + "',");
+}).join('\n');
 fs.writeFileSync(path.join(OUT, 'service-worker.js'), builtWorker);
 
 console.log('Build ' + version + ': ' + bundleFiles.length + ' CSS consolidados em 2 bundles.');
