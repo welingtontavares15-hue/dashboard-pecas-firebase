@@ -89,6 +89,16 @@ function collectOverflow() {
     if (zone && search && zone.getBoundingClientRect().width > 0 && search.getBoundingClientRect().right > zone.getBoundingClientRect().right + 1) {
         issues.push(`global-search right=${Math.round(search.getBoundingClientRect().right)} > zona ${Math.round(zone.getBoundingClientRect().right)}`);
     }
+    // Valores dos indicadores precisam aparecer inteiros (ex.: "R$ 12.360,0" cortado).
+    document.querySelectorAll('#content-area :is(.kpi-value, .report-summary-card strong, .v59-kpi > strong)').forEach((value) => {
+        const card = value.closest('.kpi-card, .report-summary-card, .v59-kpi');
+        if (!card || !value.textContent.trim()) return;
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        const textRight = range.getBoundingClientRect().right;
+        const innerRight = card.getBoundingClientRect().right - parseFloat(getComputedStyle(card).paddingRight);
+        if (textRight > innerRight + 1) issues.push(`indicador cortado: "${value.textContent.trim()}" (+${Math.round(textRight - innerRight)}px)`);
+    });
     return issues;
 }
 

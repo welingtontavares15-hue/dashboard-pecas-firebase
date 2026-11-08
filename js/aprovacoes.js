@@ -113,7 +113,7 @@ const Aprovacoes = {
                 </div>
             ` : ''}
 
-            <details class="filter-panel compact wwm-filter-panel" id="approval-filter-panel" open>
+            <details class="filter-panel compact wwm-filter-panel" id="approval-filter-panel" ${this.hasActiveFilters() || window.innerWidth > 767 ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="approval-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
@@ -224,12 +224,16 @@ const Aprovacoes = {
         this.render();
     },
 
+    // Só os filtros que o usuário escolhe na tela contam. O objeto também
+    // carrega campos internos (moduleKey, useDefaultPeriod...), que antes
+    // faziam a tela mostrar "Filtros ativos" sempre.
     hasActiveFilters() {
-        return Object.values(this.filters).some((value) => {
-            if (Array.isArray(value)) {
-                return value.length > 0;
+        const defaults = this.getDefaultFilters();
+        return Object.keys(defaults).some((key) => {
+            if (key === 'useDefaultPeriod') {
+                return false;
             }
-            return value !== '' && value !== null && value !== undefined;
+            return String(this.filters[key] ?? '') !== String(defaults[key] ?? '');
         });
     },
 

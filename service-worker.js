@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v85-biometric-ux';
+const CACHE_VERSION = 'v86-ux-audit';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
