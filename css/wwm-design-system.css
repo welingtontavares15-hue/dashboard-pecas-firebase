@@ -2761,6 +2761,36 @@ body.wwm-ds .wwm-request-stage .form-control {
     min-height: 44px !important;
     width: 100% !important;
 }
+/* Observações do atendimento: logo após as peças, com área de escrita confortável. */
+body.wwm-ds .wwm-request-stage .wwm-request-observacoes {
+    display: grid !important;
+    gap: 9px !important;
+    margin-top: 5px !important;
+    padding-top: 13px !important;
+    border-top: 1px solid var(--ds-border) !important;
+}
+body.wwm-ds .wwm-request-stage .wwm-request-observacoes label {
+    margin: 0 !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+}
+body.wwm-ds .wwm-request-stage .wwm-request-observacoes textarea {
+    min-height: 104px !important;
+    resize: vertical !important;
+    line-height: 1.5 !important;
+}
+body.wwm-ds .wwm-request-stage #totals-display:has(.total-row:only-child) {
+    margin-top: 1px !important;
+    padding: 13px 16px !important;
+}
+body.wwm-ds .wwm-request-stage #totals-display .total-row:only-child {
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+}
 body.wwm-ds #wwm-request-resume {
     display: flex !important;
     align-items: center !important;

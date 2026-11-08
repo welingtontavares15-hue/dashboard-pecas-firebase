@@ -5,7 +5,7 @@ const vm = require('vm');
 const rootDir = path.resolve(__dirname, '..');
 const patchSource = fs.readFileSync(path.join(rootDir, 'js/solicitacoes-form-ux.js'), 'utf8');
 
-function setup() {
+function setup(role = 'tecnico') {
     const notices = [];
     let closed = 0;
     let views = [];
@@ -24,9 +24,18 @@ function setup() {
         _initAutocomplete: jest.fn(),
         updateTecnicoName: jest.fn(),
         refreshItemsList: jest.fn(),
+        renderTotalsDisplay() {
+            return '<div class="total-row"><span>Subtotal:</span></div>'
+                + '<div class="total-row"><span>Desconto:</span></div>'
+                + '<div class="total-row"><span>Frete:</span></div>'
+                + '<div class="total-row grand-total"><span>Total:</span><span>'
+                + utils.formatCurrency(this.currentSolicitation.total) + '</span></div>';
+        },
         recalculateTotals() {
             const list = this.currentSolicitation.itens || [];
             this.currentSolicitation.total = list.reduce((sum, item) => sum + Number(item.quantidade) * Number(item.valorUnit), 0);
+            const display = document.getElementById('totals-display');
+            if (display) display.innerHTML = this.renderTotalsDisplay();
         },
         viewDetails: id => views.push(id),
         saveSolicitation: jest.fn(async function () {
@@ -62,7 +71,10 @@ function setup() {
     const runtime = {
         document,
         Utils: utils,
-        Auth: { getCurrentUser: () => ({ id: 'tech-1', name: 'Técnico Sintético' }) },
+        Auth: {
+            getCurrentUser: () => ({ id: 'tech-1', name: 'Técnico Sintético' }),
+            getRole: () => role
+        },
         Solicitacoes: solicitacoes
     };
     vm.runInNewContext(patchSource, { window: runtime }, { timeout: 2000 });
@@ -79,8 +91,44 @@ describe('Nova solicitação: fluxo guiado', () => {
         expect(document.querySelector('[data-step="0"] #sol-equipamento')).not.toBeNull();
         expect(document.querySelector('[data-step="1"] #parts-section')).not.toBeNull();
         expect(document.querySelector('[data-step="1"] #items-list')).not.toBeNull();
-        expect(document.querySelector('[data-step="1"] #sol-desconto')).not.toBeNull();
+        expect(document.querySelector('[data-step="1"] #sol-desconto')).toBeNull();
+        expect(document.querySelector('[data-step="1"] #sol-frete')).toBeNull();
+        expect(document.querySelector('[data-step="1"] #sol-observacoes')).not.toBeNull();
+        expect(document.getElementById('totals-display').textContent).toContain('Total estimado');
+        expect(document.getElementById('totals-display').textContent).not.toContain('Desconto');
+        expect(document.getElementById('totals-display').textContent).not.toContain('Frete');
         expect(document.querySelector('[data-step="2"]').hidden).toBe(true);
+    });
+
+    test('etapa do técnico: observações antes do total e sem frete ou desconto', () => {
+        const { solicitacoes } = setup();
+        solicitacoes.openForm();
+        const stage = document.querySelector('[data-step="1"]');
+        const observations = stage.querySelector('#sol-observacoes');
+        const total = stage.querySelector('#totals-display');
+        expect(observations).not.toBeNull();
+        expect(observations.getAttribute('placeholder')).toContain('necessidade');
+        expect(observations.closest('.wwm-request-observacoes')).not.toBeNull();
+        expect(observations.compareDocumentPosition(total) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(stage.querySelector('#sol-desconto')).toBeNull();
+        expect(stage.querySelector('#sol-frete')).toBeNull();
+        expect(solicitacoes.currentSolicitation.desconto).toBe(0);
+        expect(solicitacoes.currentSolicitation.frete).toBe(0);
+        solicitacoes.currentSolicitation.itens = [{ codigo: 'B-25', descricao: 'Peça', quantidade: 2, valorUnit: 100 }];
+        solicitacoes.recalculateTotals();
+        expect(total.textContent).toContain('R$ 200.00');
+        expect(total.querySelectorAll('.total-row')).toHaveLength(1);
+    });
+
+    test('campos financeiros permanecem disponíveis para gestores', () => {
+        const { solicitacoes } = setup('gestor');
+        solicitacoes.openForm();
+        const stage = document.querySelector('[data-step="1"]');
+        expect(stage.querySelector('#sol-desconto')).not.toBeNull();
+        expect(stage.querySelector('#sol-frete')).not.toBeNull();
+        expect(stage.querySelector('#totals-display').textContent).toContain('Subtotal');
+        expect(stage.querySelector('#totals-display').textContent).toContain('Desconto');
+        expect(stage.querySelector('#totals-display').textContent).toContain('Frete');
     });
 
     test('barra de etapas usa três células diretas, sem grade aninhada', () => {
@@ -149,6 +197,6 @@ describe('Nova solicitação: fluxo guiado', () => {
         const guided = route.indexOf("window.SolicitacoesFormUx?.patch?.()");
         expect(division).toBeGreaterThan(-1);
         expect(guided).toBeGreaterThan(division);
-        expect(route).toContain("solicitacoes-form-ux.js?v=20261108b");
+        expect(route).toContain("solicitacoes-form-ux.js?v=20261108c");
     });
 });
