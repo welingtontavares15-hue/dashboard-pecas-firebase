@@ -142,6 +142,12 @@ const inactivePages = new Set([
 builtWorker = builtWorker.split('\n').filter((line) => {
     return ![...inactivePages].some((file) => line.trim() === "'" + file + "',");
 }).join('\n');
+// Rotas antigas sem consumidores no mapa do App nao devem compor o deploy.
+// Os fontes antigos permanecem no Git para rollback e comparacao funcional.
+for (const legacyPage of ['js/pages/dashboard.js', 'js/pages/relatorios.js']) {
+    const legacy = path.join(OUT, legacyPage);
+    if (fs.existsSync(legacy)) fs.rmSync(legacy);
+}
 fs.writeFileSync(path.join(OUT, 'service-worker.js'), builtWorker);
 
 console.log('Build ' + version + ': ' + bundleFiles.length + ' CSS consolidados em 2 bundles.');
