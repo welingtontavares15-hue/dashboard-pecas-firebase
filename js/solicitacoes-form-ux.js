@@ -36,8 +36,10 @@
                 divisao: value('sol-divisao'),
                 fornecedorId: value('sol-fornecedor'),
                 observacoes: value('sol-observacoes').slice(0, 4000),
-                desconto: value('sol-desconto'),
-                frete: value('sol-frete'),
+                // Estes valores permanecem no modelo para compatibilidade com
+                // aprovacoes e edicao administrativa, mas nao sao solicitados ao tecnico.
+                desconto: Number(record.desconto) || 0,
+                frete: Number(record.frete) || 0,
                 itens: (record.itens || []).map((item) => ({
                     codigo: item.codigo, descricao: item.descricao,
                     valorUnit: item.valorUnit, quantidade: item.quantidade
@@ -252,8 +254,22 @@
         const totals = form.querySelector('#totals-display');
         const values = form.querySelector('#sol-desconto')?.closest('.form-row');
         const obs = form.querySelector('#sol-observacoes')?.closest('.form-group');
+        const technician = root.Auth?.getRole?.() === 'tecnico';
         put(sections[0], row);
-        [parts, items, values, totals, obs].forEach(node => put(sections[1], node));
+        if (obs) obs.classList.add('wwm-request-observacoes');
+        // Observacoes ficam imediatamente depois dos itens; o total e o
+        // ultimo elemento antes de Continuar, sempre atualizado pelo catalogo.
+        [parts, items, obs].forEach(node => put(sections[1], node));
+        if (technician) {
+            // No fluxo de NOVA solicitacao do tecnico nao existem frete/desconto.
+            // Zerar apenas o registro novo; edicoes e valores historicos nao mudam.
+            s.currentSolicitation.desconto = 0;
+            s.currentSolicitation.frete = 0;
+            values?.remove();
+        } else {
+            put(sections[1], values);
+        }
+        put(sections[1], totals);
 
         const reviewBody = root.document.createElement('div');
         reviewBody.id = 'wwm-request-review';
@@ -269,6 +285,8 @@
         sections.forEach(section => flow.appendChild(section));
         form.prepend(flow);
         s._requestStep = 0;
+        // Renderizar o resumo ja na primeira visita, com uma linha para o tecnico.
+        s.recalculateTotals();
 
         const header = modal.querySelector('.modal-header h3');
         if (header) header.textContent = 'Nova solicitação de peças';
@@ -324,6 +342,18 @@
     function patch() {
         const s = root.Solicitacoes;
         if (!s || s.__requestFormUxPatched) return false;
+        const renderTotalsBase = s.renderTotalsDisplay.bind(s);
+        s.renderTotalsDisplay = function requestTotalsDisplay() {
+            if (root.Auth?.getRole?.() === 'tecnico'
+                && !this.currentSolicitation?.id
+                && formNode()?.querySelector('#wwm-request-flow')) {
+                return '<div class="total-row grand-total">'
+                    + '<span>Total estimado:</span><span>'
+                    + root.Utils.formatCurrency(this.currentSolicitation.total)
+                    + '</span></div>';
+            }
+            return renderTotalsBase();
+        };
         const openBase = s.openForm.bind(s);
         s.openForm = function requestOpenForm(id = null) {
             const result = openBase(id);
