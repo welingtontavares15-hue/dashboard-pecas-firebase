@@ -17,7 +17,7 @@ const APP_CONFIG = {
     /**
      * Application version aligned with service-worker.js CACHE_VERSION.
      */
-    version: 'v88-review-fixes',
+    version: 'v89-cleanup',
     // Set only after Cloud Functions + server-side identity rules are deployed and tested.
     passkeyEndpoint: '',
 
