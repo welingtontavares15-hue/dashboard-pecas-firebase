@@ -17,7 +17,7 @@ describe('mobile usability contract', () => {
     test('loads the device refinement after visual architecture for first paint', () => {
         const html = read('index.html');
         const architecture = html.indexOf('css/visual-architecture-v72.css');
-        const device = html.indexOf('css/desktop-mobile-premium.css?v=20261107a');
+        const device = html.indexOf('css/desktop-mobile-premium.css?v=20261108b');
 
         expect(architecture).toBeGreaterThan(-1);
         expect(device).toBeGreaterThan(architecture);
@@ -29,7 +29,7 @@ describe('mobile usability contract', () => {
         const runtime = read('js/wwm-reference-ui.js');
         const expected = 'premiumVisualLink, visualArchitectureLink, deviceLayoutLink';
 
-        expect(runtime).toContain("desktop-mobile-premium.css?v=20261107a");
+        expect(runtime).toContain("desktop-mobile-premium.css?v=20261108b");
         expect(runtime).toContain(expected);
     });
 
