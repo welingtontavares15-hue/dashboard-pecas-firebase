@@ -36,6 +36,9 @@ describe('production build: CSS and canonical routes', () => {
             expect(worker).not.toContain("'./js/pages/relatorios.js'");
             expect(worker).toContain("'./js/pages/dashboard-v55.js'");
             expect(worker).toContain("'./js/pages/relatorios-v55.js'");
+            expect(worker).toContain("'./js/navigation-master.js'");
+            expect(worker).not.toContain("'./css/technician-history.css'");
+            expect(worker).not.toContain("'./css/wwm-design-system.css'");
             expect(fs.existsSync(path.join(output, 'js/config.js'))).toBe(true);
             for (const sourceCss of [
                 'css/style.css',
