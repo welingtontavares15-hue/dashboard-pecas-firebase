@@ -19,7 +19,7 @@
 
     function ensureSmartLayer() {
         let smartCss = document.querySelector('link[data-wwm-smart-layout]');
-        if (!smartCss) {
+        if (!smartCss && document.documentElement.dataset.wwmStylesBundled !== 'true') {
             smartCss = document.createElement('link');
             smartCss.rel = 'stylesheet';
             smartCss.href = 'css/wwm-smart-layout.css?v=20260830a';
@@ -38,7 +38,7 @@
 
     function ensureDeviceLayoutLayer() {
         let deviceCss = document.querySelector('link[data-wwm-device-layout]');
-        if (!deviceCss) {
+        if (!deviceCss && document.documentElement.dataset.wwmStylesBundled !== 'true') {
             deviceCss = document.createElement('link');
             deviceCss.rel = 'stylesheet';
             deviceCss.href = 'css/desktop-mobile-premium.css?v=20261107a';
@@ -49,7 +49,7 @@
 
     function ensureVisualArchitectureLayer() {
         let architectureCss = document.querySelector('link[data-wwm-visual-architecture]');
-        if (!architectureCss) {
+        if (!architectureCss && document.documentElement.dataset.wwmStylesBundled !== 'true') {
             architectureCss = document.createElement('link');
             architectureCss.rel = 'stylesheet';
             architectureCss.href = 'css/visual-architecture-v72.css?v=20260830a';
@@ -87,6 +87,8 @@
     }
 
     function keepReferenceThemeLast() {
+        // O build ja aplicou a ordem final dos estilos; nao reordenar bundles.
+        if (document.documentElement.dataset.wwmStylesBundled === 'true') return;
         const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
         const referenceLink = links.find((item) => item.href.includes('/css/wwm-reference-theme.css'));
         const responsiveLink = links.find((item) => item.href.includes('/css/responsive-system.css'));
