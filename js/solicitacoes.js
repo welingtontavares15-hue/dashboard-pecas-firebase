@@ -1116,6 +1116,11 @@ const Solicitacoes = {
                             <label>Cliente</label>
                             <strong>${Utils.escapeHtml(sol.cliente || 'Não informado')}</strong>
                         </div>
+                        ${sol.equipamento ? `
+                        <div class="technician-summary-card technician-summary-card-wide">
+                            <label>Equipamento</label>
+                            <strong>${Utils.escapeHtml(sol.equipamento)}</strong>
+                        </div>` : ''}
                         <div class="technician-summary-card">
                             <label>Status atual</label>
                             <div>${Utils.renderStatusBadge(normalizedStatus)}</div>
@@ -1201,6 +1206,11 @@ const Solicitacoes = {
                         <label>Cliente</label>
                         <p><strong>${Utils.escapeHtml(sol.cliente || 'Nao informado')}</strong></p>
                     </div>
+                    ${sol.equipamento ? `
+                    <div class="form-group">
+                        <label>Equipamento</label>
+                        <p><strong>${Utils.escapeHtml(sol.equipamento)}</strong></p>
+                    </div>` : ''}
                     <div class="form-group" data-division-details="true">
                         <label>Divisão</label>
                         <p><strong>${Utils.escapeHtml(this.getDivisionLabel(sol.divisao))}</strong></p>
