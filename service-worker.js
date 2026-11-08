@@ -1,3 +1,4 @@
+// Atualizacao do icone de instalacao PWA (mantendo a versao funcional v88).
 const CACHE_VERSION = 'v88-review-fixes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
@@ -40,7 +41,7 @@ const PRECACHE = {
     './css/wwm-design-system.css',
     './css/visual-architecture-v72.css',
     './manifest.webmanifest',
-    './icons/icon.svg',
+    './icons/icon.svg?v=20261108-parts',
     './health/firebase-healthcheck.html',
     './js/config.js',
     './js/firebase-config.js',
