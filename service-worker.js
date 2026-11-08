@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v87-reports-insights';
+const CACHE_VERSION = 'v88-review-fixes';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 

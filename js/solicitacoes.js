@@ -638,7 +638,7 @@ const Solicitacoes = {
                         <td><strong>#${sol.numero}</strong>${this.renderDivisionBadge(sol)}</td>
                         <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>
                         <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
-                        <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
+                        <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short).replace(/-/g, '\u2011')}</td>
                         <td>${Utils.formatNumber(itemQuantity)}</td>
                         <td>${Utils.renderStatusBadge(normalizedStatus)}</td>
                         <td>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : '-'}</td>
@@ -674,7 +674,7 @@ const Solicitacoes = {
                     <td><strong>#${sol.numero}</strong>${this.renderDivisionBadge(sol)}</td>
                     <td>${Utils.escapeHtml(this.getRequesterName(sol, '-'))}</td>
                     <td>${Utils.escapeHtml(sol.cliente || 'Não informado')}</td>
-                    <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short)}</td>
+                    <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short).replace(/-/g, '\u2011')}</td>
                     <td>${Utils.formatCurrency(sol.total)}</td>
                     <td>${Utils.renderStatusBadge(normalizedStatus)}</td>
                     <td>${Utils.formatDate(sol.data || sol.createdAt)}</td>

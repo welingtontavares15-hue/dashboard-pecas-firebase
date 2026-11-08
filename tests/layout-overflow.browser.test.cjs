@@ -164,6 +164,30 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                     }
                 }
 
+                if (role === 'administrador' && width >= 1280) {
+                    // Rodapé do menu: o nome não pode quebrar no meio nem ser cortado
+                    // ("Administrad/or"), e com o menu recolhido nada pode sair da moldura.
+                    const footer = await page.evaluate(async () => {
+                        const problems = [];
+                        const name = document.getElementById('user-name');
+                        name.textContent = 'Administrador';
+                        await new Promise((resolve) => setTimeout(resolve, 50));
+                        if (name.getClientRects().length > 1 || name.getBoundingClientRect().height > 22) problems.push('nome do usuário quebrou em mais de uma linha');
+                        if (name.scrollWidth > name.clientWidth + 1) problems.push('nome do usuário cortado');
+                        App.toggleSidebar();
+                        await new Promise((resolve) => setTimeout(resolve, 400));
+                        const box = document.querySelector('#sidebar .sidebar-footer').getBoundingClientRect();
+                        document.querySelectorAll('#sidebar .sidebar-footer :is(button, .user-avatar)').forEach((node) => {
+                            const rect = node.getBoundingClientRect();
+                            if (rect.width && (rect.left < box.left - 1 || rect.right > box.right + 1)) problems.push('menu recolhido: botão fora do rodapé');
+                        });
+                        App.toggleSidebar();
+                        await new Promise((resolve) => setTimeout(resolve, 300));
+                        return [...new Set(problems)];
+                    });
+                    footer.forEach((problem) => failures.push(`${width}px rodapé do menu: ${problem}`));
+                }
+
                 if (role === 'administrador') {
                     // Sub-abas de Relatórios também não podem cortar conteúdo.
                     for (const tab of ['pecas', 'tecnicos', 'meses', 'historico']) {

@@ -914,6 +914,9 @@ body.wwm-ds #content-area .kpi-card { --ds-kpi-dir: row; }
 body.wwm-ds #content-area .kpi-card .kpi-content { align-self: stretch !important; }
 
 body.wwm-ds #content-area :is(.kpi-card h4, .v59-kpi-top span, .report-summary-card h4) {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
     margin: 0 0 6px !important;
     color: var(--ds-muted) !important;
     font-size: 12.5px !important;
@@ -2145,17 +2148,50 @@ body.wwm-ds #sidebar .user-details { flex: 1 1 auto !important; }
 body.wwm-ds #sidebar .sidebar-footer { gap: 6px !important; }
 body.wwm-ds #sidebar .user-info { gap: 8px !important; }
 body.wwm-ds #sidebar .user-avatar { width: 32px !important; height: 32px !important; min-width: 32px !important; flex: 0 0 32px !important; font-size: 12px !important; }
-body.wwm-ds #sidebar #user-name {
-    display: -webkit-box !important;
-    -webkit-box-orient: vertical !important;
-    -webkit-line-clamp: 2 !important;
-    white-space: normal !important;
-    overflow: hidden !important;
-    text-overflow: clip !important;
-    font-size: 13px !important;
-    line-height: 1.25 !important;
-    overflow-wrap: anywhere !important;
+/* Nome numa linha só, sem quebrar a palavra no meio ("Administrad/or");
+   se não couber, reticências (o nome completo fica no title). */
+body.wwm-ds #sidebar .sidebar-footer {
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    align-self: stretch !important;
+    margin: 12px !important;
 }
+/* Uma camada antiga fixa o rodapé com position:absolute e left/right 17px;
+   somado à margem, sobravam só ~76px para o nome. */
+body.wwm-ds #sidebar:not(.collapsed) .sidebar-footer[style], body.wwm-ds #sidebar:not(.collapsed) .sidebar-footer {
+    left: 12px !important;
+    right: 12px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+body.wwm-ds #sidebar #user-name,
+body.wwm-ds #sidebar #user-role {
+    display: block !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+body.wwm-ds #sidebar #user-name { font-size: 13px !important; line-height: 1.3 !important; }
+/* Menu recolhido: rodapé estreito e centralizado, botões dentro da moldura */
+body.wwm-ds #sidebar.collapsed .sidebar-footer {
+    left: 10px !important;
+    right: 10px !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+body.wwm-ds #sidebar.collapsed .sidebar-footer .user-info { flex: 0 0 auto !important; justify-content: center !important; }
+body.wwm-ds #sidebar.collapsed .sidebar-footer .user-details { display: none !important; }
+body.wwm-ds #sidebar.collapsed .sidebar-actions { flex-direction: column !important; align-items: center !important; align-self: center !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+body.wwm-ds #sidebar.collapsed .sidebar-actions .btn-icon { margin: 0 !important; }
 body.wwm-ds #sidebar .user-role { font-size: 10px !important; letter-spacing: .04em !important; }
 body.wwm-ds #sidebar .sidebar-actions { gap: 4px !important; }
 body.wwm-ds #sidebar .sidebar-actions .btn-icon { width: 28px !important; height: 28px !important; min-width: 28px !important; min-height: 28px !important; }
@@ -2176,6 +2212,8 @@ body.wwm-ds :is(#content-area, .modal-body) table.table thead th:last-child { pa
 body.wwm-ds :is(#content-area, .modal-body) table.table thead th::after { right: 8px !important; opacity: .5 !important; }
 
 @media (min-width: 768px) {
+    body.wwm-ds #sol-table-container .table.sol-table--gestao { table-layout: auto !important; width: 100% !important; }
+    body.wwm-ds #content-area table.table tbody td:is([data-label="Cliente"], [data-label="Técnico"], [data-label="Peça"], [data-label="Descrição"]) { overflow-wrap: normal !important; word-break: normal !important; }
     body.wwm-ds :is(#content-area, .modal-body) table.table tbody td { padding: 10px 12px !important; }
 
     /* Colunas de texto longo quebram em até duas linhas em vez de cortar com
@@ -2197,14 +2235,14 @@ body.wwm-ds :is(#content-area, .modal-body) table.table thead th::after { right:
 }
 
 @media (min-width: 768px) and (max-width: 1500px) {
-    body.wwm-ds #approvals-table-container table.table :is(td, th):last-child:is(:has(.actions), [data-label="Ações"]) {
+    body.wwm-ds :is(#approvals-table-container, #sol-table-container) table.table :is(td, th):last-child:is(:has(.actions), [data-label="Ações"]) {
         position: sticky !important;
         right: 0 !important;
         z-index: 1 !important;
         background: var(--ds-surface-solid) !important;
         box-shadow: -10px 0 12px -10px rgba(0, 0, 0, .55) !important;
     }
-    body.wwm-ds #approvals-table-container table.table thead th:last-child { z-index: 2 !important; background: var(--ds-surface-2) !important; }
+    body.wwm-ds :is(#approvals-table-container, #sol-table-container) table.table thead th:last-child { z-index: 2 !important; background: var(--ds-surface-2) !important; }
     body.wwm-ds.wwm-page-relatorios #content-area .dashboard-compact-table .table { min-width: 880px !important; }
 }
 
@@ -2349,7 +2387,7 @@ body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-hint {
 body.wwm-ds #content-area .ri-filters { display: flex !important; flex-direction: column !important; align-items: stretch !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-grid { width: 100% !important; max-width: none !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(select, input, .status-filter, .status-filter-trigger, .premium-multi-filter-trigger) { width: 100% !important; max-width: none !important; }
-body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, 1fr) max-content !important; }
+body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) minmax(0, .85fr) minmax(170px, 1.15fr) max-content !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-actions .report-filter-actions-row { display: flex !important; gap: 8px !important; flex-wrap: nowrap !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-actions .btn { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; white-space: nowrap !important; padding-inline: 14px !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-actions { min-width: 0 !important; }
