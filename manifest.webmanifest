@@ -7,6 +7,12 @@
   "background_color": "#061d32",
   "icons": [
     {
+      "src": "./icons/wwm-shield-dishwasher.webp?v=20261108-new-shield",
+      "sizes": "256x256",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
       "src": "./icons/icon.svg?v=20261108-washer-v94",
       "sizes": "any",
       "type": "image/svg+xml",
