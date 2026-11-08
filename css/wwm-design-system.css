@@ -899,6 +899,20 @@ body.wwm-ds #content-area :is(.kpi-icon, .report-summary-icon) i { color: inheri
 
 body.wwm-ds #content-area .kpi-content { min-width: 0 !important; flex: 1 1 auto !important; }
 
+/* Valores sempre inteiros: a fonte acompanha a largura do cartão
+   (antes "R$ 12.360,0" era cortado com 5 indicadores por linha). */
+/* O contêiner é a coluna de texto (não o cartão inteiro), para a fonte medir
+   o espaço que sobra ao lado do ícone. */
+body.wwm-ds #content-area :is(.kpi-content, .report-summary-card > div) { container-type: inline-size; flex: 1 1 auto !important; min-width: 0 !important; }
+body.wwm-ds #content-area .v59-kpi { container-type: inline-size; }
+html body.wwm-ds #content-area :is(.kpi-value, .report-summary-card strong) { font-size: clamp(15px, 12cqi, 24px) !important; }
+html body.wwm-ds #content-area .v59-kpi > strong { font-size: clamp(19px, 11cqi, 28px) !important; }
+/* Relatórios: 5 indicadores por linha => ícone acima do texto */
+body.wwm-ds #content-area .report-summary-card { --ds-kpi-dir: column; --ds-kpi-gap: 12px; }
+body.wwm-ds #content-area .report-summary-card > div { align-self: stretch !important; width: 100% !important; }
+body.wwm-ds #content-area .kpi-card { --ds-kpi-dir: row; }
+body.wwm-ds #content-area .kpi-card .kpi-content { align-self: stretch !important; }
+
 body.wwm-ds #content-area :is(.kpi-card h4, .v59-kpi-top span, .report-summary-card h4) {
     margin: 0 0 6px !important;
     color: var(--ds-muted) !important;
@@ -1076,7 +1090,7 @@ body.wwm-ds .status-badge {
 }
 
 body.wwm-ds .status-badge i { font-size: 10.5px !important; color: inherit !important; }
-body.wwm-ds #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(6) { width: 164px !important; }
+@media (min-width: 768px) { body.wwm-ds #sol-table-container .table.sol-table--gestao :is(th, td):nth-child(6) { width: 164px !important; } }
 
 body.wwm-ds .status-badge.status-pendente-aprovacao { --ds-st-fg: var(--ds-warn); --ds-st-bg: var(--ds-warn-bg); --ds-st-bd: var(--ds-warn-bd); }
 body.wwm-ds .status-badge.status-aprovado          { --ds-st-fg: var(--ds-info); --ds-st-bg: var(--ds-info-bg); --ds-st-bd: var(--ds-info-bd); }
@@ -2052,9 +2066,9 @@ body.wwm-ds .login-card .toggle-password { color: var(--ds-subtle) !important; b
         font-size: 14px !important;
     }
 
-    body.wwm-ds #content-area :is(.kpi-value, .report-summary-card strong) { font-size: 19px !important; }
+    html body.wwm-ds #content-area :is(.kpi-value, .report-summary-card strong) { font-size: clamp(15px, 13cqi, 21px) !important; }
     body.wwm-ds #content-area .v59-kpi { padding: 14px !important; }
-    body.wwm-ds #content-area .v59-kpi > strong { font-size: 20px !important; }
+    html body.wwm-ds #content-area .v59-kpi > strong { font-size: clamp(16px, 11.5cqi, 22px) !important; }
     body.wwm-ds #content-area .v59-kpi-top i { flex-basis: 32px !important; width: 32px !important; height: 32px !important; line-height: 32px !important; font-size: 13px !important; margin-right: 8px !important; }
 
     body.wwm-ds .v59-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
@@ -2115,5 +2129,212 @@ body.wwm-ds .login-card .toggle-password { color: var(--ds-subtle) !important; b
     body.wwm-ds #content-area :is(.kpi-grid, .supplier-summary-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     body.wwm-ds #content-area :is(.page-actions, .corporate-action-row) { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; width: auto !important; }
     body.wwm-ds #content-area :is(.page-actions, .corporate-action-row) :is(.btn, summary.btn) { width: auto !important; }
+}
+
+/* ==========================================================================
+   v86 — refinamentos da auditoria (estética, layout e usabilidade)
+   Paleta inalterada; só estrutura, espaçamento e comportamento.
+   ========================================================================== */
+
+/* Menu lateral: sem o ponto decorativo sobre "Visão Geral" (não indicava nada)
+   e nome do usuário inteiro no rodapé. */
+body.wwm-ds #sidebar .nav-item::after { content: none !important; display: none !important; }
+body.wwm-ds #sidebar .sidebar-footer { justify-content: space-between !important; }
+body.wwm-ds #sidebar .user-info { flex: 1 1 0 !important; }
+body.wwm-ds #sidebar .user-details { flex: 1 1 auto !important; }
+body.wwm-ds #sidebar .sidebar-footer { gap: 6px !important; }
+body.wwm-ds #sidebar .user-info { gap: 8px !important; }
+body.wwm-ds #sidebar .user-avatar { width: 32px !important; height: 32px !important; min-width: 32px !important; flex: 0 0 32px !important; font-size: 12px !important; }
+body.wwm-ds #sidebar #user-name {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere !important;
+}
+body.wwm-ds #sidebar .user-role { font-size: 10px !important; letter-spacing: .04em !important; }
+body.wwm-ds #sidebar .sidebar-actions { gap: 4px !important; }
+body.wwm-ds #sidebar .sidebar-actions .btn-icon { width: 28px !important; height: 28px !important; min-width: 28px !important; min-height: 28px !important; }
+
+/* Relatórios: ícone e texto juntos no topo do cartão, sem vão no meio */
+body.wwm-ds #content-area .report-summary-card { justify-content: flex-start !important; }
+body.wwm-ds #content-area .report-summary-card > div { justify-content: flex-start !important; align-content: start !important; }
+
+/* Linha "N encontradas": discreta e alinhada ao conteúdo, nunca centralizada. */
+body.wwm-ds #content-area .filter-context-summary { display: flex !important; justify-content: flex-start !important; text-align: left !important; margin: -6px 0 -4px !important; }
+body.wwm-ds #content-area .filter-context-summary .helper-text { text-align: left !important; font-size: 12.5px !important; }
+
+/* Cabeçalho das tabelas: ícone de ordenação com espaço próprio
+   (antes colava no texto: "REGIÃO⇕", "PRIORIDADE⇕"). */
+body.wwm-ds :is(#content-area, .modal-body) table.table thead th { padding: 0 24px 0 12px !important; }
+body.wwm-ds :is(#content-area, .modal-body) table.table thead th :is(.sort-icon, .fa-sort, .fa-sort-up, .fa-sort-down, i) { margin-left: 6px !important; opacity: .55 !important; font-size: 10px !important; }
+body.wwm-ds :is(#content-area, .modal-body) table.table thead th:last-child { padding-right: 12px !important; }
+body.wwm-ds :is(#content-area, .modal-body) table.table thead th::after { right: 8px !important; opacity: .5 !important; }
+
+@media (min-width: 768px) {
+    body.wwm-ds :is(#content-area, .modal-body) table.table tbody td { padding: 10px 12px !important; }
+
+    /* Colunas de texto longo quebram em até duas linhas em vez de cortar com
+       "..." ou empurrar a coluna Ações para fora da tela (Aprovações em 1440px). */
+    body.wwm-ds #content-area table.table tbody td:is([data-label="Cliente"], [data-label="Técnico"], [data-label="Peça"], [data-label="Descrição"]) {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.35 !important;
+        min-width: 110px !important;
+    }
+    body.wwm-ds #content-area table.table thead th { white-space: normal !important; line-height: 1.25 !important; }
+    body.wwm-ds #content-area table.table tbody td[data-label="Tempo Aguardando"] { white-space: normal !important; min-width: 120px !important; line-height: 1.35 !important; }
+    body.wwm-ds #content-area table.table tbody td strong { letter-spacing: 0 !important; }
+
+    /* Se a tabela ainda passar da largura (notebook), a coluna Ações fica
+       fixa à direita durante a rolagem horizontal: aprovar/rejeitar sempre à vista. */
+}
+
+@media (min-width: 768px) and (max-width: 1500px) {
+    body.wwm-ds #approvals-table-container table.table :is(td, th):last-child:is(:has(.actions), [data-label="Ações"]) {
+        position: sticky !important;
+        right: 0 !important;
+        z-index: 1 !important;
+        background: var(--ds-surface-solid) !important;
+        box-shadow: -10px 0 12px -10px rgba(0, 0, 0, .55) !important;
+    }
+    body.wwm-ds #approvals-table-container table.table thead th:last-child { z-index: 2 !important; background: var(--ds-surface-2) !important; }
+    body.wwm-ds.wwm-page-relatorios #content-area .dashboard-compact-table .table { min-width: 880px !important; }
+}
+
+/* Formulário de nova solicitação: "Adicionar Peça" orienta antes de escolher o fornecedor. */
+body.wwm-ds .modal-body .wwm-part-picker-hint {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 4px 0 12px !important;
+    padding: 12px 14px !important;
+    border: 1px dashed var(--ds-border-strong) !important;
+    border-radius: var(--ds-r-md) !important;
+    background: var(--ds-surface-2) !important;
+    color: var(--ds-muted) !important;
+    font-size: 13px !important;
+}
+body.wwm-ds .modal-body .wwm-part-picker-hint i { color: var(--ds-green-400) !important; }
+
+@media (max-width: 767px) {
+    /* Visão Geral: período e divisão lado a lado; ações lado a lado. */
+    body.wwm-ds .v59-hero-toolbar { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+    body.wwm-ds .v59-period-control { min-width: 0 !important; padding: 8px 10px !important; }
+    body.wwm-ds .v59-period-control select { font-size: 13.5px !important; padding-right: 20px !important; min-width: 0 !important; width: 100% !important; }
+    body.wwm-ds .v59-period-control > i { display: none !important; }
+    body.wwm-ds .v59-period-control { grid-template-columns: minmax(0, 1fr) !important; }
+    body.wwm-ds .v59-hero-actions { grid-column: 1 / -1 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+    body.wwm-ds .v59-hero-actions > * { width: 100% !important; min-width: 0 !important; padding-inline: 10px !important; }
+
+    /* Relatórios: filtros em 2 colunas, campos na largura total (antes 11
+       campos estreitos empilhados ocupavam ~1.000px). */
+    body.wwm-ds #content-area .page-filters > * { width: 100% !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px 10px !important;
+        width: 100% !important;
+    }
+    body.wwm-ds #content-area .premium-report-filter-grid > * { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid :is(select, input, .premium-multi-filter-trigger, .status-filter-trigger, .status-filter) { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid > :is(.premium-report-filter-actions, .report-filter-field--status, .report-filter-field--period) { grid-column: 1 / -1 !important; }
+    body.wwm-ds #content-area .premium-report-filter-actions .report-filter-actions-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+    body.wwm-ds #content-area .premium-report-filter-actions > label { display: none !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid .status-filter-trigger { width: 100% !important; }
+    body.wwm-ds #content-area .premium-report-filter-shell,
+    body.wwm-ds #content-area .report-filters-enterprise { padding: 14px !important; }
+
+    /* Tabelas em cartões: compactos, rótulo à esquerda e valor à direita,
+       sem caixa por campo (antes cada cartão tinha ~470px). */
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 0 !important;
+        margin: 0 0 12px !important;
+        padding: 12px 14px !important;
+        border: 1px solid var(--ds-border) !important;
+        border-radius: var(--ds-r-lg) !important;
+        background: var(--ds-surface-card) !important;
+        box-shadow: var(--ds-shadow-xs) !important;
+    }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr:last-child { margin-bottom: 0 !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr:hover td { background: transparent !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr.sla-alert { border-color: var(--ds-warn-bd) !important; box-shadow: inset 3px 0 0 var(--ds-warn-solid) !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr.sla-alert td,
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody tr.sla-alert td:first-child { background: transparent !important; box-shadow: none !important; }
+
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td {
+        display: grid !important;
+        grid-template-columns: 104px minmax(0, 1fr) !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 7px 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid var(--ds-surface-3) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        text-align: left !important;
+        font-size: 13.5px !important;
+        grid-column: auto !important;
+    }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child { border-bottom: 0 !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td::before {
+        position: static !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: var(--ds-muted) !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        letter-spacing: .05em !important;
+        text-transform: uppercase !important;
+        white-space: normal !important;
+        line-height: 1.25 !important;
+    }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td > * { min-width: 0 !important; max-width: 100% !important; justify-self: start !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td .status-badge { white-space: nowrap !important; }
+
+    /* Primeira célula (número/código/nome) vira o título do cartão */
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child:not(:has(input[type="checkbox"])) {
+        grid-template-columns: minmax(0, 1fr) !important;
+        padding: 0 0 8px !important;
+        font-size: 15px !important;
+    }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child:not(:has(input[type="checkbox"]))::before { display: none !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child strong { font-size: 15px !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child .solicitation-division-badge { margin: 4px 0 0 !important; }
+
+    /* Caixa de seleção (Aprovações): discreta no topo do cartão */
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child:has(input[type="checkbox"]) { grid-template-columns: auto !important; padding: 0 0 6px !important; border-bottom: 0 !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:first-child:has(input[type="checkbox"])::before { display: none !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:nth-child(2):has(strong) { padding-top: 0 !important; }
+
+    /* Ações: linha inteira, botões dividem o espaço */
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child:has(.actions) { grid-template-columns: minmax(0, 1fr) !important; padding: 10px 0 0 !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child:has(.actions)::before { display: none !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child .actions { display: flex !important; width: 100% !important; gap: 8px !important; justify-self: stretch !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child .actions > :is(.btn, details) { flex: 1 1 0 !important; width: auto !important; min-width: 0 !important; height: 40px !important; min-height: 40px !important; }
+    body.wwm-ds #content-area .corporate-adaptive-table table.table tbody td:last-child .actions > details > summary { width: 100% !important; height: 40px !important; min-height: 40px !important; }
+
+    body.wwm-ds #content-area .card:has(.corporate-adaptive-table) { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; overflow: visible !important; }
+    body.wwm-ds #content-area .card:has(.corporate-adaptive-table) .card-body { padding: 0 !important; }
+    body.wwm-ds #content-area .card:has(.corporate-adaptive-table) .table-info { padding: 4px 4px 12px !important; border-bottom: 0 !important; background: transparent !important; }
+    body.wwm-ds #content-area .card:has(.corporate-adaptive-table) .pagination { padding: 12px 0 0 !important; border-top: 0 !important; justify-content: center !important; background: transparent !important; }
 }
 }

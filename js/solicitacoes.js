@@ -179,7 +179,7 @@ const Solicitacoes = {
             </div>
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
 
-            <details class="filter-panel compact wwm-filter-panel" id="sol-filter-panel" open>
+            <details class="filter-panel compact wwm-filter-panel" id="sol-filter-panel" ${this.hasActiveFilters() || window.innerWidth > 767 ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="sol-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar filter-panel-body">
                     <div class="search-box">
@@ -1679,7 +1679,7 @@ const Solicitacoes = {
                     <!-- Parts Selection with Auto-complete -->
                     <div class="form-group" id="parts-section">
                         <label>Adicionar Peça</label>
-                        <div id="parts-autocomplete"></div>
+                        <div id="parts-autocomplete">${this.currentSolicitation.fornecedorId ? '' : '<p class="wwm-part-picker-hint"><i class="fas fa-circle-info" aria-hidden="true"></i>Selecione o fornecedor acima para buscar e adicionar peças.</p>'}</div>
                     </div>
 
                     <!-- Items List -->
