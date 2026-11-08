@@ -35,7 +35,7 @@ function seedSyntheticData() {
     const statuses = ['pendente', 'pendente', 'aprovada', 'em-transito', 'finalizada', 'rejeitada', 'finalizada', 'pendente'];
     const solicitations = statuses.map((status, i) => ({
         id: 's' + i, numero: 'REQ-20261107-000' + (i + 1), status,
-        tecnicoId: 't1', tecnicoNome: 'Técnico Sintético', fornecedorId: 'f1', fornecedorNome: 'Fornecedor Sintético',
+        tecnicoId: i % 2 ? 't2' : 't1', tecnicoNome: i % 2 ? 'Técnica Sintética' : 'Técnico Sintético', fornecedorId: 'f1', fornecedorNome: 'Fornecedor Sintético',
         cliente: 'Cliente ' + (i + 1), data: new Date(now - i * day).toISOString().slice(0, 10),
         createdAt: now - i * day, updatedAt: now - i * day,
         approvedAt: ['aprovada', 'em-transito', 'finalizada'].includes(status) ? now - i * day : null,
@@ -49,7 +49,7 @@ function seedSyntheticData() {
             { id: 'u1', username: 'gestor.sintetico', name: 'Gestor Sintético', role: 'administrador' },
             { id: 'u2', username: 'tecnico.sintetico', name: 'Técnico Sintético', role: 'tecnico', tecnicoId: 't1' }
         ],
-        [K.TECHNICIANS]: [{ id: 't1', nome: 'Técnico Sintético', regiao: 'SP', ativo: true }],
+        [K.TECHNICIANS]: [{ id: 't1', nome: 'Técnico Sintético', regiao: 'SP', ativo: true }, { id: 't2', nome: 'Técnica Sintética', regiao: 'MG', ativo: true }],
         [K.SUPPLIERS]: [{ id: 'f1', nome: 'Fornecedor Sintético', ativo: true }],
         [K.PARTS]: Array.from({ length: 12 }, (_, i) => ({ id: 'p' + i, codigo: 'P10' + i, descricao: 'Peça sintética ' + i, valor: 150 + i * 30, fornecedorId: 'f1', ativo: true })),
         [K.SOLICITATIONS]: solicitations,
@@ -161,6 +161,39 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                             return a.left >= c.left - 1 ? null : `ações começam em ${Math.round(a.left)}, célula em ${Math.round(c.left)}`;
                         });
                         if (overlap) failures.push(`${width}px solicitacoes: ${overlap}`);
+                    }
+                }
+
+                if (role === 'administrador') {
+                    // Sub-abas de Relatórios também não podem cortar conteúdo.
+                    for (const tab of ['pecas', 'tecnicos', 'meses', 'historico']) {
+                        await page.evaluate(id => App.navigate('relatorios').then(() => Relatorios.switchReport(id)), tab);
+                        await new Promise(resolve => setTimeout(resolve, 700));
+                        const issues = await page.evaluate(`(${collectOverflow.toString()})()`);
+                        if (issues.length) failures.push(`${width}px relatorios/${tab}: ${issues.slice(0, 3).join(' | ')}`);
+                    }
+
+                    if (width === 1440) {
+                        // Custo aprovado precisa respeitar o filtro de técnico (antes ignorava
+                        // os filtros de seleção múltipla e mostrava o total geral).
+                        const result = await page.evaluate(async () => {
+                            Relatorios.switchReport('visao-geral');
+                            const all = Relatorios.buildCostAnalysis();
+                            const expected = (all.byTechnician || []).find((row) => row.nome === 'Técnica Sintética');
+                            Relatorios.toggleAdvancedFilters?.();
+                            const box = [...document.querySelectorAll('input[type="checkbox"]')].find((input) => input.value === 't2');
+                            if (!box || !expected) return { error: 'filtro de técnico ou dados indisponíveis' };
+                            box.checked = true;
+                            Relatorios.applyFilters();
+                            await new Promise((resolve) => setTimeout(resolve, 300));
+                            const filtered = Relatorios.buildCostAnalysis();
+                            Relatorios.clearFilters();
+                            return { expected: expected.totalCost, got: filtered.totalCost, total: all.totalCost };
+                        });
+                        if (result.error) failures.push(`relatorios: ${result.error}`);
+                        else if (result.got !== result.expected || result.got === result.total) {
+                            failures.push(`relatorios: custo com filtro de técnico = ${result.got}, esperado ${result.expected} (total ${result.total})`);
+                        }
                     }
                 }
 

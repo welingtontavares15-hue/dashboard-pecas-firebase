@@ -20,7 +20,7 @@ describe('reports multi-select enhancement', () => {
     });
 
     test('activates the enhancement from the reports page loader', () => {
-        expect(pageLoader).toContain("import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20260830a'");
+        expect(pageLoader).toContain("import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20261108a'");
         expect(pageLoader).toContain('applyReportsMultiSelect();');
     });
 

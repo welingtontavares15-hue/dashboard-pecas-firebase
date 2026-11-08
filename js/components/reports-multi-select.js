@@ -333,11 +333,19 @@ function buildPremiumReportData(relatorios) {
         cacheKey: ''
     });
 
-    const filteredRecords = baseDataset.records
+    const applyMultiFilters = (records) => records
         .filter((record) => recordMatchesMultiFilters(record, multi))
         .map((record) => scopeRecordToSuppliers(record, multi.fornecedores))
         .map((record) => record ? scopeRecordToCatalogFilters(record, multi) : null)
         .filter(Boolean);
+    const filteredRecords = applyMultiFilters(baseDataset.records);
+    // O custo é reconhecido pela data de aprovação (analytics-cost-recognition.js),
+    // que recalcula a partir de "allRecords". Sem aplicar aqui os mesmos filtros
+    // de seleção múltipla, custo total, rankings e período anterior ignoravam
+    // técnico, cliente, região, fornecedor, peça e categoria.
+    const hasMultiFilters = ['tecnicos', 'regioes', 'clientes', 'fornecedores', 'pecas', 'categorias']
+        .some((key) => normalizeMultiValues(multi[key]).length > 0);
+    const costScopeRecords = hasMultiFilters ? applyMultiFilters(allSolicitations) : allSolicitations;
 
     const dataset = {
         ...baseDataset,
@@ -349,7 +357,7 @@ function buildPremiumReportData(relatorios) {
 
     const analysis = AnalyticsHelper.computeMetrics(dataset, {
         moduleKey: 'relatorios',
-        allRecords: allSolicitations,
+        allRecords: costScopeRecords,
         costStatuses: Array.isArray(filterState.statuses) && filterState.statuses.length > 0
             ? filterState.statuses
             : relatorios.costStatuses
@@ -378,6 +386,22 @@ export function applyReportsMultiSelect() {
 
     Relatorios.getReportData = function getPremiumReportData() {
         return buildPremiumReportData(this);
+    };
+
+    // Reutilizado por outras camadas (ex.: filtro de Divisão) para manter o
+    // custo reconhecido por aprovação no mesmo recorte dos filtros múltiplos.
+    Relatorios.applyPremiumMultiFilters = function applyPremiumMultiFilters(records = []) {
+        const multi = this._premiumMultiFilters || readStoredState();
+        const active = ['tecnicos', 'regioes', 'clientes', 'fornecedores', 'pecas', 'categorias']
+            .some((key) => normalizeMultiValues(multi[key]).length > 0);
+        if (!active) {
+            return records;
+        }
+        return records
+            .filter((record) => recordMatchesMultiFilters(record, multi))
+            .map((record) => scopeRecordToSuppliers(record, multi.fornecedores))
+            .map((record) => record ? scopeRecordToCatalogFilters(record, multi) : null)
+            .filter(Boolean);
     };
 
     Relatorios.renderCostFilters = function renderPremiumCostFilters() {

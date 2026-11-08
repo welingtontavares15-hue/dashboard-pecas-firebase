@@ -10,7 +10,7 @@ describe('mobile usability contract', () => {
         const appVersion = config.match(/version:\s*'([^']+)'/)?.[1];
         const cacheVersion = serviceWorker.match(/const CACHE_VERSION = '([^']+)'/)?.[1];
 
-        expect(appVersion).toBe('v86-ux-audit');
+        expect(appVersion).toBe('v87-reports-insights');
         expect(cacheVersion).toBe(appVersion);
     });
 

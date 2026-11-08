@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v86-ux-audit';
+const CACHE_VERSION = 'v87-reports-insights';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
@@ -86,7 +86,8 @@ const PRECACHE = {
     './js/components/reports-multi-select.js',
     './js/components/reports-division-filter.js',
     './js/components/report-multi-filter-utils.js',
-    './js/components/reports-chart-hardening-v55.js'
+    './js/components/reports-chart-hardening-v55.js',
+    './js/components/reports-insights.js'
   ],
   dashboard: [
     './js/dashboard.js',
