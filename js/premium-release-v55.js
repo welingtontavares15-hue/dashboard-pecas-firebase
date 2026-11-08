@@ -2,7 +2,6 @@
     'use strict';
 
     const RELEASE_VERSION = 'v61-wwm-portal-exact';
-    const ASSET_VERSION = '20261108a';
 
     function installAnalyticsContract() {
         if (!window.AnalyticsHelper && window.AnalyticsEngine) {
@@ -78,10 +77,8 @@
     function installAppContract() {
         if (!window.App || window.App.__premiumReleaseV58Installed) return false;
 
-        window.App.lazyModules.dashboard = `./pages/dashboard-v55.js?v=${ASSET_VERSION}`;
-        window.App.lazyModules.relatorios = `./pages/relatorios-v55.js?v=${ASSET_VERSION}`;
-        delete window.App._lazyLoaded.dashboard;
-        delete window.App._lazyLoaded.relatorios;
+        // As rotas de Dashboard e Relatorios agora sao declaradas no App.
+        // Nao modificar o mapa de modulos durante o bootstrap.
 
         const originalUpdateBreadcrumb = window.App.updateBreadcrumb.bind(window.App);
         window.App.updateBreadcrumb = function updateBreadcrumbV58(pageId) {
