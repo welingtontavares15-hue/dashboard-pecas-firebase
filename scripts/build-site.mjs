@@ -147,6 +147,21 @@ builtWorker = builtWorker.split('\n').filter((line) => {
         && bundleFiles.includes(entry.slice(2))) return false;
     return !inactivePages.has(entry);
 }).join('\n');
+// Folhas de versoes antigas sem importacao no HTML, precache ou carregador
+// de producao. Os fontes permanecem no Git para auditoria e rollback.
+const inactiveStyles = [
+    'css/wwm-dashboard-v57.css',
+    'css/wwm-dashboard-v58.css'
+];
+for (const obsolete of inactiveStyles) {
+    const relative = './' + obsolete;
+    if (html.includes(obsolete) || worker.includes(relative) || bundleFiles.includes(obsolete)) {
+        throw new Error('Estilo historico ainda referenciado: ' + obsolete);
+    }
+    const target = path.join(OUT, obsolete);
+    if (fs.existsSync(target)) fs.rmSync(target);
+}
+
 // Rotas antigas sem consumidores no mapa do App nao devem compor o deploy.
 // Os fontes antigos permanecem no Git para rollback e comparacao funcional.
 for (const legacyPage of ['js/pages/dashboard.js', 'js/pages/relatorios.js']) {

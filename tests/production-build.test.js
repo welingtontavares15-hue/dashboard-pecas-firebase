@@ -54,6 +54,10 @@ describe('production build: CSS and canonical routes', () => {
                 expect(fs.existsSync(path.join(output, oldPage))).toBe(false);
             }
             expect(fs.existsSync(path.join(output, 'js/pages/dashboard-v55.js'))).toBe(true);
+            for (const obsolete of ['css/wwm-dashboard-v57.css', 'css/wwm-dashboard-v58.css']) {
+                expect(fs.existsSync(path.join(output, obsolete))).toBe(false);
+                expect(fs.existsSync(path.join(root, obsolete))).toBe(true);
+            }
             expect(fs.existsSync(path.join(output, 'js/pages/relatorios-v55.js'))).toBe(true);
             expect(cssTheme).toContain('/* BEGIN css/wwm-design-system.css */');
 
