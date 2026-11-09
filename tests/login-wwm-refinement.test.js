@@ -10,7 +10,7 @@ describe('Login WWM - refinamento visual responsivo', () => {
   const worker = read('service-worker.js');
 
   test('identidade aprovada, acesso e campos preservados', () => {
-    expect(html).toContain('css/login-wwm-refinement.css?v=20261108-login2');
+    expect(html).toContain('css/login-wwm-refinement.css?v=20261108-login3');
     expect(html).toContain('id="login-form"');
     expect(html).toContain('id="login-username"');
     expect(html).toContain('id="login-password"');
@@ -33,6 +33,8 @@ describe('Login WWM - refinamento visual responsivo', () => {
     expect(css).toContain('max-width: 560px');
     expect(css).toContain('max-width: 355px');
     expect(css).toContain('margin-left: 10px !important; /* afasta o título do divisor');
+    expect(css).toContain('margin-left: 6px !important;');
+    expect(css).toContain('margin-right: -6px !important;');
   });
 
   test('CSS isolado no login e pre-cache atualizado', () => {

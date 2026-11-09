@@ -282,6 +282,8 @@
     body.wwm-reference-theme.wwm-ds #login-screen .wwm-login-divider {
       display: block !important;
       height: 29px !important;
+      margin-left: 6px !important;
+      margin-right: -6px !important; /* centraliza a linha no vão óptico sem deslocar o título */
     }
     body.wwm-reference-theme.wwm-ds #login-screen .wwm-login-header > p {
       margin-left: 10px !important; /* afasta o título do divisor sem deslocar a marca */
