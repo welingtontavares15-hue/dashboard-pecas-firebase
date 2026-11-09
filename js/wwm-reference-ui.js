@@ -198,6 +198,71 @@
         markCurrentPage();
     }
 
+    // Estado real da sincronização no cabeçalho. Antes o texto era fixo
+    // ("Sincronizado · Agora há pouco") e aparecia mesmo sem nuvem/offline.
+    let lastSyncAt = 0;
+    function formatSyncTime(timestamp) {
+        try {
+            return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        } catch (_error) {
+            return '';
+        }
+    }
+
+    function resolveSyncState() {
+        const manager = window.DataManager;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return { state: 'offline', title: 'Sem internet', detail: 'Usando dados locais' };
+        }
+        const ready = Boolean((window.firebaseUser && window.__firebaseSyncStarted) || manager?.isCloudReady?.());
+        if (ready) {
+            if (!lastSyncAt) {
+                lastSyncAt = Date.now();
+            }
+            return { state: 'ok', title: 'Sincronizado', detail: `Atualizado às ${formatSyncTime(lastSyncAt)}` };
+        }
+        if (manager?.isCloudConnecting?.()) {
+            return { state: 'connecting', title: 'Conectando', detail: 'Aguardando a nuvem' };
+        }
+        return { state: 'local', title: 'Somente local', detail: 'Nuvem indisponível' };
+    }
+
+    function renderSyncStatus() {
+        const box = document.querySelector('.main-header .sync-status');
+        if (!box) {
+            return;
+        }
+        const { state, title, detail } = resolveSyncState();
+        box.dataset.syncState = state;
+        const strong = box.querySelector('span > strong');
+        const small = box.querySelector('span > small');
+        if (strong && strong.textContent !== title) {
+            strong.textContent = title;
+        }
+        if (small && small.textContent !== detail) {
+            small.textContent = detail;
+        }
+        box.setAttribute('title', `${title} · ${detail}`);
+        const button = document.getElementById('sync-btn');
+        button?.setAttribute('aria-label', `Atualizar dados (${title.toLowerCase()})`);
+    }
+
+    function installSyncStatus() {
+        if (window.__wwmSyncStatusInstalled) {
+            return;
+        }
+        window.__wwmSyncStatusInstalled = true;
+        const touch = () => {
+            lastSyncAt = Date.now();
+            renderSyncStatus();
+        };
+        ['cloud-sync-applied', 'cloud-sync-pushed'].forEach((name) => window.addEventListener(name, touch));
+        window.addEventListener('sync:status', (event) => (event.detail?.state === 'done' ? touch() : renderSyncStatus()));
+        ['cloud-sync-status', 'firebase-ready', 'online', 'offline'].forEach((name) => window.addEventListener(name, renderSyncStatus));
+        window.setInterval(renderSyncStatus, 30000);
+        renderSyncStatus();
+    }
+
     function installAppVisualHook() {
         if (!window.App || window.App.__wwmReferenceUiInstalled) {
             return false;
@@ -229,6 +294,7 @@
         enrichShell();
         installAppVisualHook();
         installObservers();
+        installSyncStatus();
     }
 
     install();

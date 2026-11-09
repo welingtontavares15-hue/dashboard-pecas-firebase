@@ -2666,7 +2666,7 @@ const Utils = {
         toast.innerHTML = `
             <i class="fas ${icons[toastType]} toast-icon"></i>
             <span class="toast-message">${Utils.escapeHtml(message)}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">
+            <button type="button" class="toast-close" onclick="this.parentElement.remove()" aria-label="Fechar aviso" title="Fechar">
                 <i class="fas fa-times"></i>
             </button>
         `;
@@ -3520,11 +3520,11 @@ const Utils = {
             return '';
         }
         
-        let html = '<div class="pagination">';
+        let html = '<div class="pagination" role="navigation" aria-label="Paginação">';
         
         // Previous button
-        html += `<button ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
-            <i class="fas fa-chevron-left"></i>
+        html += `<button type="button" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}" aria-label="Página anterior" title="Página anterior">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
         </button>`;
         
         // Page numbers
@@ -3539,24 +3539,24 @@ const Utils = {
         if (startPage > 1) {
             html += '<button data-page="1">1</button>';
             if (startPage > 2) {
-                html += '<button disabled>...</button>';
+                html += '<button type="button" disabled aria-hidden="true">...</button>';
             }
         }
         
         for (let i = startPage; i <= endPage; i++) {
-            html += `<button class="${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+            html += `<button type="button" class="${i === currentPage ? 'active' : ''}" data-page="${i}" aria-label="Página ${i}"${i === currentPage ? ' aria-current="page"' : ''}>${i}</button>`;
         }
         
         if (endPage < totalPages) {
             if (endPage < totalPages - 1) {
-                html += '<button disabled>...</button>';
+                html += '<button type="button" disabled aria-hidden="true">...</button>';
             }
             html += `<button data-page="${totalPages}">${totalPages}</button>`;
         }
         
         // Next button
-        html += `<button ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
-            <i class="fas fa-chevron-right"></i>
+        html += `<button type="button" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}" aria-label="Próxima página" title="Próxima página">
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
         </button>`;
         
         html += '</div>';

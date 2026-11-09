@@ -2913,3 +2913,138 @@ body.wwm-ds .wwm-request-number {
 }
 
 }
+
+/* ==========================================================================
+   v95 — Auditoria geral: consistência, redundâncias e responsividade
+   ========================================================================== */
+@layer wwm-ds {
+
+/* Notebook pequeno / tablet na horizontal (993–1024px): o tema de referência
+   escondia o menu em ≤1024px, mas o restante do sistema (JS e sidebar-pro)
+   usa 992px. Resultado: faixa vazia de 264px e nenhum botão para abrir o menu.
+   Mantém o menu visível em todo o intervalo "desktop" do sistema. */
+@media (min-width: 993px) and (max-width: 1024px) {
+    body.wwm-ds #sidebar.sidebar { transform: none !important; }
+    body.wwm-ds .mobile-nav-buttons { display: none !important; }
+}
+
+/* Fluxo por status (Visão Geral): com 5 colunas em ~720px o rótulo invadia o
+   número ("Em aprovaç3o"). Colunas automáticas com largura mínima legível. */
+@media (min-width: 768px) {
+    body.wwm-ds #content-area .v59-status-grid { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)) !important; }
+    body.wwm-ds #content-area .v59-status { border-bottom: 1px solid var(--ds-border) !important; margin-bottom: -1px !important; }
+    body.wwm-ds #content-area .v59-status > div { min-width: 0 !important; }
+    body.wwm-ds #content-area .v59-status > div span { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+}
+
+/* Cabeçalho: o cartão do usuário repetia nome e perfil do rodapé do menu.
+   Com o menu aberto mostra só o avatar; a seta sugeria um menu inexistente. */
+body.wwm-ds .header-profile-chevron { display: none !important; }
+@media (min-width: 993px) {
+    body.wwm-ds #sidebar:not(.collapsed) ~ .main-content .header-profile-meta { display: none !important; }
+    body.wwm-ds #sidebar:not(.collapsed) ~ .main-content .header-profile { padding: 4px !important; }
+}
+
+/* Estado real da sincronização (antes era sempre "Sincronizado"). */
+body.wwm-ds .sync-status[data-sync-state="connecting"] .btn-icon,
+body.wwm-ds .sync-status[data-sync-state="local"] .btn-icon { background: var(--ds-warn-bg, rgba(245, 158, 11, .14)) !important; color: var(--ds-warn, #f5b942) !important; }
+body.wwm-ds .sync-status[data-sync-state="offline"] .btn-icon { background: var(--ds-err-bg, rgba(239, 68, 68, .14)) !important; color: var(--ds-err, #f87171) !important; }
+
+/* Linha de contexto dos filtros: agora só exibe os filtros ativos (a contagem
+   ficava repetida com "Exibindo X de Y"). Sem filtros, não ocupa espaço. */
+body.wwm-ds #content-area .filter-context-summary:not(:has(*)) { display: none !important; }
+
+/* Tabelas: botões de ação alinhados ao título "Ações" (antes ficavam à direita
+   e com quantidade variável de botões a coluna parecia desalinhada). */
+@media (min-width: 768px) {
+    body.wwm-ds #content-area .table td .actions { justify-content: flex-start !important; }
+}
+
+/* Busca dos cadastros sem o botão de lupa redundante (a busca já é imediata). */
+body.wwm-ds #content-area .filters-bar .search-box { flex: 1 1 280px !important; min-width: 0 !important; }
+body.wwm-ds #content-area .filters-bar .search-box > input { width: 100% !important; }
+
+/* Ajuda: legenda de status responsiva (era uma tabela que cortava o texto no celular). */
+body.wwm-ds .wwm-status-legend { display: grid !important; gap: 8px !important; margin: 12px 0 0 !important; }
+body.wwm-ds .wwm-status-legend > div {
+    display: grid !important;
+    grid-template-columns: minmax(150px, max-content) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
+    border: 1px solid var(--ds-border) !important;
+    border-radius: var(--ds-r-md) !important;
+    background: var(--ds-surface) !important;
+}
+body.wwm-ds .wwm-status-legend dt, body.wwm-ds .wwm-status-legend dd { margin: 0 !important; min-width: 0 !important; }
+body.wwm-ds .wwm-status-legend dd { color: var(--ds-text) !important; font-size: 14px !important; line-height: 1.45 !important; }
+@media (max-width: 520px) {
+    body.wwm-ds .wwm-status-legend > div { grid-template-columns: minmax(0, 1fr) !important; gap: 6px !important; }
+}
+
+/* Legibilidade: nenhum texto de conteúdo abaixo de 11px (havia 8–10px em
+   rótulos da Visão Geral, rodapé do menu e Histórico de Relatórios). */
+body.wwm-ds #sidebar #user-role { font-size: 11px !important; }
+body.wwm-ds #content-area .wwm-dashboard-insight-item > span,
+body.wwm-ds #content-area .wwm-history-context-item > span,
+body.wwm-ds #content-area .wwm-history-meta > span,
+body.wwm-ds #content-area .wwm-panel-heading > span,
+body.wwm-ds #content-area .wwm-timeline-step small { font-size: 11px !important; }
+body.wwm-ds #content-area .wwm-history-state-note > span,
+body.wwm-ds #content-area .wwm-timeline-step strong { font-size: 12px !important; }
+
+/* Celular/tablet: alvos de toque com pelo menos 40px. */
+@media (max-width: 767px), (pointer: coarse) {
+    body.wwm-ds #content-area .pagination button { min-width: 40px !important; min-height: 40px !important; }
+    body.wwm-ds #content-area .ri-link { min-height: 40px !important; display: inline-flex !important; align-items: center !important; }
+    body.wwm-ds #content-area .card-header .btn,
+    body.wwm-ds #content-area .ri-card-head .btn { min-height: 40px !important; }
+    body.wwm-ds #content-area .v59-hero-toolbar select { min-height: 32px !important; }
+    body.wwm-ds .toast-close { min-width: 36px !important; min-height: 36px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+    body.wwm-ds #sidebar .sidebar-actions .btn-icon { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; }
+}
+
+}
+
+@layer wwm-ds {
+/* Fluxo por status em larguras intermediárias: 3 + 2 cartões preenchendo a
+   linha inteira (6 trilhas), sem cartão órfão nem rótulo sobre o número. */
+@media (min-width: 768px) and (max-width: 1180px) {
+    body.wwm-ds #content-area .v59-status-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+    body.wwm-ds #content-area .v59-status-grid > .v59-status { grid-column: span 2 !important; border-right: 1px solid var(--ds-border) !important; }
+    body.wwm-ds #content-area .v59-status-grid > .v59-status:nth-child(n+4) { grid-column: span 3 !important; }
+    body.wwm-ds #content-area .v59-status-grid > .v59-status:is(:nth-child(3), :nth-child(5)) { border-right: 0 !important; }
+}
+/* Cartão do usuário só com avatar: sem a caixa vazia ao lado. */
+@media (min-width: 993px) {
+    body.wwm-ds #sidebar:not(.collapsed) ~ .main-content .header-profile { width: auto !important; min-width: 0 !important; flex: 0 0 auto !important; }
+}
+/* Busca como único filtro (Técnicos, Fornecedores): ocupa a largura do cartão. */
+body.wwm-ds #content-area .filters-bar:has(> .search-box:only-child) { display: block !important; }
+body.wwm-ds #content-area .filters-bar > .search-box:only-child { width: 100% !important; max-width: none !important; }
+}
+
+@layer wwm-ds {
+/* Relatórios em notebook/tablet: o campo Status cortava "Todos os status" e a
+   última sub-aba ("Histórico") ficava escondida fora da faixa. */
+@media (min-width: 768px) and (max-width: 1280px) {
+    body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) minmax(0, .9fr) minmax(190px, 1.2fr) !important; }
+}
+@media (min-width: 768px) and (max-width: 1180px) {
+    body.wwm-ds .report-tabs-modern { overflow-x: visible !important; }
+    body.wwm-ds .report-tab-btn { flex: 1 1 auto !important; justify-content: center !important; padding: 0 10px !important; }
+    body.wwm-ds .report-tab-btn > i { display: none !important; }
+}
+/* Rodapé do menu: nomes compostos ("Carlos Henrique Souza") quebram entre
+   palavras em até 2 linhas, em vez de reticências; nunca no meio da palavra. */
+body.wwm-ds #sidebar:not(.collapsed) #user-name {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    text-overflow: clip !important;
+    overflow: hidden !important;
+}
+}

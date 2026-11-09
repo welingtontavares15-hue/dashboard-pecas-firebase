@@ -91,27 +91,15 @@ const Aprovacoes = {
                 ` : ''}
             </div>
             <div class="kpi-grid wwm-approval-kpis">
-                <div class="kpi-card is-pending"><div class="kpi-icon warning"><i class="fas fa-clock"></i></div><div class="kpi-content"><h4>Aguardando aprovação</h4><div class="kpi-value">${Utils.formatNumber(pending.length)}</div><div class="kpi-change">Fila atual</div></div></div>
+                <div class="kpi-card is-pending"><div class="kpi-icon warning"><i class="fas fa-clock"></i></div><div class="kpi-content"><h4>Aguardando aprovação</h4><div class="kpi-value">${Utils.formatNumber(pending.length)}</div><div class="kpi-change">Maior custo primeiro</div></div></div>
                 <div class="kpi-card is-value"><div class="kpi-icon info"><i class="fas fa-dollar-sign"></i></div><div class="kpi-content"><h4>Valor pendente</h4><div class="kpi-value">${Utils.formatCurrency(totalPendingValue)}</div><div class="kpi-change">Total da fila</div></div></div>
                 <div class="kpi-card is-priority"><div class="kpi-icon danger"><i class="fas fa-arrow-up"></i></div><div class="kpi-content"><h4>Alta prioridade</h4><div class="kpi-value">${Utils.formatNumber(highPriorityCount)}</div><div class="kpi-change">Exigem atenção</div></div></div>
                 <div class="kpi-card is-sla"><div class="kpi-icon success"><i class="fas fa-stopwatch"></i></div><div class="kpi-content"><h4>SLA excedido</h4><div class="kpi-value">${Utils.formatNumber(overSlaCount)}</div><div class="kpi-change">Meta de ${Utils.formatNumber(slaHours)}h</div></div></div>
             </div>
             <div class="filter-context-summary" id="approval-filter-context">
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             </div>
 
-            ${pending.length > 0 ? `
-                <div class="alert alert-warning mb-3" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid var(--warning-color); border-radius: var(--radius-md);">
-                    <i class="fas fa-clock" style="font-size: 1.5rem; color: var(--warning-color);"></i>
-                    <div>
-                        <strong>${pending.length} solicitação(ões) aguardando aprovação</strong>
-                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">
-                            Fila priorizada por maior custo. SLA: ${DataManager.getSettings().slaHours || 24} horas
-                        </p>
-                    </div>
-                </div>
-            ` : ''}
 
             <details class="filter-panel compact wwm-filter-panel" id="approval-filter-panel" ${this.hasActiveFilters() || window.innerWidth > 767 ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="approval-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
@@ -120,11 +108,11 @@ const Aprovacoes = {
                         <input type="text" id="approval-search" class="form-control" placeholder="Buscar por número, cliente, técnico ou peça..." value="${Utils.escapeHtml(this.filters.search)}">
                     </div>
                     <div class="filter-group">
-                        <label>Valor mínimo:</label>
+                        <label for="approval-min-value">Valor mínimo</label>
                         <input type="number" min="0" step="0.01" id="approval-min-value" class="form-control" value="${this.filters.minValue}" placeholder="R$ 0,00">
                     </div>
                     <div class="filter-group">
-                        <label>Técnico:</label>
+                        <label for="approval-tecnico">Técnico</label>
                         <select id="approval-tecnico" class="form-control">
                             <option value="">Todos</option>
                             ${DataManager.getTechnicians().map(t => `
@@ -133,7 +121,7 @@ const Aprovacoes = {
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>Região:</label>
+                        <label for="approval-regiao">Região</label>
                         <select id="approval-regiao" class="form-control">
                             <option value="">Todas</option>
                             ${this.getRegionOptions().map(regiao => `
@@ -142,7 +130,7 @@ const Aprovacoes = {
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>Prioridade:</label>
+                        <label for="approval-prioridade">Prioridade</label>
                         <select id="approval-prioridade" class="form-control">
                             <option value="">Todas</option>
                             <option value="alta" ${this.filters.prioridade === 'alta' ? 'selected' : ''}>Alta</option>
@@ -151,11 +139,11 @@ const Aprovacoes = {
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>De:</label>
+                        <label for="approval-date-from">De</label>
                         <input type="date" id="approval-date-from" class="form-control" value="${this.filters.dateFrom}">
                     </div>
                     <div class="filter-group">
-                        <label>Até:</label>
+                        <label for="approval-date-to">Até</label>
                         <input type="date" id="approval-date-to" class="form-control" value="${this.filters.dateTo}">
                     </div>
                     <button class="btn btn-outline" onclick="Aprovacoes.clearFilters()">
@@ -177,11 +165,6 @@ const Aprovacoes = {
         this.updateSelectedCount();
     },
 
-    getResultsSummary() {
-        const pending = this.getFilteredPendingSolicitations();
-        const count = pending.length;
-        return `${Utils.formatNumber(count)} ${count === 1 ? 'solicitação pendente' : 'solicitações pendentes'}`;
-    },
 
     renderActiveFilterChips() {
         const chips = AnalyticsHelper.buildFilterChips(this.filters, {
@@ -488,13 +471,12 @@ const Aprovacoes = {
         if (filterPanel && filterToggle) {
             const hasActive = this.hasActiveFilters();
             filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
-            filterPanel.open = hasActive;
+            filterPanel.open = hasActive || window.innerWidth > 767;
         }
 
         const context = document.getElementById('approval-filter-context');
         if (context) {
             context.innerHTML = `
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             `;
         }

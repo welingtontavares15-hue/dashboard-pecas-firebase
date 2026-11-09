@@ -82,14 +82,14 @@ const Auth = {
             { id: 'fornecedores', icon: 'fa-truck', label: 'Fornecedores', section: 'Cadastros' },
             { id: 'pecas', icon: 'fa-cogs', label: 'Peças', section: 'Cadastros' },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
-            { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
+            { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Configurações' }
         ],
         gestor: [
             { id: 'dashboard', icon: 'fa-chart-pie', label: 'Visão Geral', section: 'Operação' },
             { id: 'solicitacoes', icon: 'fa-clipboard-list', label: 'Solicitações', section: 'Operação' },
             { id: 'aprovacoes', icon: 'fa-check-double', label: 'Aprovações', section: 'Operação', badge: true },
             { id: 'relatorios', icon: 'fa-file-alt', label: 'Relatórios', section: 'Análises' },
-            { id: 'configuracoes', icon: 'fa-cog', label: 'Sistema', section: 'Configurações' }
+            { id: 'configuracoes', icon: 'fa-cog', label: 'Configurações', section: 'Configurações' }
         ],
         tecnico: [
             { id: 'nova-solicitacao', icon: 'fa-plus-circle', label: 'Nova Solicitação', section: 'Principal' },

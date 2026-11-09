@@ -61,7 +61,7 @@
         group.className = 'filter-group';
         const mode = normalizeMode(s._divisionFilter || readMode());
         group.innerHTML = `
-            <label for="sol-divisao-filter">Divisão:</label>
+            <label for="sol-divisao-filter">Divisão</label>
             <select id="sol-divisao-filter" class="form-control" aria-label="Filtrar solicitações por divisão">
                 <option value="all" ${mode === MODE.ALL ? 'selected' : ''}>Todas</option>
                 <option value="F&amp;B" ${mode === MODE.FB ? 'selected' : ''}>F&amp;B</option>

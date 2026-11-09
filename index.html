@@ -30,15 +30,16 @@
     <link rel="stylesheet" href="css/visual-premium-v4.css?v=20260830g">
     <link rel="stylesheet" href="css/visual-architecture-v72.css?v=20260830b" data-wwm-visual-architecture="true">
     <link rel="stylesheet" href="css/desktop-mobile-premium.css?v=20261108b" data-wwm-device-layout="true">
-    <link rel="stylesheet" href="css/wwm-design-system.css?v=20261108f" data-wwm-design-system="true">
+    <link rel="stylesheet" href="css/wwm-design-system.css?v=20261109a" data-wwm-design-system="true">
     <link rel="stylesheet" href="css/diversey-brand-reference.css?v=20261108-brandref3">
     <link rel="stylesheet" href="css/login-wwm-refinement.css?v=20261108-login3" data-wwm-login-refinement="true">
     <link rel="manifest" href="manifest.webmanifest?v=20261108-washer-v94">
     <link rel="icon" type="image/webp" href="icons/wwm-shield-dishwasher.webp?v=20261108-new-shield">
-    <script src="js/vendor/chart.umd.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Bibliotecas usadas só após o login (gráficos, PDF, Excel): defer não bloqueia
+         a primeira pintura e ainda executa antes do DOMContentLoaded (App.init). -->
+    <script src="js/vendor/chart.umd.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script type="module" src="./js/firebase-init.js"></script>
 </head>
 <body class="dark-mode visual-refresh-enabled wwm-reference-theme visual-premium-v4 wwm-ds" data-theme="dark">
@@ -141,8 +142,8 @@
                     <div class="user-details"><span id="user-name">Usuário</span><span id="user-role" class="user-role">Perfil</span></div>
                 </div>
                 <div class="sidebar-actions">
-                    <button id="theme-toggle" class="btn-icon" title="Alternar tema"><i class="fas fa-moon"></i></button>
-                    <button id="logout-btn" class="btn-icon" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+                    <button id="theme-toggle" class="btn-icon" title="Alternar tema" aria-label="Alternar tema" type="button"><i class="fas fa-moon"></i></button>
+                    <button id="logout-btn" class="btn-icon" title="Sair" aria-label="Sair do portal" type="button"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
         </aside>
@@ -162,7 +163,7 @@
                     <div class="header-controls">
                         <div class="sync-status">
                             <button id="sync-btn" class="btn-icon" title="Sincronizar dados"><i class="fas fa-sync-alt"></i></button>
-                            <span><strong>Sincronizado</strong><small>Agora há pouco</small></span>
+                            <span><strong>Verificando</strong><small>Status da nuvem</small></span>
                         </div>
                         <button id="notifications-toggle" class="btn-icon" title="Notificações" aria-label="Abrir notificações"><i class="fas fa-bell"></i><span id="header-notification-dot" class="alert-dot hidden"></span></button>
                         <div class="header-profile"><div class="header-avatar"><span id="header-user-initials">WW</span></div><div class="header-profile-meta"><span id="header-user-name">Usuário</span><small id="header-user-role">Perfil</small></div><i class="fas fa-chevron-down header-profile-chevron" aria-hidden="true"></i></div>
@@ -184,7 +185,7 @@
     <script src="js/config.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/pwa.js"></script>
-    <script src="js/utils.js?v=20261107b"></script>
+    <script src="js/utils.js?v=20261109a"></script>
     <script src="js/analytics-engine.js?v=20260315d"></script>
     <script src="js/analytics-cost-recognition.js?v=20260901a"></script>
     <script src="js/logger.js"></script>
@@ -194,18 +195,18 @@
     <script src="js/storage.js?v=20260903c"></script>
     <script src="js/data.js?v=20260903c"></script>
     <script src="js/electrical-catalog-policy.js?v=20260729a"></script>
-    <script src="js/auth.js?v=20260829c"></script>
+    <script src="js/auth.js?v=20261109a"></script>
     <script src="js/passkeys.js?v=20261103b"></script>
     <script src="js/device-biometric.js?v=20261108a"></script>
-    <script src="js/navigation-master-v55.js?v=20261103a"></script>
+    <script src="js/navigation-master-v55.js?v=20261109a"></script>
     <script src="js/audit-log.js"></script>
-    <script src="js/app.js?v=20261108a"></script>
+    <script src="js/app.js?v=20261109a"></script>
     <script src="js/ui-modern.js?v=20261107a"></script>
     <script src="js/premium-plus.js?v=20260730a"></script>
     <script src="js/corporate-platform.js?v=20260709b"></script>
     <script src="js/navigation-consolidation-runtime.js?v=20261108a"></script>
     <script src="js/premium-ui-v3.js?v=20260828a"></script>
-    <script src="js/premium-release-v55.js?v=20260829c"></script>
-    <script src="js/wwm-reference-ui.js?v=20261108a"></script>
+    <script src="js/premium-release-v55.js?v=20261109a"></script>
+    <script src="js/wwm-reference-ui.js?v=20261109a"></script>
 </body>
 </html>

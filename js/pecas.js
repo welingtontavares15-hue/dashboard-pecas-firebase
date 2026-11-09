@@ -19,18 +19,21 @@ const Pecas = {
         const canEdit = Auth.hasPermission('pecas', 'create');
         
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-cogs"></i> Catálogo de Peças</h2>
-                <div class="btn-group">
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-cogs"></i> Catálogo de Peças</h2>
+                    <p>Consulte códigos, valores e fornecedores das peças disponíveis para solicitação.</p>
+                </div>
+                <div class="btn-group page-actions">
                     ${canEdit ? `
                         <button class="btn btn-success" onclick="Pecas.openForm()">
                             <i class="fas fa-plus"></i> Nova Peça
                         </button>
-                        <button class="btn btn-outline" onclick="Pecas.openImportModal()">
+                        <button class="btn btn-outline wwm-export-action" onclick="Pecas.openImportModal()" title="Importar catálogo" aria-label="Importar catálogo">
                             <i class="fas fa-file-import"></i> Importar
                         </button>
                     ` : ''}
-                    <button class="btn btn-outline" onclick="Pecas.exportCatalog()">
+                    <button class="btn btn-outline${canEdit ? ' wwm-export-action' : ''}" onclick="Pecas.exportCatalog()" title="Exportar catálogo" aria-label="Exportar catálogo">
                         <i class="fas fa-file-export"></i> Exportar
                     </button>
                 </div>
@@ -41,20 +44,17 @@ const Pecas = {
                 <div class="search-box">
                     <input type="text" id="parts-search" class="form-control" 
                            placeholder="Buscar por código ou descrição..." 
-                           value="${Utils.escapeHtml(this.searchQuery)}">
-                    <button class="btn btn-primary" onclick="Pecas.search()">
-                        <i class="fas fa-search"></i>
-                    </button>
+                           value="${Utils.escapeHtml(this.searchQuery)}" aria-label="Buscar peças">
                 </div>
                 <div class="filter-group">
-                    <label>Categoria:</label>
+                    <label for="category-filter">Categoria</label>
                     <select id="category-filter" class="form-control" onchange="Pecas.filterByCategory()">
                         <option value="">Todas</option>
                         ${this.getCategoryOptions()}
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>Fornecedor:</label>
+                    <label for="supplier-filter">Fornecedor</label>
                     <select id="supplier-filter" class="form-control" onchange="Pecas.filterBySupplier()">
                         <option value="">Todos</option>
                         <option value="sup-ebst"   ${this.supplierFilter === 'sup-ebst'   ? 'selected' : ''}>EBST</option>

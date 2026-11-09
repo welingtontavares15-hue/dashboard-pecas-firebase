@@ -16,12 +16,17 @@ const Tecnicos = {
         const canCreate = Auth.hasPermission('tecnicos', 'create');
         
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-users"></i> Técnicos</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-users"></i> Técnicos</h2>
+                    <p>Cadastro dos técnicos de campo, regiões de atuação e acesso ao portal.</p>
+                </div>
                 ${canCreate ? `
-                    <button class="btn btn-success" onclick="Tecnicos.openForm()">
-                        <i class="fas fa-plus"></i> Novo Técnico
-                    </button>
+                    <div class="page-actions">
+                        <button class="btn btn-success" onclick="Tecnicos.openForm()">
+                            <i class="fas fa-plus"></i> Novo Técnico
+                        </button>
+                    </div>
                 ` : ''}
             </div>
             
@@ -30,10 +35,7 @@ const Tecnicos = {
                 <div class="search-box">
                     <input type="text" id="tech-search" class="form-control" 
                            placeholder="Buscar por nome, email, CPF ou região..." 
-                           value="${Utils.escapeHtml(this.searchQuery)}">
-                    <button class="btn btn-primary" onclick="Tecnicos.search()">
-                        <i class="fas fa-search"></i>
-                    </button>
+                           value="${Utils.escapeHtml(this.searchQuery)}" aria-label="Buscar técnicos">
                 </div>
             </div>
             
@@ -128,12 +130,10 @@ const Tecnicos = {
                                     ${tech.username ? `<br><small class="text-muted">@${Utils.escapeHtml(tech.username)}</small>` : ''}
                                 </td>
                                 <td>
-                                    <a href="mailto:${Utils.escapeHtml(tech.email)}">
-                                        ${Utils.escapeHtml(tech.email)}
-                                    </a>
+                                    ${tech.email ? `<a href="mailto:${Utils.escapeHtml(tech.email)}">${Utils.escapeHtml(tech.email)}</a>` : '-'}
                                 </td>
                                 <td>${Utils.escapeHtml(tech.cpf || '-')}</td>
-                                <td>${Utils.escapeHtml(tech.telefone || '-')}</td>
+                                <td>${tech.telefone ? Utils.escapeHtml(Utils.formatPhone(tech.telefone)) : '-'}</td>
                                 <td>${tech.cidade && tech.estado ? Utils.escapeHtml(tech.cidade + '/' + tech.estado) : '-'}</td>
                                 <td>${Utils.escapeHtml(tech.regiao || '-')}</td>
                                 <td>

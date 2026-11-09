@@ -18,7 +18,6 @@ module.exports = [
                 Chart: 'readonly',
                 jsPDF: 'readonly',
                 XLSX: 'readonly',
-                QRCode: 'readonly',
                 // Application modules
                 Auth: 'writable',
                 DataManager: 'writable',

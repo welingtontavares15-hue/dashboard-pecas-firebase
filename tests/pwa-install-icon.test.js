@@ -38,7 +38,7 @@ describe('PWA - approved dishwasher gear emblem', () => {
         ]) {
             expect(worker).toContain("'" + asset + "'");
         }
-        expect(worker).toContain("const CACHE_VERSION = 'v94-washer-icon'");
+        expect(worker).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
     });
 
     test('standard and adaptive icons embed exactly the same approved washer illustration', () => {

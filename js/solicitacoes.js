@@ -141,7 +141,7 @@ const Solicitacoes = {
             <div class="page-header wwm-page-title">
                 <div>
                     <h2>${isTecnico ? 'Minhas solicitações' : 'Solicitações de peças'}</h2>
-                    <p>Gerencie e acompanhe todas as solicitações de peças da operação.</p>
+                    <p>${isTecnico ? 'Crie pedidos de peças e acompanhe cada etapa até a entrega.' : 'Gerencie e acompanhe todas as solicitações de peças da operação.'}</p>
                 </div>
                 <div class="page-actions">
                     ${canCreate ? `
@@ -174,7 +174,6 @@ const Solicitacoes = {
                 </div>
             </div>
             <div class="filter-context-summary" id="sol-filter-context">
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             </div>
             <input type="file" id="sol-backup-file" accept="application/json,.json" style="display:none;" onchange="Solicitacoes.handleRestoreBackup(event)">
@@ -188,12 +187,12 @@ const Solicitacoes = {
                                value="${Utils.escapeHtml(this.filters.search)}">
                     </div>
                     <div class="filter-group">
-                        <label>Status:</label>
+                        <label>Status</label>
                         ${this.renderStatusFilter('sol-status-filter')}
                     </div>
                     ${!isTecnico ? `
                         <div class="filter-group">
-                            <label>Técnico:</label>
+                            <label for="sol-tecnico-filter">Técnico</label>
                             <select id="sol-tecnico-filter" class="form-control">
                                 <option value="">Todos</option>
                                 ${DataManager.getTechnicians().map(t =>
@@ -205,11 +204,11 @@ const Solicitacoes = {
                         </div>
                     ` : ''}
                     <div class="filter-group">
-                        <label>De:</label>
+                        <label for="sol-date-from">De</label>
                         <input type="date" id="sol-date-from" class="form-control" value="${this.filters.dateFrom}">
                     </div>
                     <div class="filter-group">
-                        <label>Até:</label>
+                        <label for="sol-date-to">Até</label>
                         <input type="date" id="sol-date-to" class="form-control" value="${this.filters.dateTo}">
                     </div>
                     <button class="btn btn-outline" onclick="Solicitacoes.clearFilters()">
@@ -270,11 +269,6 @@ const Solicitacoes = {
         }
     },
 
-    getResultsSummary() {
-        const solicitations = this.getFilteredSolicitations();
-        const count = solicitations.length;
-        return `${Utils.formatNumber(count)} ${count === 1 ? 'solicitação encontrada' : 'solicitações encontradas'}`;
-    },
 
     renderActiveFilterChips() {
         const chips = AnalyticsHelper.buildFilterChips({
@@ -994,13 +988,12 @@ const Solicitacoes = {
         if (filterPanel && filterToggle) {
             const hasActive = this.hasActiveFilters();
             filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
-            filterPanel.open = hasActive;
+            filterPanel.open = hasActive || window.innerWidth > 767;
         }
 
         const context = document.getElementById('sol-filter-context');
         if (context) {
             context.innerHTML = `
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             `;
         }

@@ -87,7 +87,12 @@
                 pecas: 'Peças',
                 tecnicos: 'Técnicos',
                 fornecedores: 'Fornecedores',
-                configuracoes: 'Sistema'
+                configuracoes: 'Configurações',
+                fornecedor: 'Pedidos Aprovados',
+                historico: 'Histórico',
+                catalogo: 'Peças',
+                perfil: 'Meu Perfil',
+                ajuda: 'Ajuda'
             };
             if (breadcrumb) breadcrumb.innerHTML = `<span>Portal de Solicitação de Peças WWM</span><i class="fas fa-chevron-right" aria-hidden="true"></i><strong>${labels[pageId] || pageId}</strong>`;
             if (!labels[pageId] && !isDashboard) originalUpdateBreadcrumb(pageId);

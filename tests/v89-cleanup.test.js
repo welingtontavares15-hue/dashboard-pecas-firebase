@@ -34,8 +34,8 @@ describe('v89 cleanup release', () => {
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
-        expect(app).toContain("version: 'v94-washer-icon'");
-        expect(sw).toContain("const CACHE_VERSION = 'v94-washer-icon'");
+        expect(app).toContain("version: 'v95-auditoria-geral'");
+        expect(sw).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
     });
 
     test('active navigation routes are unchanged', () => {

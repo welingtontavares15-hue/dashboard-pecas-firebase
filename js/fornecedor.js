@@ -90,7 +90,6 @@ const FornecedorPortal = {
                 </div>
             </div>
             <div class="filter-context-summary" id="supplier-filter-context">
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             </div>
 
@@ -107,7 +106,7 @@ const FornecedorPortal = {
                 </div>
             </div>
 
-            <details class="filter-panel compact" id="supplier-filter-panel" ${this.hasActiveFilters() ? 'open' : ''}>
+            <details class="filter-panel compact" id="supplier-filter-panel" ${this.hasActiveFilters() || window.innerWidth > 767 ? 'open' : ''}>
                 <summary class="filter-panel-toggle" id="supplier-filter-panel-toggle">${this.hasActiveFilters() ? 'Filtros ativos' : 'Filtros'}</summary>
                 <div class="filters-bar supplier-filters-bar filter-panel-body">
                 <div class="search-box">
@@ -254,11 +253,6 @@ const FornecedorPortal = {
         });
     },
 
-    getResultsSummary() {
-        const solicitations = this.getFilteredSolicitations();
-        const count = solicitations.length;
-        return `${Utils.formatNumber(count)} ${count === 1 ? 'pedido encontrado' : 'pedidos encontrados'}`;
-    },
 
     renderActiveFilterChips() {
         const chips = AnalyticsHelper.buildFilterChips(this.filters, {
@@ -558,13 +552,12 @@ const FornecedorPortal = {
         if (filterPanel && filterToggle) {
             const hasActive = this.hasActiveFilters();
             filterToggle.textContent = hasActive ? 'Filtros ativos' : 'Filtros';
-            filterPanel.open = hasActive;
+            filterPanel.open = hasActive || window.innerWidth > 767;
         }
 
         const context = document.getElementById('supplier-filter-context');
         if (context) {
             context.innerHTML = `
-                <span class="helper-text">${this.getResultsSummary()}</span>
                 ${this.renderActiveFilterChips()}
             `;
         }
