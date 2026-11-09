@@ -2281,7 +2281,7 @@ body.wwm-ds .modal-body .wwm-part-picker-hint i { color: var(--ds-green-400) !im
         width: 100% !important;
     }
     body.wwm-ds #content-area .premium-report-filter-grid > * { width: 100% !important; min-width: 0 !important; max-width: none !important; }
-    body.wwm-ds #content-area .premium-report-filter-grid :is(select, input, .premium-multi-filter-trigger, .status-filter-trigger, .status-filter) { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid :is(select, input.form-control, input.premium-multi-filter-search, .premium-multi-filter-trigger, .status-filter-trigger, .status-filter) { width: 100% !important; min-width: 0 !important; max-width: none !important; }
     body.wwm-ds #content-area .premium-report-filter-grid > :is(.premium-report-filter-actions, .report-filter-field--status, .report-filter-field--period) { grid-column: 1 / -1 !important; }
     body.wwm-ds #content-area .premium-report-filter-actions .report-filter-actions-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
     body.wwm-ds #content-area .premium-report-filter-actions > label { display: none !important; }
@@ -2386,7 +2386,38 @@ body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-grid >
 body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-hint { display: none !important; }
 body.wwm-ds #content-area .ri-filters { display: flex !important; flex-direction: column !important; align-items: stretch !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-grid { width: 100% !important; max-width: none !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(select, input, .status-filter, .status-filter-trigger, .premium-multi-filter-trigger) { width: 100% !important; max-width: none !important; }
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(select, input.form-control, input.premium-multi-filter-search, .status-filter, .status-filter-trigger, .premium-multi-filter-trigger) { width: 100% !important; max-width: none !important; }
+/* Dropdowns de relatórios: os campos podem ocupar 100%, mas checkboxes não.
+   Limita as linhas ao painel e permite que os nomes de status quebrem. */
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(.status-filter-option, .premium-multi-filter-option) {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 8px 10px !important;
+    white-space: normal !important;
+    text-transform: none !important;
+}
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(.status-filter-option, .premium-multi-filter-option) > input[type="checkbox"] {
+    flex: 0 0 16px !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+}
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(.status-filter-option, .premium-multi-filter-option) > span:not(.status-badge) {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+}
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid .status-filter-option .status-badge {
+    max-width: 100% !important;
+    white-space: normal !important;
+}
+body.wwm-ds #content-area .ri-filters .premium-report-filter-grid :is(.status-filter-options, .premium-multi-filter-options) {
+    overflow-x: hidden !important;
+}
+
 body.wwm-ds #content-area .ri-filters.is-collapsed .premium-report-filter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) minmax(0, .85fr) minmax(170px, 1.15fr) max-content !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-actions .report-filter-actions-row { display: flex !important; gap: 8px !important; flex-wrap: nowrap !important; }
 body.wwm-ds #content-area .ri-filters .premium-report-filter-actions .btn { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; white-space: nowrap !important; padding-inline: 14px !important; }
