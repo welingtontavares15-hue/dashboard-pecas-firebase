@@ -37,7 +37,7 @@
                         </div>
                     </div>
                     <span class="wwm-login-divider" aria-hidden="true"></span>
-                    <p><i class="fas fa-cube" aria-hidden="true"></i> Portal de Peças WWM</p>
+                    <p><i class="fas fa-cog" aria-hidden="true"></i> Portal de Peças WWM</p>
                 </header>
             `);
         }
@@ -50,12 +50,12 @@
 
         if (kicker) kicker.textContent = '';
         if (title) title.textContent = 'Entrar no portal';
-        if (description) description.textContent = 'Use seu usuário e senha para continuar.';
+        if (description) description.textContent = 'Acesse o sistema para solicitar peças e acompanhar suas solicitações.';
         if (submit && !submit.dataset.wwmLabelApplied) {
             submit.innerHTML = 'Entrar <i class="fas fa-arrow-right" aria-hidden="true"></i>';
             submit.dataset.wwmLabelApplied = 'true';
         }
-        if (footer) footer.innerHTML = '<i class="fas fa-lock" aria-hidden="true"></i> Uso interno. <span>Precisa de acesso? Contate o administrador.</span>';
+        if (footer && !footer.querySelector('.wwm-login-footer-security')) footer.innerHTML = '<span class="wwm-login-footer-security"><i class="fas fa-shield-alt" aria-hidden="true"></i> Uso interno e seguro</span><span class="wwm-login-footer-support"><i class="fas fa-headset" aria-hidden="true"></i><span class="wwm-login-footer-support-text"><strong>Precisa de acesso?</strong><span>Contate o administrador.</span></span></span>';
 
         // Não acrescentar blocos de suporte/metadados vazios ao login.
         inner.querySelector('.wwm-login-support')?.remove();

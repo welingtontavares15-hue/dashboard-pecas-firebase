@@ -39,6 +39,8 @@ const PRECACHE = {
     './css/visual-premium-v4.css',
     './css/desktop-mobile-premium.css',
     './css/wwm-design-system.css',
+    './css/diversey-brand-reference.css',
+    './css/login-wwm-refinement.css',
     './css/visual-architecture-v72.css',
     './manifest.webmanifest',
     './icons/wwm-shield-dishwasher.webp?v=20261108-new-shield',

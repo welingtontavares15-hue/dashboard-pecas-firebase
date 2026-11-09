@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="css/desktop-mobile-premium.css?v=20261108b" data-wwm-device-layout="true">
     <link rel="stylesheet" href="css/wwm-design-system.css?v=20261108f" data-wwm-design-system="true">
     <link rel="stylesheet" href="css/diversey-brand-reference.css?v=20261108-brandref3">
+    <link rel="stylesheet" href="css/login-wwm-refinement.css?v=20261108-login1" data-wwm-login-refinement="true">
     <link rel="manifest" href="manifest.webmanifest?v=20261108-washer-v94">
     <link rel="icon" type="image/webp" href="icons/wwm-shield-dishwasher.webp?v=20261108-new-shield">
     <script src="js/vendor/chart.umd.js"></script>
@@ -62,8 +63,9 @@
             <main class="login-card" aria-labelledby="login-title">
                 <div class="login-card-inner">
                     <div class="login-logo">
+                        <span class="wwm-login-heading-icon" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 3 32 11 18 19 4 11 18 3Z" stroke="#0B3950" stroke-width="3" stroke-linejoin="round"/><path d="m5 18 13 7 13-7M5 25l13 7 13-7" stroke="#168B57" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                         <h1 id="login-title">Entrar no portal</h1>
-                        <p>Use seu usuário e senha para continuar.</p>
+                        <p>Acesse o sistema para solicitar peças e acompanhar suas solicitações.</p>
                     </div>
 
                     <form id="login-form" name="login" class="login-form" method="post" autocomplete="on">
@@ -110,7 +112,7 @@
                         </button>
                         <p id="passkey-login-status" class="helper-text" role="status" aria-live="polite" hidden></p>
                     </div>
-                    <div class="premium-login-form-footer"><i class="fas fa-lock" aria-hidden="true"></i> Uso interno. <span>Precisa de acesso? Contate o administrador.</span></div>
+                    <div class="premium-login-form-footer"><span class="wwm-login-footer-security"><i class="fas fa-shield-alt" aria-hidden="true"></i> Uso interno e seguro</span><span class="wwm-login-footer-support"><i class="fas fa-headset" aria-hidden="true"></i><span class="wwm-login-footer-support-text"><strong>Precisa de acesso?</strong><span>Contate o administrador.</span></span></span></div>
 
                     <div id="login-credentials" class="credentials-panel hidden">
                         <div class="credentials-header"><div><h3><i class="fas fa-user-lock"></i> Credenciais disponíveis</h3><p>Use um dos usuários abaixo para acessar.</p></div></div>
