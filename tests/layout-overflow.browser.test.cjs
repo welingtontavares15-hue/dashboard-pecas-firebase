@@ -132,8 +132,20 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
             await loginPage.setRequestInterception(true);
             loginPage.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
             await loginPage.goto(base, { waitUntil: 'load' });
-            await loginPage.waitForFunction(() => typeof App !== 'undefined', { timeout: 20000 });
+            // Espera o App.init terminar: ele chama showLogin()/showApp() de forma assíncrona e,
+            // se ainda estiver rodando, sobrescreve a tela no meio da medição.
+            await loginPage.waitForFunction(() => typeof App !== 'undefined' && App.isBootstrapping === false, { timeout: 20000 });
             await loginPage.evaluate(() => App.showLogin());
+            // No modo fonte, wwm-reference-ui reordena os <link> do <head>; reinserir uma
+            // folha de estilo a recarrega e por alguns ms suas regras não valem. Espera
+            // todas as folhas carregadas e dois quadros antes de medir.
+            await loginPage.evaluate(() => new Promise((resolve) => {
+                const settle = () => requestAnimationFrame(() => requestAnimationFrame(resolve));
+                const pending = [...document.querySelectorAll('link[rel="stylesheet"]')].filter((link) => !link.sheet);
+                if (!pending.length) return setTimeout(settle, 250);
+                Promise.all(pending.map((link) => new Promise((done) => { link.addEventListener('load', done, { once: true }); link.addEventListener('error', done, { once: true }); })))
+                    .then(() => setTimeout(settle, 250));
+            }));
             const geometry = await loginPage.evaluate(() => {
                 const card = document.querySelector('#login-screen .login-card');
                 const header = card?.querySelector('.wwm-login-header');
@@ -186,7 +198,7 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                 // Somente arquivos locais: nada de Firebase, CDN ou rede externa.
                 page.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
                 await page.goto(base, { waitUntil: 'load' });
-                await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined', { timeout: 20000 });
+                await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined' && App.isBootstrapping === false, { timeout: 20000 });
                 await page.evaluate(`(${seedSyntheticData.toString()})()`);
                 await page.evaluate((currentRole) => {
                     Auth.currentUser = currentRole === 'tecnico'
