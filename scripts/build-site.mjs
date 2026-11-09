@@ -170,4 +170,40 @@ for (const legacyPage of ['js/pages/dashboard.js', 'js/pages/relatorios.js']) {
 }
 fs.writeFileSync(path.join(OUT, 'service-worker.js'), builtWorker);
 
+// Integridade do artefato: nunca publicar HTML, precache ou manifest com
+// referencias locais ausentes. Referencias externas e dados dinamicos ficam fora.
+function localAsset(value) {
+    if (!value || /^(?:[a-z][a-z\d+.-]*:|\/\/|#|data:)/i.test(value)) return null;
+    const clean = value.split(/[?#]/, 1)[0];
+    if (!clean || clean === '/' || clean === './') return null;
+    const decoded = decodeURIComponent(clean);
+    const relative = decoded.replace(/^\.?\//, '');
+    const normalized = path.posix.normalize(relative);
+    if (normalized === '..' || normalized.startsWith('../') || path.posix.isAbsolute(normalized)) {
+        throw new Error('Referencia local fora da raiz: ' + value);
+    }
+    return normalized;
+}
+function assertEmittedAsset(reference, source) {
+    const relative = localAsset(reference);
+    if (!relative) return;
+    const target = path.resolve(OUT, relative);
+    if (!target.startsWith(OUT + path.sep) || !fs.existsSync(target) || !fs.statSync(target).isFile()) {
+        throw new Error('Artefato de producao ausente: ' + reference + ' (origem: ' + source + ')');
+    }
+}
+const deployedHtml = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
+for (const tag of deployedHtml.matchAll(/<(?:script|link)\b[^>]*>/gi)) {
+    const reference = tag[0].match(/\b(?:src|href)="([^"]+)"/i)?.[1];
+    if (reference) assertEmittedAsset(reference, 'index.html');
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(OUT, 'manifest.webmanifest'), 'utf8'));
+for (const icon of manifest.icons || []) {
+    if (icon.src) assertEmittedAsset(icon.src, 'manifest.webmanifest');
+}
+for (const match of builtWorker.matchAll(/^\s*['"](\.\/[^'"]+)['"],?\s*$/gm)) {
+    assertEmittedAsset(match[1], 'service-worker.js');
+}
+
+
 console.log('Build ' + version + ': ' + bundleFiles.length + ' CSS consolidados em 2 bundles.');

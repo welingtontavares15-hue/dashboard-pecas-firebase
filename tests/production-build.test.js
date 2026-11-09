@@ -60,6 +60,9 @@ describe('production build: CSS and canonical routes', () => {
             }
             expect(fs.existsSync(path.join(output, 'js/pages/relatorios-v55.js'))).toBe(true);
             expect(cssTheme).toContain('/* BEGIN css/wwm-design-system.css */');
+            for (const required of ['index.html', 'manifest.webmanifest', 'service-worker.js', 'css/wwm-core.bundle.css', 'css/wwm-theme.bundle.css']) {
+                expect(fs.statSync(path.join(output, required)).isFile()).toBe(true);
+            }
 
         } finally {
             fs.rmSync(temp, { recursive: true, force: true });
