@@ -205,7 +205,9 @@ async function handleAssetRequest(cacheName, request) {
       return networkResponse;
     }
   } catch (_error) {}
-  return await cache.match(cacheKey) || await caches.match(normalizeAssetUrl(OFFLINE_URL));
+  // Nunca responder HTML de fallback a requisicoes JS/CSS/imagens: isso gera
+  // erros de MIME e mascara a ausencia de recursos essenciais.
+  return await cache.match(cacheKey) || Response.error();
 }
 
 async function notifyClientsUpdated() {

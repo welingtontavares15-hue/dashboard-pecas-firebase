@@ -22,6 +22,15 @@ describe('v89 cleanup release', () => {
         }
     });
 
+    test('asset failures do not return offline HTML in place of scripts or styles', () => {
+        const sw = read('service-worker.js');
+        const assetHandler = sw.slice(sw.indexOf('async function handleAssetRequest('));
+        expect(assetHandler).toContain('return await cache.match(cacheKey) || Response.error();');
+        expect(assetHandler).not.toContain('cache.match(normalizeAssetUrl(OFFLINE_URL))');
+        const navigationHandler = sw.slice(sw.indexOf('async function handleNavigationRequest('), sw.indexOf('async function handleAssetRequest('));
+        expect(navigationHandler).toContain('OFFLINE_URL');
+    });
+
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
