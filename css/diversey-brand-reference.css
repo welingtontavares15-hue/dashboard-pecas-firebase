@@ -1,0 +1,60 @@
+/* Reference asset: cropped directly from the user-supplied Diversey / Solenis mark (480 x 135). */
+@layer wwm-ds {
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo,
+  body.wwm-reference-theme #login-screen .wwm-login-brand {
+    position: relative !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    overflow: visible !important;
+  }
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo {
+    width: min(188px, 100%) !important;
+    max-width: 188px !important;
+    flex: 0 1 188px !important;
+    padding: 0 !important;
+  }
+  body.wwm-reference-theme #login-screen .wwm-login-brand {
+    width: min(240px, 100%) !important;
+    max-width: 240px !important;
+    flex: 0 1 240px !important;
+    gap: 0 !important;
+  }
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo::before,
+  body.wwm-reference-theme #login-screen .wwm-login-brand::before {
+    content: "" !important;
+    position: relative !important;
+    display: block !important;
+    flex: 0 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 480 / 135 !important;
+    border-radius: 3px !important;
+    background-color: #fff !important;
+    background-image: url("../icons/diversey-solenis-wordmark.webp?v=20261108-brandref1") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 100% 100% !important;
+  }
+  /* Keep original semantic wordmark text for screen readers, not as a competing logo. */
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo :is(.dvy-mark,.dvy-lockup),
+  body.wwm-reference-theme #login-screen .wwm-login-brand :is(.wwm-brand-symbol,.wwm-brand-copy) {
+    position: absolute !important;
+    inline-size: 1px !important;
+    block-size: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+  }
+  @media (max-width: 560px) {
+    body.wwm-reference-theme #login-screen .wwm-login-brand {
+      width: min(218px, 100%) !important;
+      max-width: 218px !important;
+      flex-basis: 218px !important;
+    }
+    body.wwm-reference-theme #login-screen .wwm-login-header {
+      min-width: 0 !important;
+    }
+  }
+}

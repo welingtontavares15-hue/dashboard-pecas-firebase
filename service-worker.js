@@ -44,6 +44,7 @@ const PRECACHE = {
     './icons/wwm-shield-dishwasher.webp?v=20261108-new-shield',
     './icons/icon-maskable.svg?v=20261108-washer-v94',
     './icons/wwm-industrial-washer.webp',
+    './icons/diversey-solenis-wordmark.webp',
     './health/firebase-healthcheck.html',
     './js/config.js',
     './js/firebase-config.js',

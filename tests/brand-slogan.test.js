@@ -38,3 +38,18 @@ describe('Padrao do slogan Diversey / Solenis', () => {
         expect(css).not.toContain('.nav-item');
     });
 });
+
+describe('Marca corporativa fiel à referência', () => {
+    const brand = fs.readFileSync(path.join(root, 'css/diversey-brand-reference.css'), 'utf8');
+    test('usa uma única imagem de origem nas marcas da tela inicial e do menu', () => {
+        expect(index).toContain('css/diversey-brand-reference.css?v=20261108-brandref1');
+        expect(brand).toContain('diversey-solenis-wordmark.webp?v=20261108-brandref1');
+        expect(brand).toContain('#sidebar .sidebar-header .logo.dvy-logo');
+        expect(brand).toContain('#login-screen .wwm-login-brand');
+        expect(brand).toContain('aspect-ratio: 480 / 135');
+        const asset = fs.readFileSync(path.join(root, 'icons/diversey-solenis-wordmark.webp'));
+        expect(asset.toString('ascii', 0, 4)).toBe('RIFF');
+        expect(asset.toString('ascii', 8, 12)).toBe('WEBP');
+        expect(asset.length).toBeGreaterThan(4000);
+    });
+});
