@@ -44,13 +44,17 @@ describe('Marca corporativa integrada ao fundo azul do portal', () => {
     const svg = fs.readFileSync(path.join(root, 'icons/diversey-solenis-dark.svg'), 'utf8');
 
     test('a mesma marca transparente e utilizada no login e na barra lateral', () => {
-        expect(index).toContain('css/diversey-brand-reference.css?v=20261108-brandref2');
+        expect(index).toContain('css/diversey-brand-reference.css?v=20261108-brandref3');
         expect(brand).toContain('#sidebar .sidebar-header .logo.dvy-logo');
         expect(brand).toContain('#login-screen .wwm-login-brand');
-        expect(brand).toContain('diversey-solenis-dark.svg?v=20261108-brandref2');
+        expect(brand).toContain('diversey-solenis-dark.svg?v=20261108-brandref3');
         expect(brand).toContain('aspect-ratio: 690 / 162');
         expect(brand).toContain('background-color: transparent !important');
         expect(brand).toMatch(/max-width: 560px/);
+        expect(brand).toContain('width: min(176px, 100%)');
+        expect(brand).toContain('width: min(146px, 100%)');
+        expect(brand).toContain('padding-left: 16px !important');
+        expect(brand).toContain('justify-content: flex-start !important');
         expect(svg).toContain('<svg');
         expect(svg).toContain('fill="#f4fbfb"');
         expect(svg).toContain('fill="#28c79a"');
