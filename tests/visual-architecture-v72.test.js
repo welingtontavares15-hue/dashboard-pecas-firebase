@@ -12,7 +12,7 @@ describe('WWM visual architecture v72', () => {
         expect(index).toContain('css/visual-architecture-v72.css?v=20260830b');
         expect(index).toContain('data-wwm-visual-architecture="true"');
         expect(index.indexOf('css/visual-premium-v4.css')).toBeLessThan(index.indexOf('css/visual-architecture-v72.css'));
-        expect(index).toContain('js/wwm-reference-ui.js?v=20261109a');
+        expect(index).toContain('js/wwm-reference-ui.js?v=20261110a');
         expect(referenceUi).toContain('ensureVisualArchitectureLayer');
         expect(referenceUi).toContain('visualArchitectureLink');
         expect(referenceUi).toContain('document.head.append(visualArchitectureLink)');
@@ -58,7 +58,7 @@ describe('WWM visual architecture v72', () => {
     });
 
     test('pre-caches the authoritative visual layer under v72', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v97-revisao-interativa'");
         expect(serviceWorker).toContain("'./css/visual-architecture-v72.css'");
         expect(serviceWorker).not.toContain("'./css/visual-integrity-v71.css'");
     });

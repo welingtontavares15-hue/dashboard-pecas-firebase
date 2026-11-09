@@ -191,7 +191,12 @@
         ensureVisualArchitectureLayer();
         keepReferenceThemeLast();
         enhanceSolicitationLayout();
-        document.querySelector('.global-search input')?.setAttribute('placeholder', 'Buscar peças, solicitações, fornecedores...');
+        const globalSearch = document.querySelector('.global-search input');
+        // A busca do cabeçalho filtra as solicitações (e avisa que usa Enter).
+        globalSearch?.setAttribute('placeholder', 'Buscar solicitação: número, cliente, peça ou técnico (Enter)');
+        globalSearch?.setAttribute('aria-label', 'Buscar solicitações por número, cliente, peça ou técnico');
+        globalSearch?.setAttribute('type', 'search');
+        globalSearch?.setAttribute('enterkeyhint', 'search');
         document.getElementById('notifications-toggle')?.setAttribute('aria-label', 'Abrir notificações');
         document.getElementById('sync-btn')?.setAttribute('aria-label', 'Atualizar dados');
         syncProfile();

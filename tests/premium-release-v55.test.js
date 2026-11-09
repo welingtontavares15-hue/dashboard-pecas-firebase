@@ -72,12 +72,12 @@ describe('Release WWM v72 reference layout', () => {
         expect(reports).toContain('setChartHeight(canvas, series.labels.length)');
         expect(reports).not.toContain("chart.options.indexAxis = 'y'");
         const app = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
-        expect(app).toContain("relatorios: './pages/relatorios-v55.js?v=20261108a'");
+        expect(app).toContain("relatorios: './pages/relatorios-v55.js?v=20261110a'");
         expect(release).not.toContain('window.App.lazyModules.relatorios =');
     });
 
     test('publica cache v72 com os ativos críticos e a camada visual final', () => {
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v97-revisao-interativa'");
         [
             './css/premium-login-v55.css',
             './js/navigation-master-v55.js',

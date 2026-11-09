@@ -197,6 +197,6 @@ describe('Nova solicitação: fluxo guiado', () => {
         const guided = route.indexOf("window.SolicitacoesFormUx?.patch?.()");
         expect(division).toBeGreaterThan(-1);
         expect(guided).toBeGreaterThan(division);
-        expect(route).toContain("solicitacoes-form-ux.js?v=20261108c");
+        expect(route).toContain("solicitacoes-form-ux.js?v=20261110a");
     });
 });

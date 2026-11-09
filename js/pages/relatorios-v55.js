@@ -1,6 +1,6 @@
 import { ensureClassicScript } from '../lazy/load-script.js';
 import { applyReportsModernization } from '../components/reports-modern.js?v=20261108a';
-import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20261108a';
+import { applyReportsMultiSelect } from '../components/reports-multi-select.js?v=20261109b';
 import { applyReportsDivisionFilter } from '../components/reports-division-filter.js?v=20261108a';
 import { applyReportsChartHardeningV55 } from '../components/reports-chart-hardening-v55.js?v=20261107a';
 import { applyReportsInsights } from '../components/reports-insights.js?v=20261108a';

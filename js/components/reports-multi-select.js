@@ -112,6 +112,20 @@ function closeAll(exceptId = '') {
     });
 }
 
+// A lista abre alinhada à esquerda do campo; no último filtro da linha ela
+// passava da borda direita da tela. Se não couber, alinha pela direita do campo.
+function keepPopoverInViewport(filter) {
+    const popover = filter.querySelector('[data-premium-multi-popover]');
+    if (!popover) {
+        return;
+    }
+    filter.classList.remove('premium-multi-align-right');
+    const rect = popover.getBoundingClientRect();
+    if (rect.width && rect.right > window.innerWidth - 8) {
+        filter.classList.add('premium-multi-align-right');
+    }
+}
+
 function bindMultiSelectControls() {
     document.querySelectorAll('[data-premium-multi-trigger]').forEach((trigger) => {
         if (trigger.dataset.bound === 'true') {
@@ -130,6 +144,9 @@ function bindMultiSelectControls() {
             closeAll(open ? id : '');
             filter.classList.toggle('open', open);
             trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                keepPopoverInViewport(filter);
+            }
         });
     });
 

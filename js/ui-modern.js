@@ -43,6 +43,42 @@
         };
     }
 
+    // Chave de ordenação de uma célula. Data vem ANTES de número: "09/11/2026"
+    // era lido como o número 9112026 e a coluna Data ordenava pelo dia. Só é
+    // número o texto inteiro numérico (R$ 1.234,56 · 12 · 19,5%); textos com
+    // dígitos no meio ("HD-80 +5") seguem como texto.
+    function tableSortKey(raw) {
+        const text = String(raw || '').replace(/\s+/g, ' ').trim();
+        if (!text || text === '-' || text === '—') {
+            return { empty: true, text: '' };
+        }
+        const date = text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+        if (date) {
+            return { number: new Date(Number(date[3]), Number(date[2]) - 1, Number(date[1]), Number(date[4] || 0), Number(date[5] || 0)).getTime(), text };
+        }
+        const numeric = text.match(/^(?:R\$\s*)?(-?\d{1,3}(?:\.\d{3})+(?:,\d+)?|-?\d+(?:,\d+)?)\s*%?$/);
+        if (numeric) {
+            return { number: Number(numeric[1].replace(/\./g, '').replace(',', '.')), text };
+        }
+        return { text };
+    }
+
+    function compareTableCells(rawA, rawB) {
+        const a = tableSortKey(rawA);
+        const b = tableSortKey(rawB);
+        if (a.empty || b.empty) {
+            return a.empty === b.empty ? 0 : (a.empty ? 1 : -1);
+        }
+        if (Number.isFinite(a.number) && Number.isFinite(b.number)) {
+            return a.number - b.number;
+        }
+        return a.text.localeCompare(b.text, 'pt-BR', { sensitivity: 'base', numeric: true });
+    }
+
+    if (typeof window !== 'undefined') {
+        window.WwmTableSort = { key: tableSortKey, compare: compareTableCells };
+    }
+
     function enhanceTable(tableContainer) {
         if (!tableContainer || tableContainer.dataset.enhanced === 'true') {
             return;
@@ -104,23 +140,19 @@
                 header.classList.toggle('sort-asc', nextDir === 'asc');
                 header.classList.toggle('sort-desc', nextDir === 'desc');
 
+                headers.forEach((th) => th.removeAttribute('aria-sort'));
+                header.setAttribute('aria-sort', nextDir === 'asc' ? 'ascending' : 'descending');
+
                 rows.sort((a, b) => {
-                    const rawA = (a.cells[index]?.textContent || '').trim();
-                    const rawB = (b.cells[index]?.textContent || '').trim();
-                    const currencyA = Number(rawA.replace(/[^0-9,-]+/g, '').replace('.', '').replace(',', '.'));
-                    const currencyB = Number(rawB.replace(/[^0-9,-]+/g, '').replace('.', '').replace(',', '.'));
-                    const dateA = /^\d{2}\/\d{2}\/\d{4}/.test(rawA) ? new Date(rawA.split('/').reverse().join('-')).getTime() : NaN;
-                    const dateB = /^\d{2}\/\d{2}\/\d{4}/.test(rawB) ? new Date(rawB.split('/').reverse().join('-')).getTime() : NaN;
-
-                    let result;
-                    if (!Number.isNaN(currencyA) && !Number.isNaN(currencyB) && /[0-9]/.test(rawA) && /[0-9]/.test(rawB)) {
-                        result = currencyA - currencyB;
-                    } else if (!Number.isNaN(dateA) && !Number.isNaN(dateB)) {
-                        result = dateA - dateB;
-                    } else {
-                        result = rawA.localeCompare(rawB, 'pt-BR', { sensitivity: 'base' });
+                    const cellA = a.cells[index]?.textContent || '';
+                    const cellB = b.cells[index]?.textContent || '';
+                    const keyA = tableSortKey(cellA);
+                    const keyB = tableSortKey(cellB);
+                    // Vazios ficam sempre no fim, nos dois sentidos.
+                    if (keyA.empty || keyB.empty) {
+                        return keyA.empty === keyB.empty ? 0 : (keyA.empty ? 1 : -1);
                     }
-
+                    const result = compareTableCells(cellA, cellB);
                     return nextDir === 'asc' ? result : -result;
                 });
 
@@ -625,8 +657,8 @@
             }
 
             list.innerHTML = notifications.map((item) => {
-                return '<button class="notification-item" type="button" data-id="' + item.id + '">' 
-                    + '<div class="notification-item-title">Solicitação #' + item.numero + '</div>'
+                return '<button class="notification-item" type="button" data-id="' + Utils.escapeHtml(String(item.id)) + '">'
+                    + '<div class="notification-item-title">Solicitação #' + Utils.escapeHtml(String(item.numero || '-')) + '</div>'
                     + '<div class="notification-item-meta">' + Utils.escapeHtml(item.tecnicoNome || 'Técnico') + ' • ' + Utils.formatDate(item.data || item.createdAt) + '</div>'
                     + '<div class="notification-item-status">' + Utils.renderStatusBadge(item.status) + '</div>'
                     + '</button>';
@@ -637,9 +669,21 @@
                 : (Auth.hasPermission('aprovacoes', 'view') ? 'aprovacoes' : (role === 'tecnico' ? 'minhas-solicitacoes' : 'solicitacoes'));
 
             list.querySelectorAll('.notification-item').forEach((button) => {
-                button.addEventListener('click', () => {
+                button.addEventListener('click', async () => {
                     this.toggleNotificationPanel(false);
-                    this.navigate(targetPage);
+                    // Abre o pedido clicado (antes só trocava de página e o usuário
+                    // tinha de procurá-lo de novo na lista).
+                    const solicitationId = button.dataset.id;
+                    try {
+                        await this.navigate(targetPage);
+                        if (role === 'fornecedor') {
+                            window.FornecedorPortal?.openHistory?.(solicitationId);
+                        } else {
+                            window.Solicitacoes?.viewDetails?.(solicitationId);
+                        }
+                    } catch (_error) {
+                        // A página de destino já foi aberta; o detalhe é um atalho.
+                    }
                 });
             });
 
@@ -658,37 +702,39 @@
             panel.classList.toggle('hidden', !shouldOpen);
         };
 
-        App.handleGlobalSearch = function (query) {
+        App.handleGlobalSearch = async function (query) {
             const term = String(query || '').trim();
             if (!term) {
                 return;
             }
 
             const role = (typeof Auth !== 'undefined' && typeof Auth.getRole === 'function') ? Auth.getRole() : null;
-            const targetPage = role === 'tecnico'
-                ? 'minhas-solicitacoes'
-                : (role === 'fornecedor' ? 'fornecedor' : 'solicitacoes');
+            const targetPage = role === 'fornecedor' ? 'fornecedor' : 'solicitacoes';
 
+            // Espera a página (e o módulo dela) carregar antes de aplicar a busca.
+            // Antes um atraso fixo de 180 ms avisava "busca aplicada" mesmo quando
+            // o módulo ainda não tinha carregado e nada era filtrado.
             if (this.currentPage !== targetPage) {
-                this.navigate(targetPage);
+                await this.navigate(targetPage);
             }
 
-            setTimeout(() => {
-                if (role === 'fornecedor' && typeof FornecedorPortal !== 'undefined') {
-                    FornecedorPortal.filters.search = term;
-                    FornecedorPortal.currentPage = 1;
-                    FornecedorPortal.render();
-                    Utils.showToast('Busca aplicada no portal do fornecedor', 'info');
-                    return;
-                }
+            if (role === 'fornecedor' && window.FornecedorPortal) {
+                FornecedorPortal.filters.search = term;
+                FornecedorPortal.currentPage = 1;
+                FornecedorPortal.render();
+                Utils.showToast(`Busca por "${term}" aplicada aos pedidos`, 'info');
+                return;
+            }
 
-                if (typeof Solicitacoes !== 'undefined') {
-                    Solicitacoes.filters.search = term;
-                    Solicitacoes.currentPage = 1;
-                    Solicitacoes.render();
-                }
-                Utils.showToast('Busca aplicada na lista de solicitações', 'info');
-            }, 180);
+            if (window.Solicitacoes) {
+                Solicitacoes.ensureFilters?.();
+                Solicitacoes.filters.search = term;
+                Solicitacoes.currentPage = 1;
+                Solicitacoes.render();
+                Utils.showToast(`Busca por "${term}" aplicada às solicitações`, 'info');
+                return;
+            }
+            Utils.showToast('Não foi possível aplicar a busca agora. Tente novamente.', 'warning');
         };
         App.initContentObserver = function () {
             if (this._contentObserverBound) {

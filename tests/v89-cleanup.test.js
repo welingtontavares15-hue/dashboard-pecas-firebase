@@ -34,13 +34,13 @@ describe('v89 cleanup release', () => {
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
-        expect(app).toContain("version: 'v95-auditoria-geral'");
-        expect(sw).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
+        expect(app).toContain("version: 'v97-revisao-interativa'");
+        expect(sw).toContain("const CACHE_VERSION = 'v97-revisao-interativa'");
     });
 
     test('active navigation routes are unchanged', () => {
         const app = read('js/app.js');
         expect(app).toContain("dashboard: './pages/dashboard-v55.js?v=20261108a'");
-        expect(app).toContain("relatorios: './pages/relatorios-v55.js?v=20261108a'");
+        expect(app).toContain("relatorios: './pages/relatorios-v55.js?v=20261110a'");
     });
 });
