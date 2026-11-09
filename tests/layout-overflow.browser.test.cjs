@@ -237,6 +237,59 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         .some((node) => /encontrad/.test(node.textContent)));
                     if (duplicateCount) failures.push(`${width}px ${role} ${pageId}: contagem de resultados duplicada`);
 
+                    // Regressão mobile: os checkboxes dos filtros de relatórios não
+                    // podem ocupar 100% e empurrar os rótulos para fora da lista.
+                    if (pageId === 'relatorios' && role === 'administrador' && width <= 768) {
+                        const filterProblems = await page.evaluate(() => {
+                            const problems = [];
+                            const validate = (selector, label) => {
+                                const filter = document.querySelector(selector);
+                                const options = filter?.querySelector('.status-filter-options, .premium-multi-filter-options');
+                                if (!filter || !options || !options.children.length) {
+                                    problems.push(label + ': lista de opções ausente');
+                                    return;
+                                }
+                                if (options.scrollWidth > options.clientWidth + 2) {
+                                    problems.push(label + ': rolagem horizontal na lista');
+                                }
+                                options.querySelectorAll('label').forEach((row) => {
+                                    const checkbox = row.querySelector('input[type="checkbox"]');
+                                    const text = row.querySelector('span:not(.status-badge)');
+                                    if (!checkbox || !text || !text.textContent.trim()) {
+                                        problems.push(label + ': checkbox ou texto ausente');
+                                        return;
+                                    }
+                                    const box = checkbox.getBoundingClientRect();
+                                    const words = text.getBoundingClientRect();
+                                    const bounds = options.getBoundingClientRect();
+                                    if (box.width > 24 || box.height > 24) problems.push(label + ': checkbox ampliado');
+                                    if (words.width < 12 || words.right > bounds.right + 2 || words.left < bounds.left - 2) {
+                                        problems.push(label + ': rótulo cortado ou deslocado');
+                                    }
+                                });
+                            };
+                            const status = document.querySelector('[data-status-filter="report-status"]');
+                            if (!status) problems.push('status: seletor ausente');
+                            else {
+                                status.classList.add('open');
+                                validate('[data-status-filter="report-status"]', 'status');
+                                status.classList.remove('open');
+                            }
+                            const shell = document.querySelector('.ri-filters');
+                            shell?.classList.replace('is-collapsed', 'is-expanded');
+                            const technician = document.querySelector('[data-premium-multi-filter="report-tecnicos"]');
+                            if (!technician) problems.push('técnico: seletor ausente');
+                            else {
+                                technician.classList.add('open');
+                                validate('[data-premium-multi-filter="report-tecnicos"]', 'técnico');
+                                technician.classList.remove('open');
+                            }
+                            shell?.classList.replace('is-expanded', 'is-collapsed');
+                            return [...new Set(problems)];
+                        });
+                        filterProblems.forEach(problem => failures.push(`${width}px relatorios: ${problem}`));
+                    }
+
                     if (pageId === 'solicitacoes' && role === 'administrador' && width >= 1280) {
                         // A coluna Ações não pode invadir a coluna Data.
                         const overlap = await page.evaluate(() => {
