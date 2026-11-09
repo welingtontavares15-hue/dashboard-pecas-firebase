@@ -57,12 +57,17 @@ const Fornecedores = {
         const canCreate = Auth.hasPermission('fornecedores', 'create');
 
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-truck"></i> Fornecedores</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-truck"></i> Fornecedores</h2>
+                    <p>Fornecedores que recebem os pedidos aprovados, com contatos e acesso ao portal.</p>
+                </div>
                 ${canCreate ? `
-                    <button class="btn btn-success" onclick="Fornecedores.openForm()">
-                        <i class="fas fa-plus"></i> Novo Fornecedor
-                    </button>
+                    <div class="page-actions">
+                        <button class="btn btn-success" onclick="Fornecedores.openForm()">
+                            <i class="fas fa-plus"></i> Novo Fornecedor
+                        </button>
+                    </div>
                 ` : ''}
             </div>
 
@@ -70,10 +75,7 @@ const Fornecedores = {
                 <div class="search-box">
                     <input type="text" id="supplier-search" class="form-control"
                            placeholder="Buscar por nome, email, CNPJ ou usuário..."
-                           value="${Utils.escapeHtml(this.searchQuery)}">
-                    <button class="btn btn-primary" onclick="Fornecedores.search()">
-                        <i class="fas fa-search"></i>
-                    </button>
+                           value="${Utils.escapeHtml(this.searchQuery)}" aria-label="Buscar fornecedores">
                 </div>
             </div>
 
@@ -172,11 +174,9 @@ const Fornecedores = {
                                 <tr>
                                     <td><strong>${Utils.escapeHtml(supplier.nome)}</strong></td>
                                     <td>
-                                        <a href="mailto:${Utils.escapeHtml(supplier.email)}">
-                                            ${Utils.escapeHtml(supplier.email)}
-                                        </a>
+                                        ${supplier.email ? `<a href="mailto:${Utils.escapeHtml(supplier.email)}">${Utils.escapeHtml(supplier.email)}</a>` : '-'}
                                     </td>
-                                    <td>${Utils.escapeHtml(supplier.telefone || '-')}</td>
+                                    <td>${supplier.telefone ? Utils.escapeHtml(Utils.formatPhone(supplier.telefone)) : '-'}</td>
                                     <td>${Utils.escapeHtml(supplier.cnpj || '-')}</td>
                                     <td><code>${Utils.escapeHtml(linkedUser?.username || supplier.username || '-')}</code></td>
                                     <td>

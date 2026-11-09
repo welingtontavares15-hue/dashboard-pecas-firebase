@@ -10,12 +10,12 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard-v55.js?v=20261108a',
-        solicitacoes: './pages/solicitacoes.js?v=20260903c',
-        aprovacoes: './pages/aprovacoes.js?v=20260903c',
-        pecas: './pages/pecas.js?v=20260309n',
+        solicitacoes: './pages/solicitacoes.js?v=20261109a',
+        aprovacoes: './pages/aprovacoes.js?v=20261109a',
+        pecas: './pages/pecas.js?v=20261109a',
         relatorios: './pages/relatorios-v55.js?v=20261108a',
-        fornecedor: './pages/fornecedor.js?v=20260709a',
-        usuarios: './pages/usuarios.js?v=20260709a'
+        fornecedor: './pages/fornecedor.js?v=20261109a',
+        usuarios: './pages/usuarios.js?v=20261109a'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],
@@ -1169,8 +1169,11 @@ const App = {
         const canManageGestores = Auth.getRole() === 'administrador';
         
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-cog"></i> Configurações</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-cog"></i> Configurações</h2>
+                    <p>Parâmetros de aprovação, integrações, gestores e manutenção do portal.</p>
+                </div>
             </div>
             
             <!-- Cloud Storage Status -->
@@ -2098,8 +2101,11 @@ const App = {
         const content = document.getElementById('content-area');
         
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-question-circle"></i> Ajuda</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-question-circle"></i> Ajuda</h2>
+                    <p>Passo a passo para solicitar peças e entender cada status do pedido.</p>
+                </div>
             </div>
             
             <div class="card">
@@ -2109,12 +2115,11 @@ const App = {
                 <div class="card-body">
                     <h5>Como criar uma solicitação?</h5>
                     <ol>
-                        <li>Clique em "Nova Solicitação" no menu</li>
-                        <li>Selecione a data e, se aplicável, o técnico</li>
-                        <li>Use o campo de busca para encontrar e adicionar peças</li>
-                        <li>Ajuste as quantidades conforme necessário</li>
-                        <li>Adicione desconto e frete se aplicável</li>
-                        <li>Clique em "Enviar para Aprovação"</li>
+                        <li>Toque em "Nova" (barra inferior) ou em "Nova solicitação"</li>
+                        <li>Identificação: informe data, cliente, divisão e fornecedor</li>
+                        <li>Peças: busque pelo código ou descrição e ajuste as quantidades</li>
+                        <li>Revisão: confira os itens e o total e toque em "Confirmar e enviar"</li>
+                        <li>Acompanhe o andamento em "Minhas solicitações"</li>
                     </ol>
                     
                     <h5 class="mt-4">Como buscar peças rapidamente?</h5>
@@ -2125,30 +2130,15 @@ const App = {
                         <li>Peças recentes aparecem abaixo do campo para acesso rápido</li>
                     </ul>
                     <h5 class="mt-4">Status das Solicitações</h5>
-                    <table class="table">
-                        <tbody>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('pendente')}</td>
-                                <td>Em análise do gestor</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('rejeitada')}</td>
-                                <td>Solicitação rejeitada e devolvida ao técnico</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('aprovada')}</td>
-                                <td>Aprovada e aguardando envio do fornecedor</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('em-transito')}</td>
-                                <td>Rastreio informado e material em trânsito</td>
-                            </tr>
-                            <tr>
-                                <td>${Utils.renderStatusBadge('finalizada')}</td>
-                                <td>Solicitação concluída</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <dl class="wwm-status-legend">
+                        ${[
+        ['pendente', 'Em análise do gestor'],
+        ['rejeitada', 'Solicitação rejeitada e devolvida ao técnico'],
+        ['aprovada', 'Aprovada e aguardando envio do fornecedor'],
+        ['em-transito', 'Rastreio informado e material em trânsito'],
+        ['finalizada', 'Solicitação concluída']
+    ].map(([status, description]) => `<div><dt>${Utils.renderStatusBadge(status)}</dt><dd>${description}</dd></div>`).join('')}
+                    </dl>
                 </div>
             </div>
             
@@ -2181,8 +2171,11 @@ const App = {
         }
         
         content.innerHTML = `
-            <div class="page-header">
-                <h2><i class="fas fa-user-cog"></i> Meu Perfil</h2>
+            <div class="page-header wwm-page-title">
+                <div>
+                    <h2><i class="fas fa-user-cog"></i> Meu Perfil</h2>
+                    <p>Seus dados de acesso, entrada com digital e troca de senha.</p>
+                </div>
             </div>
             
             <div class="card">

@@ -7,8 +7,8 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../tecnicos.js?v=20260709a', import.meta.url).href, 'Tecnicos');
-    await ensureClassicScript(new URL('../fornecedores.js', import.meta.url).href, 'Fornecedores');
+    await ensureClassicScript(new URL('../tecnicos.js?v=20261109a', import.meta.url).href, 'Tecnicos');
+    await ensureClassicScript(new URL('../fornecedores.js?v=20261109a', import.meta.url).href, 'Fornecedores');
     await ensureClassicScript(new URL('../usuarios.js', import.meta.url).href, 'Usuarios');
 
     ready = true;

@@ -45,13 +45,13 @@ jobs:
       - name: Device biometric encryption in Chrome
         run: npm run test:device-biometric
 
-      - name: Layout overflow in Chrome (390/768/1280/1440 px)
+      - name: Layout overflow in Chrome (390/768/1024/1280/1440 px)
         run: npm run test:layout
 
       - name: Build production CSS bundles
         run: node scripts/build-site.mjs
 
-      - name: Validate bundled layout in Chrome (390/768/1280/1440 px)
+      - name: Validate bundled layout in Chrome (390/768/1024/1280/1440 px)
         run: WWM_TEST_ROOT=dist npm run test:layout
 
       - name: Python syntax

@@ -102,7 +102,7 @@ function collectOverflow() {
     return issues;
 }
 
-test('real browser: telas principais sem conteúdo cortado em celular, tablet e desktop', { timeout: 240000 }, async () => {
+test('real browser: telas principais sem conteúdo cortado em celular, tablet e desktop', { timeout: 360000 }, async () => {
     const server = await startStaticServer();
     const base = `http://127.0.0.1:${server.address().port}/index.html`;
     let browser;
@@ -117,7 +117,8 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
             { role: 'administrador', pages: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios', 'pecas', 'configuracoes'] },
             { role: 'tecnico', pages: ['solicitacoes'] }
         ];
-        const widths = [390, 768, 1280, 1440];
+        // 1024: notebook pequeno/tablet na horizontal (o menu sumia e deixava faixa vazia).
+        const widths = [390, 768, 1024, 1280, 1440];
         const failures = [];
 
         // Valida o login como uma tela própria. A versão anterior aparecia
@@ -131,8 +132,20 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
             await loginPage.setRequestInterception(true);
             loginPage.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
             await loginPage.goto(base, { waitUntil: 'load' });
-            await loginPage.waitForFunction(() => typeof App !== 'undefined', { timeout: 20000 });
+            // Espera o App.init terminar: ele chama showLogin()/showApp() de forma assíncrona e,
+            // se ainda estiver rodando, sobrescreve a tela no meio da medição.
+            await loginPage.waitForFunction(() => typeof App !== 'undefined' && App.isBootstrapping === false, { timeout: 20000 });
             await loginPage.evaluate(() => App.showLogin());
+            // No modo fonte, wwm-reference-ui reordena os <link> do <head>; reinserir uma
+            // folha de estilo a recarrega e por alguns ms suas regras não valem. Espera
+            // todas as folhas carregadas e dois quadros antes de medir.
+            await loginPage.evaluate(() => new Promise((resolve) => {
+                const settle = () => requestAnimationFrame(() => requestAnimationFrame(resolve));
+                const pending = [...document.querySelectorAll('link[rel="stylesheet"]')].filter((link) => !link.sheet);
+                if (!pending.length) return setTimeout(settle, 250);
+                Promise.all(pending.map((link) => new Promise((done) => { link.addEventListener('load', done, { once: true }); link.addEventListener('error', done, { once: true }); })))
+                    .then(() => setTimeout(settle, 250));
+            }));
             const geometry = await loginPage.evaluate(() => {
                 const card = document.querySelector('#login-screen .login-card');
                 const header = card?.querySelector('.wwm-login-header');
@@ -185,7 +198,7 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                 // Somente arquivos locais: nada de Firebase, CDN ou rede externa.
                 page.on('request', req => (req.url().startsWith('http://127.0.0.1') ? req.continue() : req.abort()));
                 await page.goto(base, { waitUntil: 'load' });
-                await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined', { timeout: 20000 });
+                await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined' && App.isBootstrapping === false, { timeout: 20000 });
                 await page.evaluate(`(${seedSyntheticData.toString()})()`);
                 await page.evaluate((currentRole) => {
                     Auth.currentUser = currentRole === 'tecnico'
@@ -194,11 +207,35 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                     App.showApp();
                 }, role);
 
+                // Estrutura: ou o menu lateral está visível e o conteúdo começa depois
+                // dele, ou o menu está fechado, o conteúdo ocupa a largura e existe o
+                // botão para abri-lo. Também valida o selo de sincronização real.
+                await new Promise(resolve => setTimeout(resolve, 600));
+                const shell = await page.evaluate(() => {
+                    const problems = [];
+                    const sidebar = document.getElementById('sidebar').getBoundingClientRect();
+                    const main = document.querySelector('.main-content').getBoundingClientRect();
+                    const menuBtn = document.getElementById('mobile-menu-btn').getBoundingClientRect();
+                    const sidebarVisible = sidebar.right > 1 && sidebar.width > 0;
+                    if (sidebarVisible && main.left < sidebar.right - 1) problems.push('conteúdo por baixo do menu lateral');
+                    if (!sidebarVisible && main.left > 1) problems.push(`faixa vazia de ${Math.round(main.left)}px sem menu`);
+                    if (!sidebarVisible && !(menuBtn.width > 0 && menuBtn.height > 0)) problems.push('menu fechado e sem botão para abrir');
+                    const sync = document.querySelector('.main-header .sync-status');
+                    if (sync && sync.dataset.syncState !== 'ok' && /Sincronizado/.test(sync.textContent)) problems.push('selo diz "Sincronizado" sem nuvem');
+                    return problems;
+                });
+                shell.forEach((problem) => failures.push(`${width}px ${role} estrutura: ${problem}`));
+
                 for (const pageId of pages) {
                     await page.evaluate(id => App.navigate(id), pageId);
                     await new Promise(resolve => setTimeout(resolve, 700));
                     const issues = await page.evaluate(`(${collectOverflow.toString()})()`);
                     if (issues.length) failures.push(`${width}px ${role} ${pageId}: ${issues.slice(0, 3).join(' | ')}`);
+
+                    // Contagem não pode aparecer duplicada ("X encontradas" + "Exibindo X de Y").
+                    const duplicateCount = await page.evaluate(() => [...document.querySelectorAll('#content-area .filter-context-summary .helper-text')]
+                        .some((node) => /encontrad/.test(node.textContent)));
+                    if (duplicateCount) failures.push(`${width}px ${role} ${pageId}: contagem de resultados duplicada`);
 
                     if (pageId === 'solicitacoes' && role === 'administrador' && width >= 1280) {
                         // A coluna Ações não pode invadir a coluna Data.

@@ -10,7 +10,7 @@
         tecnicos: { label: 'Técnicos', icon: 'fa-users-gear', permission: ['tecnicos', 'view'] },
         fornecedores: { label: 'Fornecedores', icon: 'fa-truck-field', permission: ['fornecedores', 'view'] },
         relatorios: { label: 'Relatórios', icon: 'fa-chart-column', permission: ['relatorios', 'view'] },
-        configuracoes: { label: 'Sistema', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
+        configuracoes: { label: 'Configurações', icon: 'fa-gear', permission: ['configuracoes', 'view'] },
         fornecedor: { label: 'Pedidos Aprovados', icon: 'fa-truck-fast', permission: ['fornecedor', 'view'] },
         perfil: { label: 'Meu Perfil', icon: 'fa-user-gear', roles: ['administrador', 'gestor', 'tecnico', 'fornecedor'] },
         ajuda: { label: 'Ajuda', icon: 'fa-circle-question', roles: ['tecnico'] }

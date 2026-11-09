@@ -7,9 +7,9 @@ export async function ensureLoaded() {
         return;
     }
 
-    await ensureClassicScript(new URL('../solicitacoes.js?v=20260903b', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20261109a', import.meta.url).href, 'Solicitacoes');
     await ensureClassicScript(new URL('../solicitacoes-divisao.js?v=20260903c', import.meta.url).href, 'SolicitacoesDivisaoPatch');
-    await ensureClassicScript(new URL('../aprovacoes.js?v=20261108a', import.meta.url).href, 'Aprovacoes');
+    await ensureClassicScript(new URL('../aprovacoes.js?v=20261109a', import.meta.url).href, 'Aprovacoes');
 
     window.SolicitacoesDivisaoPatch?.patch?.();
     ready = true;
