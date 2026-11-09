@@ -290,6 +290,37 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         filterProblems.forEach(problem => failures.push(`${width}px relatorios: ${problem}`));
                     }
 
+                    // Cada lista de filtro (Cliente, Técnico, Fornecedor, Região...) precisa
+                    // abrir inteira dentro da tela e logo abaixo do próprio botão. No celular a
+                    // da coluna direita saía da tela; no tablet/desktop, a do último campo.
+                    if (pageId === 'relatorios' && role === 'administrador') {
+                        const popoverProblems = await page.evaluate(async () => {
+                            const problems = [];
+                            const toggle = document.querySelector('.ri-filters.is-collapsed .ri-filters-toggle');
+                            toggle?.click();
+                            await new Promise((resolve) => setTimeout(resolve, 300));
+                            for (const trigger of document.querySelectorAll('.premium-report-filter-grid [data-premium-multi-trigger]')) {
+                                trigger.click();
+                                await new Promise((resolve) => setTimeout(resolve, 120));
+                                const filter = trigger.closest('[data-premium-multi-filter]');
+                                const popover = filter?.querySelector('[data-premium-multi-popover]');
+                                const name = filter?.querySelector('label')?.textContent.trim() || filter?.dataset.premiumMultiFilter;
+                                const box = popover?.getBoundingClientRect();
+                                const button = trigger.getBoundingClientRect();
+                                if (!box || !box.width) problems.push(`${name}: lista não abriu`);
+                                else {
+                                    if (box.left < -1 || box.right > window.innerWidth + 1) problems.push(`${name}: lista sai da tela (${Math.round(box.left)}–${Math.round(box.right)})`);
+                                    if (box.top < button.bottom - 2) problems.push(`${name}: lista abre por cima do botão`);
+                                }
+                                document.body.click();
+                                await new Promise((resolve) => setTimeout(resolve, 60));
+                            }
+                            if (toggle) document.querySelector('.ri-filters.is-expanded .ri-filters-toggle')?.click();
+                            return problems;
+                        });
+                        popoverProblems.forEach(problem => failures.push(`${width}px relatorios: ${problem}`));
+                    }
+
                     if (pageId === 'solicitacoes' && role === 'administrador' && width >= 1280) {
                         // A coluna Ações não pode invadir a coluna Data.
                         const overlap = await page.evaluate(() => {

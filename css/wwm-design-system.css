@@ -3079,3 +3079,35 @@ body.wwm-ds #sidebar:not(.collapsed) #user-name {
     overflow: hidden !important;
 }
 }
+
+@layer wwm-ds {
+/* Relatórios no celular: as listas de Cliente/Técnico/Fornecedor/... abriam
+   presas à própria coluna; na coluna da direita saíam da tela (opções e
+   "Limpar" cortados). Agora abrem logo abaixo do campo, ancoradas ao bloco de
+   filtros e na largura total dele. */
+@media (max-width: 767px) {
+    body.wwm-ds #content-area .premium-report-filter-grid { position: relative !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid > .premium-multi-filter { position: static !important; }
+    /* Bloco (não flex) para a lista abrir logo abaixo do botão, e não sobre o rótulo. */
+    body.wwm-ds #content-area .ri-filters:not(.is-collapsed) .premium-report-filter-grid > .premium-multi-filter { display: block !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid > .premium-multi-filter > label { display: block !important; margin-bottom: 5px !important; }
+    body.wwm-ds #content-area .premium-report-filter-grid .premium-multi-filter-popover {
+        position: absolute !important;
+        top: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        margin-top: 6px !important;
+        max-height: min(360px, 60vh) !important;
+        z-index: 260 !important;
+        box-sizing: border-box !important;
+    }
+}
+}
+@layer wwm-ds {
+@media (min-width: 768px) {
+    body.wwm-ds #content-area .premium-multi-filter.premium-multi-align-right .premium-multi-filter-popover { left: auto !important; right: 0 !important; }
+}
+}

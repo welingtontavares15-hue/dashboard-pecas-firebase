@@ -34,8 +34,8 @@ describe('v89 cleanup release', () => {
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
-        expect(app).toContain("version: 'v95-auditoria-geral'");
-        expect(sw).toContain("const CACHE_VERSION = 'v95-auditoria-geral'");
+        expect(app).toContain("version: 'v96-filtros-relatorios'");
+        expect(sw).toContain("const CACHE_VERSION = 'v96-filtros-relatorios'");
     });
 
     test('active navigation routes are unchanged', () => {

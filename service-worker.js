@@ -1,5 +1,5 @@
 // Cache da experiência de login WWM (ícones e módulos funcionais preservados).
-const CACHE_VERSION = 'v95-auditoria-geral';
+const CACHE_VERSION = 'v96-filtros-relatorios';
 const CACHE_PREFIX = 'dashboard-pecas';
 const OFFLINE_URL = './offline.html';
 
