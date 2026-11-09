@@ -2715,6 +2715,24 @@ const Utils = {
         
         modalContent.innerHTML = content;
         container.classList.remove('hidden');
+
+        // Acessibilidade: diálogo nomeado pelo título e botão de fechar com nome.
+        modalContent.setAttribute('role', 'dialog');
+        modalContent.setAttribute('aria-modal', 'true');
+        const modalTitle = modalContent.querySelector('.modal-header :is(h2, h3, h4)');
+        if (modalTitle) {
+            modalTitle.id = modalTitle.id || 'modal-title';
+            modalContent.setAttribute('aria-labelledby', modalTitle.id);
+        }
+        modalContent.querySelectorAll('.modal-close').forEach((button) => {
+            button.setAttribute('type', 'button');
+            if (!button.getAttribute('aria-label')) {
+                button.setAttribute('aria-label', 'Fechar');
+            }
+            if (!button.getAttribute('title')) {
+                button.setAttribute('title', 'Fechar');
+            }
+        });
         
         // Close on backdrop click
         container.querySelector('.modal-backdrop').onclick = () => {

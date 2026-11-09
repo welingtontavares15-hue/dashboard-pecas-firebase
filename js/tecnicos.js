@@ -316,9 +316,9 @@ const Tecnicos = {
                                    placeholder="Nome de usuário para login" required>
                         </div>
                         <div class="form-group">
-                            <label for="tech-password">${isEdit ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
+                            <label for="tech-password">${isEdit ? 'Nova senha (opcional)' : 'Senha *'}</label>
                             <input type="password" id="tech-password" class="form-control" 
-                                   placeholder="${isEdit ? '••••••••' : 'Senha de acesso'}"
+                                   placeholder="${isEdit ? 'Deixe em branco para manter' : 'Senha de acesso'}"
                                    ${isEdit ? '' : 'required'}>
                         </div>
                     </div>

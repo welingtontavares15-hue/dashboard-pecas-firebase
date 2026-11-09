@@ -3111,3 +3111,286 @@ body.wwm-ds #sidebar:not(.collapsed) #user-name {
     body.wwm-ds #content-area .premium-multi-filter.premium-multi-align-right .premium-multi-filter-popover { left: auto !important; right: 0 !important; }
 }
 }
+
+/* ==========================================================================
+   v97 — Revisão de estados interativos (listas, menus, janelas, formulários)
+   ========================================================================== */
+@layer wwm-ds {
+
+body.wwm-ds .sr-only {
+    position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important;
+    overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+}
+
+/* --- Filtro de status: o nome aparecia duas vezes (texto + etiqueta) e a
+       etiqueta saía cortada. Fica: caixa, ponto colorido e o nome inteiro. --- */
+body.wwm-ds .status-filter-dropdown { min-width: min(280px, calc(100vw - 32px)) !important; }
+body.wwm-ds .status-filter-options { display: grid !important; gap: 2px !important; }
+body.wwm-ds .status-filter-option {
+    display: flex !important; align-items: center !important; gap: 10px !important;
+    min-height: 38px !important; padding: 6px 10px !important; margin: 0 !important;
+    border-radius: var(--ds-r-sm) !important; cursor: pointer !important; white-space: normal !important;
+}
+body.wwm-ds .status-filter-option:hover { background: var(--ds-hover) !important; }
+body.wwm-ds .status-filter-option > input[type="checkbox"] { flex: 0 0 16px !important; width: 16px !important; height: 16px !important; margin: 0 !important; order: 0 !important; }
+body.wwm-ds .status-filter-option > span:not(.status-badge) { order: 2 !important; flex: 1 1 auto !important; min-width: 0 !important; color: var(--ds-text) !important; font-size: 13.5px !important; line-height: 1.35 !important; }
+body.wwm-ds .status-filter-option > .status-badge {
+    order: 1 !important; flex: 0 0 10px !important; width: 10px !important; min-width: 10px !important; height: 10px !important; min-height: 10px !important;
+    padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: currentColor !important;
+    font-size: 0 !important; line-height: 0 !important; overflow: hidden !important; box-shadow: none !important;
+}
+body.wwm-ds .status-filter-option > .status-badge > * { display: none !important; }
+
+/* --- Menu "…" das linhas: as opções viravam quadrados só com ícone e, nas
+       últimas linhas, eram cortadas pela tabela. Enquanto aberto o menu vai
+       para o <body> (.is-floating, ver premium-ui-v3.js). --- */
+body.wwm-ds #content-area .table .actions .premium-row-menu > .premium-row-menu-popover { display: none !important; }
+body.wwm-ds .premium-row-menu-popover.is-floating {
+    position: fixed !important; right: auto !important; bottom: auto !important; z-index: 900 !important;
+    display: grid !important; gap: 2px !important; width: max-content !important; min-width: 190px !important; max-width: min(280px, calc(100vw - 16px)) !important;
+    margin: 0 !important; padding: 6px !important;
+    border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-lg) !important;
+    background: var(--ds-surface-solid) !important; box-shadow: var(--ds-shadow-lg) !important;
+}
+body.wwm-ds .premium-row-menu-popover.is-floating .btn {
+    display: flex !important; align-items: center !important; width: 100% !important; min-width: 0 !important; height: auto !important; min-height: 40px !important;
+    justify-content: flex-start !important; gap: 10px !important; padding: 8px 12px !important; margin: 0 !important;
+    border: 0 !important; border-radius: var(--ds-r-sm) !important; background: transparent !important; color: var(--ds-text) !important; box-shadow: none !important;
+    font-size: 13.5px !important; font-weight: 500 !important; white-space: nowrap !important; text-align: left !important;
+}
+body.wwm-ds .premium-row-menu-popover.is-floating .btn:hover,
+body.wwm-ds .premium-row-menu-popover.is-floating .btn:focus-visible { background: var(--ds-surface-3) !important; }
+body.wwm-ds .premium-row-menu-popover.is-floating .btn > span { display: inline !important; font-size: inherit !important; }
+body.wwm-ds .premium-row-menu-popover.is-floating .btn > i { width: 16px !important; text-align: center !important; color: var(--ds-muted) !important; }
+body.wwm-ds .premium-row-menu-popover.is-floating .btn.btn-danger,
+body.wwm-ds .premium-row-menu-popover.is-floating .btn.btn-danger > i { color: var(--ds-err) !important; }
+
+/* --- "Mais ações" do título: no celular abria atrás dos indicadores. --- */
+body.wwm-ds #content-area :is(.page-header, .wwm-page-title):has(details.action-menu[open]) { position: relative !important; z-index: 60 !important; }
+body.wwm-ds #content-area details.action-menu[open] > .action-menu-dropdown { z-index: 61 !important; min-width: 190px !important; }
+body.wwm-ds #content-area .action-menu-item { min-height: 40px !important; white-space: nowrap !important; }
+
+/* --- Janelas: botão fechar com área de toque adequada. --- */
+body.wwm-ds .modal-header .modal-close { width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+
+/* --- Formulários em janela: campos da mesma linha alinhados pelo topo
+       (com textos de ajuda de tamanhos diferentes ficavam desnivelados). --- */
+body.wwm-ds .modal-body .form-row { align-items: start !important; }
+
+/* --- Itens do pedido (formulário): o campo de quantidade ocupava a linha
+       inteira e a descrição ficava espremida em uma coluna estreita. --- */
+body.wwm-ds .modal-body .wwm-item-row {
+    display: grid !important;
+    grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) 96px minmax(84px, max-content) minmax(92px, max-content) 40px !important;
+    align-items: center !important; gap: 12px !important;
+    padding: 10px 12px !important; margin: 0 0 8px !important;
+    border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+}
+body.wwm-ds .modal-body .wwm-item-row > * { min-width: 0 !important; width: auto !important; }
+body.wwm-ds .modal-body .wwm-item-row .item-code { color: #bff3e9 !important; font-weight: 700 !important; font-size: 13px !important; font-variant-numeric: tabular-nums !important; overflow-wrap: anywhere !important; }
+body.wwm-ds .modal-body .wwm-item-row .item-desc { color: var(--ds-text) !important; font-size: 13.5px !important; line-height: 1.4 !important; overflow-wrap: break-word !important; }
+body.wwm-ds .modal-body .wwm-item-row .wwm-item-qty { display: flex !important; flex-direction: column !important; gap: 3px !important; margin: 0 !important; }
+body.wwm-ds .modal-body .wwm-item-row .wwm-item-qty > span,
+body.wwm-ds .modal-body .wwm-item-row :is(.item-price, .item-total) > small { display: block !important; color: var(--ds-muted) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: .02em !important; text-transform: uppercase !important; }
+body.wwm-ds .modal-body .wwm-item-row .item-qty { width: 100% !important; min-width: 0 !important; height: 38px !important; min-height: 38px !important; padding: 0 10px !important; text-align: center !important; }
+body.wwm-ds .modal-body .wwm-item-row :is(.item-price, .item-total) { text-align: right !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; font-size: 13.5px !important; }
+body.wwm-ds .modal-body .wwm-item-row .item-price { color: var(--ds-text-2) !important; font-weight: 500 !important; }
+body.wwm-ds .modal-body .wwm-item-row .item-total { color: var(--ds-text) !important; font-weight: 700 !important; }
+body.wwm-ds .modal-body .wwm-item-remove { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; justify-self: end !important; color: var(--ds-err) !important; border: 1px solid var(--ds-err-bd) !important; background: transparent !important; border-radius: var(--ds-r-sm) !important; }
+body.wwm-ds .modal-body .wwm-item-remove:hover { background: var(--ds-err-bg) !important; }
+@media (max-width: 640px) {
+    body.wwm-ds .modal-body .wwm-item-row {
+        grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1fr) !important;
+        grid-template-areas: "code code remove" "desc desc desc" "qty price total" !important;
+        gap: 8px 12px !important; padding: 12px !important;
+    }
+    body.wwm-ds .modal-body .wwm-item-row .item-code { grid-area: code !important; align-self: center !important; }
+    body.wwm-ds .modal-body .wwm-item-row .item-desc { grid-area: desc !important; }
+    body.wwm-ds .modal-body .wwm-item-row .wwm-item-qty { grid-area: qty !important; }
+    body.wwm-ds .modal-body .wwm-item-row .item-price { grid-area: price !important; align-self: end !important; padding-bottom: 9px !important; }
+    body.wwm-ds .modal-body .wwm-item-row .item-total { grid-area: total !important; align-self: end !important; padding-bottom: 9px !important; }
+    body.wwm-ds .modal-body .wwm-item-row .wwm-item-remove { grid-area: remove !important; }
+    body.wwm-ds .modal-body .wwm-item-row .item-qty { height: 42px !important; min-height: 42px !important; }
+}
+
+/* --- Busca de peças: a descrição era cortada ("Sens…"). Código e preço na
+       primeira linha, descrição inteira embaixo. --- */
+body.wwm-ds .autocomplete-item {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas: "code price" "desc desc" !important; align-items: baseline !important;
+    gap: 2px 12px !important; min-height: 44px !important;
+}
+body.wwm-ds .autocomplete-item-code { grid-area: code !important; overflow-wrap: anywhere !important; font-size: 13px !important; }
+body.wwm-ds .autocomplete-item-price { grid-area: price !important; white-space: nowrap !important; font-size: 13px !important; }
+body.wwm-ds .autocomplete-item-desc {
+    grid-area: desc !important; display: block !important; min-width: 0 !important; max-width: none !important;
+    white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word !important;
+    font-size: 13.5px !important; line-height: 1.35 !important;
+}
+body.wwm-ds .autocomplete-dropdown { max-height: min(320px, 46vh) !important; overflow-y: auto !important; }
+
+/* --- Aprovar: cartão do fornecedor no padrão escuro (era um cartão branco). --- */
+body.wwm-ds .wwm-locked-supplier {
+    display: flex !important; align-items: center !important; gap: 12px !important; padding: 12px 14px !important;
+    border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+}
+body.wwm-ds .wwm-locked-supplier-icon { flex: 0 0 38px !important; width: 38px !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 50% !important; background: var(--ds-info-bg) !important; color: var(--ds-info) !important; }
+body.wwm-ds .wwm-locked-supplier.is-hobart .wwm-locked-supplier-icon { background: var(--ds-warn-bg) !important; color: var(--ds-warn) !important; }
+body.wwm-ds .wwm-locked-supplier-copy { min-width: 0 !important; display: grid !important; gap: 1px !important; }
+body.wwm-ds .wwm-locked-supplier-copy strong { color: var(--ds-text) !important; font-size: 14.5px !important; }
+body.wwm-ds .wwm-locked-supplier-copy small { color: var(--ds-muted) !important; font-size: 12px !important; }
+body.wwm-ds .wwm-locked-supplier-tag { margin-left: auto !important; flex: 0 0 auto !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; padding: 4px 10px !important; border: 1px solid var(--ds-border) !important; border-radius: 999px !important; color: var(--ds-text-2) !important; font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- Legibilidade --- */
+body.wwm-ds #content-area .table td small.text-muted { font-size: 11.5px !important; }
+body.wwm-ds #wwm-request-progress .wwm-request-step-label { font-size: 11.5px !important; }
+
+}
+
+@layer wwm-ds {
+
+/* --- Tabelas dentro de janelas: tinham largura mínima de 980px e a coluna
+       Total (e o botão remover) ficava escondida fora da janela. --- */
+body.wwm-ds .modal-body .table-container { overflow-x: auto !important; max-width: 100% !important; }
+@media (min-width: 768px) {
+    body.wwm-ds #modal-content .modal-body table.table { width: 100% !important; min-width: 0 !important; table-layout: auto !important; }
+    body.wwm-ds #modal-content .modal-body table.table :is(th, td) { white-space: normal !important; overflow-wrap: break-word !important; padding-inline: 10px !important; }
+    body.wwm-ds #modal-content .modal-body table.table :is(th, td):first-child { white-space: nowrap !important; }
+    body.wwm-ds #modal-content .modal-body table.table td:has(> input[type="number"]) { width: 96px !important; min-width: 96px !important; }
+    body.wwm-ds #modal-content .modal-body table.table td:has(> .btn-icon) { width: 48px !important; text-align: right !important; }
+    /* valores (R$) nunca quebram */
+    body.wwm-ds #modal-content .modal-body table.table :is(th, td):nth-last-child(-n+3):not(:first-child) { white-space: nowrap !important; }
+}
+
+/* --- Detalhes da solicitação: o painel de históricos flutuava à direita e
+       empurrava a tabela de itens, deixando um vazio grande sob "Itens".
+       Agora são três cartões lado a lado, e o resto usa a largura toda. --- */
+body.wwm-ds .modal-body .decision-side-panel {
+    float: none !important; width: 100% !important; max-width: none !important; margin: 16px 0 !important;
+    display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px !important; align-items: start !important;
+}
+body.wwm-ds .modal-body .decision-side-section {
+    margin: 0 !important; padding: 12px 14px !important; height: 100% !important;
+    border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+}
+body.wwm-ds .modal-body .decision-side-section h4 { margin: 0 0 6px !important; font-size: 13.5px !important; color: var(--ds-text) !important; }
+body.wwm-ds .modal-body .decision-side-section p { margin: 0 0 8px !important; font-size: 12px !important; color: var(--ds-muted) !important; display: -webkit-box !important; -webkit-box-orient: vertical !important; -webkit-line-clamp: 2 !important; overflow: hidden !important; min-height: 2.9em !important; }
+body.wwm-ds .modal-body .decision-side-section:first-child .decision-side-list { margin-top: calc(2.9em + 8px) !important; }
+body.wwm-ds .modal-body .decision-side-list > div { border: 0 !important; border-top: 1px solid var(--ds-border) !important; border-radius: 0 !important; padding: 7px 0 !important; font-size: 12.5px !important; background: transparent !important; }
+body.wwm-ds .modal-body .decision-side-list > div span { color: var(--ds-muted) !important; }
+body.wwm-ds .modal-body .decision-side-list > div strong { color: var(--ds-text) !important; font-size: 12.5px !important; white-space: nowrap !important; }
+body.wwm-ds .modal-body .decision-panel-clear { display: none !important; }
+/* resumo do topo (Técnico, Data, Status, Cliente…) em grade regular */
+body.wwm-ds .modal-body > .form-row:first-child:has(> .form-group > p) {
+    display: grid !important; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; gap: 14px 18px !important; align-items: start !important;
+    padding: 0 0 16px !important; margin: 0 0 4px !important; border-bottom: 1px solid var(--ds-border) !important;
+}
+body.wwm-ds .modal-body > .form-row:first-child:has(> .form-group > p) > .form-group { margin: 0 !important; min-width: 0 !important; }
+body.wwm-ds .modal-body > .form-row:first-child:has(> .form-group > p) p { margin: 4px 0 0 !important; overflow-wrap: break-word !important; }
+body.wwm-ds .modal-body .requester-delivery-grid { margin-bottom: 16px !important; }
+body.wwm-ds .modal-body .tracking-box { border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important; }
+body.wwm-ds .modal-body .tracking-box p { margin: 0 !important; }
+@media (max-width: 767px) {
+    body.wwm-ds .modal-body .decision-side-panel { grid-template-columns: minmax(0, 1fr) !important; }
+    body.wwm-ds .modal-body .decision-side-section p { min-height: 0 !important; }
+    body.wwm-ds .modal-body .decision-side-section:first-child .decision-side-list { margin-top: 0 !important; }
+    /* resumo e dados do solicitante em 2 colunas (eram 1 por linha, com muita rolagem) */
+    body.wwm-ds .modal-body > .form-row:first-child:has(> .form-group > p) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+    body.wwm-ds .modal-body :is(.technician-summary-grid, .requester-delivery-grid) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+    body.wwm-ds .modal-body :is(.technician-summary-grid, .requester-delivery-grid) > * { min-width: 0 !important; margin: 0 !important; padding: 10px 12px !important; }
+    body.wwm-ds .modal-body :is(.technician-summary-grid, .requester-delivery-grid) > :is(.technician-summary-card-wide, :last-child:nth-child(odd)) { grid-column: 1 / -1 !important; }
+    body.wwm-ds .modal-body :is(.technician-summary-grid, .requester-delivery-grid) strong { overflow-wrap: anywhere !important; font-size: 14px !important; }
+}
+
+}
+
+@layer wwm-ds {
+/* --- Celular: itens em janelas (Detalhes, Aprovar). Cada item ocupava 5–6
+       linhas rotuladas; agora é um cartão de 3 linhas: código (+ remover),
+       descrição e Qtd / Valor unit. / Total lado a lado. --- */
+@media (max-width: 767px) {
+    body.wwm-ds .modal-body .table-container:has(table.table) { overflow: visible !important; border: 0 !important; background: transparent !important; padding: 0 !important; }
+    body.wwm-ds #modal-content .modal-body table.table,
+    body.wwm-ds #modal-content .modal-body table.table > tbody { display: block !important; width: 100% !important; min-width: 0 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > thead { display: none !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr {
+        display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 6px 10px !important;
+        padding: 12px !important; margin: 0 0 8px !important;
+        border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+    }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td {
+        display: block !important; min-width: 0 !important; width: auto !important; padding: 0 !important; border: 0 !important; background: transparent !important;
+        white-space: normal !important; overflow-wrap: break-word !important; text-align: left !important; font-size: 13.5px !important;
+        height: auto !important; min-height: 0 !important;
+    }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td::before {
+        content: attr(data-label) !important; display: block !important; position: static !important; width: auto !important; margin: 0 0 2px !important;
+        color: var(--ds-muted) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: .03em !important; text-transform: uppercase !important;
+    }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td[colspan] { grid-column: 1 / -1 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td[colspan]::before { display: none !important; }
+    /* tabelas com valores (5 ou 6 colunas) */
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(1) { grid-column: 1 / -1 !important; grid-row: 1 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(6)) > td:nth-child(1) { grid-column: 1 / 3 !important; align-self: center !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(2) { grid-column: 1 / -1 !important; grid-row: 2 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(-n+2)::before { display: none !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(n+3):nth-child(-n+5) { grid-row: 3 !important; align-self: end !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(n+3):nth-child(-n+5) { white-space: nowrap !important; height: auto !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(5) { text-align: right !important; font-weight: 700 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:has(> td:nth-child(5)) > td:nth-child(4) { text-align: center !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td:nth-child(6) { grid-column: 3 !important; grid-row: 1 !important; justify-self: end !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td:nth-child(6)::before { display: none !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr > td > input[type="number"] { width: 100% !important; max-width: 96px !important; height: 42px !important; min-height: 42px !important; text-align: center !important; }
+    /* tabela simples do técnico (Peça, Quantidade) */
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:not(:has(> td:nth-child(3))) > td:nth-child(1) { grid-column: 1 / 3 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:not(:has(> td:nth-child(3))) > td:nth-child(2):not([colspan]) { grid-column: 3 !important; text-align: right !important; font-weight: 700 !important; }
+    body.wwm-ds #modal-content .modal-body table.table > tbody > tr:not(:has(> td:nth-child(3))) > td:nth-child(1)::before { display: none !important; }
+    /* resumo do técnico: cartões curtos formam pares */
+    body.wwm-ds .modal-body .technician-summary-grid { grid-auto-flow: dense !important; }
+}
+}
+
+@layer wwm-ds {
+/* --- Portal do fornecedor no celular: o conteúdo dos cartões passava da
+       borda (nome do técnico, campo de rastreio e botões cortados) e o
+       "Fluxo oficial" ocupava uma tela inteira antes dos pedidos. --- */
+@media (max-width: 767px) {
+    body.wwm-ds #content-area .supplier-table-container,
+    body.wwm-ds #content-area .supplier-table,
+    body.wwm-ds #content-area .supplier-table > tbody { display: block !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+    body.wwm-ds #content-area .supplier-table > tbody > tr { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; overflow: hidden !important; }
+    body.wwm-ds #content-area .supplier-table > tbody > tr > td { min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; white-space: normal !important; }
+    body.wwm-ds #content-area .supplier-table td > *,
+    body.wwm-ds #content-area .supplier-table :is(.supplier-order-meta, .supplier-parts-summary, .supplier-status-cell) { min-width: 0 !important; max-width: 100% !important; }
+    body.wwm-ds #content-area .supplier-table :is(.supplier-order-meta, .supplier-parts-summary, .supplier-status-cell) :is(strong, small, span) { white-space: normal !important; overflow-wrap: anywhere !important; }
+    body.wwm-ds #content-area .supplier-tracking-input { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 8px !important; width: 100% !important; }
+    body.wwm-ds #content-area .supplier-tracking-input > input { width: 100% !important; min-width: 0 !important; height: 42px !important; }
+    body.wwm-ds #content-area .supplier-tracking-input > .btn { width: auto !important; min-width: 84px !important; height: 42px !important; min-height: 42px !important; padding: 0 14px !important; }
+    body.wwm-ds #content-area .supplier-tracking-help { display: block !important; margin-top: 6px !important; white-space: normal !important; font-size: 12px !important; }
+    body.wwm-ds #content-area .supplier-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; width: 100% !important; }
+    body.wwm-ds #content-area .supplier-actions .btn { width: 100% !important; min-width: 0 !important; height: 42px !important; min-height: 42px !important; justify-content: center !important; gap: 8px !important; padding: 0 10px !important; }
+    body.wwm-ds #content-area .supplier-actions .btn span { display: inline !important; }
+    /* fluxo oficial: faixa compacta de 5 etapas numa linha */
+    body.wwm-ds #content-area .supplier-flow-card .card-body { padding: 12px !important; }
+    body.wwm-ds #content-area .supplier-flow-track { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)) !important; gap: 4px !important; }
+    body.wwm-ds #content-area .supplier-flow-stage { min-height: 0 !important; padding: 8px 2px !important; text-align: center !important; display: flex !important; flex-direction: column !important; align-items: center !important; }
+    body.wwm-ds #content-area .supplier-flow-stage span { width: 24px !important; height: 24px !important; min-width: 24px !important; font-size: 12px !important; margin: 0 !important; }
+    body.wwm-ds #content-area .supplier-flow-stage small { margin-top: 5px !important; font-size: 11px !important; line-height: 1.2 !important; overflow-wrap: break-word !important; hyphens: auto !important; }
+}
+}
+
+@layer wwm-ds {
+body.wwm-ds .autocomplete-item-desc { margin: 0 !important; padding: 0 !important; flex: none !important; }
+/* nome da peça inteiro no histórico do técnico (era cortado com reticências) */
+body.wwm-ds #content-area .technician-history-part > strong { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word !important; min-width: 0 !important; }
+@media (max-width: 767px) {
+    /* a dica do rastreio ocupa a largura do cartão, abaixo do campo */
+    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-tracking-input) { grid-template-columns: minmax(0, 1fr) !important; row-gap: 6px !important; }
+    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-tracking-input) > * { grid-column: 1 / -1 !important; }
+}
+}
+@layer wwm-ds {
+/* textos de ajuda dos formulários tinham cinza escuro fixo (ilegível no fundo escuro) */
+body.wwm-ds .modal-body .form-group > small,
+body.wwm-ds .modal-body .form-group > small[style] { color: var(--ds-muted) !important; font-size: 12px !important; }
+}

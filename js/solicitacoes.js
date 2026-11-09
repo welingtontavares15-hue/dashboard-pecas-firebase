@@ -1871,15 +1871,18 @@ const Solicitacoes = {
         }
         
         return this.currentSolicitation.itens.map((item, idx) => `
-            <div class="item-row">
+            <div class="item-row wwm-item-row">
                 <span class="item-code">${Utils.escapeHtml(item.codigo)}</span>
                 <span class="item-desc">${Utils.escapeHtml(item.descricao)}</span>
-                <input type="number" class="form-control item-qty" value="${item.quantidade}" 
-                       min="1" onchange="Solicitacoes.updateItemQuantity(${idx}, this.value)">
-                <span class="item-price">${Utils.formatCurrency(item.valorUnit)}</span>
-                <span class="item-total">${Utils.formatCurrency(item.quantidade * item.valorUnit)}</span>
-                <button class="btn-icon" onclick="Solicitacoes.removeItem(${idx})" title="Remover">
-                    <i class="fas fa-times"></i>
+                <label class="wwm-item-qty">
+                    <span>Qtd.</span>
+                    <input type="number" class="form-control item-qty" value="${item.quantidade}" inputmode="numeric"
+                           min="1" aria-label="Quantidade de ${Utils.escapeHtml(item.codigo)}" onchange="Solicitacoes.updateItemQuantity(${idx}, this.value)">
+                </label>
+                <span class="item-price"><small>Unitário</small>${Utils.formatCurrency(item.valorUnit)}</span>
+                <span class="item-total"><small>Total</small>${Utils.formatCurrency(item.quantidade * item.valorUnit)}</span>
+                <button type="button" class="btn-icon wwm-item-remove" onclick="Solicitacoes.removeItem(${idx})" title="Remover item" aria-label="Remover ${Utils.escapeHtml(item.codigo)}">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
         `).join('');

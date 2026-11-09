@@ -584,7 +584,7 @@ const Aprovacoes = {
                             <th style="width: 120px;">Qtd</th>
                             <th>Valor Unit.</th>
                             <th>Total</th>
-                            <th style="width: 50px;"></th>
+                            <th style="width: 50px;"><span class="sr-only">Remover</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -593,15 +593,15 @@ const Aprovacoes = {
                                 <td><strong>${Utils.escapeHtml(item.codigo || '')}</strong></td>
                                 <td>${Utils.escapeHtml(item.descricao || '')}</td>
                                 <td>
-                                    <input type="number" class="form-control" min="1"
-                                           value="${item.quantidade}"
+                                    <input type="number" class="form-control" min="1" inputmode="numeric"
+                                           value="${item.quantidade}" aria-label="Quantidade de ${Utils.escapeHtml(item.codigo || '')}"
                                            onchange="Aprovacoes.updateApprovalItemQuantity(${idx}, this.value)">
                                 </td>
                                 <td>${Utils.formatCurrency(item.valorUnit || 0)}</td>
                                 <td>${Utils.formatCurrency((item.quantidade || 0) * (item.valorUnit || 0))}</td>
                                 <td>
-                                    <button class="btn-icon" title="Remover" onclick="Aprovacoes.removeApprovalItem(${idx})">
-                                        <i class="fas fa-times"></i>
+                                    <button type="button" class="btn-icon wwm-item-remove" title="Remover item" aria-label="Remover ${Utils.escapeHtml(item.codigo || '')}" onclick="Aprovacoes.removeApprovalItem(${idx})">
+                                        <i class="fas fa-times" aria-hidden="true"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -752,23 +752,16 @@ const Aprovacoes = {
         const sup = DataManager.getSupplierById(sol.fornecedorId);
         const nome = sup ? sup.nome : (this.sameId(sol.fornecedorId, 'sup-hobart') ? 'Hobart' : 'EBST');
         const isHobart = this.sameId(sol.fornecedorId, 'sup-hobart');
-        const iconBg = isHobart ? '#d97706' : '#2563eb';
-        const tagBg  = isHobart ? '#fef3c7' : '#dbeafe';
-        const tagTxt = isHobart ? '#92400e'  : '#1d4ed8';
         return `
                     <div class="form-group">
-                        <label style="font-weight:700;font-size:0.85rem;color:#374151;text-transform:uppercase;letter-spacing:.4px"><i class="fas fa-building" style="margin-right:5px;color:#6b7280"></i>Fornecedor</label>
-                        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px">
-                            <div style="width:38px;height:38px;border-radius:50%;background:${iconBg};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                <i class="fas fa-industry" style="color:#fff;font-size:1rem"></i>
+                        <label>Fornecedor</label>
+                        <div class="wwm-locked-supplier${isHobart ? ' is-hobart' : ''}">
+                            <span class="wwm-locked-supplier-icon" aria-hidden="true"><i class="fas fa-industry"></i></span>
+                            <div class="wwm-locked-supplier-copy">
+                                <strong>${Utils.escapeHtml(nome)}</strong>
+                                <small>Definido pelo técnico na abertura</small>
                             </div>
-                            <div>
-                                <div style="font-weight:700;font-size:0.97rem;color:#111">${Utils.escapeHtml(nome)}</div>
-                                <div style="font-size:0.75rem;color:#9ca3af;margin-top:1px">Definido pelo técnico na abertura</div>
-                            </div>
-                            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;background:${tagBg};color:${tagTxt};border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:600">
-                                <i class="fas fa-lock" style="font-size:0.65rem"></i> Bloqueado
-                            </span>
+                            <span class="wwm-locked-supplier-tag"><i class="fas fa-lock" aria-hidden="true"></i> Bloqueado</span>
                         </div>
                         <input type="hidden" id="approve-supplier" value="${Utils.escapeHtml(sol.fornecedorId)}">
                     </div>`;

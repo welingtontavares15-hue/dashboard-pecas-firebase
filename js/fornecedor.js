@@ -115,7 +115,7 @@ const FornecedorPortal = {
                            value="${Utils.escapeHtml(this.filters.search)}">
                 </div>
                 <div class="filter-group">
-                    <label for="supplier-portal-status">Status:</label>
+                    <label for="supplier-portal-status">Status</label>
                     <select id="supplier-portal-status" class="form-control">
                         <option value="">Todos</option>
                         <option value="aprovada" ${this.filters.status === 'aprovada' ? 'selected' : ''}>Aprovado / aguardando envio</option>
@@ -123,11 +123,11 @@ const FornecedorPortal = {
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label for="supplier-portal-date-from">De:</label>
+                    <label for="supplier-portal-date-from">De</label>
                     <input type="date" id="supplier-portal-date-from" class="form-control" value="${this.filters.dateFrom}">
                 </div>
                 <div class="filter-group">
-                    <label for="supplier-portal-date-to">Até:</label>
+                    <label for="supplier-portal-date-to">Até</label>
                     <input type="date" id="supplier-portal-date-to" class="form-control" value="${this.filters.dateTo}">
                 </div>
                 <button class="btn btn-outline" onclick="FornecedorPortal.clearFilters()">
@@ -451,8 +451,8 @@ const FornecedorPortal = {
                 <input type="text" class="form-control"
                        data-supplier-tracking="${Utils.escapeHtml(sol.id)}"
                        value="${Utils.escapeHtml(normalizedTracking)}"
-                       placeholder="Informar rastreio">
-                <button class="btn btn-sm btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}')">
+                       placeholder="Informar rastreio" aria-label="Código de rastreio do pedido ${Utils.escapeHtml(sol.numero || '')}" autocapitalize="characters" autocomplete="off">
+                <button type="button" class="btn btn-sm btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}')">
                     ${normalizedTracking ? 'Atualizar' : 'Salvar'}
                 </button>
             </div>

@@ -109,7 +109,18 @@
         group.dataset.divisionDetails = 'true';
         group.innerHTML = `<label>Divisão</label><p><strong>${esc(label(sol.divisao))}</strong></p>`;
         const row = body.querySelector('.form-row');
-        row ? row.appendChild(group) : body.prepend(group);
+        // Na visão do técnico não há .form-row: a divisão entra como mais um
+        // cartão do resumo (antes ficava solta no topo da janela).
+        const summaryGrid = row ? null : body.querySelector('.technician-summary-grid:not(.requester-delivery-grid)');
+        if (row) {
+            row.appendChild(group);
+        } else if (summaryGrid) {
+            group.className = 'technician-summary-card';
+            group.innerHTML = `<label>Divisão</label><strong>${esc(label(sol.divisao))}</strong>`;
+            summaryGrid.appendChild(group);
+        } else {
+            body.prepend(group);
+        }
 
         if (canClassify(sol)) {
             const footer = body.parentElement?.querySelector('.modal-footer');

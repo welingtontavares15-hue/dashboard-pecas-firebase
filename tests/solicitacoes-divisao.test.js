@@ -53,10 +53,10 @@ describe('Classificação de divisão das solicitações', () => {
     });
 
     test('carrega o patch atualizado nas rotas de solicitações e aprovações e no cache PWA', () => {
-        expect(solicitacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
-        expect(aprovacoesPage).toContain('solicitacoes-divisao.js?v=20260903c');
+        expect(solicitacoesPage).toContain('solicitacoes-divisao.js?v=20261110a');
+        expect(aprovacoesPage).toContain('solicitacoes-divisao.js?v=20261110a');
         expect(serviceWorker).toContain("'./js/solicitacoes-divisao.js'");
-        expect(serviceWorker).toContain("const CACHE_VERSION = 'v96-filtros-relatorios'");
+        expect(serviceWorker).toContain("const CACHE_VERSION = 'v97-revisao-interativa'");
     });
 
     test('regras impedem perfis não administrativos de alterar a classificação existente', () => {

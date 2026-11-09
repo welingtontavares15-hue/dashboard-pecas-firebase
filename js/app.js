@@ -10,12 +10,12 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard-v55.js?v=20261108a',
-        solicitacoes: './pages/solicitacoes.js?v=20261109a',
-        aprovacoes: './pages/aprovacoes.js?v=20261109a',
+        solicitacoes: './pages/solicitacoes.js?v=20261110a',
+        aprovacoes: './pages/aprovacoes.js?v=20261110a',
         pecas: './pages/pecas.js?v=20261109a',
-        relatorios: './pages/relatorios-v55.js?v=20261108a',
-        fornecedor: './pages/fornecedor.js?v=20261109a',
-        usuarios: './pages/usuarios.js?v=20261109a'
+        relatorios: './pages/relatorios-v55.js?v=20261110a',
+        fornecedor: './pages/fornecedor.js?v=20261110a',
+        usuarios: './pages/usuarios.js?v=20261110a'
     },
     fallbackScripts: {
         dashboard: ['js/pecas.js', 'js/solicitacoes.js', 'js/aprovacoes.js', 'js/dashboard.js'],

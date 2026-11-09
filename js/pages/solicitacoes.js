@@ -14,12 +14,12 @@ export async function ensureLoaded() {
     }
 
     await ensureClassicScript(new URL('../pecas.js?v=20261109a', import.meta.url).href, 'Pecas');
-    await ensureClassicScript(new URL('../solicitacoes.js?v=20261109a', import.meta.url).href, 'Solicitacoes');
+    await ensureClassicScript(new URL('../solicitacoes.js?v=20261110a', import.meta.url).href, 'Solicitacoes');
     await ensureClassicScript(new URL('../technician-experience.js?v=20260830b', import.meta.url).href, 'TechnicianExperience');
-    await ensureClassicScript(new URL('../solicitacoes-divisao.js?v=20260903c', import.meta.url).href, 'SolicitacoesDivisaoPatch');
+    await ensureClassicScript(new URL('../solicitacoes-divisao.js?v=20261110a', import.meta.url).href, 'SolicitacoesDivisaoPatch');
     await ensureClassicScript(new URL('../solicitacoes-divisao-filtro.js?v=20261109a', import.meta.url).href, 'SolicitacoesDivisaoFiltroPatch');
     await ensureClassicScript(new URL('../solicitacoes-rejected-delete.js?v=20260904a', import.meta.url).href, 'SolicitacoesRejectedDeletePatch');
-    await ensureClassicScript(new URL('../solicitacoes-form-ux.js?v=20261108c', import.meta.url).href, 'SolicitacoesFormUx');
+    await ensureClassicScript(new URL('../solicitacoes-form-ux.js?v=20261110a', import.meta.url).href, 'SolicitacoesFormUx');
 
     window.SolicitacoesDivisaoPatch?.patch?.();
     window.SolicitacoesDivisaoFiltroPatch?.patch?.();

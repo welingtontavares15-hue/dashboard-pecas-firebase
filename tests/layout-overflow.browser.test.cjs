@@ -102,7 +102,7 @@ function collectOverflow() {
     return issues;
 }
 
-test('real browser: telas principais sem conteúdo cortado em celular, tablet e desktop', { timeout: 360000 }, async () => {
+test('real browser: telas principais sem conteúdo cortado em celular, tablet e desktop', { timeout: 480000 }, async () => {
     const server = await startStaticServer();
     const base = `http://127.0.0.1:${server.address().port}/index.html`;
     let browser;
@@ -432,6 +432,113 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         }
                     }
                 }
+                if (role === 'administrador') {
+                    // Estados interativos de Solicitações: lista de status, menu "…" da
+                    // linha e janela de detalhes (regressões da revisão v97).
+                    await page.evaluate(() => { Utils.closeModal(); return App.navigate('solicitacoes'); });
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    const interactive = await page.evaluate(async () => {
+                        const problems = [];
+                        const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                        // 1) Filtro de status: nome inteiro, sem repetir o texto na etiqueta.
+                        const panel = document.getElementById('sol-filter-panel');
+                        if (panel) panel.open = true;
+                        Solicitacoes.toggleStatusDropdown('sol-status-filter');
+                        await pause(150);
+                        document.querySelectorAll('[data-status-dropdown="sol-status-filter"] .status-filter-option').forEach((option) => {
+                            const text = option.querySelector('span:not(.status-badge)');
+                            const badge = option.querySelector('.status-badge');
+                            const box = option.getBoundingClientRect();
+                            if (!text || !text.textContent.trim()) problems.push('status: opção sem nome');
+                            else if (text.getBoundingClientRect().right > box.right + 1) problems.push(`status: "${text.textContent.trim()}" cortado`);
+                            if (badge && badge.getBoundingClientRect().width > 14) problems.push('status: nome repetido na etiqueta');
+                        });
+                        document.body.click();
+                        await pause(100);
+                        // 2) Menu "…" de uma linha: inteiro na tela, por cima da lista, com os nomes.
+                        const summary = document.querySelector('#sol-table-container details.premium-row-menu > summary');
+                        if (summary) {
+                            summary.scrollIntoView({ block: 'center', behavior: 'instant' });
+                            await pause(250);
+                            summary.click();
+                            await pause(250);
+                            const menu = document.querySelector('.premium-row-menu-popover.is-floating');
+                            if (!menu) problems.push('menu da linha: não abriu');
+                            else {
+                                const box = menu.getBoundingClientRect();
+                                if (box.left < 0 || box.right > window.innerWidth || box.top < 0 || box.bottom > window.innerHeight) problems.push('menu da linha: sai da tela');
+                                const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+                                if (!top || !top.closest('.premium-row-menu-popover')) problems.push('menu da linha: encoberto');
+                                menu.querySelectorAll('.btn').forEach((button) => {
+                                    const label = button.querySelector('span');
+                                    if (!label || label.getBoundingClientRect().width < 20) problems.push('menu da linha: opção só com ícone');
+                                });
+                            }
+                            document.body.click();
+                            await pause(100);
+                            if (document.querySelector('.premium-row-menu-popover.is-floating')) problems.push('menu da linha: não fechou');
+                        }
+                        // 3) Detalhes: tabela de itens cabe na janela e não há vazio sob "Itens".
+                        const first = DataManager.getSolicitations()[0];
+                        Solicitacoes.viewDetails(first.id);
+                        await pause(350);
+                        const modal = document.getElementById('modal-content');
+                        const body = modal.querySelector('.modal-body');
+                        if (body.scrollWidth > body.clientWidth + 2) problems.push('detalhes: conteúdo mais largo que a janela');
+                        const itemsTable = [...modal.querySelectorAll('.table-container')].pop();
+                        if (itemsTable && itemsTable.scrollWidth > itemsTable.clientWidth + 2) problems.push('detalhes: tabela de itens cortada na lateral');
+                        const heading = [...modal.querySelectorAll('.modal-body h4')].find((node) => node.textContent.trim() === 'Itens');
+                        if (heading && itemsTable && itemsTable.getBoundingClientRect().top - heading.getBoundingClientRect().bottom > 48) problems.push('detalhes: espaço vazio entre "Itens" e a tabela');
+                        const close = modal.querySelector('.modal-close');
+                        if (!close || !close.getAttribute('aria-label')) problems.push('detalhes: botão fechar sem nome');
+                        Utils.closeModal();
+                        return [...new Set(problems)];
+                    });
+                    interactive.forEach((problem) => failures.push(`${width}px solicitacoes: ${problem}`));
+                }
+
+                if (role === 'tecnico') {
+                    // Itens do pedido no formulário: campo de quantidade utilizável e
+                    // nada saindo do cartão (ficava espremido/cortado).
+                    const itemProblems = await page.evaluate(async () => {
+                        const problems = [];
+                        const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                        Utils.closeModal();
+                        Solicitacoes.openForm();
+                        await pause(500);
+                        const set = (id, value) => {
+                            const el = document.getElementById(id);
+                            if (!el) return;
+                            el.value = value;
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        };
+                        set('sol-cliente', 'Cliente sintético');
+                        set('sol-divisao', 'IN');
+                        set('sol-fornecedor-sel', 'sup-ebst');
+                        await pause(150);
+                        document.getElementById('wwm-request-next')?.click();
+                        await pause(250);
+                        const part = DataManager.getParts()[0];
+                        Solicitacoes.addItem({ ...part, descricao: 'Sensor de capô conjunto completo com chicote sintético', valorUnit: part.valor });
+                        await pause(250);
+                        const row = document.querySelector('#items-list .wwm-item-row');
+                        if (!row || !row.getBoundingClientRect().width) return ['formulário: item adicionado não aparece na etapa Peças'];
+                        const bounds = row.getBoundingClientRect();
+                        row.querySelectorAll('*').forEach((node) => {
+                            const rect = node.getBoundingClientRect();
+                            if (rect.width && (rect.left < bounds.left - 1 || rect.right > bounds.right + 1)) problems.push('formulário: conteúdo do item sai do cartão');
+                        });
+                        const qty = row.querySelector('.item-qty').getBoundingClientRect();
+                        const desc = row.querySelector('.item-desc').getBoundingClientRect();
+                        if (qty.width < 56 || qty.width > 140) problems.push(`formulário: campo de quantidade com ${Math.round(qty.width)}px`);
+                        if (desc.width < 150) problems.push(`formulário: descrição do item espremida (${Math.round(desc.width)}px)`);
+                        Utils.closeModal();
+                        return [...new Set(problems)];
+                    });
+                    itemProblems.forEach((problem) => failures.push(`${width}px tecnico ${problem}`));
+                }
+
                 await page.close();
             }
         }

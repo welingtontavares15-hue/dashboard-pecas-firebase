@@ -98,7 +98,7 @@
             ? tech.options[tech.selectedIndex]?.textContent?.trim() : s.currentSolicitation?.tecnicoNome;
         const rows = [
             ['Técnico', techLabel || 'Não identificado'],
-            ['Data', record.data],
+            ['Data', record.data ? (typeof root.Utils.formatDate === 'function' ? root.Utils.formatDate(record.data) : record.data) : 'Não informada'],
             ['Cliente', record.cliente || 'Não informado'],
             ['Equipamento', record.equipamento || 'Não informado'],
             ['Divisão', record.divisao || 'Não informada'],
