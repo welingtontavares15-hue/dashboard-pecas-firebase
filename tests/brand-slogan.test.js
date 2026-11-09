@@ -39,17 +39,24 @@ describe('Padrao do slogan Diversey / Solenis', () => {
     });
 });
 
-describe('Marca corporativa fiel à referência', () => {
+describe('Marca corporativa integrada ao fundo azul do portal', () => {
     const brand = fs.readFileSync(path.join(root, 'css/diversey-brand-reference.css'), 'utf8');
-    test('usa uma única imagem de origem nas marcas da tela inicial e do menu', () => {
-        expect(index).toContain('css/diversey-brand-reference.css?v=20261108-brandref1');
-        expect(brand).toContain('diversey-solenis-wordmark.webp?v=20261108-brandref1');
+    const svg = fs.readFileSync(path.join(root, 'icons/diversey-solenis-dark.svg'), 'utf8');
+
+    test('a mesma marca transparente e utilizada no login e na barra lateral', () => {
+        expect(index).toContain('css/diversey-brand-reference.css?v=20261108-brandref2');
         expect(brand).toContain('#sidebar .sidebar-header .logo.dvy-logo');
         expect(brand).toContain('#login-screen .wwm-login-brand');
-        expect(brand).toContain('aspect-ratio: 480 / 135');
-        const asset = fs.readFileSync(path.join(root, 'icons/diversey-solenis-wordmark.webp'));
-        expect(asset.toString('ascii', 0, 4)).toBe('RIFF');
-        expect(asset.toString('ascii', 8, 12)).toBe('WEBP');
-        expect(asset.length).toBeGreaterThan(4000);
+        expect(brand).toContain('diversey-solenis-dark.svg?v=20261108-brandref2');
+        expect(brand).toContain('aspect-ratio: 690 / 162');
+        expect(brand).toContain('background-color: transparent !important');
+        expect(brand).toMatch(/max-width: 560px/);
+        expect(svg).toContain('<svg');
+        expect(svg).toContain('fill="#f4fbfb"');
+        expect(svg).toContain('fill="#28c79a"');
+        expect(svg).not.toContain('<rect');
+        expect(svg.length).toBeGreaterThan(3000);
+        const worker = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+        expect(worker).toContain("'./icons/diversey-solenis-dark.svg'");
     });
 });

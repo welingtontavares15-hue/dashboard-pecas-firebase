@@ -45,6 +45,7 @@ const PRECACHE = {
     './icons/icon-maskable.svg?v=20261108-washer-v94',
     './icons/wwm-industrial-washer.webp',
     './icons/diversey-solenis-wordmark.webp',
+    './icons/diversey-solenis-dark.svg',
     './health/firebase-healthcheck.html',
     './js/config.js',
     './js/firebase-config.js',

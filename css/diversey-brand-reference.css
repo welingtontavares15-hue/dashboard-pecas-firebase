@@ -1,57 +1,78 @@
-/* Reference asset: cropped directly from the user-supplied Diversey / Solenis mark (480 x 135). */
+/* Diversey / A Solenis Company: transparent source-proportioned SVG.
+   Preserve the original silhouette and integrate white/green branding into navy UI. */
 @layer wwm-ds {
   body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo,
   body.wwm-reference-theme #login-screen .wwm-login-brand {
     position: relative !important;
+    display: block !important;
     min-width: 0 !important;
-    align-items: center !important;
-    overflow: visible !important;
-  }
-  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo {
-    width: min(188px, 100%) !important;
-    max-width: 188px !important;
-    flex: 0 1 188px !important;
+    min-height: 0 !important;
+    height: auto !important;
     padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
+
+  /* Menu: keep the mark secondary to the navigation controls. */
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo {
+    flex: 0 1 182px !important;
+    width: min(182px, 100%) !important;
+    max-width: 182px !important;
+  }
+
+  /* Login: preserve room for "Portal de Peças WWM" at smaller widths. */
   body.wwm-reference-theme #login-screen .wwm-login-brand {
-    width: min(240px, 100%) !important;
-    max-width: 240px !important;
-    flex: 0 1 240px !important;
-    gap: 0 !important;
+    flex: 0 1 220px !important;
+    width: min(220px, 100%) !important;
+    max-width: 220px !important;
   }
+
   body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo::before,
   body.wwm-reference-theme #login-screen .wwm-login-brand::before {
     content: "" !important;
     position: relative !important;
     display: block !important;
-    flex: 0 1 auto !important;
     width: 100% !important;
     height: auto !important;
-    aspect-ratio: 480 / 135 !important;
-    border-radius: 3px !important;
-    background-color: #fff !important;
-    background-image: url("../icons/diversey-solenis-wordmark.webp?v=20261108-brandref1") !important;
+    flex: none !important;
+    aspect-ratio: 690 / 162 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    background-image: url("../icons/diversey-solenis-dark.svg?v=20261108-brandref2") !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
-    background-size: 100% 100% !important;
+    background-size: contain !important;
+    box-shadow: none !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
   }
-  /* Keep original semantic wordmark text for screen readers, not as a competing logo. */
-  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo :is(.dvy-mark,.dvy-lockup),
-  body.wwm-reference-theme #login-screen .wwm-login-brand :is(.wwm-brand-symbol,.wwm-brand-copy) {
+
+  /* Semantics retained for assistive tech; no duplicate visual wordmark. */
+  body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo :is(.dvy-mark, .dvy-lockup),
+  body.wwm-reference-theme #login-screen .wwm-login-brand :is(.wwm-brand-symbol, .wwm-brand-copy) {
     position: absolute !important;
-    inline-size: 1px !important;
-    block-size: 1px !important;
+    width: 1px !important;
+    height: 1px !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
     clip-path: inset(50%) !important;
     white-space: nowrap !important;
   }
+
   @media (max-width: 560px) {
+    body.wwm-reference-theme #sidebar .sidebar-header .logo.dvy-logo {
+      flex-basis: 164px !important;
+      width: min(164px, 100%) !important;
+      max-width: 164px !important;
+    }
     body.wwm-reference-theme #login-screen .wwm-login-brand {
-      width: min(218px, 100%) !important;
-      max-width: 218px !important;
-      flex-basis: 218px !important;
+      flex-basis: 170px !important;
+      width: min(170px, 100%) !important;
+      max-width: 170px !important;
     }
     body.wwm-reference-theme #login-screen .wwm-login-header {
       min-width: 0 !important;
