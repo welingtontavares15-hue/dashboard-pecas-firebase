@@ -328,9 +328,12 @@ const FornecedorPortal = {
             return 'Aguardando envio do fornecedor';
         }
         if (status === 'em-transito') {
-            return sol?.trackingCode
-                ? 'Pedido em trânsito com rastreio informado'
-                : 'Pedido em trânsito sem rastreio válido';
+            if (!sol?.trackingCode) {
+                return 'Pedido em trânsito sem rastreio válido';
+            }
+            return Utils.normalizeShippingDate(sol.dataEnvio)
+                ? `Enviado em ${Utils.formatDate(sol.dataEnvio)}`
+                : 'Em trânsito, sem data do envio';
         }
         return 'Fluxo concluído';
     },
@@ -440,24 +443,75 @@ const FornecedorPortal = {
         `;
     },
 
-    renderTrackingCell(sol, scope = this.getSupplierScope()) {
+    /**
+     * Data do envio sugerida no campo: a já gravada ou, se ainda não houver, hoje.
+     */
+    getShippingDateFieldValue(sol) {
+        return Utils.normalizeShippingDate(sol?.dataEnvio) || Utils.getLocalDateString();
+    },
+
+    /**
+     * Campos "Data do envio" + "Rastreio" (os dois são obrigatórios para despachar).
+     * `variant` distingue a lista ('table') da janela de detalhes ('modal').
+     */
+    renderShipmentFields(sol, variant = 'table') {
+        const isModal = variant === 'modal';
+        const id = Utils.escapeHtml(sol.id);
+        const dateAttr = isModal ? 'data-supplier-shipping-date-modal' : 'data-supplier-shipping-date';
+        const codeAttr = isModal ? 'data-supplier-tracking-modal' : 'data-supplier-tracking';
+        const dateId = `supplier-${variant}-shipping-date-${id}`;
+        const codeId = `supplier-${variant}-tracking-${id}`;
         const normalizedTracking = this.normalizeTrackingCode(sol.trackingCode || '');
-        if (!this.canEditTracking(sol, scope)) {
-            return `<span><strong>${normalizedTracking || '-'}</strong></span>`;
-        }
+        const hasShipment = !!normalizedTracking;
+        const today = Utils.getLocalDateString();
+        const minDate = Number(sol.approvedAt) > 0 ? Utils.getLocalDateString(new Date(Number(sol.approvedAt))) : '';
+        const saveCall = isModal
+            ? `FornecedorPortal.saveTracking('${sol.id}', { preferModal: true })`
+            : `FornecedorPortal.saveTracking('${sol.id}')`;
 
         return `
-            <div class="supplier-tracking-input">
-                <input type="text" class="form-control"
-                       data-supplier-tracking="${Utils.escapeHtml(sol.id)}"
-                       value="${Utils.escapeHtml(normalizedTracking)}"
-                       placeholder="Informar rastreio" aria-label="Código de rastreio do pedido ${Utils.escapeHtml(sol.numero || '')}" autocapitalize="characters" autocomplete="off">
-                <button type="button" class="btn btn-sm btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}')">
-                    ${normalizedTracking ? 'Atualizar' : 'Salvar'}
+            <div class="supplier-shipment-form" data-supplier-shipment="${id}">
+                <div class="supplier-shipment-field">
+                    <label for="${dateId}">Data do envio</label>
+                    <input type="date" id="${dateId}" class="form-control" ${dateAttr}="${id}"
+                           value="${Utils.escapeHtml(this.getShippingDateFieldValue(sol))}"
+                           ${minDate ? `min="${minDate}"` : ''} max="${today}" required>
+                </div>
+                <div class="supplier-shipment-field supplier-shipment-field--code">
+                    <label for="${codeId}">Nº do rastreio</label>
+                    <input type="text" id="${codeId}" class="form-control" ${codeAttr}="${id}"
+                           value="${Utils.escapeHtml(normalizedTracking)}"
+                           placeholder="Código de rastreio" autocapitalize="characters" autocomplete="off" required>
+                </div>
+                <button type="button" class="btn ${isModal ? '' : 'btn-sm '}btn-primary supplier-shipment-save" onclick="${saveCall}">
+                    <i class="fas fa-truck" aria-hidden="true"></i> ${hasShipment ? 'Atualizar envio' : 'Registrar envio'}
                 </button>
             </div>
-            <small class="supplier-tracking-help">Ao salvar rastreio válido o status muda para <strong>Em trânsito</strong>.</small>
+            <small class="supplier-tracking-help">${hasShipment
+        ? 'Corrija a data ou o rastreio e toque em Atualizar envio.'
+        : 'Informe a data e o rastreio. Ao registrar, o pedido passa para <strong>Em trânsito</strong>.'}</small>
         `;
+    },
+
+    renderShipmentSummary(sol) {
+        const normalizedTracking = this.normalizeTrackingCode(sol.trackingCode || '');
+        const shippingDate = Utils.normalizeShippingDate(sol.dataEnvio);
+        if (!normalizedTracking && !shippingDate) {
+            return '<span>-</span>';
+        }
+        return `
+            <div class="supplier-shipment-summary">
+                <span><small>Envio</small><strong>${shippingDate ? Utils.formatDate(shippingDate) : 'Não informada'}</strong></span>
+                <span><small>Rastreio</small><strong>${normalizedTracking ? Utils.escapeHtml(normalizedTracking) : '-'}</strong></span>
+            </div>
+        `;
+    },
+
+    renderTrackingCell(sol, scope = this.getSupplierScope()) {
+        if (!this.canEditTracking(sol, scope)) {
+            return this.renderShipmentSummary(sol);
+        }
+        return this.renderShipmentFields(sol, 'table');
     },
 
     renderTable() {
@@ -494,7 +548,7 @@ const FornecedorPortal = {
                             <th>Itens solicitados</th>
                             <th>Valor total</th>
                             <th>Status atual</th>
-                            <th>Rastreio</th>
+                            <th>Envio e rastreio</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -526,11 +580,11 @@ const FornecedorPortal = {
                                 <td>${this.renderTrackingCell(sol, scope)}</td>
                                 <td>
                                     <div class="actions supplier-actions">
-                                        <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.openHistory('${sol.id}')" title="Visualizar pedido">
-                                            <i class="fas fa-eye"></i> Detalhes
+                                        <button type="button" class="btn btn-sm btn-outline" onclick="FornecedorPortal.openHistory('${sol.id}')" title="Ver detalhes do pedido" aria-label="Ver detalhes do pedido ${Utils.escapeHtml(sol.numero || '')}">
+                                            <i class="fas fa-eye" aria-hidden="true"></i><span>Detalhes</span>
                                         </button>
-                                        <button class="btn btn-sm btn-outline" onclick="FornecedorPortal.generateSolicitationPdf('${sol.id}')" title="Gerar PDF">
-                                            <i class="fas fa-file-pdf"></i> PDF
+                                        <button type="button" class="btn btn-sm btn-outline" onclick="FornecedorPortal.generateSolicitationPdf('${sol.id}')" title="Gerar PDF do pedido" aria-label="Gerar PDF do pedido ${Utils.escapeHtml(sol.numero || '')}">
+                                            <i class="fas fa-file-pdf" aria-hidden="true"></i><span>PDF</span>
                                         </button>
                                     </div>
                                 </td>
@@ -613,6 +667,12 @@ const FornecedorPortal = {
         return tableInput || modalInput || null;
     },
 
+    getShippingDateInput(id, preferModal = false) {
+        const tableInput = document.querySelector(`[data-supplier-shipping-date="${id}"]`);
+        const modalInput = document.querySelector(`[data-supplier-shipping-date-modal="${id}"]`);
+        return preferModal ? (modalInput || tableInput || null) : (tableInput || modalInput || null);
+    },
+
     isDetailModalOpen(id) {
         if (!id) {
             return false;
@@ -669,6 +729,25 @@ const FornecedorPortal = {
             return;
         }
 
+        // A data do envio é obrigatória junto com o rastreio.
+        const dateInput = this.getShippingDateInput(id, !!options.preferModal);
+        const shipping = Utils.validateShippingDate(dateInput ? dateInput.value : options.dataEnvio, { approvedAt: sol.approvedAt });
+        if (!shipping.valid) {
+            Utils.showToast(shipping.message, 'warning');
+            if (dateInput) {
+                dateInput.focus();
+            }
+            return;
+        }
+        const dataEnvio = shipping.value;
+
+        if (trackingCode === this.normalizeTrackingCode(sol.trackingCode || '')
+            && dataEnvio === Utils.normalizeShippingDate(sol.dataEnvio)
+            && this.normalizeStatus(sol.status) === 'em-transito') {
+            Utils.showToast('Data do envio e rastreio já estão registrados com esses valores.', 'info');
+            return;
+        }
+
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Fornecedor';
         const now = Date.now();
@@ -676,6 +755,7 @@ const FornecedorPortal = {
         try {
             const result = await DataManager.updateSolicitationStatus(id, 'em-transito', {
                 trackingCode,
+                dataEnvio,
                 trackingUpdatedAt: now,
                 trackingBy: userName,
                 trackingByEmail: currentUser?.email || null,
@@ -689,7 +769,7 @@ const FornecedorPortal = {
             const success = result === true || (result && result.success !== false && !result.error);
 
             if (!success) {
-                Utils.showToast(result?.message || result?.error || 'Não foi possível salvar o rastreio', 'error');
+                Utils.showToast(result?.message || result?.error || 'Não foi possível registrar o envio', 'error');
                 return;
             }
 
@@ -707,10 +787,10 @@ const FornecedorPortal = {
                 modalInput.value = trackingCode;
             }
 
-            Utils.showToast('Rastreio salvo. Pedido atualizado para Em trânsito.', 'success');
+            Utils.showToast(`Envio registrado em ${Utils.formatDate(dataEnvio)}. Pedido em trânsito.`, 'success');
 
-            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
-            this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
+            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode, dataEnvio };
+            this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName, dataEnvio);
 
             this.refreshTable();
 
@@ -726,7 +806,7 @@ const FornecedorPortal = {
         }
     },
 
-    notifyTechnicianTrackingEmail(solicitation, trackingCode, updatedBy) {
+    notifyTechnicianTrackingEmail(solicitation, trackingCode, updatedBy, dataEnvio = solicitation?.dataEnvio) {
         if (!solicitation || typeof Utils.sendTrackingNotificationToTechnician !== 'function') {
             return;
         }
@@ -734,6 +814,7 @@ const FornecedorPortal = {
         Utils.sendTrackingNotificationToTechnician({
             solicitation,
             trackingCode,
+            dataEnvio,
             updatedBy
         }).then((result) => {
             const managerCopySentCount = Number(result?.managerCopySentCount) || 0;
@@ -915,8 +996,12 @@ const FornecedorPortal = {
                         <label>Total</label>
                         <strong>${this.hasTotal(sol) ? Utils.formatCurrency(Number(sol.total) || 0) : '-'}</strong>
                     </div>
-                    <div class="supplier-detail-card supplier-detail-card-wide">
-                        <label>Rastreio atual</label>
+                    <div class="supplier-detail-card">
+                        <label>Data do envio</label>
+                        <strong>${Utils.normalizeShippingDate(sol.dataEnvio) ? Utils.formatDate(sol.dataEnvio) : (sol.trackingCode ? 'Não informada' : 'Aguardando envio')}</strong>
+                    </div>
+                    <div class="supplier-detail-card">
+                        <label>Nº do rastreio</label>
                         <strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio'}</strong>
                         ${sol.trackingUpdatedAt ? `<small>Atualizado em ${Utils.formatDate(sol.trackingUpdatedAt, true)}${sol.trackingBy ? ` por ${Utils.escapeHtml(sol.trackingBy)}` : ''}</small>` : ''}
                     </div>
@@ -925,17 +1010,9 @@ const FornecedorPortal = {
 
                 ${canEditTracking ? `
                     <div class="supplier-detail-tracking-box">
-                        <label for="supplier-modal-tracking">Atualizar rastreio</label>
-                        <div class="supplier-tracking-input">
-                            <input type="text" id="supplier-modal-tracking" class="form-control"
-                                   data-supplier-tracking-modal="${Utils.escapeHtml(sol.id)}"
-                                   value="${Utils.escapeHtml(this.normalizeTrackingCode(sol.trackingCode || ''))}"
-                                   placeholder="Informe o código de rastreio">
-                            <button class="btn btn-primary" onclick="FornecedorPortal.saveTracking('${sol.id}', { preferModal: true })">
-                                <i class="fas fa-truck"></i> Salvar rastreio
-                            </button>
-                        </div>
-                        <small class="text-muted">${this.getTrackingValidationMessage()}</small>
+                        <h4>${sol.trackingCode ? 'Atualizar envio' : 'Registrar envio'}</h4>
+                        ${this.renderShipmentFields(sol, 'modal')}
+                        <small class="text-muted">Rastreio: ${this.getTrackingValidationMessage().replace(/^Informe ao/, 'ao')}</small>
                     </div>
                 ` : ''}
 

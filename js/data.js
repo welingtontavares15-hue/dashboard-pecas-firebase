@@ -3247,7 +3247,8 @@ const DataManager = {
             try {
                 const receipt = Auth.getRole() === 'tecnico';
                 if (!receipt && status !== 'em-transito') throw Error('Transição não autorizada para fornecedor.');
-                const result = await window.PasskeyAuth.request(receipt ? 'solicitations/receipt' : 'solicitations/tracking', { id, trackingCode: extra.trackingCode });
+                const request = receipt ? { id } : { id, trackingCode: extra.trackingCode, dataEnvio: extra.dataEnvio || undefined };
+                const result = await window.PasskeyAuth.request(receipt ? 'solicitations/receipt' : 'solicitations/tracking', request);
                 const list = this.getSolicitations().filter(item => item.id !== id);
                 list.push(result.solicitation);
                 this._sessionCache[this.KEYS.SOLICITATIONS] = list;
@@ -3294,6 +3295,19 @@ const DataManager = {
                 payload.fornecedorNome = normalizedPayloadSupplier.fornecedorNome;
             }
         }
+        // Data do envio (AAAA-MM-DD) informada pelo fornecedor junto com o rastreio.
+        // Valor ausente ou inválido não apaga uma data já gravada.
+        const incomingShippingDate = Utils.normalizeShippingDate(payload.dataEnvio);
+        if (incomingShippingDate) {
+            payload.dataEnvio = incomingShippingDate;
+        } else {
+            delete payload.dataEnvio;
+        }
+        const describeShipment = (trackingCode) => [
+            trackingCode || null,
+            incomingShippingDate ? `envio em ${Utils.formatDate(incomingShippingDate)}` : null
+        ].filter(Boolean).join(' · ') || null;
+
         const actorSnapshot = {
             id: String(payload.byUserId || '').trim() || null,
             username: String(payload.byUsername || '').trim() || null,
@@ -3304,10 +3318,13 @@ const DataManager = {
 
         if (previousStatus === nextStatus) {
             if (nextStatus === this.STATUS.EM_TRANSITO) {
-                const incomingTrackingCode = String(payload.trackingCode || '').trim();
                 const currentTrackingCode = String(solicitation.trackingCode || '').trim();
+                const incomingTrackingCode = String(payload.trackingCode || '').trim() || currentTrackingCode;
+                const trackingChanged = incomingTrackingCode !== currentTrackingCode;
+                // Corrigir só a data do envio também é uma atualização válida.
+                const shippingDateChanged = !!incomingShippingDate && incomingShippingDate !== String(solicitation.dataEnvio || '');
 
-                if (incomingTrackingCode && incomingTrackingCode !== currentTrackingCode) {
+                if (incomingTrackingCode && (trackingChanged || shippingDateChanged)) {
                     const currentVersion = Number(solicitation.audit?.version) || 0;
                     solicitation.audit = {
                         ...(solicitation.audit || {}),
@@ -3323,7 +3340,7 @@ const DataManager = {
                         event: 'tracking_updated',
                         at: now,
                         by: payload.by || 'Sistema',
-                        comment: incomingTrackingCode
+                        comment: describeShipment(incomingTrackingCode)
                     });
 
                     payload.trackingCode = incomingTrackingCode;
@@ -3422,7 +3439,8 @@ const DataManager = {
             to: nextStatus,
             at: now,
             by: payload.by || 'Sistema',
-            comment: payload.approvalComment || payload.rejectionReason || payload.trackingCode || null
+            comment: payload.approvalComment || payload.rejectionReason
+                || (nextStatus === this.STATUS.EM_TRANSITO ? describeShipment(payload.trackingCode) : payload.trackingCode) || null
         });
 
         if (nextStatus === this.STATUS.APROVADA || nextStatus === this.STATUS.REJEITADA) {
