@@ -80,8 +80,10 @@ test('HTTP functions + Auth + RTDB + real WebAuthn verification with virtual aut
     assert.equal((await api('users/save', { user: record('evil', 'administrador') }, manager.token)).status, 403);
     assert.equal((await api('users/password', { userId: 'admin', newPassword: 'Other-123' }, tech.token)).status, 403);
     assert.equal((await api('solicitations/tracking', { id: 'other', trackingCode: 'DEMO123' }, supplier.token)).status, 403);
-    assert.equal((await api('solicitations/tracking', { id: 'own', trackingCode: 'DEMO123', total: 0 }, supplier.token)).status, 200);
+    assert.equal((await api('solicitations/tracking', { id: 'own', trackingCode: 'DEMO123', dataEnvio: '2026-02-31' }, supplier.token)).status, 400);
+    assert.equal((await api('solicitations/tracking', { id: 'own', trackingCode: 'DEMO123', dataEnvio: '2020-01-15', total: 0 }, supplier.token)).status, 200);
     assert.equal((await db.ref('data/diversey_solicitacoes/own/total').get()).val(), 10);
+    assert.equal((await db.ref('data/diversey_solicitacoes/own/dataEnvio').get()).val(), '2020-01-15');
     assert.equal((await api('solicitations/receipt', { id: 'other' }, tech.token)).status, 403);
     assert.equal((await api('solicitations/receipt', { id: 'own', total: 0 }, tech.token)).status, 200);
     assert.equal((await db.ref('data/diversey_solicitacoes/own/total').get()).val(), 10);

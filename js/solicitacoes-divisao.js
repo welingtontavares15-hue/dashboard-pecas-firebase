@@ -273,6 +273,7 @@
                 Desconto: sol.desconto,
                 Frete: sol.frete,
                 Total: sol.total,
+                DataEnvio: sol.dataEnvio ? root.Utils.formatDate(sol.dataEnvio) : '',
                 Rastreio: sol.trackingCode || '',
                 Status: root.Utils.getStatusInfo(sol.status).label,
                 Observacoes: sol.observacoes || ''

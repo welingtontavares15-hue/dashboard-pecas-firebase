@@ -120,6 +120,52 @@ const Utils = {
     },
 
     /**
+     * Data do envio informada pelo fornecedor. Guardada como AAAA-MM-DD (dia
+     * do calendário, sem hora) para não mudar de dia conforme o fuso.
+     * Retorna '' quando o valor não é uma data real (ex.: 2026-02-31).
+     */
+    normalizeShippingDate(value) {
+        const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            return '';
+        }
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+        const date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+            return '';
+        }
+        return `${match[1]}-${match[2]}-${match[3]}`;
+    },
+
+    /**
+     * Valida a data do envio: obrigatória, real, não futura e não anterior à
+     * aprovação do pedido (quando a data de aprovação é conhecida).
+     */
+    validateShippingDate(value, { approvedAt = null, today = new Date() } = {}) {
+        const raw = String(value || '').trim();
+        if (!raw) {
+            return { valid: false, value: '', message: 'Informe a data do envio.' };
+        }
+        const normalized = this.normalizeShippingDate(raw);
+        if (!normalized) {
+            return { valid: false, value: '', message: 'Data do envio inválida.' };
+        }
+        if (normalized > this.getLocalDateString(today)) {
+            return { valid: false, value: normalized, message: 'A data do envio não pode ser futura.' };
+        }
+        const approval = Number(approvedAt);
+        if (Number.isFinite(approval) && approval > 0) {
+            const approvalDay = this.getLocalDateString(new Date(approval));
+            if (normalized < approvalDay) {
+                return { valid: false, value: normalized, message: `A data do envio não pode ser anterior à aprovação do pedido (${this.formatDate(approvalDay)}).` };
+            }
+        }
+        return { valid: true, value: normalized, message: '' };
+    },
+
+    /**
      * Get current local date as YYYY-MM-DD string (for input[type="date"])
      * Uses local timezone instead of UTC to avoid date shift issues
      */
@@ -1296,6 +1342,10 @@ const Utils = {
             statusLabel: options.statusLabel || this.getStatusInfo(safeSolicitation.status || 'pendente').label,
             portalLink: this.getSystemPortalLink(),
             trackingCode: String(options.trackingCode || safeSolicitation.trackingCode || '').trim(),
+            shippingDate: (() => {
+                const shipping = this.normalizeShippingDate(options.dataEnvio || safeSolicitation.dataEnvio);
+                return shipping ? this.formatDate(shipping) : '';
+            })(),
             rejectionReason: String(options.rejectionReason || safeSolicitation.rejectionReason || '').trim(),
             hasTotalValue
         };
@@ -2163,7 +2213,7 @@ const Utils = {
         };
     },
 
-    async sendTrackingNotificationToTechnician({ solicitation, trackingCode, updatedBy } = {}) {
+    async sendTrackingNotificationToTechnician({ solicitation, trackingCode, dataEnvio, updatedBy } = {}) {
         const eventType = 'rastreio informado';
         const sentAt = new Date().toISOString();
 
@@ -2182,7 +2232,8 @@ const Utils = {
 
         const details = this.buildSolicitationEmailContext(solicitation, {
             statusLabel: 'Em trânsito',
-            trackingCode
+            trackingCode,
+            dataEnvio
         });
         const sender = updatedBy || 'Fornecedor';
         const managerCopyRecipients = this.getTrackingManagerCopyRecipients(solicitation);
@@ -2229,6 +2280,7 @@ const Utils = {
             'Itens/peças solicitadas:',
             details.itemsDetailed,
             `Quantidade total: ${details.totalQuantity}`,
+            `Data do envio: ${details.shippingDate || 'Não informada'}`,
             `Código de rastreio: ${details.trackingCode}`,
             `Valor total: ${details.totalValue}`,
             `Status atual: ${details.statusLabel}`,
@@ -2246,6 +2298,7 @@ const Utils = {
             'Itens/peças solicitadas:',
             details.itemsDetailed,
             `Quantidade total: ${details.totalQuantity}`,
+            `Data do envio: ${details.shippingDate || 'Não informada'}`,
             `Código de rastreio: ${details.trackingCode}`,
             `Valor total: ${details.totalValue}`,
             `Status atual: ${details.statusLabel}`,
@@ -2278,6 +2331,7 @@ const Utils = {
                             data_solicitacao: details.requestDate,
                             itens_pecas_solicitadas: details.itemsSummary,
                             quantidade_total: details.totalQuantity,
+                            data_envio: details.shippingDate || 'Não informada',
                             codigo_rastreio: details.trackingCode,
                             valor_total: details.totalValue,
                             status_atual: details.statusLabel,
@@ -2335,6 +2389,7 @@ const Utils = {
                         data_solicitacao: details.requestDate,
                         itens_pecas_solicitadas: details.itemsSummary,
                         quantidade_total: details.totalQuantity,
+                        data_envio: details.shippingDate || 'Não informada',
                         codigo_rastreio: details.trackingCode,
                         valor_total: details.totalValue,
                         status_atual: details.statusLabel,
@@ -3057,6 +3112,7 @@ const Utils = {
         const operationalRows = [
             { label: 'Cliente', value: solicitation.cliente },
             { label: 'Fornecedor', value: supplier?.nome || solicitation.fornecedorNome },
+            { label: 'Data do envio', value: solicitation.dataEnvio ? Utils.formatDate(solicitation.dataEnvio) : '' },
             { label: 'Rastreio', value: solicitation.trackingCode },
             { label: 'Criado por', value: solicitation.createdBy }
         ];

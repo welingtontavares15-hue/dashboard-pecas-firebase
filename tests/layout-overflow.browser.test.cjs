@@ -35,7 +35,7 @@ function seedSyntheticData() {
     const statuses = ['pendente', 'pendente', 'aprovada', 'em-transito', 'finalizada', 'rejeitada', 'finalizada', 'pendente'];
     const solicitations = statuses.map((status, i) => ({
         id: 's' + i, numero: 'REQ-20261107-000' + (i + 1), status,
-        tecnicoId: i % 2 ? 't2' : 't1', tecnicoNome: i % 2 ? 'Técnica Sintética' : 'Técnico Sintético', fornecedorId: 'f1', fornecedorNome: 'Fornecedor Sintético',
+        tecnicoId: i % 2 ? 't2' : 't1', tecnicoNome: i % 2 ? 'Técnica Sintética' : 'Técnico Sintético', fornecedorId: 'sup-ebst', fornecedorNome: 'Fornecedor Sintético',
         cliente: 'Cliente ' + (i + 1), data: new Date(now - i * day).toISOString().slice(0, 10),
         createdAt: now - i * day, updatedAt: now - i * day,
         approvedAt: ['aprovada', 'em-transito', 'finalizada'].includes(status) ? now - i * day : null,
@@ -50,8 +50,8 @@ function seedSyntheticData() {
             { id: 'u2', username: 'tecnico.sintetico', name: 'Técnico Sintético', role: 'tecnico', tecnicoId: 't1' }
         ],
         [K.TECHNICIANS]: [{ id: 't1', nome: 'Técnico Sintético', regiao: 'SP', ativo: true }, { id: 't2', nome: 'Técnica Sintética', regiao: 'MG', ativo: true }],
-        [K.SUPPLIERS]: [{ id: 'f1', nome: 'Fornecedor Sintético', ativo: true }],
-        [K.PARTS]: Array.from({ length: 12 }, (_, i) => ({ id: 'p' + i, codigo: 'P10' + i, descricao: 'Peça sintética ' + i, valor: 150 + i * 30, fornecedorId: 'f1', ativo: true })),
+        [K.SUPPLIERS]: [{ id: 'sup-ebst', nome: 'Fornecedor Sintético', ativo: true }],
+        [K.PARTS]: Array.from({ length: 12 }, (_, i) => ({ id: 'p' + i, codigo: 'P10' + i, descricao: 'Peça sintética ' + i, valor: 150 + i * 30, fornecedorId: 'sup-ebst', ativo: true })),
         [K.SOLICITATIONS]: solicitations,
         [K.SETTINGS]: {},
         [K.RECENT_PARTS]: {}
@@ -115,7 +115,8 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
 
         const scenarios = [
             { role: 'administrador', pages: ['dashboard', 'solicitacoes', 'aprovacoes', 'relatorios', 'pecas', 'configuracoes'] },
-            { role: 'tecnico', pages: ['solicitacoes'] }
+            { role: 'tecnico', pages: ['solicitacoes'] },
+            { role: 'fornecedor', pages: ['fornecedor'] }
         ];
         // 1024: notebook pequeno/tablet na horizontal (o menu sumia e deixava faixa vazia).
         const widths = [390, 768, 1024, 1280, 1440];
@@ -201,9 +202,12 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                 await page.waitForFunction(() => typeof App !== 'undefined' && typeof DataManager !== 'undefined' && App.isBootstrapping === false, { timeout: 20000 });
                 await page.evaluate(`(${seedSyntheticData.toString()})()`);
                 await page.evaluate((currentRole) => {
-                    Auth.currentUser = currentRole === 'tecnico'
-                        ? { id: 'u2', username: 'tecnico.sintetico', name: 'Técnico Sintético', role: 'tecnico', tecnicoId: 't1', expiresAt: Date.now() + 1e7 }
-                        : { id: 'u1', username: 'gestor.sintetico', name: 'Gestor Sintético', role: 'administrador', expiresAt: Date.now() + 1e7 };
+                    const users = {
+                        tecnico: { id: 'u2', username: 'tecnico.sintetico', name: 'Técnico Sintético', role: 'tecnico', tecnicoId: 't1' },
+                        fornecedor: { id: 'u3', username: 'fornecedor.sintetico', name: 'Fornecedor Sintético', role: 'fornecedor', fornecedorId: 'sup-ebst' },
+                        administrador: { id: 'u1', username: 'gestor.sintetico', name: 'Gestor Sintético', role: 'administrador' }
+                    };
+                    Auth.currentUser = { ...users[currentRole], expiresAt: Date.now() + 1e7 };
                     App.showApp();
                 }, role);
 
@@ -495,6 +499,32 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         return [...new Set(problems)];
                     });
                     interactive.forEach((problem) => failures.push(`${width}px solicitacoes: ${problem}`));
+                }
+
+                if (role === 'fornecedor') {
+                    // Portal do fornecedor: cada pedido a despachar tem os dois campos
+                    // (data do envio e nº do rastreio) e o botão, inteiros na tela.
+                    const shipment = await page.evaluate(() => {
+                        const problems = [];
+                        const forms = [...document.querySelectorAll('#content-area .supplier-shipment-form')];
+                        if (!forms.length) return ['nenhum pedido com campos de envio'];
+                        const limit = document.getElementById('content-area').getBoundingClientRect();
+                        forms.forEach((form) => {
+                            const date = form.querySelector('input[type="date"][data-supplier-shipping-date]');
+                            const code = form.querySelector('input[type="text"][data-supplier-tracking]');
+                            const save = form.querySelector('.supplier-shipment-save');
+                            if (!date || !code || !save) { problems.push('faltam data do envio, rastreio ou botão'); return; }
+                            if (!date.value || date.max !== Utils.getLocalDateString()) problems.push('data do envio sem valor inicial ou sem limite em hoje');
+                            [['data do envio', date, 128], ['rastreio', code, 110], ['botão', save, 100]].forEach(([name, node, minWidth]) => {
+                                const rect = node.getBoundingClientRect();
+                                if (rect.width < minWidth) problems.push(`${name} estreito (${Math.round(rect.width)}px)`);
+                                if (rect.left < limit.left - 1 || rect.right > limit.right + 1) problems.push(`${name} fora da área visível`);
+                            });
+                            if (!form.querySelector(`label[for="${date.id}"]`) || !form.querySelector(`label[for="${code.id}"]`)) problems.push('campo sem rótulo');
+                        });
+                        return [...new Set(problems)];
+                    });
+                    shipment.forEach((problem) => failures.push(`${width}px fornecedor: ${problem}`));
                 }
 
                 if (role === 'tecnico') {

@@ -635,7 +635,7 @@ const Solicitacoes = {
                         <td title="${Utils.escapeHtml(pieceSummary.full)}">${Utils.escapeHtml(pieceSummary.short).replace(/-/g, '\u2011')}</td>
                         <td>${Utils.formatNumber(itemQuantity)}</td>
                         <td>${Utils.renderStatusBadge(normalizedStatus)}</td>
-                        <td>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : '-'}</td>
+                        <td>${sol.trackingCode ? `${Utils.escapeHtml(sol.trackingCode)}${Utils.normalizeShippingDate(sol.dataEnvio) ? `<br><small class="text-muted">Enviado em ${Utils.formatDate(sol.dataEnvio)}</small>` : ''}` : '-'}</td>
                         <td>
                             <div class="actions">
                                 <button class="btn btn-sm btn-outline solicitation-view-action" onclick="Solicitacoes.viewDetails('${sol.id}')" title="Visualizar">
@@ -1118,7 +1118,12 @@ const Solicitacoes = {
                             <label>Status atual</label>
                             <div>${Utils.renderStatusBadge(normalizedStatus)}</div>
                         </div>
-                        <div class="technician-summary-card technician-summary-card-wide">
+                        ${sol.trackingCode ? `
+                        <div class="technician-summary-card">
+                            <label>Data do envio</label>
+                            <strong>${Utils.normalizeShippingDate(sol.dataEnvio) ? Utils.formatDate(sol.dataEnvio) : 'Não informada'}</strong>
+                        </div>` : ''}
+                        <div class="technician-summary-card${sol.trackingCode ? '' : ' technician-summary-card-wide'}">
                             <label>Rastreio</label>
                             <strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando rastreio do fornecedor'}</strong>
                         </div>
@@ -1222,10 +1227,15 @@ const Solicitacoes = {
                 ` : ''}
 
                 <div class="form-group">
-                    <label>Código de Rastreio</label>
+                    <label>Envio e rastreio</label>
                     <div class="tracking-box">
                         <div>
-                            <p><strong>${sol.trackingCode ? Utils.escapeHtml(sol.trackingCode) : 'Aguardando código do fornecedor'}</strong></p>
+                            ${sol.trackingCode ? `
+                                <dl class="wwm-shipment-summary">
+                                    <div><dt>Data do envio</dt><dd>${Utils.normalizeShippingDate(sol.dataEnvio) ? Utils.formatDate(sol.dataEnvio) : 'Não informada'}</dd></div>
+                                    <div><dt>Nº do rastreio</dt><dd>${Utils.escapeHtml(sol.trackingCode)}</dd></div>
+                                </dl>
+                            ` : '<p><strong>Aguardando envio do fornecedor</strong></p>'}
                             ${sol.trackingUpdatedAt ? `
                                 <p class="text-muted" style="font-size: 0.85rem;">
                                     Atualizado em ${Utils.formatDate(sol.trackingUpdatedAt, true)}${sol.trackingBy ? ` por ${Utils.escapeHtml(sol.trackingBy)}` : ''}
@@ -1364,18 +1374,26 @@ const Solicitacoes = {
                 </button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="tracking-code">Código de Rastreio *</label>
-                    <input type="text" id="tracking-code" class="form-control" 
-                           placeholder="Informe o código enviado pelo fornecedor"
-                           value="${Utils.escapeHtml(sol.trackingCode || '')}" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tracking-shipping-date">Data do envio *</label>
+                        <input type="date" id="tracking-shipping-date" class="form-control"
+                               value="${Utils.escapeHtml(Utils.normalizeShippingDate(sol.dataEnvio) || Utils.getLocalDateString())}"
+                               max="${Utils.getLocalDateString()}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tracking-code">Nº do rastreio *</label>
+                        <input type="text" id="tracking-code" class="form-control"
+                               placeholder="Código de rastreio"
+                               value="${Utils.escapeHtml(sol.trackingCode || '')}" required>
+                    </div>
                 </div>
                 <input type="hidden" id="tracking-id" value="${sol.id}">
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="Solicitacoes.saveTracking()">
-                    <i class="fas fa-truck"></i> Salvar Rastreio
+                    <i class="fas fa-truck"></i> Salvar envio
                 </button>
             </div>
         `;
@@ -1426,6 +1444,15 @@ const Solicitacoes = {
             return;
         }
 
+        const dateInput = document.getElementById('tracking-shipping-date');
+        const shipping = Utils.validateShippingDate(dateInput?.value, { approvedAt: sol.approvedAt });
+        if (!shipping.valid) {
+            Utils.showToast(shipping.message, 'warning');
+            dateInput?.focus();
+            return;
+        }
+        const dataEnvio = shipping.value;
+
         const currentUser = Auth.getCurrentUser();
         const userName = currentUser?.name || 'Sistema';
 
@@ -1433,6 +1460,7 @@ const Solicitacoes = {
         try {
             const result = await DataManager.updateSolicitationStatus(id, 'em-transito', {
                 trackingCode,
+                dataEnvio,
                 trackingUpdatedAt: Date.now(),
                 trackingBy: userName,
                 trackingByEmail: currentUser?.email || null,
@@ -1450,10 +1478,10 @@ const Solicitacoes = {
                 return;
             }
 
-            Utils.showToast('Rastreio salvo com sucesso', 'success');
+            Utils.showToast(`Envio registrado em ${Utils.formatDate(dataEnvio)}`, 'success');
 
-            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode };
-            this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName);
+            const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode, dataEnvio };
+            this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName, dataEnvio);
 
             Utils.closeModal();
             this.refreshTable();
@@ -1463,7 +1491,7 @@ const Solicitacoes = {
         }
     },
 
-    notifyTechnicianTrackingEmail(solicitation, trackingCode, updatedBy) {
+    notifyTechnicianTrackingEmail(solicitation, trackingCode, updatedBy, dataEnvio = solicitation?.dataEnvio) {
         if (!solicitation || typeof Utils.sendTrackingNotificationToTechnician !== 'function') {
             return;
         }
@@ -1471,6 +1499,7 @@ const Solicitacoes = {
         Utils.sendTrackingNotificationToTechnician({
             solicitation,
             trackingCode,
+            dataEnvio,
             updatedBy
         }).then((result) => {
             const managerCopySentCount = Number(result?.managerCopySentCount) || 0;
@@ -2322,6 +2351,7 @@ const Solicitacoes = {
             Desconto: sol.desconto,
             Frete: sol.frete,
             Total: sol.total,
+            DataEnvio: sol.dataEnvio ? Utils.formatDate(sol.dataEnvio) : '',
             Rastreio: sol.trackingCode || '',
             Status: Utils.getStatusInfo(sol.status).label,
             Observacoes: sol.observacoes || ''

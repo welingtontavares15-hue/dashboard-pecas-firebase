@@ -3385,12 +3385,119 @@ body.wwm-ds .autocomplete-item-desc { margin: 0 !important; padding: 0 !importan
 body.wwm-ds #content-area .technician-history-part > strong { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: break-word !important; min-width: 0 !important; }
 @media (max-width: 767px) {
     /* a dica do rastreio ocupa a largura do cartão, abaixo do campo */
-    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-tracking-input) { grid-template-columns: minmax(0, 1fr) !important; row-gap: 6px !important; }
-    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-tracking-input) > * { grid-column: 1 / -1 !important; }
+    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-shipment-form) { grid-template-columns: minmax(0, 1fr) !important; row-gap: 6px !important; }
+    body.wwm-ds #content-area .supplier-table > tbody > tr > td:has(.supplier-shipment-form) > * { grid-column: 1 / -1 !important; }
 }
 }
 @layer wwm-ds {
 /* textos de ajuda dos formulários tinham cinza escuro fixo (ilegível no fundo escuro) */
 body.wwm-ds .modal-body .form-group > small,
 body.wwm-ds .modal-body .form-group > small[style] { color: var(--ds-muted) !important; font-size: 12px !important; }
+}
+
+/* ==========================================================================
+   v98 — Portal do fornecedor: data do envio + número do rastreio
+   ========================================================================== */
+@layer wwm-ds {
+body.wwm-ds .supplier-shipment-form {
+    display: grid !important; grid-template-columns: minmax(132px, .85fr) minmax(128px, 1.15fr) !important;
+    gap: 8px !important; align-items: end !important; min-width: 0 !important;
+}
+body.wwm-ds .supplier-shipment-field { display: flex !important; flex-direction: column !important; gap: 4px !important; min-width: 0 !important; margin: 0 !important; }
+body.wwm-ds .supplier-shipment-field > label {
+    margin: 0 !important; color: var(--ds-muted) !important; font-size: 11px !important; font-weight: 600 !important;
+    letter-spacing: .03em !important; text-transform: uppercase !important; white-space: nowrap !important;
+}
+body.wwm-ds .supplier-shipment-field > input { width: 100% !important; min-width: 0 !important; height: 38px !important; min-height: 38px !important; padding: 0 10px !important; font-size: 13.5px !important; }
+body.wwm-ds .supplier-shipment-field > input[type="date"] { font-variant-numeric: tabular-nums !important; }
+body.wwm-ds .supplier-shipment-save { grid-column: 1 / -1 !important; width: 100% !important; min-height: 38px !important; justify-content: center !important; gap: 8px !important; white-space: nowrap !important; }
+body.wwm-ds #content-area .table .supplier-shipment-save.btn { width: 100% !important; height: 38px !important; padding: 0 12px !important; }
+body.wwm-ds #content-area .table .supplier-shipment-save.btn > i { margin: 0 !important; }
+body.wwm-ds .supplier-tracking-help { display: block !important; margin-top: 6px !important; color: var(--ds-muted) !important; font-size: 12px !important; line-height: 1.35 !important; white-space: normal !important; }
+/* coluna "Envio e rastreio" com largura suficiente para os dois campos */
+/* resumo (pedido já finalizado ou sem permissão de edição) */
+body.wwm-ds .supplier-shipment-summary { display: grid !important; gap: 4px !important; }
+body.wwm-ds .supplier-shipment-summary > span { display: flex !important; gap: 8px !important; align-items: baseline !important; }
+body.wwm-ds .supplier-shipment-summary small { min-width: 58px !important; color: var(--ds-muted) !important; font-size: 11.5px !important; }
+body.wwm-ds .supplier-shipment-summary strong { color: var(--ds-text) !important; font-size: 13.5px !important; overflow-wrap: anywhere !important; }
+
+/* janela de detalhes do fornecedor */
+body.wwm-ds .modal-body .supplier-detail-tracking-box { margin: 16px 0 !important; padding: 14px !important; border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important; }
+body.wwm-ds .modal-body .supplier-detail-tracking-box > h4 { margin: 0 0 10px !important; font-size: 14.5px !important; color: var(--ds-text) !important; }
+@media (min-width: 640px) {
+    body.wwm-ds .modal-body .supplier-shipment-form { grid-template-columns: 180px minmax(0, 1fr) max-content !important; }
+    body.wwm-ds .modal-body .supplier-shipment-save { grid-column: auto !important; width: auto !important; padding-inline: 16px !important; }
+    body.wwm-ds .modal-body .supplier-shipment-field > input,
+    body.wwm-ds .modal-body .supplier-shipment-save { height: 42px !important; min-height: 42px !important; }
+}
+@media (max-width: 767px) {
+    body.wwm-ds .supplier-shipment-field > input,
+    body.wwm-ds .supplier-shipment-save,
+    body.wwm-ds #content-area .table .supplier-shipment-save.btn { height: 44px !important; min-height: 44px !important; font-size: 15px !important; }
+}
+
+/* detalhes da solicitação (gestor/administrador): data do envio + rastreio */
+body.wwm-ds .wwm-shipment-summary { display: grid !important; grid-template-columns: repeat(2, minmax(0, max-content)) !important; gap: 4px 28px !important; margin: 0 !important; }
+body.wwm-ds .wwm-shipment-summary > div { min-width: 0 !important; }
+body.wwm-ds .wwm-shipment-summary dt { color: var(--ds-muted) !important; font-size: 11.5px !important; font-weight: 600 !important; }
+body.wwm-ds .wwm-shipment-summary dd { margin: 2px 0 0 !important; color: var(--ds-text) !important; font-size: 15px !important; font-weight: 700 !important; overflow-wrap: anywhere !important; }
+}
+@layer wwm-ds {
+body.wwm-ds .modal-body .supplier-detail-card > label { font-size: 11px !important; }
+}
+
+@layer wwm-ds {
+/* Lista do fornecedor em computador/tablet: com 7 colunas a de envio ficava
+   fora da tela (rolagem lateral). Cada pedido passa a ter duas linhas: os
+   dados do pedido em cima e, embaixo, a faixa "data do envio + rastreio". */
+@media (min-width: 768px) {
+    body.wwm-ds #content-area .supplier-table-container { overflow-x: visible !important; }
+    body.wwm-ds #content-area table.supplier-table,
+    body.wwm-ds #content-area table.supplier-table > :is(thead, tbody) { display: block !important; width: 100% !important; min-width: 0 !important; }
+    body.wwm-ds #content-area table.supplier-table > :is(thead, tbody) > tr {
+        display: grid !important; width: 100% !important;
+        grid-template-columns: minmax(118px, 1.05fr) minmax(0, 1.4fr) minmax(0, 1.4fr) max-content minmax(118px, 1.1fr) max-content !important;
+        align-items: center !important;
+    }
+    body.wwm-ds #content-area table.supplier-table > tbody > tr { border-bottom: 1px solid var(--ds-border) !important; padding: 6px 0 12px !important; }
+    body.wwm-ds #content-area table.supplier-table > tbody > tr:last-child { border-bottom: 0 !important; }
+    body.wwm-ds #content-area table.supplier-table > :is(thead, tbody) > tr > :is(th, td) {
+        display: block !important; min-width: 0 !important; width: auto !important; max-width: none !important; height: auto !important;
+        white-space: normal !important; overflow-wrap: break-word !important; border-bottom: 0 !important; padding: 8px 12px !important;
+    }
+    body.wwm-ds #content-area table.supplier-table > thead > tr > th { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+    /* 6ª coluna = envio: sai do cabeçalho e vira a segunda linha do pedido */
+    body.wwm-ds #content-area table.supplier-table > thead > tr > th:nth-child(6) { display: none !important; }
+    body.wwm-ds #content-area table.supplier-table > :is(thead, tbody) > tr > :nth-child(7) { grid-column: 6 !important; grid-row: 1 !important; }
+    body.wwm-ds #content-area table.supplier-table > tbody > tr > td:nth-child(6) {
+        grid-column: 1 / -1 !important; grid-row: 2 !important;
+        display: flex !important; flex-wrap: wrap !important; align-items: flex-end !important; gap: 8px 18px !important;
+        margin: 2px 12px 0 !important; padding: 12px 14px !important;
+        border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+    }
+    body.wwm-ds #content-area table.supplier-table .supplier-shipment-form {
+        flex: 0 1 620px !important; grid-template-columns: 170px minmax(160px, 1fr) max-content !important;
+    }
+    body.wwm-ds #content-area table.supplier-table .supplier-shipment-save.btn { grid-column: auto !important; width: auto !important; padding: 0 16px !important; }
+    body.wwm-ds #content-area table.supplier-table .supplier-tracking-help { flex: 1 1 220px !important; margin: 0 0 9px !important; }
+    body.wwm-ds #content-area table.supplier-table .supplier-order-meta :is(strong, small),
+    body.wwm-ds #content-area table.supplier-table .supplier-parts-summary :is(strong, small),
+    body.wwm-ds #content-area table.supplier-table .supplier-status-cell small { white-space: normal !important; overflow-wrap: anywhere !important; }
+    body.wwm-ds #content-area table.supplier-table .supplier-order-meta strong { overflow-wrap: normal !important; }
+    body.wwm-ds #content-area table.supplier-table .supplier-actions { flex-wrap: nowrap !important; justify-content: flex-end !important; }
+    body.wwm-ds #content-area table.supplier-table > tbody > tr > td:nth-child(4) { white-space: nowrap !important; font-variant-numeric: tabular-nums !important; }
+    body.wwm-ds #content-area table.supplier-table .supplier-status-cell { display: grid !important; gap: 4px !important; justify-items: start !important; }
+}
+/* celular: data e rastreio lado a lado na lista; empilhados na janela */
+@media (max-width: 767px) {
+    body.wwm-ds #content-area .supplier-shipment-form { grid-template-columns: minmax(150px, .9fr) minmax(0, 1.1fr) !important; }
+}
+@media (max-width: 639px) {
+    body.wwm-ds .modal-body .supplier-shipment-form { grid-template-columns: minmax(0, 1fr) !important; }
+}
+}
+@layer wwm-ds {
+@media (min-width: 768px) {
+    body.wwm-ds #content-area table.supplier-table .supplier-actions { flex-direction: row !important; align-items: center !important; }
+}
 }

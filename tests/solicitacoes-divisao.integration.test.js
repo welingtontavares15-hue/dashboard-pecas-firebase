@@ -71,6 +71,7 @@ describe('ADMINISTRADOR + pedido histórico: classificação de divisão', () =>
             escapeHtml: (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'),
             normalizeText: (value) => String(value || '').trim().toLowerCase(),
             formatDate: (value) => String(value || '-'),
+            normalizeShippingDate: (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) ? String(value) : ''),
             formatCurrency: (value) => `R$ ${Number(value || 0).toFixed(2)}`,
             formatNumber: (value) => String(value || 0),
             renderStatusBadge: (status) => `<span>${status}</span>`,

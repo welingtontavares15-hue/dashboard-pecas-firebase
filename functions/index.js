@@ -4,7 +4,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { getDatabase } from 'firebase-admin/database';
 import { getAuth } from 'firebase-admin/auth';
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { activeUser, credentialKey, firebaseUid, normalizeUsername, publicProfile, userById, userByName, userKey } from './passkey-utils.js';
+import { activeUser, credentialKey, firebaseUid, normalizeUsername, publicProfile, shippingDateOf, userById, userByName, userKey } from './passkey-utils.js';
 import { identityStore, safeProfile, verifyPassword } from './identity-store.js';
 
 if (!getApps().length) initializeApp(process.env.PORTAL_DATABASE_URL ? { databaseURL: process.env.PORTAL_DATABASE_URL } : undefined);
@@ -231,6 +231,8 @@ async function fulfillment(body, req, receipt = false) {
   if (typeof body.id !== 'string' || /[.#$\[\]\/]/.test(body.id) || !body.id) invalid('Solicitação inválida.');
   const trackingCode = String(body.trackingCode || '').trim();
   if (!receipt && !/^[A-Za-z0-9][A-Za-z0-9 ._-]{2,119}$/.test(trackingCode)) invalid('Rastreio inválido.');
+  // Data do envio (AAAA-MM-DD): opcional para clientes antigos; quando vem, é validada.
+  const dataEnvio = receipt ? '' : shippingDateOf(body.dataEnvio);
   // Root transaction makes the identity-version check and scoped mutation atomic.
   let solicitation;
   let transactionError;
@@ -247,12 +249,12 @@ async function fulfillment(body, req, receipt = false) {
     solicitation = {
       ...item, status: receipt ? 'finalizada' : 'em-transito', updatedAt: now,
       ...(receipt ? { deliveredAt: now, deliveredBy: by, finalizedAt: now, finalizedBy: by } : {
-        trackingCode, trackingUpdatedAt: now,
+        trackingCode, trackingUpdatedAt: now, ...(dataEnvio ? { dataEnvio } : {}),
         trackingUpdatedByUserId: String(actor.id), trackingUpdatedByUsername: actor.username,
         trackingUpdatedByEmail: actor.email || null, trackingUpdatedByRole: actor.role
       }),
       audit: { ...item.audit, version: Number(item.audit?.version || 0) + 1, lastUpdatedAt: now, lastUpdatedBy: by },
-      timeline: [...(Array.isArray(item.timeline) ? item.timeline : []), { event: 'status_changed', from: item.status, to: receipt ? 'finalizada' : 'em-transito', at: now, by, comment: receipt ? null : trackingCode }]
+      timeline: [...(Array.isArray(item.timeline) ? item.timeline : []), { event: 'status_changed', from: item.status, to: receipt ? 'finalizada' : 'em-transito', at: now, by, comment: receipt ? null : (dataEnvio ? `${trackingCode} · envio em ${dataEnvio.split('-').reverse().join('/')}` : trackingCode) }]
     };
     current.data.diversey_solicitacoes[body.id] = solicitation;
     return current;

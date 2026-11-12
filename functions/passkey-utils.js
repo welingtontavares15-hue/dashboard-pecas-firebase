@@ -57,3 +57,21 @@ export function publicProfile(user) {
     tecnicoId: user.tecnicoId || null, fornecedorId: user.fornecedorId || null
   };
 }
+
+/**
+ * Data do envio informada pelo fornecedor (AAAA-MM-DD). Opcional: clientes
+ * antigos ainda enviam só o rastreio. Retorna '' quando ausente e lança
+ * `Error` com `status` 400 quando inválida ou futura. A folga de um dia cobre
+ * fusos à frente do UTC, onde "hoje" já é o dia seguinte para o servidor.
+ */
+export function shippingDateOf(value, now = Date.now()) {
+  if (value === undefined || value === null || value === '') return '';
+  const fail = (message) => { const error = new Error(message); error.status = 400; throw error; };
+  const match = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null;
+  if (!match) fail('Data do envio inválida.');
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) fail('Data do envio inválida.');
+  if (date.getTime() > now + 86400000) fail('A data do envio não pode ser futura.');
+  return value;
+}
