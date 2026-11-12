@@ -241,6 +241,34 @@ test('real browser: telas principais sem conteúdo cortado em celular, tablet e 
                         .some((node) => /encontrad/.test(node.textContent)));
                     if (duplicateCount) failures.push(`${width}px ${role} ${pageId}: contagem de resultados duplicada`);
 
+                    // Aprovação em lote: a janela mostra para qual fornecedor vai cada
+                    // pedido e não oferece mais um fornecedor único para todos.
+                    if (pageId === 'aprovacoes' && role === 'administrador') {
+                        const batchProblems = await page.evaluate(async () => {
+                            const problems = [];
+                            const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                            const pending = DataManager.getSolicitations().filter((sol) => sol.status === 'pendente');
+                            Aprovacoes.selectedIds = pending.map((sol) => sol.id);
+                            await Aprovacoes.batchApprove();
+                            await pause(300);
+                            const modal = document.getElementById('modal-content');
+                            const rows = [...modal.querySelectorAll('#batch-supplier-summary li')];
+                            if (!rows.length) problems.push('lote: lista de fornecedores ausente');
+                            if (modal.querySelector('#batch-supplier')) problems.push('lote: ainda pede um fornecedor único');
+                            const body = modal.querySelector('.modal-body');
+                            if (body && body.scrollWidth > body.clientWidth + 2) problems.push('lote: conteúdo mais largo que a janela');
+                            const limit = modal.getBoundingClientRect();
+                            rows.forEach((row) => {
+                                const rect = row.getBoundingClientRect();
+                                if (rect.left < limit.left - 1 || rect.right > limit.right + 1) problems.push('lote: fornecedor fora da janela');
+                            });
+                            Utils.closeModal();
+                            Aprovacoes.selectedIds = [];
+                            return [...new Set(problems)];
+                        });
+                        batchProblems.forEach((problem) => failures.push(`${width}px aprovacoes: ${problem}`));
+                    }
+
                     // Regressão mobile: os checkboxes dos filtros de relatórios não
                     // podem ocupar 100% e empurrar os rótulos para fora da lista.
                     if (pageId === 'relatorios' && role === 'administrador' && width <= 768) {

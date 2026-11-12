@@ -3501,3 +3501,123 @@ body.wwm-ds .modal-body .supplier-detail-card > label { font-size: 11px !importa
     body.wwm-ds #content-area table.supplier-table .supplier-actions { flex-direction: row !important; align-items: center !important; }
 }
 }
+/* v99 — fornecedor de cada pedido na aprovação em lote, aviso de pedido com
+   fornecedor errado e de e-mail não entregue ao fornecedor */
+@layer wwm-ds {
+body.wwm-ds .wwm-batch-supplier-list,
+body.wwm-ds .wwm-email-failure-list,
+body.wwm-ds .wwm-routing-alert ul { list-style: none !important; margin: 12px 0 !important; padding: 0 !important; display: grid !important; gap: 8px !important; }
+body.wwm-ds .wwm-batch-supplier-list li {
+    display: grid !important; grid-template-columns: 34px minmax(0, 1fr) max-content !important; align-items: center !important; gap: 10px !important;
+    padding: 9px 12px !important; border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+}
+body.wwm-ds .wwm-batch-supplier-list li strong { color: var(--ds-text) !important; font-size: 14.5px !important; min-width: 0 !important; overflow-wrap: anywhere !important; }
+body.wwm-ds .wwm-batch-supplier-list li > span:last-child { color: var(--ds-text-2) !important; font-size: 13px !important; font-variant-numeric: tabular-nums !important; }
+body.wwm-ds .wwm-batch-supplier-icon { width: 34px !important; height: 34px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 50% !important; background: var(--ds-info-bg) !important; color: var(--ds-info) !important; }
+body.wwm-ds .wwm-batch-supplier-list li:is(.is-hobart, .is-missing) .wwm-batch-supplier-icon { background: var(--ds-warn-bg) !important; color: var(--ds-warn) !important; }
+
+body.wwm-ds .wwm-email-failure-list li {
+    display: grid !important; gap: 3px !important; padding: 10px 12px !important;
+    border: 1px solid var(--ds-border) !important; border-left: 3px solid var(--ds-warn) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-warn-bg) !important;
+}
+body.wwm-ds .wwm-email-failure-list li strong { color: var(--ds-text) !important; font-size: 14px !important; }
+body.wwm-ds .wwm-email-failure-list li span { color: var(--ds-text) !important; font-size: 13px !important; line-height: 1.45 !important; overflow-wrap: anywhere !important; }
+body.wwm-ds .wwm-email-failure-list li .wwm-email-failure-recipient { font-variant-numeric: tabular-nums !important; opacity: .85 !important; }
+
+body.wwm-ds .wwm-routing-alert {
+    margin: 0 0 16px !important; padding: 14px 16px !important;
+    border: 1px solid var(--ds-border) !important; border-left: 4px solid var(--ds-warn) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-warn-bg) !important;
+}
+body.wwm-ds .wwm-routing-alert ul { margin: 12px 0 0 !important; }
+body.wwm-ds .wwm-routing-alert-head { display: flex !important; gap: 12px !important; align-items: flex-start !important; }
+body.wwm-ds .wwm-routing-alert-head > i { color: var(--ds-warn) !important; font-size: 18px !important; margin-top: 2px !important; }
+body.wwm-ds .wwm-routing-alert-head strong { color: var(--ds-text) !important; font-size: 15px !important; }
+body.wwm-ds .wwm-routing-alert-head p { margin: 2px 0 0 !important; color: var(--ds-text) !important; font-size: 13px !important; line-height: 1.45 !important; }
+body.wwm-ds .wwm-routing-alert li {
+    display: flex !important; flex-wrap: wrap !important; align-items: center !important; justify-content: space-between !important; gap: 8px 14px !important;
+    padding: 9px 12px !important; border: 1px solid var(--ds-border) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-surface) !important;
+    color: var(--ds-text) !important; font-size: 13.5px !important;
+}
+body.wwm-ds .wwm-routing-alert li > span { min-width: 0 !important; flex: 1 1 260px !important; overflow-wrap: anywhere !important; }
+
+body.wwm-ds .wwm-routing-note {
+    display: flex !important; gap: 8px !important; align-items: flex-start !important; margin: 8px 0 0 !important; padding: 9px 12px !important;
+    border-left: 3px solid var(--ds-warn) !important; border-radius: var(--ds-r-md) !important; background: var(--ds-warn-bg) !important;
+    color: var(--ds-text) !important; font-size: 13px !important; line-height: 1.45 !important;
+}
+body.wwm-ds .wwm-routing-note > i { color: var(--ds-warn) !important; margin-top: 2px !important; }
+body.wwm-ds .wwm-routing-actions { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; margin: 8px 0 0 !important; }
+@media (max-width: 639px) {
+    body.wwm-ds .wwm-routing-alert li .btn,
+    body.wwm-ds .wwm-routing-actions .btn { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
+}
+}
+/* v100 — fornecedor: etapa muda visivelmente quando o envio é registrado */
+@layer wwm-ds {
+/* Mini fluxo por pedido dentro do cartão/linha. Mostra 5 etapas pequenas. */
+body.wwm-ds .supplier-order-pipeline {
+    list-style: none !important; margin: 6px 0 0 !important; padding: 0 !important;
+    display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important;
+}
+body.wwm-ds .supplier-order-pipeline li {
+    display: flex !important; flex-direction: column !important; align-items: center !important; gap: 3px !important;
+    color: var(--ds-text-2) !important; font-size: 11.5px !important; line-height: 1.25 !important; text-align: center !important;
+    opacity: .55 !important;
+}
+body.wwm-ds .supplier-order-pipeline li small { color: inherit !important; font-size: 11.5px !important; overflow-wrap: anywhere !important; }
+body.wwm-ds .supplier-order-pipeline-dot {
+    width: 22px !important; height: 22px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    border-radius: 50% !important; background: var(--ds-surface) !important; border: 1px solid var(--ds-border) !important;
+    color: var(--ds-text) !important; font-size: 11.5px !important; font-weight: 600 !important; font-variant-numeric: tabular-nums !important;
+}
+body.wwm-ds .supplier-order-pipeline li.done { opacity: .85 !important; }
+body.wwm-ds .supplier-order-pipeline li.done .supplier-order-pipeline-dot {
+    background: var(--ds-ok-bg) !important;
+    border-color: var(--ds-ok-solid) !important;
+    color: var(--ds-ok-solid) !important;
+}
+body.wwm-ds .supplier-order-pipeline li.active { opacity: 1 !important; font-weight: 600 !important; }
+body.wwm-ds .supplier-order-pipeline li.active .supplier-order-pipeline-dot {
+    background: var(--ds-green-500) !important; border-color: var(--ds-green-500) !important; color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(17, 167, 157, .22) !important;
+}
+
+/* Painel de confirmação que substitui o formulário depois do envio. */
+body.wwm-ds .supplier-shipment-confirmed {
+    display: grid !important; gap: 10px !important; padding: 12px 14px !important;
+    border: 1px solid var(--ds-ok-solid) !important; border-left: 4px solid var(--ds-ok-solid) !important;
+    border-radius: var(--ds-r-md) !important; background: var(--ds-ok-bg) !important;
+}
+body.wwm-ds .supplier-shipment-confirmed-head { display: flex !important; gap: 10px !important; align-items: flex-start !important; }
+body.wwm-ds .supplier-shipment-confirmed-icon {
+    width: 32px !important; height: 32px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    border-radius: 50% !important; background: var(--ds-ok-solid) !important; color: #fff !important; font-size: 18px !important; flex: 0 0 32px !important;
+}
+body.wwm-ds .supplier-shipment-confirmed-head strong { color: var(--ds-text) !important; font-size: 14.5px !important; display: block !important; }
+body.wwm-ds .supplier-shipment-confirmed-head small { color: var(--ds-text) !important; font-size: 12.5px !important; line-height: 1.4 !important; display: block !important; }
+body.wwm-ds .supplier-shipment-confirmed-grid {
+    margin: 0 !important; padding: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 4px 14px !important;
+}
+body.wwm-ds .supplier-shipment-confirmed-grid > div { min-width: 0 !important; }
+body.wwm-ds .supplier-shipment-confirmed-grid dt { color: var(--ds-text-2) !important; font-size: 11.5px !important; text-transform: uppercase !important; letter-spacing: .04em !important; margin: 0 !important; }
+body.wwm-ds .supplier-shipment-confirmed-grid dd { color: var(--ds-text) !important; font-size: 14px !important; font-weight: 600 !important; margin: 0 !important; overflow-wrap: anywhere !important; }
+body.wwm-ds .supplier-shipment-edit.btn { justify-self: start !important; min-height: 36px !important; }
+
+/* Flash na linha que acabou de mudar de etapa. */
+@keyframes wwm-supplier-shipped-flash {
+    0%, 100% { background-color: transparent; }
+    15%, 65% { background-color: var(--ds-ok-bg); }
+}
+body.wwm-ds .supplier-row-just-shipped > td { animation: wwm-supplier-shipped-flash 2.2s ease !important; }
+@media (prefers-reduced-motion: reduce) {
+    body.wwm-ds .supplier-row-just-shipped > td { animation: none !important; background-color: var(--ds-ok-bg) !important; }
+}
+
+/* Celular: linhas viram cartões, então damos espaço vertical. */
+@media (max-width: 767px) {
+    body.wwm-ds .supplier-order-pipeline { gap: 2px !important; }
+    body.wwm-ds .supplier-order-pipeline-dot { width: 20px !important; height: 20px !important; font-size: 11px !important; }
+    body.wwm-ds .supplier-order-pipeline li small { font-size: 11px !important; }
+    body.wwm-ds .supplier-shipment-confirmed-grid { grid-template-columns: 1fr !important; }
+}
+}

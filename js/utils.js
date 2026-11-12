@@ -917,6 +917,11 @@ const Utils = {
         if (reason === 'connection_error') {
             return 'houve falha de conexão com o provedor de e-mail.';
         }
+        // O serviço de envio só entrega para um endereço depois que o dono dele
+        // confirma o link "Activate Form" recebido na primeira tentativa.
+        if (providerMessage.toLowerCase().includes('activat')) {
+            return `o endereço ainda não foi ativado no serviço de envio. O destinatário precisa abrir o e-mail "Activate Form" (FormSubmit) que recebeu, clicar no link e depois você reenvia o pedido. (Resposta do serviço: ${providerMessage})`;
+        }
         if (reason === 'provider_negative_ack') {
             return providerMessage
                 ? `o provedor rejeitou o envio: ${providerMessage}.`
@@ -967,6 +972,192 @@ const Utils = {
             supplierName: supplier?.nome || solicitation?.fornecedorNome || null,
             reason: recipients.length > 0 ? null : 'missing_supplier_email_configuration'
         };
+    },
+
+    /**
+     * Lista, em linguagem simples, cada e-mail de fornecedor que não foi entregue.
+     * `summary` é o retorno de sendSupplierApprovalEmail.
+     */
+    collectSupplierEmailFailures(summary = {}, solicitation = {}) {
+        const target = this.resolveSupplierNotificationTargets(solicitation);
+        const supplierName = summary?.supplierName || target.supplierName || 'Fornecedor';
+        const base = {
+            solicitationId: solicitation?.id || null,
+            numero: solicitation?.numero || null,
+            supplierName
+        };
+
+        if (summary?.reason === 'missing_supplier_email_configuration' || target.reason === 'missing_supplier_email_configuration') {
+            return [{ ...base, recipient: null, message: 'o fornecedor está sem e-mail cadastrado. Informe o e-mail em Fornecedores e reenvie o pedido.' }];
+        }
+
+        return (Array.isArray(summary?.results) ? summary.results : [])
+            .filter((item) => item && item.success !== true)
+            .map((item) => ({
+                ...base,
+                recipient: item.recipientEmail || null,
+                message: this.getOperationalEmailFailureMessage({
+                    reason: item.reason,
+                    providerMessage: item.providerMessage || item.error
+                })
+            }));
+    },
+
+    /**
+     * Aviso que não some sozinho: o pedido foi aprovado, mas o fornecedor não
+     * recebeu o e-mail. Um aviso rápido de 5 segundos passava despercebido.
+     */
+    showSupplierEmailFailureDialog(failures = []) {
+        const list = (Array.isArray(failures) ? failures : []).filter(Boolean);
+        if (list.length === 0 || typeof this.showModal !== 'function') {
+            return false;
+        }
+
+        const ids = [...new Set(list.map((item) => item.solicitationId).filter(Boolean))];
+        const content = `
+            <div class="modal-header">
+                <h3>Fornecedor não recebeu o e-mail</h3>
+                <button class="modal-close" onclick="Utils.closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>A aprovação foi gravada e o pedido já aparece no portal do fornecedor, mas o aviso por e-mail <strong>não foi entregue</strong>:</p>
+                <ul class="wwm-email-failure-list">
+                    ${list.map((item) => `
+                        <li>
+                            <strong>${this.escapeHtml(item.supplierName || 'Fornecedor')}${item.numero ? ` · pedido ${this.escapeHtml(item.numero)}` : ''}</strong>
+                            ${item.recipient ? `<span class="wwm-email-failure-recipient">${this.escapeHtml(item.recipient)}</span>` : ''}
+                            <span>Motivo: ${this.escapeHtml(item.message || 'o envio automático falhou.')}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+                <p class="text-muted">Você pode reenviar depois em Solicitações, abrindo o pedido e usando “Reenviar e-mail ao fornecedor”.</p>
+            </div>
+            <div class="modal-footer">
+                ${ids.length === 1 ? `
+                    <button class="btn btn-outline" onclick="Utils.resendSupplierApprovalEmail('${this.escapeHtml(ids[0])}')">
+                        <i class="fas fa-paper-plane" aria-hidden="true"></i> Tentar novamente
+                    </button>
+                ` : ''}
+                <button class="btn btn-primary" onclick="Utils.closeModal()">Entendi</button>
+            </div>
+        `;
+        this.showModal(content, { size: 'md' });
+        return true;
+    },
+
+    /**
+     * Reenvia ao fornecedor o e-mail de um pedido aprovado (gestor/administrador).
+     */
+    async resendSupplierApprovalEmail(id) {
+        const role = typeof Auth !== 'undefined' && typeof Auth.getRole === 'function' ? Auth.getRole() : null;
+        if (!['admin', 'administrador', 'gestor'].includes(role)) {
+            this.showToast('Somente gestor ou administrador pode reenviar o e-mail ao fornecedor.', 'error');
+            return { success: false, reason: 'forbidden' };
+        }
+        if (this._supplierEmailResending) {
+            return { success: false, reason: 'busy' };
+        }
+
+        const solicitation = typeof DataManager !== 'undefined' ? DataManager.getSolicitationById(id) : null;
+        if (!solicitation) {
+            this.showToast('Solicitação não encontrada', 'error');
+            return { success: false, reason: 'not_found' };
+        }
+        if (String(solicitation.status || '').trim().toLowerCase() !== 'aprovada') {
+            this.showToast('O e-mail ao fornecedor só pode ser reenviado enquanto o pedido aguarda envio.', 'warning');
+            return { success: false, reason: 'supplier_notification_not_released' };
+        }
+
+        this._supplierEmailResending = true;
+        this.showToast('Reenviando e-mail ao fornecedor...', 'info');
+        try {
+            const currentUser = typeof Auth.getCurrentUser === 'function' ? Auth.getCurrentUser() : null;
+            const summary = await this.sendSupplierApprovalEmail({
+                solicitation,
+                approvedBy: solicitation.approvedBy || currentUser?.name || 'Gestor'
+            });
+            const failures = this.collectSupplierEmailFailures(summary, solicitation);
+            if (failures.length > 0) {
+                this.showSupplierEmailFailureDialog(failures);
+                return { success: false, reason: 'supplier_send_failed', failures };
+            }
+
+            const supplierName = summary?.supplierName || 'fornecedor';
+            this.showToast(`E-mail reenviado para ${supplierName} (${(summary?.recipients || []).join(', ')}).`, 'success');
+            if (document.querySelector('#modal-content .wwm-email-failure-list')) {
+                this.closeModal();
+            }
+            return { success: true, summary };
+        } finally {
+            this._supplierEmailResending = false;
+        }
+    },
+
+    /**
+     * Devolve ao fornecedor escolhido na abertura um pedido aprovado que foi
+     * encaminhado a outro (administrador). Depois avisa o fornecedor certo.
+     */
+    async correctSolicitationSupplier(id) {
+        const role = typeof Auth !== 'undefined' && typeof Auth.getRole === 'function' ? Auth.getRole() : null;
+        if (!['admin', 'administrador'].includes(role)) {
+            this.showToast('Somente o administrador pode corrigir o fornecedor de um pedido já aprovado.', 'error');
+            return { success: false, reason: 'forbidden' };
+        }
+        if (this._supplierCorrectionRunning) {
+            return { success: false, reason: 'busy' };
+        }
+
+        const solicitation = typeof DataManager !== 'undefined' ? DataManager.getSolicitationById(id) : null;
+        const mismatch = solicitation ? DataManager.getSupplierRoutingMismatch(solicitation) : null;
+        if (!solicitation || !mismatch) {
+            this.showToast('Este pedido já está com o fornecedor correto.', 'info');
+            return { success: false, reason: 'no_mismatch' };
+        }
+        if (String(solicitation.status || '').trim().toLowerCase() !== 'aprovada') {
+            this.showToast('Só é possível corrigir o fornecedor enquanto o pedido aguarda envio.', 'warning');
+            return { success: false, reason: 'invalid_status' };
+        }
+
+        this._supplierCorrectionRunning = true;
+        try {
+            const currentUser = typeof Auth.getCurrentUser === 'function' ? Auth.getCurrentUser() : null;
+            const userName = currentUser?.name || 'Administrador';
+            const result = await DataManager.updateSolicitationStatus(id, 'aprovada', {
+                supplierCorrection: true,
+                fornecedorId: mismatch.expectedId,
+                by: userName,
+                byUserId: currentUser?.id || null,
+                byUsername: currentUser?.username || null,
+                byEmail: currentUser?.email || null,
+                byRole: currentUser?.role || null
+            });
+            if (!result || result.success !== true) {
+                this.showToast(result?.message || 'Não foi possível corrigir o fornecedor.', 'error');
+                return { success: false, reason: result?.error || 'save_failed' };
+            }
+
+            this.closeModal();
+            this.showToast(`Pedido ${solicitation.numero || ''} encaminhado para ${mismatch.expectedName}.`, 'success');
+            const corrected = result.solicitation || DataManager.getSolicitationById(id);
+            const summary = await this.sendSupplierApprovalEmail({
+                solicitation: corrected,
+                approvedBy: corrected?.approvedBy || userName
+            });
+            const failures = this.collectSupplierEmailFailures(summary, corrected);
+            if (failures.length > 0) {
+                this.showSupplierEmailFailureDialog(failures);
+            } else {
+                this.showToast(`${mismatch.expectedName} avisada por e-mail.`, 'info');
+            }
+            if (typeof App !== 'undefined' && typeof App.refreshActiveView === 'function') {
+                App.refreshActiveView([DataManager.KEYS.SOLICITATIONS]);
+            }
+            return { success: true, solicitation: corrected };
+        } finally {
+            this._supplierCorrectionRunning = false;
+        }
     },
 
     getSupplierApprovalRecipients(solicitation) {

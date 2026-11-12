@@ -96,6 +96,7 @@ const Aprovacoes = {
                 <div class="kpi-card is-priority"><div class="kpi-icon danger"><i class="fas fa-arrow-up"></i></div><div class="kpi-content"><h4>Alta prioridade</h4><div class="kpi-value">${Utils.formatNumber(highPriorityCount)}</div><div class="kpi-change">Exigem atenção</div></div></div>
                 <div class="kpi-card is-sla"><div class="kpi-icon success"><i class="fas fa-stopwatch"></i></div><div class="kpi-content"><h4>SLA excedido</h4><div class="kpi-value">${Utils.formatNumber(overSlaCount)}</div><div class="kpi-change">Meta de ${Utils.formatNumber(slaHours)}h</div></div></div>
             </div>
+            ${this.renderSupplierRoutingAlert()}
             <div class="filter-context-summary" id="approval-filter-context">
                 ${this.renderActiveFilterChips()}
             </div>
@@ -165,6 +166,48 @@ const Aprovacoes = {
         this.updateSelectedCount();
     },
 
+
+    /**
+     * Pedidos já aprovados que estão com um fornecedor diferente do escolhido na
+     * abertura (efeito da antiga aprovação em lote). Só aparece quando existe algum.
+     */
+    renderSupplierRoutingAlert() {
+        if (typeof DataManager.getSupplierRoutingMismatch !== 'function') {
+            return '';
+        }
+        const affected = DataManager.getSolicitations()
+            .filter((sol) => String(sol?.status || '').trim().toLowerCase() === 'aprovada')
+            .map((sol) => ({ sol, mismatch: DataManager.getSupplierRoutingMismatch(sol) }))
+            .filter((entry) => entry.mismatch);
+        if (affected.length === 0) {
+            return '';
+        }
+
+        const isAdmin = ['admin', 'administrador'].includes(Auth.getRole());
+        return `
+            <div class="wwm-routing-alert" id="supplier-routing-alert" role="alert">
+                <div class="wwm-routing-alert-head">
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    <div>
+                        <strong>${affected.length === 1 ? '1 pedido aprovado está' : `${affected.length} pedidos aprovados estão`} com o fornecedor errado</strong>
+                        <p>O pedido foi aberto para um fornecedor, mas a aprovação em lote o encaminhou a outro.${isAdmin ? '' : ' Peça a um administrador para corrigir.'}</p>
+                    </div>
+                </div>
+                <ul>
+                    ${affected.map(({ sol, mismatch }) => `
+                        <li>
+                            <span><strong>${Utils.escapeHtml(sol.numero || sol.id)}</strong> · aberto para <strong>${Utils.escapeHtml(mismatch.expectedName)}</strong>, está com ${Utils.escapeHtml(mismatch.currentName)}</span>
+                            ${isAdmin ? `
+                                <button type="button" class="btn btn-sm btn-primary" onclick="Utils.correctSolicitationSupplier('${Utils.escapeHtml(sol.id)}')">
+                                    <i class="fas fa-share" aria-hidden="true"></i> Encaminhar para ${Utils.escapeHtml(mismatch.expectedName)}
+                                </button>
+                            ` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    },
 
     renderActiveFilterChips() {
         const chips = AnalyticsHelper.buildFilterChips(this.filters, {
@@ -1070,20 +1113,22 @@ const Aprovacoes = {
             const sentCount = Number(summary?.sentCount) || 0;
             const failedCount = Number(summary?.failedCount) || 0;
             const totalRecipients = Number(summary?.totalRecipients) || (sentCount + failedCount);
-            const missingSupplierEmail = summary?.reason === 'missing_supplier_email_configuration';
+            const failures = typeof Utils.collectSupplierEmailFailures === 'function'
+                ? Utils.collectSupplierEmailFailures(summary, solicitation)
+                : [];
 
             if (!silent) {
-                if (missingSupplierEmail) {
-                    Utils.showToast('Aprovação concluída, mas o fornecedor selecionado está sem e-mail cadastrado. O gestor foi avisado para correção.', 'warning');
+                if (failures.length > 0 && typeof Utils.showSupplierEmailFailureDialog === 'function') {
+                    // Aviso que fica na tela: o fornecedor não foi avisado deste pedido.
+                    Utils.showSupplierEmailFailureDialog(failures);
                 } else if (totalRecipients === 0) {
                     Utils.showToast('Aprovação concluída. Nenhum destinatário de fornecedor válido para notificação.', 'warning');
-                } else {
-                    if (sentCount > 0) {
-                        Utils.showToast(`${sentCount} destinatário(s) de fornecedor notificado(s) por e-mail.`, 'info');
-                    }
-                    if (failedCount > 0) {
-                        Utils.showToast(`${failedCount} envio(s) de e-mail para fornecedor falharam. Verifique o log.`, 'warning');
-                    }
+                } else if (failedCount > 0) {
+                    Utils.showToast(`${failedCount} envio(s) de e-mail para fornecedor falharam. Verifique o log.`, 'warning');
+                }
+                if (sentCount > 0) {
+                    const supplierName = summary?.supplierName || 'fornecedor';
+                    Utils.showToast(`${supplierName} avisado por e-mail (${sentCount} destinatário${sentCount === 1 ? '' : 's'}).`, 'info');
                 }
                 this.showManagerCopyNotificationStatus(
                     summary,
@@ -1092,10 +1137,11 @@ const Aprovacoes = {
             }
 
             return {
-                success: failedCount === 0,
+                success: failedCount === 0 && failures.length === 0,
                 sentCount,
                 failedCount,
                 totalRecipients,
+                failures,
                 results: Array.isArray(summary?.results) ? summary.results : []
             };
         }).catch((error) => {
@@ -1226,6 +1272,31 @@ const Aprovacoes = {
     },
 
     /**
+     * Agrupa as solicitações selecionadas pelo fornecedor definido na abertura.
+     * A aprovação em lote nunca troca o fornecedor de um pedido.
+     */
+    getBatchSupplierRouting(ids = []) {
+        const groups = new Map();
+        let withoutSupplier = 0;
+
+        ids.forEach((id) => {
+            const sol = DataManager.getSolicitationById(id);
+            const supplierId = sol?.fornecedorId ? String(sol.fornecedorId).trim() : '';
+            if (!supplierId) {
+                withoutSupplier++;
+                return;
+            }
+            const supplier = DataManager.getSupplierById(supplierId);
+            const key = supplier?.id || supplierId;
+            const current = groups.get(key) || { id: key, nome: supplier?.nome || sol.fornecedorNome || supplierId, count: 0 };
+            current.count++;
+            groups.set(key, current);
+        });
+
+        return { groups: Array.from(groups.values()), withoutSupplier };
+    },
+
+    /**
      * Batch approve
      */
     async batchApprove() {
@@ -1235,7 +1306,9 @@ const Aprovacoes = {
         }
         
         const suppliers = DataManager.getSuppliers().filter(s => s.ativo !== false);
-        
+        const routing = this.getBatchSupplierRouting(this.selectedIds);
+        const plural = (count) => `${count} ${count === 1 ? 'solicitação' : 'solicitações'}`;
+
         const content = `
             <div class="modal-header">
                 <h3>Aprovar ${this.selectedIds.length} Solicitações</h3>
@@ -1244,17 +1317,37 @@ const Aprovacoes = {
                 </button>
             </div>
             <div class="modal-body">
-                <p>Você está prestes a aprovar <strong>${this.selectedIds.length}</strong> solicitações.</p>
-                
+                <p>Você está prestes a aprovar <strong>${plural(this.selectedIds.length)}</strong>. Cada pedido segue para o fornecedor escolhido na abertura:</p>
+
+                <ul class="wwm-batch-supplier-list" id="batch-supplier-summary">
+                    ${routing.groups.map(group => `
+                        <li class="${this.sameId(group.id, 'sup-hobart') ? 'is-hobart' : ''}">
+                            <span class="wwm-batch-supplier-icon" aria-hidden="true"><i class="fas fa-industry"></i></span>
+                            <strong>${Utils.escapeHtml(group.nome)}</strong>
+                            <span>${plural(group.count)}</span>
+                        </li>
+                    `).join('')}
+                    ${routing.withoutSupplier > 0 ? `
+                        <li class="is-missing">
+                            <span class="wwm-batch-supplier-icon" aria-hidden="true"><i class="fas fa-circle-question"></i></span>
+                            <strong>Sem fornecedor definido</strong>
+                            <span>${plural(routing.withoutSupplier)}</span>
+                        </li>
+                    ` : ''}
+                </ul>
+
+                ${routing.withoutSupplier > 0 ? `
                 <div class="form-group">
-                    <label for="batch-supplier">Fornecedor *</label>
+                    <label for="batch-supplier">Fornecedor para ${plural(routing.withoutSupplier)} sem fornecedor definido *</label>
                     <select id="batch-supplier" class="form-control" required>
                         <option value="">Selecione um fornecedor...</option>
-                        ${suppliers.map(s => 
+                        ${suppliers.map(s =>
         `<option value="${s.id}">${Utils.escapeHtml(s.nome)}</option>`
     ).join('')}
                     </select>
+                    <small class="text-muted">Usado somente nos pedidos antigos que não têm fornecedor. Os demais não mudam.</small>
                 </div>
+                ` : ''}
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="Utils.closeModal()">Cancelar</button>
@@ -1275,10 +1368,12 @@ const Aprovacoes = {
             return;
         }
 
-        const fornecedorId = document.getElementById('batch-supplier').value;
+        // Só os pedidos antigos, sem fornecedor, usam o campo do lote.
+        const fallbackSupplierId = document.getElementById('batch-supplier')?.value || '';
+        const routing = this.getBatchSupplierRouting(this.selectedIds);
 
-        if (!fornecedorId) {
-            Utils.showToast('Selecione um fornecedor', 'warning');
+        if (routing.withoutSupplier > 0 && !fallbackSupplierId) {
+            Utils.showToast('Selecione o fornecedor dos pedidos sem fornecedor definido', 'warning');
             return;
         }
 
@@ -1289,11 +1384,14 @@ const Aprovacoes = {
             const currentUser = Auth.getCurrentUser();
             const userName = currentUser?.name || 'Sistema';
             const emailPromises = [];
+            const supplierEmailFailures = [];
             let failed = 0;
 
             let approved = 0;
 
             for (const id of this.selectedIds) {
+                // Mantém o fornecedor que o técnico escolheu em cada pedido.
+                const fornecedorId = DataManager.getSolicitationById(id)?.fornecedorId || fallbackSupplierId;
                 const result = await DataManager.updateSolicitationStatus(id, 'aprovada', {
                     fornecedorId,
                     approvedAt: Date.now(),
@@ -1323,7 +1421,10 @@ const Aprovacoes = {
                         }
 
                         emailPromises.push(this.sendTechnicianApprovalNotification(sol, userName, { silent: true }));
-                        emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }));
+                        emailPromises.push(this.sendSupplierApprovalNotification(sol, userName, { silent: true }).then((summary) => {
+                            supplierEmailFailures.push(...(summary?.failures || []));
+                            return summary;
+                        }));
                     }
                 } else {
                     failed++;
@@ -1359,8 +1460,13 @@ const Aprovacoes = {
                     if (summary.sentCount > 0) {
                         Utils.showToast(`${summary.sentCount} notificação(ões) por e-mail enviada(s).`, 'info');
                     }
-                    if (summary.failedCount > 0) {
-                        Utils.showToast(`${summary.failedCount} notificação(ões) por e-mail falharam. Verifique o log.`, 'warning');
+                    if (supplierEmailFailures.length > 0) {
+                        // Fornecedor sem aviso é falha operacional: fica na tela até ser lido.
+                        Utils.showSupplierEmailFailureDialog(supplierEmailFailures);
+                    }
+                    const otherFailures = summary.failedCount - supplierEmailFailures.filter((item) => item.recipient).length;
+                    if (otherFailures > 0) {
+                        Utils.showToast(`${otherFailures} notificação(ões) por e-mail falharam. Verifique o log.`, 'warning');
                     }
                 });
             }

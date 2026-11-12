@@ -433,6 +433,8 @@ const Solicitacoes = {
                     label = 'Técnico abriu a solicitação';
                 } else if (event.event === 'status_changed') {
                     label = this.getTimelineStatusLabel(event.to || sol.status);
+                } else if (event.event === 'supplier_corrected') {
+                    label = event.comment || 'Fornecedor corrigido';
                 }
                 events.push({
                     label,
@@ -1065,6 +1067,41 @@ const Solicitacoes = {
     /**
      * View solicitation details
      */
+    /**
+     * Ferramentas do gestor/administrador para o pedido que aguarda envio:
+     * reenviar o e-mail ao fornecedor e corrigir pedido encaminhado ao fornecedor errado.
+     */
+    renderSupplierRoutingTools(sol, normalizedStatus) {
+        const role = Auth.getRole();
+        if (!['admin', 'administrador', 'gestor'].includes(role) || normalizedStatus !== 'aprovada') {
+            return '';
+        }
+        const isAdmin = role !== 'gestor';
+        const mismatch = typeof DataManager.getSupplierRoutingMismatch === 'function'
+            ? DataManager.getSupplierRoutingMismatch(sol)
+            : null;
+        const safeId = Utils.escapeHtml(sol.id);
+
+        return `
+            ${mismatch ? `
+                <div class="wwm-routing-note" role="alert">
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span>Este pedido foi aberto para <strong>${Utils.escapeHtml(mismatch.expectedName)}</strong>, mas está com ${Utils.escapeHtml(mismatch.currentName)}.${isAdmin ? '' : ' Peça a um administrador para corrigir.'}</span>
+                </div>
+            ` : ''}
+            <div class="wwm-routing-actions">
+                ${mismatch && isAdmin ? `
+                    <button type="button" class="btn btn-sm btn-primary" onclick="Utils.correctSolicitationSupplier('${safeId}')">
+                        <i class="fas fa-share" aria-hidden="true"></i> Encaminhar para ${Utils.escapeHtml(mismatch.expectedName)}
+                    </button>
+                ` : ''}
+                <button type="button" class="btn btn-sm btn-outline" data-resend-supplier-email="${safeId}" onclick="Utils.resendSupplierApprovalEmail('${safeId}')">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i> Reenviar e-mail ao fornecedor
+                </button>
+            </div>
+        `;
+    },
+
     viewDetails(id) {
         const sol = DataManager.getSolicitationById(id);
         if (!sol) {
@@ -1223,6 +1260,7 @@ const Solicitacoes = {
                     <div class="form-group">
                         <label>Fornecedor</label>
                         <p><strong>${Utils.escapeHtml(supplier.nome)}</strong></p>
+                        ${this.renderSupplierRoutingTools(sol, normalizedStatus)}
                     </div>
                 ` : ''}
 

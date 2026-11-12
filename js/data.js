@@ -1521,6 +1521,38 @@ const DataManager = {
         };
     },
 
+    /**
+     * Detecta solicitação encaminhada a um fornecedor diferente do escolhido na
+     * abertura. O nome do fornecedor é gravado quando a solicitação é criada; se
+     * ele aponta para um fornecedor e o `fornecedorId` para outro, o destino foi
+     * trocado depois (caso da antiga aprovação em lote).
+     */
+    getSupplierRoutingMismatch(solicitation = {}) {
+        const currentId = this.getCanonicalSupplierId(solicitation?.fornecedorId);
+        const openedName = this.normalizeSupplierName(solicitation?.fornecedorNome || '');
+        if (!currentId || !openedName) {
+            return null;
+        }
+
+        const matchedProfiles = this.getCanonicalSupplierProfiles().filter((profile) =>
+            profile.tokens.some((token) => this.matchesSupplierProfileToken(openedName, token))
+        );
+        // Só é conclusivo quando o nome aponta para um único fornecedor conhecido.
+        if (matchedProfiles.length !== 1 || matchedProfiles[0].id === currentId) {
+            return null;
+        }
+
+        const expectedId = matchedProfiles[0].id;
+        const expectedSupplier = this.getSupplierById(expectedId);
+        const currentSupplier = this.getSupplierById(currentId);
+        return {
+            expectedId,
+            expectedName: expectedSupplier?.nome || String(solicitation.fornecedorNome).trim(),
+            currentId,
+            currentName: currentSupplier?.nome || currentId
+        };
+    },
+
     getGestorPassword() {
         const key = 'diversey_gestor_recovery_password';
         const fallback = 'gestor123';
@@ -3281,6 +3313,26 @@ const DataManager = {
         if (normalizedExistingSupplier.fornecedorNome) {
             solicitation.fornecedorNome = normalizedExistingSupplier.fornecedorNome;
         }
+        // O fornecedor é definido na abertura da solicitação. Nenhuma mudança de
+        // status (aprovação individual ou em lote) pode trocá-lo: só a correção
+        // explícita feita pelo administrador (supplierCorrection) altera o destino.
+        const supplierCorrection = payload.supplierCorrection === true
+            && previousStatus === nextStatus
+            && nextStatus === this.STATUS.APROVADA;
+        const supplierCorrectionTargetId = supplierCorrection ? this.getCanonicalSupplierId(payload.fornecedorId) : null;
+        delete payload.supplierCorrection;
+        const lockedSupplierId = normalizedExistingSupplier.fornecedorId || null;
+        if (lockedSupplierId && !supplierCorrection) {
+            const requestedSupplierId = Object.prototype.hasOwnProperty.call(payload, 'fornecedorId')
+                ? this.getCanonicalSupplierId(payload.fornecedorId)
+                : null;
+            if (requestedSupplierId && requestedSupplierId !== lockedSupplierId) {
+                console.warn(`Troca de fornecedor ignorada na mudança de status: ${requestedSupplierId} -> mantido ${lockedSupplierId}`);
+            }
+            delete payload.fornecedorId;
+            delete payload.fornecedorNome;
+            delete payload.fornecedorEmail;
+        }
         if (Object.prototype.hasOwnProperty.call(payload, 'fornecedorId') || Object.prototype.hasOwnProperty.call(payload, 'fornecedorNome')) {
             const normalizedPayloadSupplier = this.normalizeSupplierReference({
                 fornecedorId: Object.prototype.hasOwnProperty.call(payload, 'fornecedorId') ? payload.fornecedorId : solicitation.fornecedorId,
@@ -3317,6 +3369,56 @@ const DataManager = {
         };
 
         if (previousStatus === nextStatus) {
+            if (supplierCorrection) {
+                const targetSupplierId = supplierCorrectionTargetId;
+                const targetSupplier = targetSupplierId ? this.getSupplierById(targetSupplierId) : null;
+                if (!targetSupplierId || !targetSupplier) {
+                    return { success: false, error: 'invalid_supplier', message: 'Fornecedor de destino não encontrado.' };
+                }
+                if (targetSupplierId === lockedSupplierId) {
+                    return { success: false, error: 'already_applied', message: 'A solicitação já está com este fornecedor.' };
+                }
+
+                const previousSupplierName = lockedSupplierId
+                    ? (this.getSupplierById(lockedSupplierId)?.nome || lockedSupplierId)
+                    : 'sem fornecedor';
+                const targetSupplierName = targetSupplier.nome || targetSupplier.name || targetSupplierId;
+                const currentVersion = Number(solicitation.audit?.version) || 0;
+                solicitation.audit = {
+                    ...(solicitation.audit || {}),
+                    version: currentVersion + 1,
+                    lastUpdatedAt: now,
+                    lastUpdatedBy: payload.by || 'Sistema'
+                };
+                if (!Array.isArray(solicitation.timeline)) {
+                    solicitation.timeline = [];
+                }
+                solicitation.timeline.push({
+                    event: 'supplier_corrected',
+                    at: now,
+                    by: payload.by || 'Sistema',
+                    comment: `Fornecedor corrigido: ${previousSupplierName} → ${targetSupplierName}`
+                });
+                solicitation.fornecedorId = targetSupplierId;
+                solicitation.fornecedorNome = targetSupplierName;
+                solicitation.updatedAt = now;
+
+                const savedSupplierCorrection = await this.persistCriticalCollection(this.KEYS.SOLICITATIONS, solicitations, {
+                    changedIds: solicitation?.id ? [solicitation.id] : []
+                });
+                if (!savedSupplierCorrection) {
+                    const failure = this.buildCloudPersistenceFailure(
+                        'Não foi possível gravar a correção do fornecedor na nuvem.',
+                        { permissionDeniedMessage: 'Somente o administrador pode corrigir o fornecedor de uma solicitação já aprovada.' }
+                    );
+                    return { success: false, error: failure.code, message: failure.message };
+                }
+
+                this.queueOneDriveBackup(solicitation);
+                this.createSolicitationsBackup({ download: false, reason: 'auto-supplier-correction', silent: true });
+                return { success: true, solicitation: this.cloneSerializable(solicitation, solicitation) };
+            }
+
             if (nextStatus === this.STATUS.EM_TRANSITO) {
                 const currentTrackingCode = String(solicitation.trackingCode || '').trim();
                 const incomingTrackingCode = String(payload.trackingCode || '').trim() || currentTrackingCode;
