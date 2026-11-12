@@ -451,8 +451,44 @@ const FornecedorPortal = {
     },
 
     /**
+     * Mini fluxo de 5 etapas dentro de cada pedido. Mostra onde o pedido está
+     * agora — sem precisar olhar só para o badge de status — e, ao registrar
+     * o envio, muda visivelmente de "Gestor aprova" para "Fornecedor envia".
+     */
+    renderOrderPipeline(sol) {
+        const status = this.normalizeStatus(sol.status);
+        const current = status === 'finalizada' ? 5
+            : status === 'em-transito' ? 3
+                : status === 'aprovada' ? 3
+                    : 2;
+        const steps = [
+            { n: 1, label: 'Técnico cria' },
+            { n: 2, label: 'Gestor aprova' },
+            { n: 3, label: 'Fornecedor envia' },
+            { n: 4, label: 'Técnico confirma' },
+            { n: 5, label: 'Finalizada' }
+        ];
+        // "Fornecedor envia" só vira "done" quando o pedido já saiu da aprovação (em-transito/finalizada).
+        return `
+            <ol class="supplier-order-pipeline" data-pipeline-order="${Utils.escapeHtml(sol.id)}" aria-label="Etapa do pedido">
+                ${steps.map((step) => {
+        const cls = step.n < current || (step.n === 3 && status !== 'aprovada' && current >= 3)
+            ? 'done'
+            : (step.n === current ? 'active' : '');
+        const aria = cls === 'active' ? ' aria-current="step"' : '';
+        return `<li class="${cls}"${aria}><span class="supplier-order-pipeline-dot" aria-hidden="true">${step.n}</span><small>${step.label}</small></li>`;
+    }).join('')}
+            </ol>
+        `;
+    },
+
+    /**
      * Campos "Data do envio" + "Rastreio" (os dois são obrigatórios para despachar).
      * `variant` distingue a lista ('table') da janela de detalhes ('modal').
+     * Enquanto o pedido ainda não foi despachado o formulário fica visível. Depois
+     * que o fornecedor registra o envio, mostramos um painel "Enviado em …" com
+     * botão para corrigir — a mudança de etapa fica evidente, não é só um aviso
+     * de 5 segundos.
      */
     renderShipmentFields(sol, variant = 'table') {
         const isModal = variant === 'modal';
@@ -462,15 +498,42 @@ const FornecedorPortal = {
         const dateId = `supplier-${variant}-shipping-date-${id}`;
         const codeId = `supplier-${variant}-tracking-${id}`;
         const normalizedTracking = this.normalizeTrackingCode(sol.trackingCode || '');
-        const hasShipment = !!normalizedTracking;
+        const shippingDate = Utils.normalizeShippingDate(sol.dataEnvio);
+        const status = this.normalizeStatus(sol.status);
+        const alreadyShipped = status === 'em-transito' && !!normalizedTracking;
         const today = Utils.getLocalDateString();
         const minDate = Number(sol.approvedAt) > 0 ? Utils.getLocalDateString(new Date(Number(sol.approvedAt))) : '';
         const saveCall = isModal
             ? `FornecedorPortal.saveTracking('${sol.id}', { preferModal: true })`
             : `FornecedorPortal.saveTracking('${sol.id}')`;
+        const editCall = isModal
+            ? `FornecedorPortal.openShipmentEditor('${sol.id}', { preferModal: true })`
+            : `FornecedorPortal.openShipmentEditor('${sol.id}')`;
+
+        if (alreadyShipped) {
+            // Painel de confirmação: o fornecedor vê de cara "Enviado!" e a etapa já avançou.
+            return `
+                <div class="supplier-shipment-confirmed" data-supplier-shipment="${id}" data-supplier-shipped="true">
+                    <div class="supplier-shipment-confirmed-head">
+                        <span class="supplier-shipment-confirmed-icon" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
+                        <div>
+                            <strong>Envio registrado</strong>
+                            <small>Etapa 3 de 5 — <strong>Fornecedor envia</strong> · agora aguardando confirmação do técnico.</small>
+                        </div>
+                    </div>
+                    <dl class="supplier-shipment-confirmed-grid">
+                        <div><dt>Data do envio</dt><dd>${shippingDate ? Utils.formatDate(shippingDate) : 'Não informada'}</dd></div>
+                        <div><dt>Nº do rastreio</dt><dd>${Utils.escapeHtml(normalizedTracking)}</dd></div>
+                    </dl>
+                    <button type="button" class="btn btn-sm btn-outline supplier-shipment-edit" onclick="${editCall}">
+                        <i class="fas fa-pen-to-square" aria-hidden="true"></i> Corrigir data ou rastreio
+                    </button>
+                </div>
+            `;
+        }
 
         return `
-            <div class="supplier-shipment-form" data-supplier-shipment="${id}">
+            <div class="supplier-shipment-form" data-supplier-shipment="${id}" data-supplier-shipped="false">
                 <div class="supplier-shipment-field">
                     <label for="${dateId}">Data do envio</label>
                     <input type="date" id="${dateId}" class="form-control" ${dateAttr}="${id}"
@@ -484,13 +547,45 @@ const FornecedorPortal = {
                            placeholder="Código de rastreio" autocapitalize="characters" autocomplete="off" required>
                 </div>
                 <button type="button" class="btn ${isModal ? '' : 'btn-sm '}btn-primary supplier-shipment-save" onclick="${saveCall}">
-                    <i class="fas fa-truck" aria-hidden="true"></i> ${hasShipment ? 'Atualizar envio' : 'Registrar envio'}
+                    <i class="fas fa-truck" aria-hidden="true"></i> Registrar envio
                 </button>
             </div>
-            <small class="supplier-tracking-help">${hasShipment
-        ? 'Corrija a data ou o rastreio e toque em Atualizar envio.'
-        : 'Informe a data e o rastreio. Ao registrar, o pedido passa para <strong>Em trânsito</strong>.'}</small>
+            <small class="supplier-tracking-help">Informe a data e o rastreio. Ao registrar, o pedido passa de <strong>Aprovada</strong> para <strong>Em trânsito</strong>.</small>
         `;
+    },
+
+    /**
+     * Mostra o formulário novamente para corrigir data ou rastreio depois do envio.
+     * Trocar inline (sem precisar voltar o status) evita susto: o pedido continua
+     * em trânsito, o fornecedor só ajusta o que precisa.
+     */
+    openShipmentEditor(id, options = {}) {
+        const selector = options.preferModal
+            ? `#modal-content [data-supplier-shipment="${id}"]`
+            : `#content-area [data-supplier-shipment="${id}"]`;
+        const row = document.querySelector(selector);
+        if (!row) {
+            return;
+        }
+        const sol = DataManager.getSolicitationById(id);
+        if (!sol) {
+            return;
+        }
+        // Força o formulário temporariamente: sol com status "aprovada" devolve o formulário
+        const draft = { ...sol, status: 'aprovada' };
+        const html = this.renderShipmentFields(draft, options.preferModal ? 'modal' : 'table');
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html.trim();
+        const replacement = wrapper.firstElementChild;
+        if (!replacement) {
+            return;
+        }
+        replacement.dataset.supplierShipmentEditing = 'true';
+        row.replaceWith(replacement);
+        const dateInput = replacement.querySelector('input[type="date"]');
+        if (dateInput) {
+            dateInput.focus();
+        }
     },
 
     renderShipmentSummary(sol) {
@@ -575,6 +670,7 @@ const FornecedorPortal = {
                                     <div class="supplier-status-cell">
                                         ${Utils.renderStatusBadge(status)}
                                         <small>${Utils.escapeHtml(this.getShippingSituation(sol))}</small>
+                                        ${this.renderOrderPipeline(sol)}
                                     </div>
                                 </td>
                                 <td>${this.renderTrackingCell(sol, scope)}</td>
@@ -787,12 +883,34 @@ const FornecedorPortal = {
                 modalInput.value = trackingCode;
             }
 
-            Utils.showToast(`Envio registrado em ${Utils.formatDate(dataEnvio)}. Pedido em trânsito.`, 'success');
+            const wasAlreadyShipped = this.normalizeStatus(sol.status) === 'em-transito';
+            Utils.showToast(
+                wasAlreadyShipped
+                    ? `Envio atualizado — ${Utils.formatDate(dataEnvio)} · ${trackingCode}.`
+                    : `Pedido avançou para Em trânsito — enviado em ${Utils.formatDate(dataEnvio)}.`,
+                'success'
+            );
 
             const updatedSolicitation = result?.solicitation || DataManager.getSolicitationById(id) || { ...sol, status: 'em-transito', trackingCode, dataEnvio };
             this.notifyTechnicianTrackingEmail(updatedSolicitation, trackingCode, userName, dataEnvio);
 
             this.refreshTable();
+
+            // Destaque visual para a transição: a linha pisca por um instante para
+            // confirmar que a etapa mudou (celulares perdem o toast no scroll).
+            requestAnimationFrame(() => {
+                const row = document.querySelector(`[data-supplier-shipment="${id}"]`)?.closest('tr');
+                if (row) {
+                    row.classList.add('supplier-row-just-shipped');
+                    const rect = row.getBoundingClientRect();
+                    // Só rolar quando a linha estiver fora da área visível. Evita puxar a
+                    // página para baixo quando ela já está no quadro.
+                    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                    setTimeout(() => row.classList.remove('supplier-row-just-shipped'), 2200);
+                }
+            });
 
             if (this.isDetailModalOpen(id)) {
                 this.openHistory(id);
