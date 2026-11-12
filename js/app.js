@@ -10,8 +10,8 @@ const App = {
     isBootstrapping: false,
     lazyModules: {
         dashboard: './pages/dashboard-v55.js?v=20261108a',
-        solicitacoes: './pages/solicitacoes.js?v=20261111a',
-        aprovacoes: './pages/aprovacoes.js?v=20261111a',
+        solicitacoes: './pages/solicitacoes.js?v=20261112a',
+        aprovacoes: './pages/aprovacoes.js?v=20261112a',
         pecas: './pages/pecas.js?v=20261109a',
         relatorios: './pages/relatorios-v55.js?v=20261110a',
         fornecedor: './pages/fornecedor.js?v=20261111a',

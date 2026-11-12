@@ -34,8 +34,8 @@ describe('v89 cleanup release', () => {
     test('app and worker release versions agree', () => {
         const app = read('js/config.js');
         const sw = read('service-worker.js');
-        expect(app).toContain("version: 'v98-data-envio'");
-        expect(sw).toContain("const CACHE_VERSION = 'v98-data-envio'");
+        expect(app).toContain("version: 'v99-fornecedor-lote'");
+        expect(sw).toContain("const CACHE_VERSION = 'v99-fornecedor-lote'");
     });
 
     test('active navigation routes are unchanged', () => {
