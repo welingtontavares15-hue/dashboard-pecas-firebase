@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/portal-wwm-cover@2x.png" alt="Portal de Peças WWM — vista superior do ciclo de lavagem" width="100%">
+</p>
+
 # Dashboard de Solicitações de Peças - Diversey
 
 Aplicação web/PWA para gestão de solicitações de peças, com frontend estático e sincronização pelo Firebase Realtime Database.
